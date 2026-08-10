@@ -47,9 +47,23 @@ No open P0/P1 carryover as of this writing — the e2e harness (`test/e2e/harnes
 already targets the rewritten page's ids (`body[data-view]`, `.strip`, `#glance`); it is
 not stale.
 
-Open follow-ups from the 2026-08-10 expert panel re-review (buyer-side S&H in verdicts,
-unset-vs-zero fulfillment, restore fidelity, a11y) are planned in
-[docs/panel-review-2026-08-10.md](docs/panel-review-2026-08-10.md); none are implemented yet.
+The 2026-08-10 expert panel re-review ([docs/panel-review-2026-08-10.md](docs/panel-review-2026-08-10.md))
+added a second requirements layer, F1–F8, all of which are now implemented:
+
+| # | Requirement | Where it lives |
+|---|---|---|
+| F1 | Verdicts price landed cost (bid + buyer S&H, once per order) | `landedCost` (`index.html`), quick-check Combining toggle, `test/panel.test.mjs` |
+| F2 | Blank fulfillment means unset, not a deliberate $0 | `fulfillmentUnset`/`renderFulfillPrompt` (`index.html`) |
+| F3 | Restore keeps each slot's top 10, not just a global top-N | `persistContributors`, pinned by `test/panel.test.mjs` |
+| F4 | Focus trap + focus return for `aria-modal` sheets | `trapTab`/`openSheet`/`closeSheet` (`index.html`) |
+| F5 | Collector collation named as an estimate where its EV is read | `renderCollectorNote` (`index.html`) |
+| F6 | Tax gap disclosed: processing is modelled on hammer + S&H only | fee note, Advanced (`index.html`) |
+| F7 | Sub-$1 asks flagged as advice; the allocation is unchanged | `asksBelowFloor` + desk footnote, `test/panel.test.mjs` |
+| F8 | Thin pool cache: warm start, STALE stamp, revalidate behind it | `thinPool`/`evictPools`/`getPool` (`index.html`), `test/e2e/s9-poolcache.mjs` |
+
+Four panel proposals were killed with reasons recorded in the review doc (cash-out
+haircut, probability-of-profit, collector pool narrowing, ask-floor retightening) — do not
+revive them without reading why they lost.
 
 ## Delegated decisions — how they resolved
 

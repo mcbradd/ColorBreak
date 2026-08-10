@@ -57,7 +57,10 @@ desaturate the bar and flip the ticker stamp to STALE.
 
 ## Verdicts
 
-Net = slot EV (run) − asking price. Tags: **+EV / FAIR / −EV**, where FAIR is
+Net = slot EV (run) − landed cost, where landed cost is the asking price plus the buyer's
+S&H — charged once per order, so a slot combined into an order already paying it adds
+none. The seller side has always modelled S&H; the buyer side must too, or a near-deadband
+FAIR is really −EV. Tags: **+EV / FAIR / −EV**, where FAIR is
 |net| ≤ max(8% of price, $1) — no false precision. **LOTTERY** when the top card is ≥50%
 of slot EV, else **STEADY**. Tags always carry text; color never stands alone.
 
