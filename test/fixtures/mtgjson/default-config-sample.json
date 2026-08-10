@@ -1,0 +1,26 @@
+{
+  "code": "ZZZ",
+  "releaseDate": "2025-01-10",
+  "meta": { "version": "5.2.1+fixture", "date": "2025-01-05" },
+  "cardsById": {
+    "z1": { "number": "1", "setCode": "ZZZ", "rarity": "common" }
+  },
+  "booster": {
+    "default": {
+      "boosters": [
+        { "contents": { "commonSheet": 15 }, "weight": 100 }
+      ],
+      "sheets": {
+        "commonSheet": { "foil": false, "cards": { "z1": 1 } }
+      }
+    },
+    "jumpstart": {
+      "boosters": [
+        { "contents": { "commonSheet": 20 }, "weight": 100 }
+      ],
+      "sheets": {
+        "commonSheet": { "foil": false, "cards": { "z1": 1 } }
+      }
+    }
+  }
+}

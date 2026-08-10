@@ -1,0 +1,8 @@
+{
+  "exemptions": [
+    { "set": "EOE", "product": "collector", "slot": "rareMythic", "reason": "no per-rarity split published for collector rare/mythic" }
+  ],
+  "consistency": [
+    { "set": "EOE", "product": "play", "source": "TEV", "date": "2025-07-26", "offsetNote": "raw EV within basis-aligned tolerance of theexpectedvalue.com same-day figure" }
+  ]
+}

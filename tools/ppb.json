@@ -1,0 +1,11 @@
+{
+  "_comment": "Hand-maintained packs-per-box table (§3.2). NOT derivable from MTGJSON — WotC changes this by fiat. Feb-2025 DFT cutover drops Play Booster boxes from 36 to 30 packs; every other product line is flat. 'overrides' lets a specific set/product diverge (e.g. a Universes Beyond Collector Booster box) without touching the default table.",
+  "cutoverDate": "2025-02-01",
+  "defaults": {
+    "play": { "before": 36, "atOrAfter": 30 },
+    "draft": 36,
+    "set": 30,
+    "collector": 12
+  },
+  "overrides": {}
+}

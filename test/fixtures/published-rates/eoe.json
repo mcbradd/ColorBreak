@@ -1,0 +1,10 @@
+{
+  "url": "https://magic.wizards.com/en/news/making-magic/collecting-edge-of-eternities",
+  "ppb": { "play": 30, "collector": 12 },
+  "entries": [
+    { "product": "play", "stat": "slotRate", "selector": { "sheet": "stellarSights", "slot": "wildcard" }, "value": 12.5 },
+    { "product": "play", "stat": "perBox", "selector": { "sheet": "topper" }, "value": 1 },
+    { "product": "play", "stat": "rarityMix", "selector": { "slot": "wildcard", "rarity": "uncommon" }, "value": 62.5 },
+    { "product": "play", "stat": "rarityMix", "selector": { "slot": "wildcard", "rarity": "mythic" }, "max": 1 }
+  ]
+}

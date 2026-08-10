@@ -1,0 +1,39 @@
+{
+  "code": "EOE",
+  "releaseDate": "2025-07-25",
+  "meta": { "version": "5.2.1+fixture", "date": "2025-07-20" },
+  "cardsById": {
+    "c1": { "number": "1", "setCode": "EOE", "rarity": "common" },
+    "c2": { "number": "2", "setCode": "EOE", "rarity": "common" },
+    "u1": { "number": "101", "setCode": "EOE", "rarity": "uncommon" },
+    "r1": { "number": "201", "setCode": "EOE", "rarity": "rare" },
+    "m1": { "number": "202", "setCode": "EOE", "rarity": "mythic" },
+    "w1": { "number": "301", "setCode": "EOE", "rarity": "rare" },
+    "spg1": { "number": "1", "setCode": "SPG", "rarity": "rare" },
+    "spg2": { "number": "2", "setCode": "SPG", "rarity": "mythic" }
+  },
+  "booster": {
+    "play": {
+      "boosters": [
+        { "contents": { "commonSheet": 7, "uncommonSheet": 3, "rareMythicSheet": 1, "wildcardSheet": 1 }, "weight": 100 }
+      ],
+      "sheets": {
+        "commonSheet": { "foil": false, "cards": { "c1": 1, "c2": 1 } },
+        "uncommonSheet": { "foil": false, "cards": { "u1": 1 } },
+        "rareMythicSheet": { "foil": false, "cards": { "r1": 7, "m1": 1 } },
+        "wildcardSheet": { "foil": false, "cards": { "w1": 1 } },
+        "boxToppers": { "foil": false, "cards": { "spg1": 1, "spg2": 1 } }
+      }
+    },
+    "collector": {
+      "boosters": [
+        { "contents": { "commonSheet": 4, "uncommonSheet": 2, "rareMythicSheet": 3 }, "weight": 100 }
+      ],
+      "sheets": {
+        "commonSheet": { "foil": true, "cards": { "c1": 1, "c2": 1 } },
+        "uncommonSheet": { "foil": true, "cards": { "u1": 1 } },
+        "rareMythicSheet": { "foil": true, "cards": { "r1": 7, "m1": 1 } }
+      }
+    }
+  }
+}

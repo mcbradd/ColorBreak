@@ -1,0 +1,22 @@
+{
+  "_comment": "Hand-maintained per (set, product) sheet routing (§3.2). 'slots' maps a raw booster-sheet name to the v2 layout slot label(s) it feeds — a string for the normal case, an array when one physical sheet legitimately rides more than one slot (e.g. a set's dual-purpose land/wildcard sheet). 'topper' names the box-topper sheet and its hand-sourced expected copies/box (ratePerBox is not in MTGJSON — WotC/community-sourced); null when the product ships no box topper. Seed sets beyond EOE land in S3b.",
+  "EOE": {
+    "play": {
+      "slots": {
+        "commonSheet": "common",
+        "uncommonSheet": "uncommon",
+        "rareMythicSheet": "rareMythic",
+        "wildcardSheet": "wildcard"
+      },
+      "topper": { "sheet": "boxToppers", "ratePerBox": 1 }
+    },
+    "collector": {
+      "slots": {
+        "commonSheet": "common",
+        "uncommonSheet": "uncommon",
+        "rareMythicSheet": "rareMythic"
+      },
+      "topper": null
+    }
+  }
+}
