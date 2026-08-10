@@ -71,3 +71,25 @@ test("landedCost: S&H is charged once per order, never per slot", () => {
 test("landedCost: zero bid still lands at the S&H the buyer pays", () => {
   assert.equal(P.landedCost(0, 4.99, false), 4.99);
 });
+
+// ---- F7: asksBelowFloor (advice only — the allocation itself is untouched) ----
+test("asksBelowFloor: names the slots allocated under the floor", () => {
+  const asks = [{ id: "W", ask: 12 }, { id: "C", ask: 0.4 }, { id: "L", ask: 0.99 }];
+  assert.deepEqual(P.asksBelowFloor(asks, P.ASK_FLOOR), ["C", "L"]);
+});
+
+test("asksBelowFloor: an ask exactly at the floor clears it", () => {
+  assert.deepEqual(P.asksBelowFloor([{ id: "L", ask: 1 }], 1), []);
+});
+
+test("asksBelowFloor: unpriced slots (null ask) are not advice", () => {
+  assert.deepEqual(P.asksBelowFloor([{ id: "W", ask: null }, { id: "U", ask: undefined }], 1), []);
+});
+
+test("asksBelowFloor: flagging leaves the allocation summing to break-even", () => {
+  const be = 100, evs = { W: 60, U: 39.5, C: 0.5 };
+  const total = 100;
+  const asks = Object.entries(evs).map(([id, ev]) => ({ id, ask: be * ev / total }));
+  assert.deepEqual(P.asksBelowFloor(asks, 1), ["C"]);
+  near(asks.reduce((a, x) => a + x.ask, 0), be);
+});

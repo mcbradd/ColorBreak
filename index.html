@@ -233,6 +233,7 @@ footer { margin-top:16px; color:var(--faint); font-size:12px; line-height:1.6; f
 <section class="panel" id="setup" aria-label="Break composition">
   <p class="promise" id="promise">Build your break — any mix of boxes, packs, and bundles across sets. ColorBreak prices all 8 slots from live market data.</p>
   <div id="compList"></div>
+  <div class="banner warn" id="collectorWarn" role="status"></div>
   <div class="row">
     <button class="ghost" id="addProduct" type="button">+ Add product</button>
     <button class="go" id="run" type="button">Load board</button>
@@ -252,6 +253,7 @@ footer { margin-top:16px; color:var(--faint); font-size:12px; line-height:1.6; f
       <label class="f" style="max-width:140px"><span>Processing flat $</span><input type="number" id="procFlat" step="0.05" min="0" value="0.30" inputmode="decimal"></label>
     </div>
     <p class="note">Whatnot's published schedule (Aug 2026): 8% commission on the hammer, plus 2.9% + 30&cent; payment processing on the whole order (hammer + buyer S&amp;H + tax). Buyers pay the S&amp;H, which offsets your fulfillment cost — the desk nets both. Fulfillment is one number: everything it costs you to get an order out the door.</p>
+    <p class="note">ColorBreak computes processing on hammer + S&amp;H only. Sales tax is collected per buyer, varies by state, and isn't knowable from this page — so where tax applies, real processing runs a little higher and break-even here reads slightly optimistic (roughly 2.9% of the tax, a few cents to a few dimes per order).</p>
     <div class="row" style="margin-top:10px">
       <label class="f" style="max-width:160px"><span>Default ask $ / slot</span><input type="number" id="uniformPrice" step="0.5" min="0" value="18" inputmode="decimal"></label>
       <label class="f" style="max-width:180px"><span>Min card value $ (off = blank)</span><input type="number" id="thr" step="0.25" min="0" placeholder="off" inputmode="decimal"></label>
@@ -345,6 +347,7 @@ footer { margin-top:16px; color:var(--faint); font-size:12px; line-height:1.6; f
       <thead><tr><th scope="col">Slot</th><th scope="col">EV (break)</th><th scope="col">Ask to clear</th><th scope="col">Your $</th><th scope="col">Net / order</th><th scope="col">Combine</th></tr></thead>
       <tbody id="deskBody"></tbody>
     </table></div>
+    <p class="note" id="askFloorNote" style="display:none"></p>
     <div class="beline"><button type="button" class="ghost" id="combineBtn" disabled>Combine checked into one order</button></div>
     <div id="groupList"></div>
   </section>
@@ -807,6 +810,16 @@ function verdictOf(net, price) {
 function landedCost(bid, buyerSH, combining) {
   return bid + (combining ? 0 : buyerSH);
 }
+
+// Ask-to-clear splits break-even by EV share, so a thin slot can be allocated less
+// than the ~$1 a live bid realistically clears — money the break will never collect
+// there. Retightening the allocation was rejected: the ask column has to keep summing
+// to break-even. So this is advice — name the slots and let the seller move that
+// money onto slots that can carry it.
+const ASK_FLOOR = 1;
+function asksBelowFloor(asks, floor) {
+  return asks.filter(a => Number.isFinite(a.ask) && a.ask < floor).map(a => a.id);
+}
 // stale-while-revalidate: stamps, load phases, changed-verdict cue (S2)
 function priceStamp(source, ageMs) {
   if (source === "manual") return "MANUAL";
@@ -942,7 +955,20 @@ function addItem(setCode, key) {
 }
 
 // ===== composition list =====
+// Collector Boosters have no published collation; PRESETS.collector is a rough slot
+// mix, and its "(rough)" label only shows in Advanced. Say it where the EV is read,
+// and clear it the moment the line item leaves the break.
+function renderCollectorNote() {
+  const el = $("collectorWarn");
+  const labels = [...new Set(comp.filter(i => (productOf(i) || {}).packType === "collector")
+    .map(i => `${i.set} ${(productOf(i) || {}).label || i.key}`))];
+  if (!labels.length) { el.style.display = "none"; return; }
+  el.textContent = `${labels.join(", ")}: Collector Booster collation is an estimate — modelled as a rough slot mix, not published sheet weights. Read those EV figures as approximate.`;
+  el.style.display = "block";
+}
+
 function renderComp() {
+  renderCollectorNote();
   const list = $("compList");
   if (!comp.length) {
     list.innerHTML = "";
@@ -1122,13 +1148,23 @@ function updateBoard() {
     `${pricedCount}/8 priced · hammer ${usd0(hammer)} · net ${signed(netAtAsks)}`;
   $("deskNet").style.color = netColor(netAtAsks);
 
+  // ask-to-clear: break-even hammer allocated by EV share — sell each slot at this and the break clears exactly
+  const asks = rows.map(r => ({ id: r.id, name: r.name,
+    ask: Number.isFinite(be) && totalEV > 0 && !anyMissing ? be * r.evTotal / totalEV : null }));
+  const thin = asksBelowFloor(asks, ASK_FLOOR);
+  const askNote = $("askFloorNote");
+  if (thin.length) {
+    const names = thin.map(id => SLOTS.find(s => s.id === id).name);
+    askNote.textContent = `† ${names.join(", ")} ${thin.length > 1 ? "ask" : "asks"} for under ${usd(ASK_FLOOR)} — below what a live bid clears. The column still sums to break-even, so carry that shortfall on the slots above.`;
+    askNote.style.display = "block";
+  } else askNote.style.display = "none";
+
   for (const r of rows) {
     const tr = document.querySelector(`#deskBody tr[data-slot="${r.id}"]`);
     if (!tr) continue;
     tr.querySelector(".c-ev").textContent = money(r.evTotal);
-    // ask-to-clear: break-even hammer allocated by EV share — sell each slot at this and the break clears exactly
-    const ask = Number.isFinite(be) && totalEV > 0 ? be * r.evTotal / totalEV : null;
-    tr.querySelector(".c-ask").textContent = ask != null && !anyMissing ? money(ask) : "—";
+    const ask = asks.find(a => a.id === r.id).ask;
+    tr.querySelector(".c-ask").textContent = ask != null ? money(ask) + (thin.includes(r.id) ? " †" : "") : "—";
     const order = orders.find(o => o.slotIds.includes(r.id));
     const net = orderGroupNet(order, priceMap, fees);
     const nc = tr.querySelector(".c-net");
