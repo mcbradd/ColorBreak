@@ -1,5 +1,8 @@
 # ColorBreak — Change Spec from Owner Feedback (2026-08-10)
 
+> **Superseded by [SPEC.md](../SPEC.md)** for status/consolidation. Kept as the detailed
+> acceptance-criteria backing doc for the 2026-08-10 items.
+
 Source: owner playtest of the live build at https://mcbradd.github.io/ColorBreak (main branch, single-file `index.html`, vanilla JS, no build step). This document supersedes conflicting behavior in the current build and in DESIGN.md where noted. Work through P0 before P1, P1 before P2. Each item has acceptance criteria (AC).
 
 ## Verdict on current build

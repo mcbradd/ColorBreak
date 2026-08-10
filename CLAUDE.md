@@ -6,6 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ColorBreak: a price board for MTG Whatnot color breaks, designed and built by Claude toward the outcome the user described. The current shape — everything shipped in a single `index.html` (CSS/JS inline, no build step, no dependencies, works from a plain `file://` open) — is a design choice, not a hard requirement. If additional tooling, files, or a build step makes a better product for the end user, make the better product. Today, everything else in the repo (`test/`, `tools/`, `docs/`) is repo-only and never ships.
 
+**[SPEC.md](SPEC.md) is the single source of truth for product requirements** — it consolidates the original plan (CONTEXT.md/DESIGN.md/ADRs) with the 2026-08-10 owner-feedback revisions. Read it before starting product-facing work.
+
 ## Commands
 
 There is no package.json. Everything runs on Node stdlib.
