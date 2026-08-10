@@ -11,306 +11,378 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,900&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;600&display=swap" rel="stylesheet">
 <style>
-  :root {
-    --bg:#0B0E14; --panel:#141B29; --panel2:#111726; --line:#232C3E; --line2:#1D2434;
-    --field:#0C1017; --fieldline:#2A3346; --text:#E9ECF2; --dim:#8B94A6; --faint:#808CA3;
-    --gold:#C9A227; --goldink:#1C1607; --good:#5FD68B; --bad:#FF6247;
-  }
-  * { box-sizing:border-box; }
-  html { color-scheme:dark; scroll-behavior:smooth; }
-  @media (prefers-reduced-motion: reduce) { html { scroll-behavior:auto; } * { transition:none !important; animation:none !important; } }
-  body { margin:0; background:var(--bg); color:var(--text); font-family:'IBM Plex Sans',sans-serif; font-size:13px; line-height:1.5; -webkit-tap-highlight-color:transparent; }
-  button, input, select { touch-action:manipulation; font:inherit; }
-  [hidden] { display:none !important; }
-  :focus-visible { outline:2px solid var(--gold); outline-offset:2px; }
-  .wrap { max-width:980px; margin:0 auto; padding:0 16px 56px; }
-  .skip { position:absolute; left:8px; top:-48px; z-index:100; background:var(--gold); color:var(--goldink); padding:8px 12px; border-radius:6px; font-weight:600; text-decoration:none; }
-  .skip:focus-visible { top:8px; }
-  h2, .eyebrow, .lbl, label.f > span { font-family:'IBM Plex Mono',monospace; font-size:11px; font-weight:600; letter-spacing:.09em; text-transform:uppercase; color:var(--dim); margin:0; }
-  h1, h2, tr[data-slot] { scroll-margin-top:64px; }
-  .dim { color:var(--dim); }
-  .strong { font-weight:600; }
-  .pos { color:var(--good); }
-  .neg { color:var(--bad); }
-  .fair { color:var(--dim); }
-  /* ===== ticker ===== */
-  .ticker { position:sticky; top:0; z-index:40; display:flex; align-items:center; flex-wrap:wrap; gap:8px 12px; min-height:44px; padding:8px 16px; background:rgba(11,14,20,.92); backdrop-filter:blur(8px); border-bottom:1px solid var(--line2); }
-  h1.wordmark { font-family:'Fraunces',serif; font-weight:900; font-size:19px; margin:0; letter-spacing:-.01em; }
-  .tik-set { font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:.09em; text-transform:uppercase; color:var(--faint); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:38ch; }
-  .tik-spacer { flex:1; }
-  #status { font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--dim); margin:0; display:none; }
-  .tik-stamp { font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:.09em; text-transform:uppercase; color:var(--faint); font-variant-numeric:tabular-nums; }
-  .tik-stamp.stale { color:var(--bad); font-weight:600; }
+:root {
+  --bg:#0B0E14; --panel:#141B29; --panel2:#111726; --line:#232C3E; --line2:#1D2434;
+  --field:#0C1017; --fieldline:#2A3346; --text:#E9ECF2; --dim:#8B94A6; --faint:#808CA3;
+  --gold:#C9A227; --goldink:#1C1607; --good:#5FD68B; --bad:#FF6247;
+}
+* { box-sizing:border-box; }
+html { color-scheme:dark; scroll-behavior:smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior:auto; } }
+body { margin:0; background:var(--bg); color:var(--text); font-family:'IBM Plex Sans',sans-serif; font-size:13px; line-height:1.5; -webkit-tap-highlight-color:transparent; touch-action:manipulation; }
+:focus-visible { outline:2px solid var(--gold); outline-offset:2px; }
+.wrap { max-width:980px; margin:0 auto; padding:0 12px 48px; }
+.skip { position:absolute; left:-9999px; z-index:100; background:var(--gold); color:var(--goldink); border-radius:6px; padding:8px 12px; font-weight:600; text-decoration:none; }
+.skip:focus-visible { left:12px; top:12px; }
+.lbl, label.f > span { font-family:'IBM Plex Mono',monospace; font-size:11px; font-weight:600; letter-spacing:.09em; text-transform:uppercase; color:var(--dim); margin:0 0 4px; }
+.dim { color:var(--dim); }
+b, strong { font-weight:600; }
+.pos { color:var(--good); }
+.neg { color:var(--bad); }
+.fair { color:var(--dim); }
+.mono { font-family:'IBM Plex Mono',monospace; font-variant-numeric:tabular-nums; }
+/* ===== ticker header ===== */
+.ticker { position:sticky; top:0; z-index:40; display:flex; gap:10px; align-items:center; flex-wrap:wrap; min-height:44px; padding:8px 12px; background:rgba(11,14,20,.92); backdrop-filter:blur(8px); border-bottom:1px solid var(--line2); }
+h1.wordmark { font-family:'Fraunces',serif; font-weight:900; font-size:19px; margin:0; letter-spacing:-.01em; }
+h1.wordmark span { color:var(--gold); }
+.tik-set { font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:.09em; text-transform:uppercase; color:var(--faint); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:34ch; }
+.tik-spacer { flex:1; }
+.glance { display:none; font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--dim); font-variant-numeric:tabular-nums; }
 .cue { font-family:'IBM Plex Mono',monospace; font-size:11px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--gold); border:1px solid #6B5A1E; border-radius:20px; padding:3px 8px; white-space:nowrap; }
-  .glance { display:none; font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--dim); font-variant-numeric:tabular-nums; }
-  .tik-btn { background:transparent; color:var(--gold); border:1px solid var(--gold); border-radius:10px; min-height:28px; padding:4px 14px; font-weight:600; font-size:13px; cursor:pointer; }
-  .tik-btn:hover { background:var(--gold); color:var(--goldink); }
-  .tik-btn:disabled { background:transparent; border-color:var(--fieldline); color:var(--dim); cursor:wait; }
-  #minibar { display:flex; flex:1 0 100%; height:4px; gap:2px; border-radius:2px; overflow:hidden; }
-  #minibar > div { min-width:2px; }
-  /* ===== panels & forms ===== */
-  .panel { background:var(--panel); border:1px solid var(--line2); border-radius:16px; padding:16px; margin:0 0 16px; }
-  .panelhead { display:flex; align-items:baseline; justify-content:space-between; gap:8px; flex-wrap:wrap; margin-bottom:12px; }
-  .promise { font-size:15px; margin:0 0 16px; text-wrap:balance; }
-  body.has-board .promise, body.has-board .chips { display:none; }
-  .row { display:flex; flex-wrap:wrap; gap:12px; align-items:flex-end; }
-  label.f { display:flex; flex-direction:column; gap:6px; flex:1; min-width:96px; }
-  input, select { background-color:var(--field); border:1px solid var(--fieldline); border-radius:6px; padding:8px 12px; min-height:40px; color:var(--text); font-family:'IBM Plex Mono',monospace; font-size:13px; width:100%; transition:border-color .15s; }
-  select, input[type=text] { font-family:'IBM Plex Sans',sans-serif; }
-  input:focus-visible, select:focus-visible { border-color:var(--gold); }
-  .small { padding:8px; min-height:36px; }
-  button.go { background:var(--gold); color:var(--goldink); border:0; border-radius:10px; padding:12px 24px; min-height:44px; font-weight:600; font-size:15px; cursor:pointer; }
-  button.go:hover { filter:brightness(1.08); }
-  button.go:disabled { background:var(--fieldline); color:var(--dim); cursor:wait; }
-  .go.loading::after { content:""; display:inline-block; width:12px; height:12px; margin-left:8px; border:2px solid currentColor; border-right-color:transparent; border-radius:50%; vertical-align:-2px; animation:spin .8s linear infinite; }
-  @keyframes spin { to { transform:rotate(360deg); } }
-  .chips { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:12px; }
-  .chipbtn { background:var(--panel2); color:var(--text); border:1px solid var(--line); border-radius:6px; padding:8px 14px; min-height:40px; font-size:13px; cursor:pointer; }
-  .chipbtn:hover { border-color:var(--gold); }
-  .note { color:var(--faint); font-size:12px; line-height:1.55; margin:8px 0 0; }
-  .banner { border-radius:10px; padding:12px 16px; font-size:13px; margin:0 0 16px; line-height:1.5; display:none; }
-  .banner.warn { background:#241E0E; border:1px solid #6B5A1E; color:#E8CF7A; }
-  .banner.err { background:#2A1512; border:1px solid #77352A; color:#FFB3A6; }
-  .badge { display:inline-block; font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:.06em; text-transform:uppercase; padding:2px 8px; border-radius:20px; border:1px solid var(--fieldline); color:var(--dim); }
-  .badge:empty { display:none; }
-  .badge.live { border-color:#6B5A1E; color:var(--gold); }
-  .badge.manual { border-color:#6B5A1E; color:#E8CF7A; }
-  .divider { border-top:1px solid var(--line2); margin:12px 0; }
-  details.adv { margin-top:16px; border-top:1px solid var(--line2); padding-top:4px; }
-  details.adv summary { cursor:pointer; min-height:44px; display:flex; align-items:center; gap:8px; list-style:none; font-family:'IBM Plex Mono',monospace; font-size:12px; font-weight:600; letter-spacing:.04em; color:var(--dim); }
-  details.adv summary::-webkit-details-marker { display:none; }
-  details.adv summary::before { content:"\25B8"; font-size:11px; transition:transform .15s; }
-  details.adv[open] summary::before { transform:rotate(90deg); }
-  .mf { display:flex; flex-direction:column; gap:4px; width:124px; }
-  .mf span { font-size:11px; }
-  pre.code { background:var(--field); border:1px solid var(--fieldline); border-radius:6px; padding:12px; font-size:11px; line-height:1.5; overflow-x:auto; color:#B9C2D4; margin:8px 0 0; }
-  /* ===== break bar ===== */
-  .hero { margin:24px 0 8px; }
-  .bar { display:flex; gap:2px; height:56px; border-radius:10px; overflow:hidden; }
-  .seg { border:0; padding:0; min-width:24px; display:flex; align-items:center; justify-content:center; font-family:'IBM Plex Mono',monospace; font-size:13px; font-weight:600; cursor:pointer; transition:filter .15s; }
-  .seg:hover, .seg:focus-visible { filter:brightness(1.18); }
-  .seg:focus-visible { outline-offset:-4px; }
-  .seg span { transition:opacity .2s ease .1s; }
-  .seg.pre span { opacity:0; }
-  .seg.shift { transition:transform .7s cubic-bezier(.25,.9,.3,1); }
-  .bar.stale, #minibar.stale { filter:saturate(.2); }
-  .legend { display:grid; grid-template-columns:repeat(4,1fr); gap:8px 20px; margin-top:12px; }
-  .legend .li { display:flex; align-items:baseline; gap:6px; min-width:0; }
-  .legend .chip { align-self:center; flex:none; }
-  .legend .ln { font-family:'IBM Plex Mono',monospace; font-size:11px; font-weight:600; letter-spacing:.09em; text-transform:uppercase; color:var(--dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .legend .lv { margin-left:auto; font-family:'IBM Plex Mono',monospace; font-size:13px; font-variant-numeric:tabular-nums; }
-  .chip { display:inline-block; width:10px; height:10px; border-radius:2px; margin-right:8px; vertical-align:-1px; }
-  /* ===== totals strip ===== */
-  .strip { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:2px; background:var(--line2); border:1px solid var(--line2); border-radius:16px; overflow:hidden; margin:16px 0; }
-  .strip > div { background:var(--panel); padding:16px; }
-  .strip .v { font-family:'IBM Plex Mono',monospace; font-size:28px; font-weight:600; line-height:1.1; margin-top:8px; overflow:hidden; text-overflow:ellipsis; }
-  .strip .s { font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--faint); margin-top:4px; }
-  /* ===== tables ===== */
-  table { width:100%; border-collapse:collapse; font-size:13px; }
-  th { font-family:'IBM Plex Mono',monospace; font-size:11px; font-weight:600; letter-spacing:.09em; text-transform:uppercase; color:var(--dim); text-align:right; padding:12px; border-bottom:1px solid var(--line); }
-  th:first-child, th.left { text-align:left; }
-  td { padding:10px 12px; border-bottom:1px solid var(--line2); text-align:right; font-family:'IBM Plex Mono',monospace; font-variant-numeric:tabular-nums; vertical-align:middle; }
-  tr:last-child td { border-bottom:none; }
-  td:first-child { text-align:left; font-family:'IBM Plex Sans',sans-serif; font-weight:600; }
-  td.c-chase { text-align:left; font-family:'IBM Plex Sans',sans-serif; }
-  .chn { display:block; max-width:24ch; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .chs { display:block; font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:.02em; color:var(--faint); }
-  .tag { display:inline-block; font-family:'IBM Plex Mono',monospace; font-size:11px; font-weight:600; letter-spacing:.09em; padding:4px 6px; border-radius:6px; }
-  .tag.pos { background:rgba(95,214,139,.12); }
-  .tag.neg { background:rgba(255,98,71,.12); }
-  .tag.fair { background:rgba(139,148,166,.12); }
-  .stag { display:inline-block; min-width:20px; text-align:center; padding:3px 5px; border-radius:4px; font-family:'IBM Plex Mono',monospace; font-size:11px; font-weight:600; }
-  .treat { color:var(--faint); font-family:'IBM Plex Mono',monospace; font-size:11px; margin-left:6px; font-weight:400; }
-  .panel.table { padding:0; }
-  .panel.table .panelhead { padding:16px 16px 0; }
-  .scroll { overflow-x:auto; }
-  .desk table { min-width:720px; }
-.top table { min-width:580px; }
-  td input { width:88px; padding:6px 8px; min-height:36px; font-size:13px; text-align:right; border-radius:6px; font-family:'IBM Plex Mono',monospace; border-color:#3A4560; }
-  td input.set { border-color:#5A6A8C; font-weight:600; }
-  #slotBody tr.hit td { background:rgba(201,162,39,.08); }
-  .empty { color:var(--faint); font-family:'IBM Plex Sans',sans-serif; font-weight:400; text-align:left; }
-  .floorline { display:flex; align-items:center; gap:12px; margin:12px 16px; color:var(--gold); font-family:'IBM Plex Mono',monospace; font-size:12px; font-weight:600; letter-spacing:.04em; }
-  .floorline::before, .floorline::after { content:""; flex:1; border-top:1px solid var(--gold); opacity:.5; }
-  /* ===== quick check ===== */
-  body:not(.has-board) #quick, body:not(.has-board) .floorline { display:none; }
-  .qc-slab { display:flex; align-items:center; gap:12px; margin-top:12px; flex-wrap:wrap; }
-  .qc-net { font-family:'IBM Plex Mono',monospace; font-size:40px; font-weight:600; line-height:1; }
-  footer { margin-top:16px; color:var(--faint); font-size:12px; line-height:1.6; font-family:'IBM Plex Mono',monospace; }
-  /* ===== mobile ===== */
-  @media (max-width:679px) {
-    input, select { font-size:16px; min-height:44px; }
-    .small { min-height:44px; }
-    .chipbtn { min-height:44px; }
-    button.go { width:100%; }
-    .ticker { padding:8px 12px; }
-    .tik-set, .tik-stamp { display:none; }
-    .glance { display:inline; }
-    /* changed-verdict cue borrows the glance slot — the ticker never grows a row (S2/G2) */
-    .ticker:has(.cue:not([hidden])) .glance { display:none; }
-    .tik-btn { min-height:44px; }
-    #minibar { height:6px; border-radius:3px; }
-    .bar { height:48px; }
-    .legend { grid-template-columns:repeat(2,1fr); }
-    .strip { grid-template-columns:1fr 1fr; }
-    .desk .scroll { overflow:visible; padding:0 12px 12px; }
-    .desk table { min-width:0; }
-    .desk thead { display:none; }
-    .desk table, .desk tbody { display:block; }
-    #slotBody tr { display:grid; grid-template-columns:1fr 1fr; gap:8px 12px; padding:12px; border:1px solid var(--line2); border-radius:10px; background:var(--panel2); margin:0 0 8px; }
-    #slotBody td { display:block; border:0; padding:0; text-align:left; }
-    #slotBody td.c-name { grid-column:1/-1; font-size:15px; }
-    #slotBody td.c-chase { grid-column:1/-1; }
-    #slotBody td.c-hits { display:none; }
-    #slotBody td::before { content:attr(data-l); display:block; font-family:'IBM Plex Mono',monospace; font-size:11px; font-weight:600; letter-spacing:.09em; text-transform:uppercase; color:var(--faint); margin-bottom:2px; }
-    #slotBody td.c-name::before { display:none; }
-    #slotBody tr.hit { outline:2px solid var(--gold); }
-    td input { width:100%; min-height:44px; font-size:16px; }
-    /* Top Contributors: grid-cards below 680 px (S8a) — no 580 px table on a 430 px screen */
-    .top .scroll { overflow:visible; padding:0 12px 12px; }
-    .top table { min-width:0; }
-    .top thead { display:none; }
-    .top table, .top tbody { display:block; }
-    #topBody tr { display:grid; grid-template-columns:repeat(4,1fr); gap:8px 12px; padding:12px; border:1px solid var(--line2); border-radius:10px; background:var(--panel2); margin:0 0 8px; }
-    #topBody td { display:block; border:0; padding:0; text-align:left; }
-    #topBody td.c-card { grid-column:1/-1; font-size:15px; }
-    #topBody td::before { content:attr(data-l); display:block; font-family:'IBM Plex Mono',monospace; font-size:11px; font-weight:600; letter-spacing:.09em; text-transform:uppercase; color:var(--faint); margin-bottom:2px; }
-    #topBody td.c-card::before { display:none; }
-  }
+.tik-stamp { font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:.09em; text-transform:uppercase; color:var(--faint); font-variant-numeric:tabular-nums; }
+.tik-stamp.stale { color:var(--bad); font-weight:600; }
+#minibar { display:flex; flex:1 0 100%; height:4px; gap:2px; border-radius:2px; overflow:hidden; }
+#minibar > div { min-width:2px; }
+/* mode switch — the buyer/seller segmented control */
+.mode { display:flex; border:1px solid var(--fieldline); border-radius:10px; overflow:hidden; }
+.mode button { background:transparent; color:var(--dim); border:0; min-height:36px; min-width:72px; padding:6px 14px; font-family:'IBM Plex Sans',sans-serif; font-size:13px; font-weight:600; cursor:pointer; }
+.mode button[aria-pressed="true"] { background:var(--gold); color:var(--goldink); }
+body[data-view="buyer"] .seller-only { display:none !important; }
+body[data-view="seller"] .buyer-only { display:none !important; }
+/* ===== panels & forms ===== */
+.panel { background:var(--panel); border:1px solid var(--line2); border-radius:16px; padding:16px; margin:0 0 16px; }
+.panelhead { display:flex; align-items:baseline; justify-content:space-between; gap:8px; flex-wrap:wrap; margin-bottom:12px; }
+h2 { font-size:15px; margin:0; }
+.promise { font-size:15px; margin:0 0 12px; text-wrap:balance; }
+.row { display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; }
+label.f { display:flex; flex-direction:column; flex:1; min-width:96px; }
+input, select { background-color:var(--field); border:1px solid var(--fieldline); border-radius:6px; min-height:44px; padding:8px 10px; color:var(--text); font-family:'IBM Plex Mono',monospace; font-size:16px; width:100%; transition:border-color .15s; }
+select { font-family:'IBM Plex Sans',sans-serif; }
+input:focus-visible, select:focus-visible { outline:none; border-color:var(--gold); }
+button.go { background:var(--gold); color:var(--goldink); border:0; border-radius:10px; min-height:44px; padding:10px 20px; font-weight:600; font-size:15px; cursor:pointer; }
+button.go:hover { filter:brightness(1.08); }
+button.go:disabled { background:var(--fieldline); color:var(--dim); cursor:wait; }
+button.ghost { background:transparent; color:var(--gold); border:1px solid var(--gold); border-radius:10px; min-height:44px; padding:10px 16px; font-weight:600; font-size:15px; cursor:pointer; }
+button.ghost:hover { background:var(--gold); color:var(--goldink); }
+.go.loading::after { content:""; display:inline-block; width:12px; height:12px; margin-left:8px; border:2px solid currentColor; border-right-color:transparent; border-radius:50%; vertical-align:-2px; animation:spin .7s linear infinite; }
+@keyframes spin { to { transform:rotate(360deg); } }
+.chips { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:12px; }
+.chipbtn { background:var(--panel2); color:var(--text); border:1px solid var(--line); border-radius:6px; min-height:44px; padding:8px 14px; font-size:13px; cursor:pointer; }
+.chipbtn:hover { border-color:var(--gold); }
+.note { color:var(--faint); font-size:12px; line-height:1.55; margin:8px 0 0; }
+.banner { border:1px solid; border-radius:10px; font-size:13px; padding:10px 12px; margin:0 0 12px; line-height:1.5; display:none; }
+.banner.warn { border-color:#6B5A1E; background:rgba(201,162,39,.08); color:#E8CF7A; }
+.banner.err { border-color:#7A3A2E; background:rgba(255,98,71,.08); color:#FFB3A6; }
+.badge { display:inline-block; font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:.06em; text-transform:uppercase; border-radius:20px; padding:3px 8px; border:1px solid var(--fieldline); color:var(--dim); }
+.badge.live { border-color:#6B5A1E; color:var(--gold); }
+.badge.manual { border-color:#6B5A1E; color:#E8CF7A; }
+details.adv { margin-top:16px; border-top:1px solid var(--line2); padding-top:4px; }
+details.adv summary { cursor:pointer; min-height:44px; display:flex; align-items:center; gap:8px; list-style:none; font-family:'IBM Plex Mono',monospace; font-size:12px; font-weight:600; letter-spacing:.04em; color:var(--dim); }
+details.adv summary::-webkit-details-marker { display:none; }
+details.adv summary::before { content:"\25B8"; font-size:11px; transition:transform .15s; }
+details.adv[open] summary::before { transform:rotate(90deg); }
+.mf { display:flex; flex-direction:column; gap:4px; width:132px; }
+.mf span { font-size:11px; }
+pre.code { background:var(--field); border:1px solid var(--fieldline); border-radius:6px; padding:12px; font-size:11px; line-height:1.5; overflow-x:auto; color:#B9C2D4; margin:8px 0 0; }
+/* ===== break composition list ===== */
+#compList { display:flex; flex-direction:column; gap:8px; margin:0 0 12px; }
+.citem { border:1px solid var(--line2); border-radius:10px; background:var(--panel2); padding:10px 12px; }
+.citem-top { display:flex; align-items:center; gap:8px; }
+.citem-name { flex:1; min-width:0; font-weight:600; font-size:15px; }
+.citem-name .cs { display:block; font-family:'IBM Plex Mono',monospace; font-size:11px; font-weight:400; letter-spacing:.06em; text-transform:uppercase; color:var(--faint); }
+.stepper { display:flex; align-items:center; gap:2px; }
+.stepper button { background:var(--field); color:var(--text); border:1px solid var(--fieldline); border-radius:6px; width:44px; min-height:44px; font-size:19px; cursor:pointer; }
+.stepper .qv { font-family:'IBM Plex Mono',monospace; font-size:15px; min-width:32px; text-align:center; }
+.citem .more { background:transparent; border:0; color:var(--faint); min-width:44px; min-height:44px; font-size:19px; cursor:pointer; }
+.citem-detail { display:none; border-top:1px solid var(--line2); margin-top:10px; padding-top:10px; }
+.citem.open .citem-detail { display:block; }
+/* ===== break bar ===== */
+.hero { margin:20px 0 8px; }
+.bar { display:flex; gap:2px; height:56px; border-radius:10px; overflow:hidden; }
+.seg { border:0; padding:0; min-width:24px; display:flex; align-items:center; justify-content:center; font-family:'IBM Plex Mono',monospace; font-size:13px; font-weight:600; cursor:pointer; transition:filter .15s; }
+.seg:hover, .seg:focus-visible { filter:brightness(1.18); }
+.seg:focus-visible { outline-offset:-4px; }
+.seg.pre { opacity:1; }
+.seg.shift { transition:transform .8s cubic-bezier(.25,.9,.3,1); }
+.bar.stale, #minibar.stale { filter:saturate(.45); }
+.legend { display:grid; gap:6px 16px; grid-template-columns:repeat(4,1fr); margin-top:12px; }
+.li { display:flex; align-items:baseline; min-width:0; }
+.chip { display:inline-block; width:10px; height:10px; border-radius:2px; margin-right:8px; vertical-align:-1px; align-self:center; flex:none; }
+.ln { font-family:'IBM Plex Mono',monospace; font-size:11px; font-weight:600; letter-spacing:.09em; text-transform:uppercase; color:var(--dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.lv { margin-left:auto; font-family:'IBM Plex Mono',monospace; font-size:13px; font-variant-numeric:tabular-nums; padding-left:8px; }
+/* ===== totals strip ===== */
+.strip { display:grid; gap:1px; grid-template-columns:repeat(4,minmax(0,1fr)); background:var(--line2); border:1px solid var(--line2); border-radius:16px; overflow:hidden; margin:16px 0; }
+.strip > div { background:var(--panel); padding:12px; min-width:0; }
+.eyebrow { font-family:'IBM Plex Mono',monospace; font-size:10.5px; font-weight:600; letter-spacing:.09em; text-transform:uppercase; color:var(--dim); }
+.strip .v { font-family:'IBM Plex Mono',monospace; font-size:28px; font-weight:600; line-height:1.1; margin-top:8px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.strip .s { font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--faint); margin-top:4px; }
+/* ===== slot cards (buyer) ===== */
+#slotCards { display:flex; flex-direction:column; gap:8px; }
+.scard { display:grid; grid-template-columns:1fr auto; gap:2px 12px; border:1px solid var(--line2); border-radius:10px; background:var(--panel2); padding:12px; text-align:left; color:var(--text); font-family:'IBM Plex Sans',sans-serif; font-size:13px; cursor:pointer; width:100%; }
+.scard:hover { border-color:var(--gold); }
+.scard .sn { font-weight:600; font-size:15px; }
+.scard .sev { font-family:'IBM Plex Mono',monospace; font-size:19px; font-variant-numeric:tabular-nums; grid-row:span 2; align-self:center; }
+.scard .sub { color:var(--faint); font-family:'IBM Plex Mono',monospace; font-size:11px; }
+/* ===== tables / desk ===== */
+table { width:100%; border-collapse:collapse; font-size:13px; }
+th { font-family:'IBM Plex Mono',monospace; font-size:11px; font-weight:600; letter-spacing:.09em; text-transform:uppercase; color:var(--dim); text-align:right; padding:8px 10px; border-bottom:1px solid var(--line); }
+th:first-child, th.left { text-align:left; }
+td { padding:10px; border-bottom:1px solid var(--line2); text-align:right; font-family:'IBM Plex Mono',monospace; font-variant-numeric:tabular-nums; vertical-align:middle; }
+tr:last-child td { border-bottom:none; }
+td:first-child { text-align:left; font-family:'IBM Plex Sans',sans-serif; font-weight:600; }
+.tag { display:inline-block; font-family:'IBM Plex Mono',monospace; font-size:11px; font-weight:600; letter-spacing:.09em; padding:4px 6px; border-radius:6px; }
+.tag.pos { background:rgba(95,214,139,.12); }
+.tag.neg { background:rgba(255,98,71,.12); }
+.tag.fair { background:rgba(139,148,166,.12); }
+.stag { display:inline-block; min-width:20px; text-align:center; padding:3px 5px; border-radius:4px; font-family:'IBM Plex Mono',monospace; font-size:11px; font-weight:600; }
+.treat { color:var(--faint); font-family:'IBM Plex Mono',monospace; font-size:11px; margin-left:6px; font-weight:400; }
+.panel.table { padding:0; }
+.panel.table .panelhead { padding:16px 16px 0; }
+.scroll { overflow-x:auto; }
+td input { width:96px; padding:6px 8px; min-height:44px; font-size:16px; text-align:right; border-radius:6px; border-color:#3A4560; }
+td input.set { border-color:#5A6A8C; font-weight:600; }
+tr.hit { background:rgba(201,162,39,.08); }
+td.empty { color:var(--faint); font-family:'IBM Plex Sans',sans-serif; font-weight:400; text-align:left; }
+.beline { display:flex; gap:10px; align-items:center; color:var(--gold); font-family:'IBM Plex Mono',monospace; font-size:12px; font-weight:600; letter-spacing:.04em; padding:0 16px 12px; flex-wrap:wrap; }
+.beline .rule { flex:1; border-top:1px dashed var(--gold); min-width:40px; }
+.cardlink { background:none; border:0; padding:0; color:var(--text); font:inherit; font-weight:inherit; cursor:pointer; text-decoration:underline; text-decoration-color:var(--fieldline); text-underline-offset:3px; }
+.cardlink:hover { text-decoration-color:var(--gold); }
+/* ===== quick check ===== */
+.qc-slab { display:flex; gap:12px; align-items:center; margin-top:12px; flex-wrap:wrap; }
+.qc-net { font-family:'IBM Plex Mono',monospace; font-size:40px; font-weight:600; line-height:1; }
+footer { margin-top:16px; color:var(--faint); font-size:12px; line-height:1.6; font-family:'IBM Plex Mono',monospace; }
+/* ===== sheets (set picker, product picker, drill-down, card popup) ===== */
+#scrim { position:fixed; inset:0; background:rgba(4,6,10,.6); z-index:50; display:none; }
+#scrim.open { display:block; }
+.sheet { position:fixed; left:0; right:0; bottom:0; max-height:86dvh; background:var(--panel); border:1px solid var(--line2); border-radius:16px 16px 0 0; z-index:60; display:none; flex-direction:column; }
+.sheet.open { display:flex; }
+.sheet-head { display:flex; align-items:center; gap:8px; padding:12px 16px; border-bottom:1px solid var(--line2); flex:none; }
+.sheet-head h2 { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.sheet-close { background:transparent; border:0; color:var(--dim); min-width:44px; min-height:44px; font-size:19px; cursor:pointer; }
+.sheet-body { overflow-y:auto; padding:12px 16px 24px; -webkit-overflow-scrolling:touch; }
+.sheet .srow { display:flex; align-items:center; gap:10px; width:100%; min-height:48px; padding:8px 10px; background:var(--panel2); color:var(--text); border:1px solid var(--line2); border-radius:10px; margin:0 0 8px; font-family:'IBM Plex Sans',sans-serif; font-size:15px; text-align:left; cursor:pointer; }
+.sheet .srow:hover { border-color:var(--gold); }
+.srow .sr-main { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:600; }
+.srow .sr-sub { font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--faint); white-space:nowrap; }
+.sheet .filters { display:flex; gap:8px; flex-wrap:wrap; margin:0 0 10px; }
+.fchip { border:1px solid var(--fieldline); border-radius:20px; background:transparent; color:var(--dim); min-height:36px; padding:6px 12px; font-size:13px; cursor:pointer; }
+.fchip[aria-pressed="true"] { border-color:var(--gold); color:var(--gold); }
+#cardBody img { width:100%; max-width:340px; border-radius:12px; display:block; margin:0 auto 12px; }
+#cardBody .oracle { white-space:pre-wrap; font-size:15px; line-height:1.6; }
+#cardBody .printing { font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--faint); margin:0 0 12px; text-align:center; }
+/* ===== responsive ===== */
+@media (min-width:680px) {
+  .sheet { left:50%; right:auto; bottom:auto; top:7vh; transform:translateX(-50%); width:min(560px, 92vw); border-radius:16px; max-height:82vh; }
+  .desk table { min-width:640px; }
+}
+@media (max-width:679px) {
+  .tik-set { display:none; }
+  body.has-board .glance { display:inline; }
+  .legend { grid-template-columns:repeat(2,1fr); }
+  .strip { grid-template-columns:repeat(2,1fr); }
+  .strip .v { font-size:19px; }
+  .desk .panelhead { padding:16px 12px 0; }
+  .desk .scroll { overflow:visible; padding:0 12px 12px; }
+  .desk table { min-width:0; }
+  .desk thead { display:none; }
+  .desk table, .desk tbody { display:block; }
+  #deskBody tr { display:grid; grid-template-columns:1fr 1fr; gap:8px 12px; padding:12px; border:1px solid var(--line2); border-radius:10px; background:var(--panel2); margin:0 0 8px; }
+  #deskBody td { display:block; border:0; padding:0; text-align:left; }
+  #deskBody td.c-name { grid-column:1/-1; font-size:15px; }
+  #deskBody td::before { content:attr(data-l); display:block; font-family:'IBM Plex Mono',monospace; font-size:11px; font-weight:600; letter-spacing:.09em; text-transform:uppercase; color:var(--faint); margin-bottom:2px; }
+  #deskBody td.c-name::before { display:none; }
+  #deskBody tr.hit { outline:2px solid var(--gold); }
+  td input { width:100%; }
+  .top .scroll { overflow:visible; padding:0 12px 12px; }
+  .top table { min-width:0; }
+  .top thead { display:none; }
+  .top table, .top tbody { display:block; }
+  #topBody tr { display:grid; grid-template-columns:repeat(3,1fr); gap:8px 12px; padding:12px; border:1px solid var(--line2); border-radius:10px; background:var(--panel2); margin:0 0 8px; }
+  #topBody td { display:block; border:0; padding:0; text-align:left; }
+  #topBody td.c-card { grid-column:1/-1; font-size:15px; }
+  #topBody td::before { content:attr(data-l); display:block; font-family:'IBM Plex Mono',monospace; font-size:11px; font-weight:600; letter-spacing:.09em; text-transform:uppercase; color:var(--faint); margin-bottom:2px; }
+  #topBody td.c-card::before { display:none; }
+}
 </style>
 </head>
-<body>
-<a class="skip" href="#board">Skip to the board</a>
+<body data-view="buyer">
+<a class="skip" href="#board">Skip to board</a>
 <header class="ticker">
-  <h1 class="wordmark" translate="no">ColorBreak</h1>
+  <h1 class="wordmark" translate="no">Color<span>Break</span></h1>
   <span class="tik-set" id="setLabel" hidden></span>
   <span class="tik-spacer"></span>
-  <p id="status" role="status" aria-live="polite"></p>
   <span class="glance" id="glance"></span>
   <span class="cue" id="cue" hidden></span>
   <span class="tik-stamp" id="stamp"></span>
-  <button class="tik-btn" id="rerun" type="button" hidden>Re-run</button>
+  <div class="mode" role="group" aria-label="View">
+    <button type="button" id="modeBuyer" aria-pressed="true">Buyer</button>
+    <button type="button" id="modeSeller" aria-pressed="false">Seller</button>
+  </div>
   <div id="minibar" aria-hidden="true"></div>
 </header>
+
 <div class="wrap">
-  <noscript>
-    <div class="banner err" style="display:block">
-      This viewer isn't running JavaScript, so the board can't load here. iOS Files preview and the Claude artifact pane both do this.
-      Host this file (GitHub Pages / Netlify) and open the URL in Safari or Chrome, or open the file directly in a desktop browser.
-    </div>
-  </noscript>
+<noscript><div class="banner err" style="display:block">ColorBreak needs JavaScript to fetch prices. Enable it and reload.</div></noscript>
+<div class="banner err" id="err" role="alert"></div>
+<div class="banner warn" id="warn" role="status"></div>
+<div class="banner warn" id="status" role="status"></div>
 
-  <div class="banner err" id="err" role="alert"></div>
-  <div class="banner warn" id="warn" role="status"></div>
-
-  <!-- ===== setup ===== -->
-  <section class="panel" id="setup" aria-label="Break setup">
-    <p class="promise">Pick a set. ColorBreak prices all 8 slots from live market data: EV, chase card, and break-even.</p>
-    <div class="row">
-      <label class="f" style="min-width:120px"><span>Set code</span>
-        <input type="text" id="setCode" name="setCode" list="setList" placeholder="hob, eoe, blb&hellip;" autocapitalize="off" autocomplete="off" spellcheck="false">
-        <datalist id="setList"></datalist>
-      </label>
-      <label class="f" style="flex:1.5; min-width:180px"><span>Booster type</span><select id="preset" name="preset"></select></label>
-      <label class="f" style="min-width:80px"><span>Boxes</span><input type="number" id="boxes" name="boxes" step="1" min="1" value="1" inputmode="numeric"></label>
-      <label class="f" style="min-width:95px"><span>Packs / box</span><input type="number" id="packsPerBox" name="packsPerBox" step="1" min="1" value="30" inputmode="numeric"></label>
-      <button class="go" id="run" type="button">Load board</button>
+<!-- ===== break composition builder ===== -->
+<section class="panel" id="setup" aria-label="Break composition">
+  <p class="promise" id="promise">Build your break — any mix of boxes, packs, and bundles across sets. ColorBreak prices all 8 slots from live market data.</p>
+  <div id="compList"></div>
+  <div class="row">
+    <button class="ghost" id="addProduct" type="button">+ Add product</button>
+    <button class="go" id="run" type="button">Load board</button>
+  </div>
+  <div class="chips" id="recentSets"></div>
+  <div class="row" id="cutoffRow" style="margin-top:12px; display:none">
+    <label class="f" style="max-width:190px"><span>Preview pool max collector #</span><input type="number" id="cutoff" name="cutoff" step="1" inputmode="numeric"></label>
+    <p class="note" style="flex:2; min-width:220px; margin:0">Scryfall hasn't flagged this set's booster prints yet (normal for previews). Enter the top collector number from the product's "may contain" line on its WPN page.</p>
+  </div>
+  <details class="adv" id="advanced">
+    <summary>Advanced: fees, thresholds &amp; collation</summary>
+    <div class="row" style="margin-top:10px">
+      <label class="f" style="max-width:160px"><span>Fulfillment $ / order</span><input type="number" id="fulfillment" step="0.25" min="0" value="0" inputmode="decimal"></label>
+      <label class="f" style="max-width:160px"><span>Buyer S&amp;H $ / order</span><input type="number" id="buyerSH" step="0.01" min="0" value="4.99" inputmode="decimal"></label>
+      <label class="f" style="max-width:140px"><span>Commission %</span><input type="number" id="commissionPct" step="0.1" min="0" value="8" inputmode="decimal"></label>
+      <label class="f" style="max-width:140px"><span>Processing %</span><input type="number" id="procPct" step="0.1" min="0" value="2.9" inputmode="decimal"></label>
+      <label class="f" style="max-width:140px"><span>Processing flat $</span><input type="number" id="procFlat" step="0.05" min="0" value="0.30" inputmode="decimal"></label>
     </div>
-    <div class="chips" id="recentSets"></div>
-    <div class="row" id="cutoffRow" style="margin-top:12px; display:none">
-      <label class="f" style="max-width:190px"><span>Play pool max collector #</span><input type="number" id="cutoff" name="cutoff" step="1" inputmode="numeric"></label>
-      <p class="note" style="flex:2; min-width:220px; margin:0">Scryfall hasn't flagged booster prints for this set yet (normal for previews). Enter the top collector number from the product's "may contain" line on its WPN page.</p>
+    <p class="note">Whatnot's published schedule (Aug 2026): 8% commission on the hammer, plus 2.9% + 30&cent; payment processing on the whole order (hammer + buyer S&amp;H + tax). Buyers pay the S&amp;H, which offsets your fulfillment cost — the desk nets both. Fulfillment is one number: everything it costs you to get an order out the door.</p>
+    <div class="row" style="margin-top:10px">
+      <label class="f" style="max-width:160px"><span>Default ask $ / slot</span><input type="number" id="uniformPrice" step="0.5" min="0" value="18" inputmode="decimal"></label>
+      <label class="f" style="max-width:180px"><span>Min card value $ (off = blank)</span><input type="number" id="thr" step="0.25" min="0" placeholder="off" inputmode="decimal"></label>
+      <label class="f" style="max-width:150px"><span>Variant weight</span><input type="number" id="tw" step="0.025" value="0.125" inputmode="decimal"></label>
     </div>
-    <details class="adv" id="advanced">
-      <summary>Advanced: pack model, bonus sheet &amp; price source</summary>
-      <div class="row" style="gap:10px; margin-top:8px" id="modelFields"></div>
-      <div class="row" style="gap:10px; margin-top:10px">
-        <label class="mf"><span class="lbl">Bonus sheet set</span><input type="text" id="sgCode" name="sgCode" class="small" placeholder="spg" spellcheck="false"></label>
-        <label class="mf"><span class="lbl">CN from</span><input type="number" id="sgLo" name="sgLo" class="small" inputmode="numeric"></label>
-        <label class="mf"><span class="lbl">CN to</span><input type="number" id="sgHi" name="sgHi" class="small" inputmode="numeric"></label>
-        <label class="mf"><span class="lbl">Treatment weight</span><input type="number" id="tw" name="tw" class="small" step="0.025" value="0.125" inputmode="decimal"></label>
-      </div>
-      <p class="note">Collation odds are editable estimates: WotC doesn't publish exact numbers and they shift per set. Treatment weight = odds of a showcase/borderless/variant print vs. a base print within its rarity. Bonus sheet (Special Guests / The List) replaces a common at the % / pack rate.</p>
-      <div class="divider"></div>
-      <label class="f" style="max-width:460px"><span>Sealed price proxy URL (optional, recommended)</span>
-        <input type="text" id="proxyUrl" name="proxyUrl" placeholder="https://your-worker.workers.dev" autocomplete="off" spellcheck="false">
-      </label>
-      <p class="note">Sealed box prices come from tcgcsv.com (a daily mirror of TCGplayer market data), which blocks direct browser access. Without a proxy this tool tries public CORS relays, which work most days but not all. For a permanent fix, deploy this free Cloudflare Worker once and paste its URL above:</p>
-      <pre class="code">export default { async fetch(req) {
+    <p class="note">All cards count toward EV by default. Set a minimum to see only non-bulk value — every EV figure then shows what's excluded. Variant weight discounts showcase/borderless prints in pull-rate math.</p>
+    <div class="divider"></div>
+    <div class="row" style="margin-top:10px">
+      <label class="f" style="max-width:140px"><span>Bonus sheet set</span><input type="text" id="sgCode" placeholder="spg" autocapitalize="off" spellcheck="false"></label>
+      <label class="f" style="max-width:110px"><span>CN from</span><input type="number" id="sgLo" step="1" inputmode="numeric"></label>
+      <label class="f" style="max-width:110px"><span>CN to</span><input type="number" id="sgHi" step="1" inputmode="numeric"></label>
+    </div>
+    <div class="row" style="margin-top:10px; align-items:flex-end">
+      <label class="f" style="max-width:220px"><span>Collation model for</span><select id="modelPreset"></select></label>
+    </div>
+    <div class="row" style="margin-top:8px" id="modelFields"></div>
+    <p class="note">Collation odds are editable estimates — WotC doesn't publish exact numbers. A play-booster line item marked "UB, no wildcard" uses the no-wildcard model.</p>
+    <div class="divider"></div>
+    <label class="f" style="max-width:460px"><span>Sealed price worker URL (recommended)</span>
+      <input type="url" id="proxyUrl" placeholder="https://your-worker.workers.dev" spellcheck="false">
+    </label>
+    <p class="note">Sealed prices come from tcgcsv.com (TCGplayer) through public CORS relays. For a permanent route, deploy this one-file Cloudflare Worker and paste its URL:</p>
+    <pre class="code">export default { async fetch(req) {
   const u = new URL(req.url);
   const r = await fetch("https://tcgcsv.com" + u.pathname + u.search);
   const res = new Response(r.body, r);
   res.headers.set("Access-Control-Allow-Origin", "*");
   return res;
 }};</pre>
-    </details>
+  </details>
+</section>
+
+<main id="board">
+  <!-- ===== break bar ===== -->
+  <section class="hero" aria-label="EV share by slot">
+    <div class="bar" id="bar" role="group" aria-label="EV share by slot"></div>
+    <div class="legend" id="legend"></div>
   </section>
 
-  <main id="board">
-    <!-- ===== break bar ===== -->
-    <section class="hero" aria-label="EV share by slot">
-      <div class="bar" id="bar" role="group" aria-label="EV share by slot"></div>
-      <div class="legend" id="legend"></div>
-    </section>
+  <!-- ===== buyer strip ===== -->
+  <div class="strip buyer-only">
+    <div><div class="eyebrow">Break EV</div><div class="v" id="bEV">&mdash;</div><div class="s" id="bEVs">every card, summed</div></div>
+    <div><div class="eyebrow">Packs</div><div class="v" id="bPacks">&mdash;</div><div class="s" id="bPackss">in this break</div></div>
+    <div><div class="eyebrow">Chase card</div><div class="v" id="bChase">&mdash;</div><div class="s" id="bChases">load board</div></div>
+    <div><div class="eyebrow">Best slot</div><div class="v" id="bBest">&mdash;</div><div class="s" id="bBests">by EV share</div></div>
+  </div>
 
-    <!-- ===== totals strip ===== -->
-    <div class="strip">
-      <div><div class="eyebrow">Total EV</div><div class="v" id="tEV">&mdash;</div><div class="s" id="tEVs">every card over $1, summed</div></div>
-      <div><div class="eyebrow">Box cost</div><div class="v" id="tCost">&mdash;</div><div class="s" id="tCosts">sealed, from TCGplayer</div></div>
-      <div><div class="eyebrow">Fees + ship</div><div class="v" id="tFees">&mdash;</div><div class="s" id="tFeess">Whatnot fees + shipping</div></div>
-      <div><div class="eyebrow">Margin @ prices</div><div class="v" id="tMargin">&mdash;</div><div class="s" id="tMargins">load a board to see the line</div></div>
+  <!-- ===== seller strip ===== -->
+  <div class="strip seller-only">
+    <div><div class="eyebrow">Product at market</div><div class="v" id="sCost">&mdash;</div><div class="s" id="sCosts">sealed, from TCGplayer</div></div>
+    <div><div class="eyebrow">Break-even</div><div class="v" id="sBE">&mdash;</div><div class="s" id="sBEs">hammer to clear it all</div></div>
+    <div><div class="eyebrow">Break EV</div><div class="v" id="sEV">&mdash;</div><div class="s" id="sEVs">market value pulled</div></div>
+    <div><div class="eyebrow">Net @ asks</div><div class="v" id="sNet">&mdash;</div><div class="s" id="sNets">after fees &amp; fulfillment</div></div>
+  </div>
+
+  <!-- ===== quick check (buyer) ===== -->
+  <section class="panel buyer-only" id="quick" aria-label="Quick check">
+    <h2>Quick check</h2>
+    <div class="row" style="margin-top:12px">
+      <label class="f" style="max-width:220px"><span>Slot</span><select id="qcSlot" name="qcSlot"></select></label>
+      <label class="f" style="max-width:220px"><span>Asking $</span><input type="number" id="qcPrice" step="0.5" min="0" placeholder="18" inputmode="decimal"></label>
     </div>
+    <div class="qc-slab"><span class="qc-net" id="qcNet">&mdash;</span><span class="tag" id="qcTag" hidden></span></div>
+    <p class="note" id="qcNote">Load a board, pick a slot, type the asking price — verdict in one glance.</p>
+  </section>
 
-    <!-- ===== quick check ===== -->
-    <section class="panel" id="quick" aria-label="Quick check">
-      <h2>Quick check</h2>
-      <div class="row" style="margin-top:12px">
-        <label class="f" style="max-width:220px"><span>Slot</span><select id="qcSlot" name="qcSlot"></select></label>
-        <label class="f" style="max-width:220px"><span>Asking $</span><input type="number" id="qcPrice" name="qcPrice" step="0.5" min="0" inputmode="decimal" placeholder="18"></label>
-        <div class="qc-slab" style="margin:0 0 2px"><span class="qc-net" id="qcNet">&mdash;</span><span class="tag fair" id="qcTag" hidden></span></div>
-      </div>
-      <p class="note" id="qcNote">Pick a slot and enter the asking price to see the edge.</p>
-    </section>
+  <!-- ===== buyer slot list ===== -->
+  <section class="panel buyer-only" aria-label="Slots">
+    <div class="panelhead"><h2>Slots</h2><p class="note" style="margin:0">Tap a slot for its top 10 cards</p></div>
+    <div id="slotCards"></div>
+  </section>
 
-    <!-- ===== costs ===== -->
-    <section class="panel" aria-label="Costs and fees">
-      <div class="panelhead"><h2>Costs &amp; fees</h2><span id="priceBadge" class="badge"></span></div>
-      <div class="row">
-        <label class="f" style="min-width:130px"><span>Box cost $</span><input type="number" id="boxPrice" name="boxPrice" step="0.01" min="0" inputmode="decimal"></label>
-        <label class="f" style="min-width:130px"><span>Ship / slot $</span><input type="number" id="shipPerSlot" name="shipPerSlot" step="0.5" min="0" value="5" inputmode="decimal"></label>
-        <label class="f" style="min-width:130px"><span>Fees %</span><input type="number" id="feePct" name="feePct" step="0.1" min="0" value="11" inputmode="decimal"></label>
-        <label class="f" style="min-width:130px"><span>Default slot $</span><input type="number" id="uniformPrice" name="uniformPrice" step="0.5" min="0" value="18" inputmode="decimal"></label>
-      </div>
-      <p class="note">Whatnot runs &asymp; 11%: 8% commission + 2.9% + 30&cent; processing. Ship is charged per slot, 8 slots per run.</p>
-      <p class="note" id="priceSource"></p>
-    </section>
+  <!-- ===== seller costs ===== -->
+  <section class="panel seller-only" aria-label="Costs">
+    <div class="panelhead"><h2>Your cost</h2><span class="badge" id="priceBadge"></span></div>
+    <div class="banner warn" id="costWarn"></div>
+    <div id="costList"></div>
+    <p class="note" id="priceSource"></p>
+  </section>
 
-    <!-- ===== pricing desk ===== -->
-    <section class="panel table desk" aria-label="Pricing desk">
-      <div class="panelhead"><h2>Pricing desk</h2><span class="note" style="margin:0">Cards over $1, foils at foil prices</span></div>
-      <div class="floorline"><span id="floorVal">Break-even &mdash;</span></div>
-      <div class="scroll"><table>
-        <thead><tr><th scope="col">Slot</th><th scope="col">$1+ cards</th><th scope="col">EV (run)</th><th scope="col" class="left">Chase</th><th scope="col">Slot $</th><th scope="col">Net</th><th scope="col">Call</th></tr></thead>
-        <tbody id="slotBody"></tbody>
-      </table></div>
-    </section>
+  <!-- ===== pricing desk (seller) ===== -->
+  <section class="panel table desk seller-only" aria-label="Pricing desk">
+    <div class="panelhead"><h2>Pricing desk</h2><p class="note" style="margin:0">What each slot must sell for — and where you land</p></div>
+    <div class="beline"><span id="floorVal">Break-even &mdash;</span><span class="rule"></span><span id="deskNet"></span></div>
+    <div class="scroll"><table>
+      <thead><tr><th scope="col">Slot</th><th scope="col">EV (break)</th><th scope="col">Ask to clear</th><th scope="col">Your $</th><th scope="col">Net / order</th></tr></thead>
+      <tbody id="deskBody"></tbody>
+    </table></div>
+  </section>
 
-    <!-- ===== contributors ===== -->
-    <section class="panel table top" aria-label="Top contributors">
-      <div class="panelhead"><h2>Top contributors</h2></div>
-      <div class="scroll"><table>
-        <thead><tr><th scope="col">Card</th><th scope="col">CN</th><th scope="col">Slot</th><th scope="col">Exp. copies (run)</th><th scope="col">EV (run)</th></tr></thead>
-        <tbody id="topBody"></tbody>
-      </table></div>
-    </section>
+  <!-- ===== contributors ===== -->
+  <section class="panel table top" aria-label="Top contributors">
+    <div class="panelhead"><h2>Top contributors</h2><p class="note" style="margin:0" id="topScope"></p></div>
+    <div class="scroll"><table>
+      <thead><tr><th scope="col" class="left">Card</th><th scope="col">Slot</th><th scope="col">Exp. copies</th><th scope="col">EV (break)</th></tr></thead>
+      <tbody id="topBody"></tbody>
+    </table></div>
+  </section>
 
-    <footer id="footNote"></footer>
-  </main>
+  <footer id="footNote"></footer>
+</main>
+</div>
+
+<!-- ===== sheets ===== -->
+<div id="scrim"></div>
+<div class="sheet" id="sheetSet" role="dialog" aria-modal="true" aria-label="Pick a set">
+  <div class="sheet-head"><h2>Pick a set</h2><button type="button" class="sheet-close" data-close aria-label="Close">&#10005;</button></div>
+  <div class="sheet-body">
+    <div class="row" style="margin-bottom:10px">
+      <label class="f" style="flex:2; min-width:160px"><span>Search</span><input type="search" id="setSearch" placeholder="Set name or code&hellip;" autocapitalize="off" autocomplete="off" spellcheck="false"></label>
+      <label class="f" style="max-width:150px"><span>Sort</span><select id="setSort"><option value="date">Newest first</option><option value="name">Name A&ndash;Z</option></select></label>
+    </div>
+    <div class="filters" id="setTypes"></div>
+    <div id="setRows"></div>
+  </div>
+</div>
+<div class="sheet" id="sheetProd" role="dialog" aria-modal="true" aria-label="Pick a product">
+  <div class="sheet-head"><h2 id="prodTitle">Products</h2><button type="button" class="sheet-close" data-close aria-label="Close">&#10005;</button></div>
+  <div class="sheet-body" id="prodRows"></div>
+</div>
+<div class="sheet" id="sheetSlot" role="dialog" aria-modal="true" aria-label="Slot detail">
+  <div class="sheet-head"><h2 id="slotTitle">Slot</h2><button type="button" class="sheet-close" data-close aria-label="Close">&#10005;</button></div>
+  <div class="sheet-body" id="slotTop"></div>
+</div>
+<div class="sheet" id="sheetCard" role="dialog" aria-modal="true" aria-label="Card detail">
+  <div class="sheet-head"><h2 id="cardTitle">Card</h2><button type="button" class="sheet-close" data-close aria-label="Close">&#10005;</button></div>
+  <div class="sheet-body" id="cardBody"></div>
 </div>
 
 <script>
 "use strict";
 // ===== constants =====
+// @pure
 const SLOTS = [
   { id:"W", name:"White",        color:"#EDE8C8", ink:"#2b2a1f" },
   { id:"U", name:"Blue",         color:"#1E7CC2", ink:"#eaf4fc" },
@@ -321,6 +393,7 @@ const SLOTS = [
   { id:"C", name:"Colorless",    color:"#97A2B3", ink:"#14181d" },
   { id:"L", name:"Lands",        color:"#9A6430", ink:"#fdf3e8" },
 ];
+// @end-pure
 const N_SLOTS = SLOTS.length;
 const MODEL_KEYS = [
   ["commons","Commons / pack"], ["uncommons","Uncommons / pack"],
@@ -331,15 +404,15 @@ const MODEL_KEYS = [
   ["landFoilPct","Land foil %"], ["sgRate","Bonus sheet % / pack"],
 ];
 const PRESETS = {
-  play:      { label:"Play Booster (generic 2024+)", ppb:30, match:/play booster (display|box)/i,
+  play:      { label:"Play Booster", ppb:30,
                commons:6.985, uncommons:3, rareSlots:1, mythicPct:13.5, wildcards:1, foilWildcards:1, wcCommonPct:50, wcUncommonPct:37.5, wcRareMythicPct:12.5, landSlot:1, landFoilPct:20, sgRate:1.5 },
-  playUB:    { label:"Play Booster (no-wildcard, e.g. HOB)", ppb:30, match:/play booster (display|box)/i,
+  playUB:    { label:"Play Booster (UB, no wildcard)", ppb:30,
                commons:7.34, uncommons:3.51, rareSlots:1.20, mythicPct:13.5, wildcards:0, foilWildcards:1, wcCommonPct:60.7, wcUncommonPct:29.2, wcRareMythicPct:10.1, landSlot:1, landFoilPct:20, sgRate:0 },
-  set:       { label:"Set Booster", ppb:30, match:/set booster (display|box)/i,
+  set:       { label:"Set Booster", ppb:30,
                commons:4.7, uncommons:2.3, rareSlots:1, mythicPct:13.5, wildcards:3, foilWildcards:1, wcCommonPct:45, wcUncommonPct:33, wcRareMythicPct:22, landSlot:1, landFoilPct:15, sgRate:25 },
-  draft:     { label:"Draft Booster", ppb:36, match:/draft booster (display|box)/i,
+  draft:     { label:"Draft Booster", ppb:36,
                commons:10, uncommons:3, rareSlots:1, mythicPct:12.5, wildcards:0, foilWildcards:0.33, wcCommonPct:60, wcUncommonPct:27, wcRareMythicPct:13, landSlot:1, landFoilPct:0, sgRate:0 },
-  collector: { label:"Collector Booster (rough)", ppb:12, match:/collector booster (display|box)/i,
+  collector: { label:"Collector Booster (rough)", ppb:12,
                commons:5, uncommons:4, rareSlots:5, mythicPct:13.5, wildcards:0, foilWildcards:1, wcCommonPct:0, wcUncommonPct:0, wcRareMythicPct:100, landSlot:1, landFoilPct:100, sgRate:0 },
 };
 const PROXIES = [
@@ -347,7 +420,8 @@ const PROXIES = [
   (u) => "https://api.allorigins.win/raw?url=" + encodeURIComponent(u),
   (u) => "https://proxy.cors.sh/" + u,
 ];
-const LS_KEY = "colorBreakEV.v2";
+const LS_KEY = "colorBreakEV.v3";
+const LS_KEY_V2 = "colorBreakEV.v2";
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;" }[c]));
 const num = (v, f=0) => { const n = parseFloat(v); return Number.isFinite(n) ? n : f; };
@@ -355,22 +429,84 @@ const usd = (n) => n.toLocaleString("en-US",{style:"currency",currency:"USD"});
 const usd0 = (n) => (n < 0 ? "-$" : "$") + Math.round(Math.abs(n)).toLocaleString("en-US");
 const money = (n) => Math.abs(n) >= 100 ? usd0(n) : usd(n);
 const signed = (n) => (n > 0 ? "+" : "") + money(n);
-const pct1 = (n) => n.toFixed(1) + "%";
 const netColor = (n) => n > 0.005 ? "var(--good)" : n < -0.005 ? "var(--bad)" : "var(--dim)";
 const tstamp = (t) => new Date(t).toLocaleTimeString([], { hour:"numeric", minute:"2-digit" });
 
+// ===== cost & fee model (owner feedback 2026-08-10, items 3/7/10) =====
+// @pure
+// Per-order seller net. f = { commissionPct, procPct, procFlat, buyerSH, fulfillment }.
+// Commission applies to the hammer only; processing applies to the whole order value
+// (hammer + buyer-paid S&H — tax excluded because we can't know it); the buyer's S&H
+// comes back to the seller and offsets fulfillment (can go net-negative-cost).
+function orderNet(hammer, f) {
+  const commission = hammer * f.commissionPct / 100;
+  const processing = (hammer + f.buyerSH) * f.procPct / 100 + f.procFlat;
+  return hammer - commission - processing - f.fulfillment + f.buyerSH;
+}
+// Total hammer H across nOrders orders such that sum(orderNet) covers `cost`.
+// Derivation: sum = H·(1−c−p) + n·(SH·(1−p) − flat − fulfillment); solve sum = cost.
+function compBreakEven(cost, nOrders, f) {
+  const keep = 1 - f.commissionPct / 100 - f.procPct / 100;
+  if (keep <= 0) return Infinity;
+  const perOrder = f.buyerSH * (1 - f.procPct / 100) - f.procFlat - f.fulfillment;
+  return Math.max(0, (cost - nOrders * perOrder) / keep);
+}
+// Cost-basis pick (item 7): sealed-box fraction is the primary basis, loose packs the
+// fallback. "Unreliable sealed data" heuristic: tcgcsv exposes no sales-volume signal,
+// so the trigger is simply the absence of a sealed market listing — the banner copy
+// names that limitation. `force` ('' | 'sealed' | 'packs') is the per-line-item toggle.
+function chooseBasis(sealedCost, looseCost, force) {
+  if (force === "sealed" && sealedCost != null) return { cost: sealedCost, basis: "sealed", forced: true };
+  if (force === "packs" && looseCost != null) return { cost: looseCost, basis: "packs", forced: true };
+  if (sealedCost != null) return { cost: sealedCost, basis: "sealed", forced: false };
+  if (looseCost != null) return { cost: looseCost, basis: "packs", forced: false };
+  return { cost: null, basis: "none", forced: false };
+}
+// URL codec for full compositions: ?b=EOE.play-box.2~TDM.collector-pack.1
+function encodeComp(items) {
+  return items.map(i => [i.set, i.key, i.qty].join(".") + (i.ub ? ".ub" : "")).join("~");
+}
+function decodeComp(s) {
+  if (!s) return [];
+  const out = [];
+  for (const part of s.split("~")) {
+    const seg = part.split(".");
+    if (seg.length < 3) continue;
+    const qty = parseInt(seg[2], 10);
+    if (!seg[0] || !seg[1] || !Number.isFinite(qty) || qty < 1) continue;
+    out.push({ set: seg[0].toUpperCase(), key: seg[1], qty: Math.min(qty, 99), ub: seg[3] === "ub" });
+  }
+  return out;
+}
+// Old single-set share links (?set=eoe&preset=play) still resolve — item 5 AC.
+function legacyComp(set, preset) {
+  if (!set) return [];
+  const key = { play:"play-box", playUB:"play-box", set:"set-box", draft:"draft-box", collector:"collector-box" }[preset] || "play-box";
+  return [{ set: set.toUpperCase(), key, qty: 1, ub: preset === "playUB" }];
+}
+// EV display annotation when the min-value threshold is active (item 9).
+function evNote(excluded, thr) {
+  return thr > 0 ? " · excluding " + "$" + excluded.toFixed(0) + " under $" + thr.toFixed(2) : "";
+}
+// @end-pure
+
 // ===== state =====
+let comp = [];             // [{ set, key, qty, ub, basis, paid }]
+let catalog = null;        // data/products.json .sets, or null when unreachable
+let setIndex = [];         // Scryfall /sets rows
 let slotPrices = {};
-let lastResult = null;   // { buckets, contributors }
+let lastAgg = null;        // { buckets, contributors, excluded, packs }
 let lastMeta = "";
-let priceInfo = null;    // { product, market, source }
-let boxPriceIsManual = false;
+let costInfo = [];         // per line item { label, cost, basis, forced, manual }
 let fetchedAt = null;
 let isStale = false;
 let lastRows = null;
-let lastNPacksTop = null;
-let liveThisSession = false; // true once this session has fetched fresh prices
-let running = false;         // in-flight pipeline guard — second tap is a no-op
+let liveThisSession = false;
+let running = false;
+let pickerSet = null;      // set chosen in the picker, awaiting product pick
+const poolCache = new Map();   // "set|mode" -> pool
+const priceCache = new Map();  // "SET" -> Map(productId -> market)
+const setInfoCache = new Map();// "set" -> scryfall set object
 
 // ===== fetch helpers =====
 async function sfetch(url) {
@@ -378,10 +514,10 @@ async function sfetch(url) {
     const res = await fetch(url);
     if (res.status === 429) { await new Promise(r => setTimeout(r, 800*(a+1))); continue; }
     if (res.status === 404) return null;
-    if (!res.ok) throw new Error("Scryfall " + res.status);
+    if (!res.ok) throw new Error("Scryfall error " + res.status);
     return res.json();
   }
-  throw new Error("Scryfall is rate-limiting requests. Wait a few seconds, then re-run.");
+  throw new Error("Scryfall is rate-limiting — wait a moment and re-run.");
 }
 async function fetchAllCards(query, onProgress) {
   let url = "https://api.scryfall.com/cards/search?unique=prints&q=" + encodeURIComponent(query);
@@ -390,7 +526,7 @@ async function fetchAllCards(query, onProgress) {
     const page = await sfetch(url);
     if (!page) return out;
     out.push(...page.data);
-    onProgress && onProgress(out.length, page.total_cards);
+    onProgress(out.length, page.total_cards);
     url = page.has_more ? page.next_page : null;
     if (url) await new Promise(r => setTimeout(r, 110));
   }
@@ -454,6 +590,9 @@ function metaTreatment(c) {
          fe.some(f => ["inverted","extendedart","etched","showcase"].includes(f));
 }
 const collectorOnly = (c) => (c.promo_types || []).some(p => ["surgefoil","headliner","bundle","promopack","prerelease","buyabox"].includes(p));
+const cardImg = (c) => (c.image_uris && c.image_uris.normal) || (c.card_faces && c.card_faces[0].image_uris && c.card_faces[0].image_uris.normal) || null;
+const cardOracle = (c) => c.oracle_text != null ? c.oracle_text
+  : (c.card_faces ? c.card_faces.map(f => (f.name ? f.name + "\n" : "") + (f.oracle_text || "")).join("\n——\n") : "");
 
 function buildPool(cards, mode, cutoff) {
   let pool;
@@ -472,16 +611,18 @@ function buildPool(cards, mode, cutoff) {
     treat: metaTreatment(c) || treatIds.has(c.id),
     u: c.prices && c.prices.usd ? parseFloat(c.prices.usd) : null,
     f: c.prices && c.prices.usd_foil ? parseFloat(c.prices.usd_foil) : null,
+    set: c.set || "", cnRaw: c.collector_number || "",
+    img: cardImg(c), o: cardOracle(c),
   }));
 }
 
 // ===== EV engine =====
-function readModel() {
-  const m = {};
-  for (const [k] of MODEL_KEYS) m[k] = num($("m_"+k).value);
-  return m;
-}
-function computeEV(pool, sgCards, m, tw) {
+// @pure
+// minValue (item 9): 0 = every priced card counts toward EV (the default — no $1 floor);
+// > 0 = cards under it are excluded from EV and summed into `excluded` for the
+// "EV $X · excluding $Y under $Z" annotation. Pull-rate copies always count.
+function computeEV(pool, sgCards, m, tw, minValue) {
+  const thr = minValue || 0;
   const pools = { common:[], uncommon:[], rare:[], mythic:[], land:[] };
   for (const c of pool) {
     if (c.basic) { pools.land.push(c); continue; }
@@ -498,10 +639,15 @@ function computeEV(pool, sgCards, m, tw) {
   const foil = Object.assign(wcDist(m.foilWildcards), { land: m.landSlot*m.landFoilPct/100 });
 
   const per = new Map();
-  const add = (c, copies, price) => {
-    const e = per.get(c.id) || { card:c, copies:0, ev:0 };
+  let excluded = 0;
+  const add = (c, copies, price, isFoil) => {
+    const e = per.get(c.id) || { card:c, copies:0, ev:0, foilCopies:0 };
     e.copies += copies;
-    if (price != null && price > 1.0) e.ev += copies * price;
+    if (isFoil) e.foilCopies += copies;
+    if (price != null && price > 0) {
+      if (price >= thr) e.ev += copies * price;
+      else excluded += copies * price;
+    }
     per.set(c.id, e);
   };
   const distribute = (cards, en, ef) => {
@@ -510,15 +656,15 @@ function computeEV(pool, sgCards, m, tw) {
     const ws = w.reduce((a,b)=>a+b,0);
     cards.forEach((c,i) => {
       const s = w[i]/ws;
-      if (en) add(c, en*s, c.u);
-      if (ef) add(c, ef*s, c.f != null ? c.f : c.u);
+      if (en) add(c, en*s, c.u, false);
+      if (ef) add(c, ef*s, c.f != null ? c.f : c.u, true);
     });
   };
   for (const r of ["common","uncommon","rare","mythic"]) distribute(pools[r], nonfoil[r]||0, foil[r]||0);
   distribute(pools.land, nonfoil.land, foil.land);
   if (sgCards.length && m.sgRate > 0) {
     const each = m.sgRate/100 / sgCards.length;
-    for (const c of sgCards) add(c, each, c.u);
+    for (const c of sgCards) add(c, each, c.u, false);
   }
   const buckets = Object.fromEntries(SLOTS.map(s => [s.id, { ev:0, hits:0 }]));
   const contributors = [];
@@ -526,43 +672,65 @@ function computeEV(pool, sgCards, m, tw) {
     if (e.ev > 0) { buckets[e.card.bucket].ev += e.ev; buckets[e.card.bucket].hits += 1; contributors.push(e); }
   }
   contributors.sort((a,b) => b.ev - a.ev);
-  return { buckets, contributors };
+  return { buckets, contributors, excluded };
 }
+// @end-pure
 
-// ===== sealed price =====
-let groupsCache = null;
-async function getGroups(statusFn) {
-  if (groupsCache) return groupsCache;
+// ===== product catalog (item 6: static data in the repo) =====
+async function loadCatalog() {
   try {
-    const c = JSON.parse(localStorage.getItem(LS_KEY + ".groups"));
-    if (c && Date.now() - c.at < 86400e3) { groupsCache = c.data; return c.data; }
-  } catch (e) {}
-  statusFn("Fetching set list from TCGplayer mirror…");
-  const { data } = await tcgFetch("/tcgplayer/1/groups");
-  groupsCache = data;
-  try { localStorage.setItem(LS_KEY + ".groups", JSON.stringify({ at: Date.now(), data })); } catch (e) {}
-  return data;
+    const res = await fetch("data/products.json");
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    catalog = (await res.json()).sets || {};
+  } catch (e) {
+    catalog = null; // file:// open or missing file — era-template fallback below
+  }
 }
-async function fetchSealedPrice(code, setName, presetKey, statusFn) {
-  const groups = await getGroups(statusFn);
-  const up = code.toUpperCase();
-  let group = groups.find(g => (g.abbreviation||"").toUpperCase() === up);
-  if (!group && setName) group = groups.find(g => g.name.toLowerCase() === setName.toLowerCase());
-  if (!group) throw new Error(`No TCGplayer group matches "${code}".`);
-  statusFn(`Fetching sealed prices for ${group.name}…`);
-  const [prodRes, priceRes] = [await tcgFetch(`/tcgplayer/1/${group.groupId}/products`), await tcgFetch(`/tcgplayer/1/${group.groupId}/prices`)];
-  const prices = new Map(priceRes.data.map(p => [p.productId + "|" + (p.subTypeName||""), p]));
-  const rx = PRESETS[presetKey].match;
-  const candidates = prodRes.data.filter(p => rx.test(p.name) && !/case/i.test(p.name));
-  if (!candidates.length) throw new Error(`No "${PRESETS[presetKey].label}" box product found for ${group.name}.`);
-  const product = candidates[0];
-  const pr = prices.get(product.productId + "|Normal") || prices.get(product.productId + "|");
-  const market = pr && (pr.marketPrice != null ? pr.marketPrice : pr.lowPrice);
-  if (market == null) throw new Error(`No market price listed yet for ${product.name}.`);
-  return { product: product.name, market, via: prodRes.via, low: pr.lowPrice };
+// Era-template fallback when a set isn't in data/products.json: generic products with
+// pack counts from release-date rules. No tcgcsv product ids, so sealed price resolution
+// falls back to name matching (resolveFallbackIds) and, failing that, loose packs.
+function fallbackProducts(released) {
+  const d = released || "2099-01-01";
+  const out = [];
+  if (d >= "2024-01-01") {
+    const ppb = d >= "2025-02-01" ? 30 : 36;
+    out.push({ key:"play-box", label:"Play Booster Box", packType:"play", packs:ppb, unit:"box", rx:/play booster (display|box)/i });
+    out.push({ key:"play-pack", label:"Play Booster Pack", packType:"play", packs:1, unit:"pack", boxKey:"play-box", packsPerBox:ppb, rx:/play booster pack$/i });
+    out.push({ key:"bundle", label:"Bundle", packType:"play", packs:9, unit:"bundle", boxKey:"play-box", packsPerBox:ppb, rx:/^bundle$/i });
+    out.push({ key:"prerelease", label:"Prerelease Pack", packType:"play", packs:6, unit:"prerelease", boxKey:"play-box", packsPerBox:ppb, rx:/prerelease (pack|kit)/i });
+  } else {
+    out.push({ key:"draft-box", label:"Draft Booster Box", packType:"draft", packs:36, unit:"box", rx:/draft booster (display|box)/i });
+    out.push({ key:"draft-pack", label:"Draft Booster Pack", packType:"draft", packs:1, unit:"pack", boxKey:"draft-box", packsPerBox:36, rx:/draft booster pack$/i });
+    if (d >= "2020-09-01") {
+      out.push({ key:"set-box", label:"Set Booster Box", packType:"set", packs:30, unit:"box", rx:/set booster (display|box)/i });
+      out.push({ key:"set-pack", label:"Set Booster Pack", packType:"set", packs:1, unit:"pack", boxKey:"set-box", packsPerBox:30, rx:/set booster pack$/i });
+    }
+    out.push({ key:"bundle", label:"Bundle", packType: d >= "2020-09-01" ? "set" : "draft", packs: d >= "2020-09-01" ? 8 : 10, unit:"bundle", rx:/^bundle$/i });
+    out.push({ key:"prerelease", label:"Prerelease Pack", packType:"draft", packs:6, unit:"prerelease", rx:/prerelease (pack|kit)/i });
+  }
+  if (d >= "2019-10-01") {
+    out.push({ key:"collector-box", label:"Collector Booster Box", packType:"collector", packs:12, unit:"box", rx:/collector booster (display|box)/i });
+    out.push({ key:"collector-pack", label:"Collector Booster Pack", packType:"collector", packs:1, unit:"pack", boxKey:"collector-box", packsPerBox:12, rx:/collector booster pack$/i });
+  }
+  return out;
+}
+function productsForSet(setCode) {
+  const cat = catalog && catalog[setCode.toUpperCase()];
+  if (cat) return cat.products;
+  const si = setIndex.find(s => s.code.toUpperCase() === setCode.toUpperCase());
+  return fallbackProducts(si && si.released_at);
+}
+function productOf(item) {
+  return productsForSet(item.set).find(p => p.key === item.key) || null;
+}
+function setDisplayName(code) {
+  const si = setIndex.find(s => s.code.toUpperCase() === code.toUpperCase());
+  if (si) return si.name;
+  const cat = catalog && catalog[code.toUpperCase()];
+  return cat ? cat.name : code.toUpperCase();
 }
 
-// ===== verdicts =====
+// ===== verdicts & SWR (unchanged, pinned by tests) =====
 // @pure
 function verdictOf(net, price) {
   const dead = Math.max(price * 0.08, 1);
@@ -599,11 +767,128 @@ function showCue(txt) {
   const el = $("cue");
   el.textContent = txt;
   el.hidden = false;
-  // one tap anywhere clears it; scroll never does
   window.addEventListener("click", () => { el.hidden = true; }, { once: true, capture: true });
 }
 function chaseOf(bucket) {
-  return lastResult ? (lastResult.contributors.find(e => e.card.bucket === bucket) || null) : null;
+  return lastAgg ? (lastAgg.contributors.find(e => e.card.bucket === bucket) || null) : null;
+}
+function feeCfg() {
+  return { commissionPct: num($("commissionPct").value, 8), procPct: num($("procPct").value, 2.9),
+           procFlat: num($("procFlat").value, 0.3), buyerSH: num($("buyerSH").value, 4.99),
+           fulfillment: num($("fulfillment").value, 0) };
+}
+
+// ===== sheets =====
+let openSheetId = null;
+function openSheet(id) {
+  closeSheet();
+  $("scrim").classList.add("open");
+  $(id).classList.add("open");
+  openSheetId = id;
+  document.body.style.overflow = "hidden";
+  const f = $(id).querySelector("input, button:not(.sheet-close)");
+  if (f) f.focus({ preventScroll: true });
+}
+function closeSheet() {
+  if (!openSheetId) return;
+  $(openSheetId).classList.remove("open");
+  $("scrim").classList.remove("open");
+  document.body.style.overflow = "";
+  openSheetId = null;
+}
+
+// ===== set picker (item 2) =====
+const SET_TYPES = [
+  ["expansion","Expansion", true], ["masters","Masters", true], ["core","Core", true],
+  ["draft_innovation","Draft", true], ["commander","Commander", false], ["funny","Un-sets", false],
+];
+function renderSetTypes() {
+  $("setTypes").innerHTML = SET_TYPES.map(([v, label, on]) =>
+    `<button type="button" class="fchip" data-type="${v}" aria-pressed="${on}">${label}</button>`).join("");
+}
+function activeTypes() {
+  return [...document.querySelectorAll("#setTypes .fchip")].filter(b => b.getAttribute("aria-pressed") === "true").map(b => b.dataset.type);
+}
+function renderSetRows() {
+  const q = $("setSearch").value.trim().toLowerCase();
+  const types = activeTypes();
+  let rows = setIndex.filter(s => types.includes(s.set_type));
+  if (q) rows = rows.filter(s => s.name.toLowerCase().includes(q) || s.code.toLowerCase().includes(q));
+  if ($("setSort").value === "name") rows = [...rows].sort((a,b) => a.name.localeCompare(b.name));
+  $("setRows").innerHTML = rows.slice(0, 80).map(s =>
+    `<button type="button" class="srow" data-set="${esc(s.code)}">
+       <span class="sr-main">${esc(s.name)}</span>
+       <span class="sr-sub">${esc(s.code.toUpperCase())} · ${esc(s.released_at || "")}</span>
+     </button>`).join("") || `<p class="note">No sets match. Try fewer letters, or flip a set-type filter on.</p>`;
+}
+function openSetPicker() {
+  renderSetRows();
+  openSheet("sheetSet");
+  $("setSearch").select();
+}
+// ===== product picker (items 5/6) =====
+function openProductPicker(setCode) {
+  pickerSet = setCode.toUpperCase();
+  $("prodTitle").textContent = setDisplayName(pickerSet);
+  const prods = productsForSet(pickerSet);
+  $("prodRows").innerHTML = prods.map(p =>
+    `<button type="button" class="srow" data-key="${esc(p.key)}">
+       <span class="sr-main">${esc(p.label)}</span>
+       <span class="sr-sub">${p.packs} pack${p.packs > 1 ? "s" : ""}</span>
+     </button>`).join("") +
+    `<p class="note">${catalog && catalog[pickerSet] ? "Catalog: TCGplayer sealed listings via tcgcsv." : "This set isn't in the local catalog yet — generic product list from its release era."}</p>`;
+  openSheet("sheetProd");
+}
+function addItem(setCode, key) {
+  const found = comp.find(i => i.set === setCode && i.key === key);
+  if (found) found.qty = Math.min(found.qty + 1, 99);
+  else comp.push({ set: setCode, key, qty: 1, ub: false, basis: "", paid: null });
+  closeSheet();
+  renderComp();
+  saveState();
+  run();
+}
+
+// ===== composition list =====
+function renderComp() {
+  const list = $("compList");
+  if (!comp.length) {
+    list.innerHTML = "";
+    $("promise").hidden = false;
+    $("run").disabled = true;
+    return;
+  }
+  $("promise").hidden = true;
+  $("run").disabled = false;
+  list.innerHTML = comp.map((i, idx) => {
+    const p = productOf(i);
+    const label = p ? p.label : i.key;
+    const isPlay = p && p.packType === "play";
+    return `<div class="citem${i.open ? " open" : ""}" data-idx="${idx}">
+      <div class="citem-top">
+        <span class="citem-name">${esc(label)}<span class="cs">${esc(setDisplayName(i.set))} · ${esc(i.set)}</span></span>
+        <span class="stepper">
+          <button type="button" data-act="dec" aria-label="One fewer">&minus;</button>
+          <span class="qv">${i.qty}</span>
+          <button type="button" data-act="inc" aria-label="One more">+</button>
+        </span>
+        <button type="button" class="more" data-act="more" aria-label="Line item options" aria-expanded="${!!i.open}">&#8943;</button>
+      </div>
+      <div class="citem-detail">
+        <div class="row">
+          ${isPlay ? `<label class="f" style="max-width:220px; flex-direction:row; align-items:center; gap:8px; min-height:44px"><input type="checkbox" data-act="ub" style="width:20px; min-height:20px"${i.ub ? " checked" : ""}> <span style="margin:0; text-transform:none; letter-spacing:0; font-family:'IBM Plex Sans',sans-serif; font-size:13px; color:var(--text)">UB set, no wildcard slot</span></label>` : ""}
+          <label class="f" style="max-width:170px"><span>Cost basis</span>
+            <select data-act="basis">
+              <option value=""${!i.basis ? " selected" : ""}>Auto</option>
+              <option value="sealed"${i.basis === "sealed" ? " selected" : ""}>Sealed fraction</option>
+              <option value="packs"${i.basis === "packs" ? " selected" : ""}>Loose packs</option>
+            </select></label>
+          <label class="f" style="max-width:170px"><span>Paid $ (this line)</span><input type="number" data-act="paid" step="0.01" min="0" placeholder="market" value="${i.paid != null ? i.paid : ""}" inputmode="decimal"></label>
+          <button type="button" class="ghost" data-act="rm" style="min-height:44px">Remove</button>
+        </div>
+      </div>
+    </div>`;
+  }).join("");
 }
 
 // ===== board =====
@@ -613,102 +898,120 @@ function buildSkeleton() {
   $("minibar").innerHTML = SLOTS.map(s => `<div style="flex:1 1 0%;background:${s.color}"></div>`).join("");
   $("legend").innerHTML = SLOTS.map(s =>
     `<div class="li"><span class="chip" style="background:${s.color}"></span><span class="ln">${s.name}</span><span class="lv" data-slot="${s.id}">—</span></div>`).join("");
-  $("slotBody").innerHTML = `<tr><td colspan="7" class="empty">Load a board to price all 8 slots against their EV.</td></tr>`;
-  $("topBody").innerHTML = `<tr><td colspan="5" class="empty">Load a board to see which cards carry it.</td></tr>`;
+  $("slotCards").innerHTML = `<p class="note" style="margin:0">Add a product and load the board to price all 8 slots.</p>`;
+  $("deskBody").innerHTML = `<tr><td colspan="5" class="empty">Load the board to see what each slot must clear.</td></tr>`;
+  $("topBody").innerHTML = `<tr><td colspan="4" class="empty">Load the board to see which cards carry it.</td></tr>`;
 }
 
 function buildBoard(animate) {
-  if (!lastResult) return;
+  if (!lastAgg) return;
   document.body.classList.add("has-board");
-  // once priced, the board outranks setup (G2 fold budget): move setup below the quick check
-  if ($("setup").nextElementSibling === $("board")) $("quick").after($("setup"));
+  if ($("setup").nextElementSibling === $("board")) $("board").after($("setup")); // board outranks setup once priced
   $("run").textContent = "Re-run";
-  $("rerun").hidden = false;
-  const totalPack = SLOTS.reduce((a, s) => a + lastResult.buckets[s.id].ev, 0);
-  const uni = num($("uniformPrice").value);
-  const share = (s) => totalPack > 0 ? lastResult.buckets[s.id].ev / totalPack * 100 : 100 / N_SLOTS;
+  const totalEV = SLOTS.reduce((a, s) => a + lastAgg.buckets[s.id].ev, 0);
+  const share = (s) => totalEV > 0 ? lastAgg.buckets[s.id].ev / totalEV * 100 : 100 / N_SLOTS;
   $("bar").innerHTML = SLOTS.map(s =>
-    `<button type="button" class="seg" data-slot="${s.id}" style="flex:${share(s).toFixed(3)} 1 0%;background:${s.color};color:${s.ink}" aria-label="${s.name}"><span>${share(s) >= 6 ? s.id : ""}</span></button>`).join("");
+    `<button type="button" class="seg" data-slot="${s.id}" style="flex:${share(s).toFixed(3)} 1 0%;background:${s.color};color:${s.ink}" aria-label="${s.name}"><span>${share(s) > 6 ? s.id : ""}</span></button>`).join("");
   $("minibar").innerHTML = SLOTS.map(s =>
     `<div style="flex:${share(s).toFixed(3)} 1 0%;background:${s.color}"></div>`).join("");
   $("legend").innerHTML = SLOTS.map(s =>
     `<div class="li"><span class="chip" style="background:${s.color}"></span><span class="ln">${s.name}</span><span class="lv" data-slot="${s.id}">—</span></div>`).join("");
-  $("slotBody").innerHTML = SLOTS.map(s => `<tr data-slot="${s.id}">
-    <td class="c-name"><span class="chip" style="background:${s.color}"></span>${s.name}</td>
-    <td class="c-hits" data-l="$1+ cards">—</td>
-    <td class="c-ev" data-l="EV (run)">—</td>
-    <td class="c-chase" data-l="Chase">—</td>
-    <td class="c-price" data-l="Slot $"><input type="number" step="0.5" min="0" inputmode="decimal" placeholder="${uni}" value="${slotPrices[s.id] ?? ""}" data-slot="${s.id}" aria-label="${s.name} slot price"></td>
-    <td class="c-net" data-l="Net">—</td>
-    <td class="c-tag" data-l="Call">—</td>
-  </tr>`).join("");
-  $("slotBody").querySelectorAll("input").forEach(inp => {
+  $("deskBody").innerHTML = SLOTS.map(s => `<tr data-slot="${s.id}">
+      <td class="c-name"><button type="button" class="cardlink slotlink" data-slot="${s.id}" style="text-decoration:none"><span class="chip" style="background:${s.color}"></span>${s.name}</button></td>
+      <td class="c-ev" data-l="EV (break)">—</td>
+      <td class="c-ask" data-l="Ask to clear">—</td>
+      <td class="c-price" data-l="Your $"><input type="number" step="0.5" min="0" value="${slotPrices[s.id] || ""}" data-slot="${s.id}" aria-label="${s.name} price" inputmode="decimal"></td>
+      <td class="c-net" data-l="Net / order">—</td>
+    </tr>`).join("");
+  document.querySelectorAll("#deskBody input").forEach(inp => {
     inp.classList.toggle("set", inp.value !== "");
     inp.addEventListener("input", e => { slotPrices[e.target.dataset.slot] = e.target.value; e.target.classList.toggle("set", e.target.value !== ""); updateBoard(); saveState(); });
   });
-  $("footNote").textContent = lastMeta;
-  lastNPacksTop = null;
   updateBoard();
   if (animate) animateBar();
 }
 
 function updateBoard() {
-  if (!lastResult) return;
-  const boxes = Math.max(1, Math.round(num($("boxes").value, 1)));
-  const ppb = Math.max(1, num($("packsPerBox").value, 30));
-  const nPacks = boxes * ppb;
-  const boxPrice = num($("boxPrice").value);
-  const shipSlot = num($("shipPerSlot").value);
-  const feePct = num($("feePct").value) / 100;
+  if (!lastAgg) return;
+  const thr = num($("thr").value, 0);
+  const fees = feeCfg();
   const uni = num($("uniformPrice").value);
 
   const rows = SLOTS.map(s => {
-    const evPack = lastResult.buckets[s.id].ev;
-    const evTotal = evPack * nPacks;
+    const evTotal = lastAgg.buckets[s.id].ev;
     const price = (slotPrices[s.id] === undefined || slotPrices[s.id] === "") ? uni : num(slotPrices[s.id]);
-    return { ...s, evPack, evTotal, hits: lastResult.buckets[s.id].hits, price, net: evTotal - price };
+    return { ...s, evTotal, hits: lastAgg.buckets[s.id].hits, price, net: evTotal - price };
   });
   lastRows = rows;
   const totalEV = rows.reduce((a,r)=>a+r.evTotal,0);
-  const revenue = rows.reduce((a,r)=>a+r.price,0);
-  const productCost = boxes * boxPrice;
-  const shipTotal = shipSlot * N_SLOTS;
-  const totalCost = productCost + shipTotal;
-  const fees = revenue * feePct;
-  const breakEvenFee = feePct < 1 ? totalCost / (N_SLOTS * (1 - feePct)) : Infinity;
-  const margin = revenue * (1 - feePct) - totalCost;
+  const note = evNote(lastAgg.excluded, thr);
 
-  $("tEV").textContent = usd0(totalEV);
-  $("tEVs").textContent = `${usd(totalEV / nPacks)} / pack × ${nPacks} packs`;
-  $("tCost").textContent = usd0(productCost);
-  $("tCosts").textContent = `${boxes} box${boxes > 1 ? "es" : ""} × ${usd(boxPrice)}`;
-  $("tFees").textContent = usd0(fees + shipTotal);
-  $("tFeess").textContent = `${pct1(feePct * 100)} fees + ${usd(shipTotal)} ship`;
-  $("tMargin").textContent = (margin > 0 ? "+" : "") + usd0(margin);
-  $("tMargin").style.color = netColor(margin);
-  $("tMargins").textContent = margin > 0.005 ? "edge at these prices" : margin < -0.005 ? "fade at these prices" : "on the line";
-  $("floorVal").textContent = Number.isFinite(breakEvenFee)
-    ? `Break-even ${money(breakEvenFee)} / slot${feePct > 0 ? ` after ${pct1(feePct * 100)} fees` : ""}`
-    : "Break-even — fees are 100%+; lower the fee %";
+  // ---- buyer strip ----
+  $("bEV").textContent = usd0(totalEV);
+  $("bEVs").textContent = (thr > 0 ? "non-bulk value" + note : "every card, summed");
+  $("bPacks").textContent = String(lastAgg.packs);
+  $("bPackss").textContent = lastAgg.itemCount === 1 ? "1 line item" : lastAgg.itemCount + " line items";
+  const chase = lastAgg.contributors[0];
+  if (chase) {
+    $("bChase").textContent = chase.card.name.split(" // ")[0];
+    $("bChase").style.fontSize = "15px";
+    $("bChases").textContent = (chase.card.u != null ? money(chase.card.u) + " · " : "") + money(chase.ev) + " of EV";
+  }
+  const best = [...rows].sort((a,b) => b.evTotal - a.evTotal)[0];
+  $("bBest").textContent = best ? best.name : "—";
+  $("bBest").style.fontSize = "19px";
+  $("bBests").textContent = best && totalEV > 0 ? Math.round(best.evTotal / totalEV * 100) + "% of EV" : "by EV share";
+
+  // ---- buyer slot cards ----
+  $("slotCards").innerHTML = rows.map(r => {
+    const ch = chaseOf(r.id);
+    const sh = ch && r.evTotal > 0 ? Math.round(ch.ev / r.evTotal * 100) : 0;
+    const chLine = ch
+      ? `${esc(ch.card.name.split(" // ")[0])} · ${sh >= 50 ? "LOTTERY" : "STEADY"} ${sh}% · floor if miss ${money(r.evTotal - (ch ? ch.ev : 0))}`
+      : "no priced cards";
+    return `<button type="button" class="scard" data-slot="${r.id}" aria-label="${r.name} — ${money(r.evTotal)}. Top 10 cards.">
+        <span class="sn"><span class="chip" style="background:${r.color}"></span>${r.name}</span>
+        <span class="sev">${money(r.evTotal)}</span>
+        <span class="sub">${chLine}</span>
+      </button>`;
+  }).join("");
+
+  // ---- seller: cost + break-even + desk ----
+  const totalCost = costInfo.reduce((a,c) => a + (c.cost || 0), 0);
+  const anyMissing = costInfo.some(c => c.cost == null);
+  const be = compBreakEven(totalCost, N_SLOTS, fees);
+  const hammer = rows.reduce((a,r)=>a+r.price,0);
+  const netAtAsks = rows.reduce((a,r)=>a+orderNet(r.price, fees),0) - totalCost;
+
+  $("sCost").textContent = anyMissing ? "—" : usd0(totalCost);
+  $("sCosts").textContent = anyMissing ? "price missing — see Your cost" : costInfo.length + " line item" + (costInfo.length > 1 ? "s" : "") + " at market";
+  $("sBE").textContent = Number.isFinite(be) && !anyMissing ? usd0(be) : "—";
+  $("sBEs").textContent = "hammer to clear cost + fees";
+  $("sEV").textContent = usd0(totalEV);
+  $("sEVs").textContent = "market value pulled" + note;
+  $("sNet").textContent = anyMissing ? "—" : signed(netAtAsks);
+  $("sNet").style.color = netColor(netAtAsks);
+  $("sNets").textContent = "at your asks, after fees";
+
+  $("floorVal").textContent = Number.isFinite(be) && !anyMissing
+    ? `Break-even ${usd(be)} hammer · ${usd(be / N_SLOTS)}/slot avg`
+    : "Break-even needs a cost — set one under Your cost";
+  const pricedCount = rows.filter(r => slotPrices[r.id] !== undefined && slotPrices[r.id] !== "").length;
+  $("deskNet").textContent = anyMissing ? "" :
+    `${pricedCount}/8 priced · hammer ${usd0(hammer)} · net ${signed(netAtAsks)}`;
+  $("deskNet").style.color = netColor(netAtAsks);
 
   for (const r of rows) {
-    const tr = document.querySelector(`#slotBody tr[data-slot="${r.id}"]`);
+    const tr = document.querySelector(`#deskBody tr[data-slot="${r.id}"]`);
     if (!tr) continue;
-    tr.querySelector(".c-hits").textContent = r.hits;
     tr.querySelector(".c-ev").textContent = money(r.evTotal);
-    const ch = chaseOf(r.id);
-    const cc = tr.querySelector(".c-chase");
-    if (ch && r.evTotal > 0) {
-      const top = ch.ev * nPacks;
-      const sh = Math.round(top / r.evTotal * 100);
-      cc.innerHTML = `<span class="chn">${esc(ch.card.name.split(" // ")[0])}</span>` +
-        `<span class="chs">${ch.card.u != null ? money(ch.card.u) + " · " : ""}${sh >= 50 ? "LOTTERY" : "STEADY"} · ${sh}% of slot · floor if miss ${money(r.evTotal - top)}</span>`;
-    } else cc.textContent = "—";
-    const [vLabel, vCls] = verdictOf(r.net, r.price);
+    // ask-to-clear: break-even hammer allocated by EV share — sell each slot at this and the break clears exactly
+    const ask = Number.isFinite(be) && totalEV > 0 ? be * r.evTotal / totalEV : null;
+    tr.querySelector(".c-ask").textContent = ask != null && !anyMissing ? money(ask) : "—";
+    const net = orderNet(r.price, fees);
     const nc = tr.querySelector(".c-net");
-    nc.textContent = signed(r.net);
-    nc.className = "c-net " + vCls;
-    tr.querySelector(".c-tag").innerHTML = `<span class="tag ${vCls}">${vLabel}</span>`;
+    nc.textContent = signed(net);
+    nc.style.color = netColor(net);
     const inp = tr.querySelector("input");
     if (inp) inp.placeholder = uni;
   }
@@ -719,62 +1022,62 @@ function updateBoard() {
   });
   document.querySelectorAll("#bar .seg").forEach(el => {
     const r = rows.find(x => x.id === el.dataset.slot);
-    if (r) el.setAttribute("aria-label", `${r.name} — ${money(r.evTotal)}, ${totalEV > 0 ? Math.round(r.evTotal / totalEV * 100) : 0}% of EV. Jump to its row.`);
+    if (r) el.setAttribute("aria-label", `${r.name} — ${money(r.evTotal)}, ${totalEV > 0 ? Math.round(r.evTotal / totalEV * 100) : 0}% of EV. Top 10 cards.`);
   });
 
-  if (priceInfo && !boxPriceIsManual) {
-    $("priceBadge").className = "badge live"; $("priceBadge").textContent = "live market";
-    $("priceSource").textContent = `${priceInfo.product} · TCGplayer market ${usd(priceInfo.market)}${priceInfo.low != null ? ` (low ${usd(priceInfo.low)})` : ""} via tcgcsv, updated daily. Edit Box cost $ to override.`;
-  } else {
-    $("priceBadge").className = "badge manual"; $("priceBadge").textContent = boxPriceIsManual ? "manual price" : "enter price";
-    $("priceSource").textContent = boxPriceIsManual ? "Using your box price." : "Live price unavailable — type the box’s TCGplayer market price into Box cost $.";
-  }
+  // ---- seller cost list + basis banner (item 7) ----
+  renderCosts();
 
-  if (lastNPacksTop !== nPacks) {
-    lastNPacksTop = nPacks;
-    $("topBody").innerHTML = lastResult.contributors.slice(0, 18).map(e => {
-      const meta = SLOTS.find(s => s.id === e.card.bucket);
-      return `<tr>
-        <td class="c-card">${esc(e.card.name.split(" // ")[0])}${e.card.treat ? '<span class="treat">✦ variant</span>' : ""}</td>
-        <td class="dim c-cn" data-l="CN">${e.card.cn}</td>
-        <td class="c-slot" data-l="Slot"><span class="stag" style="background:${meta.color};color:${meta.ink}">${meta.id}</span></td>
-        <td class="dim c-cop" data-l="Copies">${(e.copies * nPacks).toFixed(2)}</td>
-        <td class="strong c-tev" data-l="EV (run)">${money(e.ev * nPacks)}</td>
-      </tr>`;
-    }).join("") || `<tr><td colspan="5" class="empty">No cards over $1 in this pool.</td></tr>`;
-  }
+  // ---- top contributors ----
+  $("topBody").innerHTML = lastAgg.contributors.slice(0, 18).map((e, i) => {
+    const meta = SLOTS.find(s => s.id === e.card.bucket);
+    return `<tr>
+      <td class="c-card" data-l="Card"><button type="button" class="cardlink" data-ci="${i}">${esc(e.card.name.split(" // ")[0])}</button>${e.card.treat ? '<span class="treat">variant</span>' : ""}</td>
+      <td class="c-slot" data-l="Slot"><span class="stag" style="background:${meta.color};color:${meta.ink}">${meta.id}</span></td>
+      <td class="c-cop" data-l="Copies">${e.copies.toFixed(2)}</td>
+      <td class="c-tev" data-l="EV (break)">${money(e.ev)}</td>
+    </tr>`;
+  }).join("") || `<tr><td colspan="4" class="empty">No priced cards in the pool.</td></tr>`;
+  $("topScope").textContent = "whole break — tap a slot for its own top 10";
 
-  const pos = rows.filter(r => verdictOf(r.net, r.price)[1] === "pos").length;
-  $("glance").textContent = `${pos}/${N_SLOTS} +EV · ${stampText()}`;
+  updateGlance(rows, totalEV, netAtAsks, anyMissing);
   updateQuick();
+  $("footNote").textContent = lastMeta;
 }
 
-function updateQuick() {
-  if (!lastRows) return;
-  const r = lastRows.find(x => x.id === $("qcSlot").value) || lastRows[0];
-  if (!r) return;
-  const raw = $("qcPrice").value;
-  const ch = chaseOf(r.id);
-  const sh = ch && r.evPack > 0 ? Math.round(ch.ev / r.evPack * 100) : 0;
-  const nm = ch ? ch.card.name.split(" // ")[0] : "";
-  const topRun = ch && r.evPack > 0 ? ch.ev * r.evTotal / r.evPack : 0;
-  if (raw === "") {
-    $("qcNet").textContent = money(r.evTotal);
-    $("qcNet").className = "qc-net";
-    $("qcTag").hidden = true;
-    $("qcNote").textContent = `${r.name} slot EV at market. Enter the asking price to see the edge.`;
+function updateGlance(rows, totalEV, netAtAsks, anyMissing) {
+  const g = $("glance");
+  if (document.body.dataset.view === "seller" && !anyMissing) {
+    g.textContent = "net " + signed(netAtAsks);
+    g.style.color = netColor(netAtAsks);
   } else {
-    const price = num(raw);
-    const net = r.evTotal - price;
-    const [vLabel, vCls] = verdictOf(net, price);
-    $("qcNet").textContent = signed(net);
-    $("qcNet").className = "qc-net " + vCls;
-    const tag = $("qcTag");
-    tag.hidden = false; tag.textContent = vLabel; tag.className = "tag " + vCls;
-    $("qcNote").textContent = !ch ? "No cards over $1 in this slot."
-      : sh >= 50 ? `${sh}% of this slot rides on ${nm} — floor if miss ${money(r.evTotal - topRun)}.`
-      : `Steady slot — top card ${nm} is ${sh}% of its EV.`;
+    g.textContent = "EV " + usd0(totalEV);
+    g.style.color = "";
   }
+}
+
+function renderCosts() {
+  const el = $("costList");
+  if (!costInfo.length) { el.innerHTML = `<p class="note" style="margin:0">Load the board to price your product at market.</p>`; $("costWarn").style.display = "none"; $("priceBadge").textContent = ""; return; }
+  el.innerHTML = costInfo.map((c) => `
+    <div class="citem" style="margin-bottom:8px"><div class="citem-top">
+      <span class="citem-name">${esc(c.label)}<span class="cs">${c.basis === "sealed" ? "sealed market" : c.basis === "packs" ? "loose packs" : c.manual ? "your price" : "no price found"}${c.forced ? " · forced" : ""}</span></span>
+      <span class="mono" style="font-size:15px">${c.cost != null ? usd(c.cost) : "—"}</span>
+    </div></div>`).join("");
+  const fallback = costInfo.filter(c => c.basis === "packs" && !c.forced);
+  const missing = costInfo.filter(c => c.cost == null);
+  const w = $("costWarn");
+  if (fallback.length || missing.length) {
+    let msg = "";
+    if (fallback.length) msg += `Sealed box price unavailable for ${fallback.map(c => c.label).join(", ")} — priced from loose packs instead. tcgcsv carries no sales-volume signal, so a missing sealed listing is the trigger. Use the line item's Cost basis toggle (⋯) to force either basis. `;
+    if (missing.length) msg += `No market price found for ${missing.map(c => c.label).join(", ")} — type what you paid into the line item's Paid $ field (⋯).`;
+    w.textContent = msg;
+    w.style.display = "block";
+  } else w.style.display = "none";
+  const manual = costInfo.some(c => c.manual);
+  $("priceBadge").className = "badge " + (manual ? "manual" : "live");
+  $("priceBadge").textContent = manual ? "includes your prices" : "live market";
+  $("priceSource").textContent = "Sealed market prices: TCGplayer via tcgcsv, updated daily. Fractional line items (loose packs) cost their share of the sealed box. Override any line with Paid $.";
 }
 
 function animateBar() {
@@ -794,15 +1097,14 @@ function animateBar() {
 }
 
 function stampText() {
-  if (!lastResult) return "";
+  if (!lastAgg) return "";
   if (isStale) return "STALE — RE-RUN";
-  if (boxPriceIsManual) return priceStamp("manual", 0);
   if (!liveThisSession) return priceStamp("cached", fetchedAt ? Date.now() - fetchedAt : 864e7);
   return priceStamp("live", 0) + " " + tstamp(fetchedAt);
 }
 function stampBoard() {
   const st = $("stamp");
-  if (!lastResult) { st.textContent = ""; return; }
+  if (!lastAgg) { st.textContent = ""; return; }
   const desat = isStale || !liveThisSession;
   st.classList.toggle("stale", isStale);
   $("bar").classList.toggle("stale", desat);
@@ -810,109 +1112,227 @@ function stampBoard() {
   st.textContent = stampText();
 }
 function markStale() {
-  if (!lastResult || isStale) return;
+  if (!lastAgg || isStale) return;
   isStale = true;
   stampBoard();
   updateBoard();
 }
 
-// ===== run =====
-async function refreshSealed(code, setName, presetKey, warn) {
-  boxPriceIsManual = false;
-  // slow-relay nudge: after 6 s, point at the manual Box cost field while the race keeps trying
-  const nudge = setTimeout(() => {
-    if (!num($("boxPrice").value)) warn("Sealed price is taking a while — type the box's TCGplayer market price into Box cost $ to keep moving; the lookup keeps trying in the background.");
-  }, 6000);
-  try {
-    priceInfo = await fetchSealedPrice(code, setName, presetKey, () => {});
-    $("boxPrice").value = priceInfo.market.toFixed(2);
-  } catch (e) {
-    priceInfo = null;
-    if (!num($("boxPrice").value)) warn(`Sealed price lookup failed (${e.message}). Type the box's TCGplayer market price into Box cost $, or add a price proxy under Advanced for reliable lookups.`);
-    else boxPriceIsManual = true;
-  } finally { clearTimeout(nudge); }
-  updateBoard();
-  saveState();
+// ===== quick check (buyer) =====
+function updateQuick() {
+  if (!lastRows) return;
+  const r = lastRows.find(x => x.id === $("qcSlot").value) || lastRows[0];
+  if (!r) return;
+  const raw = $("qcPrice").value;
+  const ch = chaseOf(r.id);
+  const sh = ch && r.evTotal > 0 ? Math.round(ch.ev / r.evTotal * 100) : 0;
+  const nm = ch ? ch.card.name.split(" // ")[0] : "";
+  if (raw === "") {
+    $("qcNet").textContent = money(r.evTotal);
+    $("qcNet").className = "qc-net";
+    $("qcTag").hidden = true;
+    $("qcNote").textContent = `${r.name} slot EV at market. Enter the asking price to see your edge.`;
+  } else {
+    const price = num(raw);
+    const net = r.evTotal - price;
+    const [vLabel, vCls] = verdictOf(net, price);
+    $("qcNet").textContent = signed(net);
+    $("qcNet").className = "qc-net " + vCls;
+    const tag = $("qcTag");
+    tag.hidden = false; tag.textContent = vLabel; tag.className = "tag " + vCls;
+    $("qcNote").textContent = !ch ? "No priced cards in this slot."
+      : sh >= 50 ? `${sh}% of this slot rides on ${nm} — floor if it misses ${money(r.evTotal - ch.ev)}.`
+      : `Steady slot — top card ${nm} is ${sh}% of its EV.`;
+  }
 }
 
+// ===== slot drill-down (item 8) =====
+function openSlotSheet(slotId) {
+  if (!lastAgg) return;
+  const meta = SLOTS.find(s => s.id === slotId);
+  const rows = lastAgg.contributors.filter(e => e.card.bucket === slotId).slice(0, 10);
+  const evTotal = lastAgg.buckets[slotId].ev;
+  $("slotTitle").innerHTML = `<span class="chip" style="background:${meta.color}"></span>${meta.name} · ${money(evTotal)}`;
+  $("slotTop").innerHTML = rows.length ? rows.map(e => {
+    const gi = lastAgg.contributors.indexOf(e);
+    return `<button type="button" class="srow" data-ci="${gi}">
+      <span class="sr-main">${esc(e.card.name.split(" // ")[0])}${e.card.treat ? '<span class="treat">variant</span>' : ""}</span>
+      <span class="sr-sub">${e.card.u != null ? money(e.card.u) : "—"} · ${e.copies.toFixed(2)} exp · ${money(e.ev)}</span>
+    </button>`;
+  }).join("") + `<p class="note">Top ${rows.length} by EV contribution (expected copies × price) for this break. Tap a card for its image and text.</p>`
+  : `<p class="note">No priced cards land in ${meta.name} for this break.</p>`;
+  openSheet("sheetSlot");
+}
+
+// ===== card popup (item 11) =====
+function openCardSheet(e) {
+  const c = e.card;
+  $("cardTitle").textContent = c.name.split(" // ")[0];
+  const foilShare = e.copies > 0 ? e.foilCopies / e.copies : 0;
+  const finish = foilShare >= 0.999 ? "foil" : foilShare > 0.001 ? "nonfoil + foil" : "nonfoil";
+  const priceLine = [c.u != null ? usd(c.u) + " nonfoil" : null, foilShare > 0.001 && c.f != null ? usd(c.f) + " foil" : null].filter(Boolean).join(" · ");
+  $("cardBody").innerHTML = `
+    ${c.img ? `<img src="${esc(c.img)}" alt="${esc(c.name)} card image" loading="lazy">` : ""}
+    <p class="printing">${esc((c.set || "").toUpperCase())} #${esc(c.cnRaw || String(c.cn))} · priced as ${finish}${priceLine ? " · " + priceLine : ""}</p>
+    <div class="oracle">${esc(c.o || "").replace(/\n/g, "<br>")}</div>`;
+  openSheet("sheetCard");
+}
+
+// ===== pools & prices =====
+async function getPool(setCode, mode, show) {
+  const key = setCode.toLowerCase() + "|" + mode;
+  if (poolCache.has(key)) return poolCache.get(key);
+  const code = setCode.toLowerCase();
+  let cards, usedMode = mode, cutoff = null;
+  if (mode === "all") {
+    show(`Fetching ${setCode} full set…`);
+    cards = await fetchAllCards(`e:${code}`, (n,t) => show(`Fetching ${setCode} full set… ${n}/${t}`));
+  } else {
+    show(`Fetching ${setCode} booster pool…`);
+    cards = await fetchAllCards(`e:${code} is:booster`, (n,t) => show(`Fetching ${setCode} booster pool… ${n}/${t}`));
+    if (!cards.length) {
+      show(`No booster flags for ${setCode}; fetching full set…`);
+      cards = await fetchAllCards(`e:${code}`, (n,t) => show(`Fetching ${setCode} full set… ${n}/${t}`));
+      if (!cards.length) throw new Error(`Scryfall has no cards for set "${setCode}". Check the set and re-run.`);
+      usedMode = "cutoff";
+      const si = await getSetInfo(code);
+      const maxCN = Math.max(...cards.map(cnnum));
+      cutoff = num($("cutoff").value) || (si && si.printed_size) || maxCN;
+      $("cutoff").value = cutoff;
+      $("cutoffRow").style.display = "flex";
+      bannerWarn(`Preview-mode pool for ${setCode.toUpperCase()}: Scryfall hasn't flagged its booster prints yet, so the pool is collector number 1–${cutoff} with collector-only promos excluded. Verify the cutoff against the product's "may contain" line and re-run if needed.`);
+    }
+  }
+  const pool = buildPool(cards, usedMode, cutoff);
+  poolCache.set(key, pool);
+  return pool;
+}
+async function getSetInfo(code) {
+  const c = code.toLowerCase();
+  if (setInfoCache.has(c)) return setInfoCache.get(c);
+  const si = await sfetch(`https://api.scryfall.com/sets/${c}`);
+  setInfoCache.set(c, si);
+  return si;
+}
+async function getPrices(setCode) {
+  const key = setCode.toUpperCase();
+  if (priceCache.has(key)) return priceCache.get(key);
+  const cat = catalog && catalog[key];
+  let groupId = cat && cat.groupId;
+  let idMap = null; // fallback sets: rx-matched name -> productId
+  if (!groupId) {
+    const groups = (await tcgFetch("/tcgplayer/1/groups")).data;
+    const si = setIndex.find(s => s.code.toUpperCase() === key);
+    const g = groups.find(x => (x.abbreviation||"").toUpperCase() === key) ||
+              (si && groups.find(x => x.name.toLowerCase() === si.name.toLowerCase()));
+    if (!g) throw new Error(`No TCGplayer group for ${key}`);
+    groupId = g.groupId;
+    const prods = (await tcgFetch(`/tcgplayer/1/${groupId}/products`)).data;
+    idMap = new Map();
+    for (const p of productsForSet(key)) {
+      if (!p.rx) continue;
+      const hit = prods.find(x => p.rx.test(x.name) && !/case/i.test(x.name));
+      if (hit) idMap.set(p.key, hit.productId);
+    }
+  }
+  const priceRes = (await tcgFetch(`/tcgplayer/1/${groupId}/prices`)).data;
+  const map = new Map();
+  for (const pr of priceRes) {
+    if (pr.marketPrice == null && pr.lowPrice == null) continue;
+    const cur = map.get(pr.productId);
+    // Normal subtype outranks foil-only rows for sealed
+    if (!cur || (pr.subTypeName || "") === "Normal") map.set(pr.productId, pr.marketPrice != null ? pr.marketPrice : pr.lowPrice);
+  }
+  if (idMap) for (const p of productsForSet(key)) { const pid = idMap.get(p.key); p.id = pid || p.id; }
+  priceCache.set(key, map);
+  return map;
+}
+
+function bannerWarn(msg) {
+  const el = $("warn");
+  el.textContent = (el.style.display === "block" ? el.textContent + " " : "") + msg;
+  el.style.display = "block";
+}
+
+// ===== run pipeline =====
+function modelFor(item, prod) {
+  const key = prod.packType === "play" && item.ub ? "playUB" : prod.packType;
+  return MODELS[key] || MODELS.play;
+}
 async function run(opts) {
-  const bg = !!(opts && opts.background); // stale-while-revalidate: swap prices in place
-  if (running) return; // in-flight refresh — second tap is a no-op
-  const code = $("setCode").value.trim().toLowerCase();
+  const bg = !!(opts && opts.background);
+  if (running || !comp.length) return;
   const errEl = $("err"), warnEl = $("warn"), st = $("status");
   errEl.style.display = "none"; warnEl.style.display = "none";
-  const warn = (msg) => { warnEl.textContent = msg; warnEl.style.display = "block"; };
-  if (!code) { errEl.textContent = "Enter a set code first — type one like “eoe” or pick from the suggestions."; errEl.style.display = "block"; $("setCode").focus(); return; }
   running = true;
   const before = lastRows ? lastRows.map(r => verdictOf(r.net, r.price)[0]) : null;
-  const busyEls = [document.querySelector(".ticker"), document.querySelector(".hero"), document.querySelector(".strip")];
+  const busyEls = [document.querySelector(".ticker"), document.querySelector(".hero")];
   busyEls.forEach(el => el && el.setAttribute("aria-busy", "true"));
-  $("run").disabled = true; $("rerun").disabled = true; $("run").classList.add("loading");
+  $("run").disabled = true; $("run").classList.add("loading");
   const show = bg ? () => {} : (t) => { st.textContent = t; st.style.display = "block"; };
   try {
-    const presetKey = $("preset").value;
-    // ---- Scryfall card pool ----
-    let mode, cards, cutoff = null, setInfo = null;
-    if (presetKey === "collector") {
-      show("Fetching full set from Scryfall…");
-      cards = await fetchAllCards(`e:${code}`, (n,t) => show(`Fetching full set… ${n}/${t}`));
-      mode = "all";
-    } else {
-      show("Fetching booster pool from Scryfall…");
-      cards = await fetchAllCards(`e:${code} is:booster`, (n,t) => show(`Fetching booster pool… ${n}/${t}`));
-      mode = "flag";
-      if (!cards.length) {
-        show("No booster flags; fetching full set…");
-        cards = await fetchAllCards(`e:${code}`, (n,t) => show(`Fetching full set… ${n}/${t}`));
-        if (!cards.length) throw new Error(`Scryfall has no cards for set "${code}". Check the code against the suggestions and re-run.`);
-        mode = "cutoff";
-        setInfo = await sfetch(`https://api.scryfall.com/sets/${code}`);
-        const maxCN = Math.max(...cards.map(cnnum));
-        cutoff = num($("cutoff").value) || (setInfo && setInfo.printed_size) || maxCN;
-        $("cutoff").value = cutoff;
-        $("cutoffRow").style.display = "flex";
-        warn(`Preview-mode pool: Scryfall hasn't flagged which "${code.toUpperCase()}" prints appear in boosters, so the pool is collector number 1–${cutoff} with collector-only promos excluded. Verify the cutoff against the product's "may contain" line and re-run if needed.`);
-      } else {
-        $("cutoffRow").style.display = "none";
-      }
-    }
-    if (!setInfo) setInfo = await sfetch(`https://api.scryfall.com/sets/${code}`);
-    $("setLabel").textContent = (setInfo ? `${setInfo.name} · ${setInfo.released_at}` : code.toUpperCase()) + ` · ${PRESETS[presetKey].label}`;
-    $("setLabel").hidden = false; // attribute, not inline style — the mobile media query must keep winning (G2)
-
-    // ---- bonus sheet ----
+    const thr = num($("thr").value, 0);
+    const tw = num($("tw").value, 0.125);
+    // ---- bonus sheet (global, applies to models with sgRate > 0) ----
     let sgCards = [];
-    const m = readModel();
     const sgCode = $("sgCode").value.trim().toLowerCase();
-    if (m.sgRate > 0 && sgCode) {
+    if (sgCode) {
       show("Fetching bonus sheet…");
       let q = `e:${sgCode}`;
       const lo = $("sgLo").value, hi = $("sgHi").value;
       if (lo && hi) q += ` cn>=${lo} cn<=${hi}`;
-      sgCards = (await fetchAllCards(q, ()=>{})).map(c => ({ id:c.id, name:c.name, cn:cnnum(c), rarity:c.rarity, bucket:bucketOf(c), basic:false, treat:false, u:c.prices&&c.prices.usd?parseFloat(c.prices.usd):null, f:null }));
+      sgCards = (await fetchAllCards(q, ()=>{})).map(c => ({ id:c.id, name:c.name, cn:cnnum(c), rarity:c.rarity, bucket:bucketOf(c), basic:false, treat:false,
+        u:c.prices&&c.prices.usd?parseFloat(c.prices.usd):null, f:null, set:c.set||"", cnRaw:c.collector_number||"", img:cardImg(c), o:cardOracle(c) }));
     }
-
-    // ---- EV ----
-    show("Computing expected value…");
-    const pool = buildPool(cards, mode, cutoff);
-    lastResult = computeEV(pool, sgCards, m, num($("tw").value, 0.125));
-    lastMeta = `Pool: ${mode === "all" ? "all prints (rough collector model)" : mode === "flag" ? "Scryfall booster-flagged prints" : `CN 1–${cutoff}, collector-only promos excluded`} (${pool.length} prints). Card prices: Scryfall / TCGplayer market, fetched ${new Date().toLocaleString()}. Cards under $1 excluded from EV, included in pull-rate math. Box toppers not modeled. Collation odds are editable estimates.`;
+    // ---- per line item: pool + per-pack EV, aggregated over the whole composition (item 5) ----
+    const agg = { buckets: Object.fromEntries(SLOTS.map(s => [s.id, { ev:0, hits:0 }])), contributors: [], excluded: 0, packs: 0, itemCount: comp.length };
+    const merged = new Map();
+    const labels = [];
+    for (const item of comp) {
+      const prod = productOf(item);
+      if (!prod) throw new Error(`Unknown product "${item.key}" for ${item.set} — remove the line item and re-add it.`);
+      const mode = prod.packType === "collector" ? "all" : "flag";
+      const pool = await getPool(item.set, mode, show);
+      const m = modelFor(item, prod);
+      show(`Computing ${item.set} ${prod.label} EV…`);
+      const per = computeEV(pool, sgCards, m, tw, thr);
+      const packs = prod.packs * item.qty;
+      agg.packs += packs;
+      agg.excluded += per.excluded * packs;
+      for (const e of per.contributors) {
+        const g = merged.get(e.card.id) || { card: e.card, copies: 0, ev: 0, foilCopies: 0 };
+        g.copies += e.copies * packs;
+        g.ev += e.ev * packs;
+        g.foilCopies += e.foilCopies * packs;
+        merged.set(e.card.id, g);
+      }
+      labels.push(`${item.qty}× ${item.set} ${prod.label}`);
+    }
+    for (const e of merged.values()) {
+      agg.buckets[e.card.bucket].ev += e.ev;
+      agg.buckets[e.card.bucket].hits += 1;
+      agg.contributors.push(e);
+    }
+    agg.contributors.sort((a,b) => b.ev - a.ev);
+    lastAgg = agg;
+    lastMeta = `Break: ${labels.join(" + ")} (${agg.packs} packs). Card prices: Scryfall / TCGplayer market, fetched ${new Date().toLocaleString()}. ${thr > 0 ? `Cards under ${usd(thr)} excluded from EV (your threshold).` : "All cards count toward EV."} Collation odds are editable estimates under Advanced — WotC doesn't publish exact numbers.`;
 
     fetchedAt = Date.now();
     isStale = false;
     liveThisSession = true;
     st.style.display = "none";
-    buildBoard(!bg); // background refresh swaps values in place — no animation, no scroll
+    $("setLabel").textContent = labels.join(" + ");
+    $("setLabel").hidden = false;
+    buildBoard(!bg);
     stampBoard();
     saveState();
-    try { history.replaceState(null, "", `?set=${encodeURIComponent(code)}&preset=${encodeURIComponent(presetKey)}`); } catch (e) {}
+    try { history.replaceState(null, "", "?b=" + encodeURIComponent(encodeComp(comp))); } catch (e) {}
     if (!bg) $("bar").scrollIntoView({ block:"nearest" });
-    // changed-verdict cue (UX5-m3): pinned "OLD→NEW on refresh" form
     const after = lastRows ? lastRows.map(r => verdictOf(r.net, r.price)[0]) : null;
     const cueTxt = cueFromVerdicts(before, after);
     if (cueTxt) showCue(cueTxt);
-    // ---- sealed box price: non-blocking — card EVs paint before tcgcsv answers ----
-    refreshSealed(code, setInfo && setInfo.name, presetKey, warn);
+    // ---- sealed prices: non-blocking — card EVs paint before tcgcsv answers ----
+    refreshCosts();
   } catch (e) {
     st.style.display = "none";
     errEl.textContent = e.message;
@@ -920,102 +1340,228 @@ async function run(opts) {
   } finally {
     running = false;
     busyEls.forEach(el => el && el.removeAttribute("aria-busy"));
-    $("run").disabled = false; $("rerun").disabled = false; $("run").classList.remove("loading");
+    $("run").disabled = !comp.length; $("run").classList.remove("loading");
   }
+}
+
+// Cost side (items 3/7/10): market cost per line item, sealed-fraction basis with
+// loose-pack fallback, manual Paid $ override always winning.
+async function refreshCosts() {
+  const out = [];
+  for (const item of comp) {
+    const prod = productOf(item);
+    const label = `${item.qty}× ${item.set} ${prod ? prod.label : item.key}`;
+    if (item.paid != null && item.paid !== "") { out.push({ label, cost: num(item.paid), basis: "manual", forced: false, manual: true }); continue; }
+    let sealed = null, loose = null;
+    try {
+      const prices = await getPrices(item.set);
+      const priceOf = (id) => id != null && prices.has(id) ? prices.get(id) : null;
+      const own = priceOf(prod.id);
+      const boxKey = prod.boxId != null ? prod.boxId : (prod.boxKey ? (productsForSet(item.set).find(p => p.key === prod.boxKey) || {}).id : null);
+      const boxP = priceOf(boxKey);
+      const frac = boxP != null && prod.packsPerBox ? boxP * prod.packs / prod.packsPerBox : null;
+      if (prod.unit === "pack") { sealed = frac; loose = own; }
+      else {
+        sealed = own != null ? own : frac;
+        const packProd = productsForSet(item.set).find(p => p.unit === "pack" && p.packType === prod.packType);
+        const packP = packProd ? priceOf(packProd.id) : null;
+        loose = packP != null ? packP * prod.packs : null;
+      }
+      if (sealed != null) sealed *= item.qty;
+      if (loose != null) loose *= item.qty;
+    } catch (e) { /* relay failure — both null, banner asks for Paid $ */ }
+    const pick = chooseBasis(sealed, loose, item.basis || "");
+    out.push({ label, cost: pick.cost, basis: pick.basis, forced: pick.forced, manual: false });
+  }
+  costInfo = out;
+  updateBoard();
+  saveState();
 }
 
 // ===== persistence =====
 function saveState() {
   try {
-    const s = { setCode:$("setCode").value, preset:$("preset").value, boxes:$("boxes").value, packsPerBox:$("packsPerBox").value,
-      boxPrice:$("boxPrice").value, shipPerSlot:$("shipPerSlot").value, feePct:$("feePct").value, uniformPrice:$("uniformPrice").value,
-      cutoff:$("cutoff").value, tw:$("tw").value, sgCode:$("sgCode").value, sgLo:$("sgLo").value, sgHi:$("sgHi").value,
-      proxyUrl:$("proxyUrl").value, slotPrices, model:readModel(),
-      fetchedAt, isStale,
-      board: lastResult ? {
-        buckets: lastResult.buckets,
-        contributors: lastResult.contributors.map(e => ({ card:{ name:e.card.name, cn:e.card.cn, bucket:e.card.bucket, treat:e.card.treat, u:e.card.u }, copies:e.copies, ev:e.ev })),
-        meta: lastMeta, setLabel: $("setLabel").textContent, priceInfo, boxPriceIsManual,
+    const s = {
+      comp, view: document.body.dataset.view, slotPrices,
+      settings: Object.fromEntries(["fulfillment","buyerSH","commissionPct","procPct","procFlat","uniformPrice","thr","tw","cutoff","sgCode","sgLo","sgHi","proxyUrl"].map(id => [id, $(id).value])),
+      models: MODELS, fetchedAt, isStale,
+      board: lastAgg ? {
+        buckets: lastAgg.buckets, excluded: lastAgg.excluded, packs: lastAgg.packs, itemCount: lastAgg.itemCount,
+        contributors: lastAgg.contributors.slice(0, 60).map(e => ({ card: { id:e.card.id, name:e.card.name, cn:e.card.cn, cnRaw:e.card.cnRaw, set:e.card.set, bucket:e.card.bucket, treat:e.card.treat, u:e.card.u, f:e.card.f, img:e.card.img, o:e.card.o }, copies:e.copies, ev:e.ev, foilCopies:e.foilCopies })),
+        meta: lastMeta, setLabel: $("setLabel").textContent, costInfo,
       } : null };
     localStorage.setItem(LS_KEY, JSON.stringify(s));
   } catch (e) {}
 }
 function loadState() {
   try {
-    const s = JSON.parse(localStorage.getItem(LS_KEY));
-    if (!s) return;
-    for (const id of ["setCode","preset","boxes","packsPerBox","boxPrice","shipPerSlot","feePct","uniformPrice","cutoff","tw","sgCode","sgLo","sgHi","proxyUrl"])
-      if (s[id] !== undefined && s[id] !== "") $(id).value = s[id];
-    if (s.model) for (const [k] of MODEL_KEYS) if (s.model[k] !== undefined) $("m_"+k).value = s.model[k];
+    let s = JSON.parse(localStorage.getItem(LS_KEY));
+    if (!s) {
+      // one-shot migration from the single-set v2 state
+      const v2 = JSON.parse(localStorage.getItem(LS_KEY_V2));
+      if (v2 && v2.setCode) comp = legacyComp(v2.setCode, v2.preset);
+      return;
+    }
+    comp = Array.isArray(s.comp) ? s.comp : [];
     slotPrices = s.slotPrices || {};
+    if (s.settings) for (const [id, v] of Object.entries(s.settings)) if ($(id) && v !== undefined && v !== "") $(id).value = v;
+    if (s.models) for (const k of Object.keys(MODELS)) if (s.models[k]) MODELS[k] = { ...MODELS[k], ...s.models[k] };
+    if (s.view === "seller" || s.view === "buyer") setView(s.view, false);
     if (s.board && s.board.buckets) {
-      lastResult = { buckets: s.board.buckets, contributors: s.board.contributors || [] };
+      lastAgg = { buckets: s.board.buckets, contributors: s.board.contributors || [], excluded: s.board.excluded || 0, packs: s.board.packs || 0, itemCount: s.board.itemCount || comp.length };
       lastMeta = s.board.meta || "";
-      priceInfo = s.board.priceInfo || null;
-      boxPriceIsManual = !!s.board.boxPriceIsManual;
+      costInfo = s.board.costInfo || [];
       fetchedAt = s.fetchedAt || null;
-      // input-drift staleness persists; AGE staleness now wears the STALE·age stamp instead (S2)
       isStale = !!s.isStale || !fetchedAt;
       if (s.board.setLabel) { $("setLabel").textContent = s.board.setLabel; $("setLabel").hidden = false; }
     }
   } catch (e) {}
 }
 
+// ===== models (editable per booster type) =====
+const MODELS = Object.fromEntries(Object.entries(PRESETS).map(([k, p]) => {
+  const m = {};
+  for (const [key] of MODEL_KEYS) m[key] = p[key];
+  return [k, m];
+}));
+function renderModelFields() {
+  const k = $("modelPreset").value;
+  $("modelFields").innerHTML = MODEL_KEYS.map(([key,label]) =>
+    `<label class="mf"><span class="lbl">${label}</span><input type="number" step="0.1" inputmode="decimal" id="m_${key}" value="${MODELS[k][key]}"></label>`).join("");
+}
+
+// ===== view switch (item 4) =====
+function setView(v, repaint) {
+  document.body.dataset.view = v;
+  $("modeBuyer").setAttribute("aria-pressed", String(v === "buyer"));
+  $("modeSeller").setAttribute("aria-pressed", String(v === "seller"));
+  if (repaint !== false && lastAgg) updateBoard();
+  saveState();
+}
+
 // ===== init =====
 function init() {
-  $("preset").innerHTML = Object.entries(PRESETS).map(([k,p]) => `<option value="${k}">${p.label}</option>`).join("");
-  $("modelFields").innerHTML = MODEL_KEYS.map(([k,label]) =>
-    `<label class="mf"><span class="lbl">${label}</span><input type="number" step="0.1" inputmode="decimal" class="small" id="m_${k}"></label>`).join("");
-  const applyPreset = (k) => { const p = PRESETS[k]; for (const [key] of MODEL_KEYS) $("m_"+key).value = p[key]; $("packsPerBox").value = p.ppb; };
-  applyPreset("play");
-  $("preset").addEventListener("change", e => { applyPreset(e.target.value); markStale(); updateBoard(); saveState(); });
-  $("run").addEventListener("click", run);
-  $("rerun").addEventListener("click", run);
-  $("setup").addEventListener("keydown", e => { if (e.key === "Enter" && e.target.matches("input")) { e.preventDefault(); run(); } });
-  for (const id of ["boxes","packsPerBox","shipPerSlot","feePct","uniformPrice"])
+  $("modelPreset").innerHTML = Object.entries(PRESETS).map(([k,p]) => `<option value="${k}">${p.label}</option>`).join("");
+  renderModelFields();
+  renderSetTypes();
+  $("modelPreset").addEventListener("change", renderModelFields);
+  $("modelFields").addEventListener("input", e => {
+    const k = $("modelPreset").value;
+    const key = (e.target.id || "").replace(/^m_/, "");
+    if (key) MODELS[k][key] = num(e.target.value);
+    markStale(); saveState();
+  });
+  $("modeBuyer").addEventListener("click", () => setView("buyer"));
+  $("modeSeller").addEventListener("click", () => setView("seller"));
+  $("run").addEventListener("click", () => run());
+  $("addProduct").addEventListener("click", openSetPicker);
+
+  // composition list interactions
+  $("compList").addEventListener("click", e => {
+    const btn = e.target.closest("[data-act]");
+    if (!btn) return;
+    const idx = parseInt(e.target.closest(".citem").dataset.idx, 10);
+    const item = comp[idx];
+    const act = btn.dataset.act;
+    if (act === "inc") item.qty = Math.min(item.qty + 1, 99);
+    else if (act === "dec") { item.qty -= 1; if (item.qty < 1) comp.splice(idx, 1); }
+    else if (act === "rm") comp.splice(idx, 1);
+    else if (act === "more") { item.open = !item.open; renderComp(); return; }
+    else return;
+    renderComp(); saveState(); run();
+  });
+  $("compList").addEventListener("change", e => {
+    const btn = e.target.closest("[data-act]");
+    if (!btn) return;
+    const idx = parseInt(e.target.closest(".citem").dataset.idx, 10);
+    const item = comp[idx];
+    const act = btn.dataset.act;
+    if (act === "ub") { item.ub = e.target.checked; saveState(); run(); }
+    else if (act === "basis") { item.basis = e.target.value; saveState(); refreshCosts(); }
+    else if (act === "paid") { item.paid = e.target.value === "" ? null : num(e.target.value); saveState(); refreshCosts(); }
+  });
+
+  // sheets
+  $("scrim").addEventListener("click", closeSheet);
+  document.querySelectorAll(".sheet-close").forEach(b => b.addEventListener("click", closeSheet));
+  window.addEventListener("keydown", e => { if (e.key === "Escape") closeSheet(); });
+  $("setSearch").addEventListener("input", renderSetRows);
+  $("setSort").addEventListener("change", renderSetRows);
+  $("setTypes").addEventListener("click", e => {
+    const b = e.target.closest(".fchip");
+    if (!b) return;
+    b.setAttribute("aria-pressed", String(b.getAttribute("aria-pressed") !== "true"));
+    renderSetRows();
+  });
+  $("setRows").addEventListener("click", e => {
+    const b = e.target.closest("[data-set]");
+    if (b) openProductPicker(b.dataset.set);
+  });
+  $("prodRows").addEventListener("click", e => {
+    const b = e.target.closest("[data-key]");
+    if (b) addItem(pickerSet, b.dataset.key);
+  });
+  $("slotTop").addEventListener("click", e => {
+    const b = e.target.closest("[data-ci]");
+    if (b && lastAgg) openCardSheet(lastAgg.contributors[parseInt(b.dataset.ci, 10)]);
+  });
+
+  // slot drill-down entry points: bar segments, buyer slot cards, desk slot names
+  $("bar").addEventListener("click", e => {
+    const seg = e.target.closest(".seg");
+    if (seg && lastAgg) openSlotSheet(seg.dataset.slot);
+  });
+  $("slotCards").addEventListener("click", e => {
+    const c = e.target.closest(".scard");
+    if (c && lastAgg) openSlotSheet(c.dataset.slot);
+  });
+  document.querySelector(".desk").addEventListener("click", e => {
+    const l = e.target.closest(".slotlink");
+    if (l && lastAgg) openSlotSheet(l.dataset.slot);
+  });
+  $("topBody").addEventListener("click", e => {
+    const b = e.target.closest("[data-ci]");
+    if (b && lastAgg) openCardSheet(lastAgg.contributors[parseInt(b.dataset.ci, 10)]);
+  });
+
+  for (const id of ["uniformPrice","fulfillment","buyerSH","commissionPct","procPct","procFlat"])
     $(id).addEventListener("input", () => { updateBoard(); saveState(); });
-  $("boxPrice").addEventListener("input", () => { boxPriceIsManual = true; updateBoard(); stampBoard(); saveState(); });
-  for (const id of ["setCode","cutoff","tw","sgCode","sgLo","sgHi"])
+  $("thr").addEventListener("input", () => { markStale(); saveState(); });
+  for (const id of ["cutoff","tw","sgCode","sgLo","sgHi"])
     $(id).addEventListener("input", () => { markStale(); saveState(); });
-  $("modelFields").addEventListener("input", () => { markStale(); saveState(); });
   $("proxyUrl").addEventListener("input", saveState);
   $("qcSlot").innerHTML = SLOTS.map(s => `<option value="${s.id}">${s.name}</option>`).join("");
   $("qcSlot").addEventListener("input", updateQuick);
   $("qcPrice").addEventListener("input", updateQuick);
-  $("bar").addEventListener("click", e => {
-    const seg = e.target.closest(".seg");
-    if (!seg || !lastResult) return;
-    const row = document.querySelector(`#slotBody tr[data-slot="${seg.dataset.slot}"]`);
-    if (row) { row.scrollIntoView({ block:"center" }); row.classList.add("hit"); setTimeout(() => row.classList.remove("hit"), 1200); }
-  });
+
+  loadCatalog().then(() => { renderComp(); });
   loadState();
+  renderComp();
+
+  // URL: ?b= composition, with legacy ?set=&preset= still resolving (item 5 AC)
   const params = new URLSearchParams(location.search);
-  const urlSet = (params.get("set") || "").trim().toLowerCase();
-  const savedSet = $("setCode").value.trim().toLowerCase();
-  if (urlSet) {
-    $("setCode").value = urlSet;
-    if (params.get("preset") && PRESETS[params.get("preset")]) { $("preset").value = params.get("preset"); applyPreset(params.get("preset")); }
-  }
-  // stale-while-revalidate (S2): cached board paints < 1 s with an age-bearing
-  // stamp, then a background refresh swaps prices in place.
-  const phases = boardPhases({ cached: !!lastResult, cachedSet: savedSet, urlSet });
+  const urlComp = params.get("b") ? decodeComp(params.get("b")) : legacyComp((params.get("set") || "").trim(), params.get("preset"));
+  const urlCompStr = urlComp.length ? encodeComp(urlComp) : "";
+  const savedCompStr = comp.length ? encodeComp(comp) : "";
+  if (urlComp.length) comp = urlComp.map(i => ({ ...(comp.find(c => c.set === i.set && c.key === i.key) || {}), ...i }));
+  renderComp();
+
+  const phases = boardPhases({ cached: !!lastAgg, cachedSet: savedCompStr, urlSet: urlCompStr });
   if (phases[0] === "paint-cached") { buildBoard(false); stampBoard(); } else { buildSkeleton(); }
   if (phases.indexOf("revalidate") >= 0) run({ background: true });
   else if (phases.indexOf("fetch") >= 0) run();
+
   sfetch("https://api.scryfall.com/sets").then(d => {
     if (!d) return;
-    $("setList").innerHTML = d.data
-      .filter(s => ["expansion","masters","draft_innovation","core","commander"].includes(s.set_type))
-      .map(s => `<option value="${esc(s.code)}">${esc(s.name)} (${s.released_at})</option>`).join("");
-    const recent = d.data.filter(s => s.set_type === "expansion").slice(0, 3);
+    setIndex = (d.data || []).filter(s => !s.digital);
+    renderComp(); // labels may resolve better now
+    const recent = setIndex.filter(s => s.set_type === "expansion").slice(0, 3);
     $("recentSets").innerHTML = recent.length
-      ? `<span class="lbl">Recent sets</span>` + recent.map(s => `<button type="button" class="chipbtn" data-code="${esc(s.code)}">${esc(s.name)}</button>`).join("")
+      ? `<span class="lbl" style="margin:0">Recent sets</span>` + recent.map(s => `<button type="button" class="chipbtn" data-code="${esc(s.code)}">${esc(s.name)}</button>`).join("")
       : "";
     $("recentSets").addEventListener("click", e => {
       const b = e.target.closest("[data-code]");
-      if (!b) return;
-      $("setCode").value = b.dataset.code;
-      run();
+      if (b) openProductPicker(b.dataset.code);
     });
   }).catch(()=>{});
 }
