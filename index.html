@@ -379,24 +379,42 @@ async function fetchAllCards(query, onProgress) {
   }
   return out;
 }
+// @pure
+const RELAY_TIMEOUT_MS = 6000;
+const RELAY_STAGGER_MS = 250;
+function relayHost(u) { const m = /^https?:\/\/([^/?#]+)/.exec(String(u)); return m ? m[1] : ""; }
+// last-good relay first; everyone still races, the rest just starts one stagger later
+function orderRelays(urls, lastGoodHost) {
+  if (!lastGoodHost) return urls.slice();
+  return [...urls.filter(u => relayHost(u) === lastGoodHost), ...urls.filter(u => relayHost(u) !== lastGoodHost)];
+}
+// @end-pure
+const RELAY_KEY = "colorBreakEV.relay";
+function lastGoodRelay() { try { return localStorage.getItem(RELAY_KEY) || ""; } catch (e) { return ""; } }
+async function relayAttempt(url, delayMs) {
+  if (delayMs) await new Promise(r => setTimeout(r, delayMs));
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), RELAY_TIMEOUT_MS);
+  try {
+    const res = await fetch(url, { signal: ctrl.signal });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const data = await res.json();
+    if (!data || !data.results) throw new Error("bad relay payload");
+    return { results: data.results, url };
+  } finally { clearTimeout(t); }
+}
 async function tcgFetch(path) {
   const target = "https://tcgcsv.com" + path;
   const worker = $("proxyUrl").value.trim().replace(/\/$/, "");
-  const attempts = worker ? [() => worker + path] : [];
-  for (const p of PROXIES) attempts.push(() => p(target));
-  let lastErr = null;
-  for (const build of attempts) {
-    try {
-      const ctrl = new AbortController();
-      const t = setTimeout(() => ctrl.abort(), 12000);
-      const res = await fetch(build(), { signal: ctrl.signal });
-      clearTimeout(t);
-      if (!res.ok) { lastErr = new Error("HTTP " + res.status); continue; }
-      const data = await res.json();
-      if (data && data.results) return { data: data.results, via: build === attempts[0] && worker ? "worker" : "relay" };
-    } catch (e) { lastErr = e; }
+  const urls = orderRelays(PROXIES.map(p => p(target)), lastGoodRelay());
+  if (worker) urls.unshift(worker + path); // user's worker outranks the remembered relay
+  try {
+    const win = await Promise.any(urls.map((u, i) => relayAttempt(u, i === 0 ? 0 : RELAY_STAGGER_MS)));
+    try { localStorage.setItem(RELAY_KEY, relayHost(win.url)); } catch (e) {}
+    return { data: win.results, via: worker && win.url.indexOf(worker) === 0 ? "worker" : "relay" };
+  } catch (e) {
+    throw new Error("All price routes failed");
   }
-  throw lastErr || new Error("All price routes failed");
 }
 
 // ===== card classification =====
@@ -739,6 +757,24 @@ function markStale() {
 }
 
 // ===== run =====
+async function refreshSealed(code, setName, presetKey, warn) {
+  boxPriceIsManual = false;
+  // slow-relay nudge: after 6 s, point at the manual Box cost field while the race keeps trying
+  const nudge = setTimeout(() => {
+    if (!num($("boxPrice").value)) warn("Sealed price is taking a while — type the box's TCGplayer market price into Box cost $ to keep moving; the lookup keeps trying in the background.");
+  }, 6000);
+  try {
+    priceInfo = await fetchSealedPrice(code, setName, presetKey, () => {});
+    $("boxPrice").value = priceInfo.market.toFixed(2);
+  } catch (e) {
+    priceInfo = null;
+    if (!num($("boxPrice").value)) warn(`Sealed price lookup failed (${e.message}). Type the box's TCGplayer market price into Box cost $, or add a price proxy under Advanced for reliable lookups.`);
+    else boxPriceIsManual = true;
+  } finally { clearTimeout(nudge); }
+  updateBoard();
+  saveState();
+}
+
 async function run() {
   const code = $("setCode").value.trim().toLowerCase();
   const errEl = $("err"), warnEl = $("warn"), st = $("status");
@@ -796,17 +832,6 @@ async function run() {
     lastResult = computeEV(pool, sgCards, m, num($("tw").value, 0.125));
     lastMeta = `Pool: ${mode === "all" ? "all prints (rough collector model)" : mode === "flag" ? "Scryfall booster-flagged prints" : `CN 1–${cutoff}, collector-only promos excluded`} (${pool.length} prints). Card prices: Scryfall / TCGplayer market, fetched ${new Date().toLocaleString()}. Cards under $1 excluded from EV, included in pull-rate math. Box toppers not modeled. Collation odds are editable estimates.`;
 
-    // ---- sealed box price ----
-    boxPriceIsManual = false;
-    try {
-      priceInfo = await fetchSealedPrice(code, setInfo && setInfo.name, presetKey, show);
-      $("boxPrice").value = priceInfo.market.toFixed(2);
-    } catch (e) {
-      priceInfo = null;
-      if (!num($("boxPrice").value)) warn(`Sealed price lookup failed (${e.message}). Type the box's TCGplayer market price into Box cost $, or add a price proxy under Advanced for reliable lookups.`);
-      else boxPriceIsManual = true;
-    }
-
     fetchedAt = Date.now();
     isStale = false;
     st.style.display = "none";
@@ -815,6 +840,8 @@ async function run() {
     saveState();
     try { history.replaceState(null, "", `?set=${encodeURIComponent(code)}&preset=${encodeURIComponent(presetKey)}`); } catch (e) {}
     $("bar").scrollIntoView({ block:"nearest" });
+    // ---- sealed box price: non-blocking — card EVs paint before tcgcsv answers ----
+    refreshSealed(code, setInfo && setInfo.name, presetKey, warn);
   } catch (e) {
     st.style.display = "none";
     errEl.textContent = e.message;
