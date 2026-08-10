@@ -51,8 +51,8 @@ One element, four jobs. (1) **Brand:** equal eighths in slot colors on first run
 the logo and the favicon. (2) **Instrument:** on fetch it eases once from eighths to EV
 shares — the page's only orchestrated motion; `prefers-reduced-motion` jumps to the final
 state. (3) **Nav:** every segment is a real `<button>` with an aria-label
-("Green — $27.10, 13% of EV") that scrolls to its row; a visible legend carries names and
-values for touch. (4) **Staleness:** post-fetch input changes or >24h-old restored data
+("Green — $27.10, 13% of EV") that opens that slot's drill-down sheet (top 10
+contributors); a visible legend carries names and values for touch. (4) **Staleness:** post-fetch input changes or >24h-old restored data
 desaturate the bar and flip the ticker stamp to STALE.
 
 ## Verdicts

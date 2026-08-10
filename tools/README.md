@@ -125,6 +125,30 @@ product's layout is addressed by ≥ 1 `slotRate`/`rarityMix` entry AND every la
 carrying a foreign/bonus setCode is addressed by ≥ 1 entry — otherwise RED unless listed in
 `exemptions`. Uncovered-and-unlisted is a build failure, never a silent skip.
 
+## `tools/build-products.mjs` — sealed-product catalog (S13)
+
+Maintainer-only, satisfies feedback item 13. Generates/updates `data/products.json`
+— the static per-set sealed-product catalog `index.html`'s set-picker/product-picker
+sheets read (boxes, packs, bundles, prerelease packs, …). Node stdlib only.
+
+```
+node tools/build-products.mjs EOE TDM FIN        # add/refresh specific sets by code
+node tools/build-products.mjs --since 2021-01-01 # add/refresh every set published since
+```
+
+- Source: tcgcsv.com's `groups` and per-group `products` endpoints (mirrors TCGplayer's
+  per-set product listings). Requires a custom `user-agent` header — a plain `fetch`
+  with no header gets HTTP 401 from tcgcsv.
+- `classifyProduct()` pattern-matches each tcgcsv product name into a catalog entry
+  (`key`, `label`, `packType`, `packs`, `unit`); products it can't classify (cases,
+  samples, decks, etc.) are deliberately skipped, not guessed.
+- Pack-per-box/bundle/prerelease counts are NOT in tcgcsv — they come from era rules
+  (`bundleContents`, `prereleaseContents`) plus `tools/ppb.json`, with a per-set
+  `OVERRIDES` table for sets whose packaging doesn't fit the era heuristic (ponytail:
+  a weird set gets an override line, not a new rule).
+- Output is merged into the existing `data/products.json` (per-set replace), so new
+  sets can be appended after each release without regenerating the whole file.
+
 ## Scope note (S3a vs S3c)
 
 This story freezes the v2 output shape and ships the builder + fixtures. It does **not**
