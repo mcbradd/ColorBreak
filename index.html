@@ -32,15 +32,15 @@ b, strong { font-weight:600; }
 .fair { color:var(--dim); }
 .mono { font-family:'IBM Plex Mono',monospace; font-variant-numeric:tabular-nums; }
 /* ===== ticker header ===== */
-/* min-height covers the worst-case wrap (cue text present forces mode onto its own row) so
-   the cue appearing/disappearing never reflows page content below (S2: layout-stable refresh). */
-.ticker { position:sticky; top:0; z-index:40; display:flex; gap:6px; align-items:center; flex-wrap:wrap; min-height:92px; padding:6px 12px; background:rgba(11,14,20,.92); backdrop-filter:blur(8px); border-bottom:1px solid var(--line2); }
+.ticker { position:sticky; top:0; z-index:40; display:flex; gap:6px; align-items:center; flex-wrap:wrap; padding:6px 12px; background:rgba(11,14,20,.92); backdrop-filter:blur(8px); border-bottom:1px solid var(--line2); }
 h1.wordmark { font-family:'Fraunces',serif; font-weight:900; font-size:19px; margin:0; letter-spacing:-.01em; }
 h1.wordmark span { color:var(--gold); }
 .tik-set { font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:.09em; text-transform:uppercase; color:var(--faint); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:34ch; }
 .tik-spacer { flex:1; }
 .glance { display:none; font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--dim); font-variant-numeric:tabular-nums; }
-.cue { font-family:'IBM Plex Mono',monospace; font-size:11px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--gold); border:1px solid #6B5A1E; border-radius:20px; padding:3px 8px; white-space:nowrap; }
+/* absolutely positioned (ticker is the containing block via position:sticky) so the cue
+   floats over the board on appear/dismiss instead of widening the sticky row (S2: layout-stable refresh). */
+.cue { position:absolute; top:100%; right:12px; margin-top:6px; z-index:39; font-family:'IBM Plex Mono',monospace; font-size:11px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--gold); background:rgba(11,14,20,.96); border:1px solid #6B5A1E; border-radius:20px; padding:3px 8px; white-space:nowrap; max-width:calc(100vw - 24px); overflow:hidden; text-overflow:ellipsis; }
 .tik-stamp { font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:.09em; text-transform:uppercase; color:var(--faint); font-variant-numeric:tabular-nums; }
 .tik-stamp.stale { color:var(--bad); font-weight:600; }
 #minibar { display:flex; flex:1 0 100%; height:4px; gap:2px; border-radius:2px; overflow:hidden; }
