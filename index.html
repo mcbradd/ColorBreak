@@ -125,6 +125,7 @@
   .panel.table .panelhead { padding:16px 16px 0; }
   .scroll { overflow-x:auto; }
   .desk table { min-width:720px; }
+.top table { min-width:580px; }
   td input { width:88px; padding:6px 8px; min-height:36px; font-size:13px; text-align:right; border-radius:6px; font-family:'IBM Plex Mono',monospace; border-color:#3A4560; }
   td input.set { border-color:#5A6A8C; font-weight:600; }
   #slotBody tr.hit td { background:rgba(201,162,39,.08); }
@@ -145,6 +146,8 @@
     .ticker { padding:8px 12px; }
     .tik-set, .tik-stamp { display:none; }
     .glance { display:inline; }
+    /* changed-verdict cue borrows the glance slot — the ticker never grows a row (S2/G2) */
+    .ticker:has(.cue:not([hidden])) .glance { display:none; }
     .tik-btn { min-height:44px; }
     #minibar { height:6px; border-radius:3px; }
     .bar { height:48px; }
@@ -163,6 +166,16 @@
     #slotBody td.c-name::before { display:none; }
     #slotBody tr.hit { outline:2px solid var(--gold); }
     td input { width:100%; min-height:44px; font-size:16px; }
+    /* Top Contributors: grid-cards below 680 px (S8a) — no 580 px table on a 430 px screen */
+    .top .scroll { overflow:visible; padding:0 12px 12px; }
+    .top table { min-width:0; }
+    .top thead { display:none; }
+    .top table, .top tbody { display:block; }
+    #topBody tr { display:grid; grid-template-columns:repeat(4,1fr); gap:8px 12px; padding:12px; border:1px solid var(--line2); border-radius:10px; background:var(--panel2); margin:0 0 8px; }
+    #topBody td { display:block; border:0; padding:0; text-align:left; }
+    #topBody td.c-card { grid-column:1/-1; font-size:15px; }
+    #topBody td::before { content:attr(data-l); display:block; font-family:'IBM Plex Mono',monospace; font-size:11px; font-weight:600; letter-spacing:.09em; text-transform:uppercase; color:var(--faint); margin-bottom:2px; }
+    #topBody td.c-card::before { display:none; }
   }
 </style>
 </head>
@@ -170,7 +183,7 @@
 <a class="skip" href="#board">Skip to the board</a>
 <header class="ticker">
   <h1 class="wordmark" translate="no">ColorBreak</h1>
-  <span class="tik-set" id="setLabel" style="display:none"></span>
+  <span class="tik-set" id="setLabel" hidden></span>
   <span class="tik-spacer"></span>
   <p id="status" role="status" aria-live="polite"></p>
   <span class="glance" id="glance"></span>
@@ -283,9 +296,9 @@
     </section>
 
     <!-- ===== contributors ===== -->
-    <section class="panel table" aria-label="Top contributors">
+    <section class="panel table top" aria-label="Top contributors">
       <div class="panelhead"><h2>Top contributors</h2></div>
-      <div class="scroll"><table style="min-width:580px">
+      <div class="scroll"><table>
         <thead><tr><th scope="col">Card</th><th scope="col">CN</th><th scope="col">Slot</th><th scope="col">Exp. copies (run)</th><th scope="col">EV (run)</th></tr></thead>
         <tbody id="topBody"></tbody>
       </table></div>
@@ -607,6 +620,8 @@ function buildSkeleton() {
 function buildBoard(animate) {
   if (!lastResult) return;
   document.body.classList.add("has-board");
+  // once priced, the board outranks setup (G2 fold budget): move setup below the quick check
+  if ($("setup").nextElementSibling === $("board")) $("quick").after($("setup"));
   $("run").textContent = "Re-run";
   $("rerun").hidden = false;
   const totalPack = SLOTS.reduce((a, s) => a + lastResult.buckets[s.id].ev, 0);
@@ -720,11 +735,11 @@ function updateBoard() {
     $("topBody").innerHTML = lastResult.contributors.slice(0, 18).map(e => {
       const meta = SLOTS.find(s => s.id === e.card.bucket);
       return `<tr>
-        <td>${esc(e.card.name.split(" // ")[0])}${e.card.treat ? '<span class="treat">✦ variant</span>' : ""}</td>
-        <td class="dim">${e.card.cn}</td>
-        <td><span class="stag" style="background:${meta.color};color:${meta.ink}">${meta.id}</span></td>
-        <td class="dim">${(e.copies * nPacks).toFixed(2)}</td>
-        <td class="strong">${money(e.ev * nPacks)}</td>
+        <td class="c-card">${esc(e.card.name.split(" // ")[0])}${e.card.treat ? '<span class="treat">✦ variant</span>' : ""}</td>
+        <td class="dim c-cn" data-l="CN">${e.card.cn}</td>
+        <td class="c-slot" data-l="Slot"><span class="stag" style="background:${meta.color};color:${meta.ink}">${meta.id}</span></td>
+        <td class="dim c-cop" data-l="Copies">${(e.copies * nPacks).toFixed(2)}</td>
+        <td class="strong c-tev" data-l="EV (run)">${money(e.ev * nPacks)}</td>
       </tr>`;
     }).join("") || `<tr><td colspan="5" class="empty">No cards over $1 in this pool.</td></tr>`;
   }
@@ -863,7 +878,7 @@ async function run(opts) {
     }
     if (!setInfo) setInfo = await sfetch(`https://api.scryfall.com/sets/${code}`);
     $("setLabel").textContent = (setInfo ? `${setInfo.name} · ${setInfo.released_at}` : code.toUpperCase()) + ` · ${PRESETS[presetKey].label}`;
-    $("setLabel").style.display = "inline-block";
+    $("setLabel").hidden = false; // attribute, not inline style — the mobile media query must keep winning (G2)
 
     // ---- bonus sheet ----
     let sgCards = [];
@@ -941,7 +956,7 @@ function loadState() {
       fetchedAt = s.fetchedAt || null;
       // input-drift staleness persists; AGE staleness now wears the STALE·age stamp instead (S2)
       isStale = !!s.isStale || !fetchedAt;
-      if (s.board.setLabel) { $("setLabel").textContent = s.board.setLabel; $("setLabel").style.display = "inline-block"; }
+      if (s.board.setLabel) { $("setLabel").textContent = s.board.setLabel; $("setLabel").hidden = false; }
     }
   } catch (e) {}
 }
