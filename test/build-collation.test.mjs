@@ -75,6 +75,11 @@ test("build: fixed per-pack count vs variable rate", () => {
   assert.equal(bySheet.wildcardSheet.slot, "wildcard");
 });
 
+test("build: a sheet that contributes cards with no slot-map entry is a build failure", () => {
+  const noWildcard = { EOE: { play: { slots: { commonSheet: "common" }, topper: { sheet: "boxToppers", ratePerBox: 1 } } } };
+  assert.throws(() => buildCollation(eoe, noWildcard, ppbTable), /no slot-map entry/);
+});
+
 test("build: ppb reflects DFT cutover for the fixture's 2025-07-25 release", () => {
   const out = buildCollation(eoe, slotMap, ppbTable);
   assert.equal(out.ppb.play, 30);

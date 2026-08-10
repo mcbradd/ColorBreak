@@ -1,13 +1,11 @@
 // Collation format v2 builder (S3a). Node stdlib only — no network, no deps.
 //
-// Input shape: a NORMALIZED set config, not a raw MTGJSON file:
-//   { code, releaseDate, meta: { version, date }, cardsById: { id: { number, setCode, rarity } },
+// Input shape: a NORMALIZED set config — either a raw MTGJSON per-set export (top-level
+// `data.cards[]`, keyed by `uuid`) or the pre-flattened form (`cardsById: {id: {...}}`); both
+// are accepted, see buildCollation below.
+//   { code, releaseDate, meta: { version, date }, cardsById?: { id: { number, setCode, rarity } },
+//     data?: { cards: [{ uuid, number, setCode, rarity }, …] },
 //     booster: { <rawConfigName>: { boosters: [{ contents: {sheet: count}, weight }], sheets: { name: { foil, cards: {id: weight} } } } } }
-// Real MTGJSON set files key sheet cards by UUID inside an array-of-cards document and don't
-// carry ratePerBox for box toppers at all; turning that raw shape into cardsById/booster above is
-// a thin, mechanical adapter left for S3b (when real per-set data lands against this frozen
-// format) — writing it now would mean fetching/vendoring live MTGJSON data, which this story's
-// AC (Node stdlib, no build step, <40KB fixtures) doesn't call for.
 //
 // Output: collation format v2, frozen per plan §3.2.
 
@@ -16,6 +14,10 @@ import { pathToFileURL } from "node:url";
 
 const DROPPED_CONFIGS = new Set(["jumpstart", "arena", "box", "sample"]);
 const KNOWN_CONFIGS = new Set(["play", "collector", "draft", "set"]);
+
+// Hand-maintained packs-per-box table (tools/ppb.json), loaded once at module scope so
+// defaultPpb has a real default without every caller having to thread the table through.
+const PPB = JSON.parse(readFileSync(new URL("./ppb.json", import.meta.url), "utf8"));
 
 // Config-name mapping (DES5-05): MTGJSON booster config key -> v2 product key.
 export function mapConfigName(rawKey, releaseDate) {
@@ -27,15 +29,13 @@ export function mapConfigName(rawKey, releaseDate) {
   return null; // unrecognized config, dropped defensively
 }
 
-// ppb table lookup (§3.2): Feb-2025 DFT cutover, play 36->30; others flat.
-export function defaultPpb(product, releaseDate) {
-  switch (product) {
-    case "set": return 30;
-    case "collector": return 12;
-    case "draft": return 36;
-    case "play": return new Date(releaseDate) < new Date("2025-02-01") ? 36 : 30;
-    default: return null;
-  }
+// ppb table lookup (§3.2): Feb-2025 DFT cutover, play 36->30; others flat. Reads tools/ppb.json
+// (or whatever table is passed in) so the JSON's `defaults`/`cutoverDate` are load-bearing.
+export function defaultPpb(product, releaseDate, table = PPB) {
+  const d = (table.defaults ?? PPB.defaults)?.[product];
+  if (d == null) return null;
+  if (typeof d === "number") return d;
+  return new Date(releaseDate) < new Date(table.cutoverDate) ? d.before : d.atOrAfter;
 }
 
 // One layout entry per (sheet, slot label) pair. count = fixed per-pack quantity when every
@@ -43,10 +43,18 @@ export function defaultPpb(product, releaseDate) {
 function computeLayout(boosterCfg, productSlotMap) {
   const boosters = boosterCfg.boosters || [];
   const totalWeight = boosters.reduce((sum, b) => sum + b.weight, 0);
+  const topperSheet = productSlotMap.topper?.sheet ?? null;
   const layout = [];
+  const unmapped = [];
   for (const sheetName of Object.keys(boosterCfg.sheets || {})) {
     const slotLabels = productSlotMap.slots?.[sheetName];
-    if (!slotLabels) continue; // not a per-pack slot sheet (e.g. a topper-only sheet)
+    if (!slotLabels) {
+      // Only a real failure if the sheet actually contributes cards to a pack; a topper-only
+      // sheet legitimately carries no slot label.
+      const contributes = boosters.some((b) => (b.contents[sheetName] || 0) > 0);
+      if (contributes && sheetName !== topperSheet) unmapped.push(sheetName);
+      continue;
+    }
     let weightedSum = 0;
     let allSame = true;
     let firstVal = null;
@@ -60,6 +68,11 @@ function computeLayout(boosterCfg, productSlotMap) {
     for (const slot of Array.isArray(slotLabels) ? slotLabels : [slotLabels]) {
       layout.push(allSame ? { sheet: sheetName, slot, count: firstVal } : { sheet: sheetName, slot, rate: avg });
     }
+  }
+  if (unmapped.length) {
+    throw new Error(
+      `build-collation: sheet(s) contribute cards but have no slot-map entry (uncovered-and-unlisted is a failure, never a silent skip): ${unmapped.join(", ")}`
+    );
   }
   return layout;
 }
@@ -81,9 +94,18 @@ function buildSheets(boosterCfg, sheetNames, cardsById, setCode) {
   return sheets;
 }
 
+// Accepts either the pre-flattened `cardsById` map or a raw MTGJSON per-set export
+// (`{ data: { cards: [{ uuid, … }] } }` or `{ cards: [...] }` at top level).
+function resolveCardsById(normalized) {
+  if (normalized.cardsById) return normalized.cardsById;
+  const cards = normalized.data?.cards ?? normalized.cards ?? [];
+  return Object.fromEntries(cards.map((c) => [c.uuid, c]));
+}
+
 export function buildCollation(normalized, slotMap, ppbTable) {
   const setCode = normalized.code;
   const releaseDate = normalized.releaseDate;
+  const cardsById = resolveCardsById(normalized);
   const rawEntries = Object.entries(normalized.booster || {});
 
   // Resolve explicit config names first; 'default' only fills a still-empty slot (era rule
@@ -112,10 +134,10 @@ export function buildCollation(normalized, slotMap, ppbTable) {
 
     products[v2Key] = {
       layout,
-      sheets: buildSheets(boosterCfg, usedSheets, normalized.cardsById, setCode),
+      sheets: buildSheets(boosterCfg, usedSheets, cardsById, setCode),
       boxTopper: topperCfg?.sheet ? { sheet: topperCfg.sheet, ratePerBox: topperCfg.ratePerBox } : null,
     };
-    ppb[v2Key] = ppbTable?.overrides?.[setCode]?.[v2Key] ?? defaultPpb(v2Key, releaseDate);
+    ppb[v2Key] = ppbTable?.overrides?.[setCode]?.[v2Key] ?? defaultPpb(v2Key, releaseDate, ppbTable ?? PPB);
   }
 
   return {

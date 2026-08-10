@@ -117,8 +117,6 @@ carrying a foreign/bonus setCode is addressed by ≥ 1 entry — otherwise RED u
 This story freezes the v2 output shape and ships the builder + fixtures. It does **not**
 implement `tierOf`/coverage-gating or the tolerance-check logic that reads the sidecar
 against real collation data — that's S3c's gate harness, which consumes the schema frozen
-here. `build-collation.mjs` also takes a *normalized* set config (see the comment at the
-top of the file), not a raw MTGJSON per-set export — adapting MTGJSON's raw uuid-keyed card
-array into `cardsById` is a thin, mechanical pass deferred to S3b when real seed-set data is
-authored against this format; it isn't needed to freeze the format itself, and building it
-now would mean vendoring live MTGJSON data into a format-freeze story.
+here. `build-collation.mjs` accepts either a raw MTGJSON per-set export (`data.cards[]`
+keyed by `uuid`) or the pre-flattened `cardsById` form; seed-set-specific `slot-map.json`
+entries beyond EOE still land in S3b.
