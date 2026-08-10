@@ -100,3 +100,10 @@ Collation format v2 (per-set sheet weights, foreign/bonus-sheet resolution, publ
 validation) is active, ongoing work tracked in `tools/README.md` and `docs/adr/` — it is
 infrastructure for pricing accuracy, not a product-facing requirement from the feedback
 doc, so it is not duplicated here.
+
+Exact sealed contents (`data/sealed/{SET}.json`, built by `tools/build-sealed.mjs`) is the
+same kind of infrastructure, with one product-facing consequence: composite products —
+bundles, gift editions, tins — are selectable and priced from their real contents rather
+than a single pack type, including guaranteed cards and packs borrowed from another set.
+Contents MTGJSON records only as prose ("20 Foil basic lands") stay unpriced and are
+disclosed in the run's warnings; EV is understated by exactly that, never silently.

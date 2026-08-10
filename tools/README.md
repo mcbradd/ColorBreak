@@ -149,6 +149,34 @@ node tools/build-products.mjs --since 2021-01-01 # add/refresh every set publish
 - Output is merged into the existing `data/products.json` (per-set replace), so new
   sets can be appended after each release without regenerating the whole file.
 
+## `tools/build-sealed.mjs` — exact sealed contents (`data/sealed/{SET}.json`)
+
+Maintainer-only. `data/products.json` says only *what kind* of pack a product is, which
+cannot describe a composite (the Secrets of Strixhaven Codex Bundle is 6 Play + 2
+Collector + 1 Codex Booster). This builder derives the real contents from MTGJSON's
+`sealedProduct[].contents` and `booster[]`, so EV is computed from actual sheet weights
+rather than a pack-type guess. Sibling of the frozen v2 collation format, not an
+extension of it.
+
+```
+node tools/build-sealed.mjs SOS TLA FIN        # writes data/sealed/{SET}.json + index.json
+```
+
+- Output per product: `packs` (booster code -> count per unit), `fixed` (guaranteed
+  cards, e.g. TLA's 3 borderless Commander staples, ONE's Compleat Bundle foils), and
+  `other` (contents MTGJSON records only as prose, surfaced in the UI as unpriced).
+- Expected copies of a card = `packCount × picks × weight / sheetTotalWeight`. Picks come
+  from `expectedPicks()`, the weight-averaged mean over MTGJSON's pack variants — exact
+  for EV by linearity, even though a real pack draws without replacement.
+- Unresolved references are named failures, never silent skips, and are retried by
+  fetching sibling sets: card uuids (SPG/PLST bonus sheets), deck names (MAT's bundle
+  land pack lives in MOM; matched as slugs, since contents drop apostrophes), and sealed
+  products from another set (BLB's tins hold FDN/OTJ/MKM packs — the reference names its
+  own set, which is tried first). Only after every candidate is exhausted does the build
+  fall back to recording the weight as unpriced, with a WARNING.
+- Foreign packs keep a `SET:code` key; `productDraws()` in `index.html` resolves them
+  from that set's own file, and leaves them unpriced if it isn't built.
+
 ## Scope note (S3a vs S3c)
 
 This story freezes the v2 output shape and ships the builder + fixtures. It does **not**

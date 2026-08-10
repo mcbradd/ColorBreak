@@ -2,3 +2,4 @@
 .tokensave/
 .agents/
 skills-lock.json
+.playwright-mcp/

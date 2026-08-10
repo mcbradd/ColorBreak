@@ -772,6 +772,31 @@ function computeEV(pool, sgCards, m, tw, minValue) {
 }
 // @end-pure
 
+// @pure
+// Prices one unit's draws against a card index keyed "SET|collector number". Foil draws
+// take the foil price, falling back to nonfoil when Scryfall has no foil figure.
+// `unmatched` counts expected cards whose printing the pool never produced, so a silent
+// zero can be told apart from a genuine zero.
+function evFromDraws(draws, index, minValue) {
+  const thr = minValue || 0;
+  const per = new Map();
+  let excluded = 0, unmatched = 0;
+  for (const d of draws) {
+    const c = index.get(`${d.set}|${d.cn}`);
+    if (!c) { unmatched += d.copies; continue; }
+    const price = d.foil ? (c.f != null ? c.f : c.u) : c.u;
+    const e = per.get(c.id) || { card: c, copies: 0, ev: 0, foilCopies: 0 };
+    e.copies += d.copies;
+    if (d.foil) e.foilCopies += d.copies;
+    if (price != null && price > 0) {
+      if (price >= thr) e.ev += d.copies * price; else excluded += d.copies * price;
+    }
+    per.set(c.id, e);
+  }
+  return { contributors: [...per.values()], excluded, unmatched };
+}
+// @end-pure
+
 // ===== product catalog (item 6: static data in the repo) =====
 async function loadCatalog() {
   try {
@@ -810,8 +835,115 @@ function fallbackProducts(released) {
   }
   return out;
 }
+// ===== sealed reference (data/sealed/{SET}.json, built by tools/build-sealed.mjs) =====
+// Exact contents and sheet weights per product, from MTGJSON. Where a set has this file
+// the board prices what is physically in the box — every booster the product contains,
+// each sheet's real weights, and guaranteed cards like the ONE Compleat Bundle's
+// oil-slick lands — instead of the era-average PRESETS model, which knows only one
+// booster type per product and no fixed cards.
+const sealedCache = new Map();
+
+// Catalog keys predate this file and appear in saved breaks and ?b= links, so MTGJSON's
+// longer product names normalise onto them rather than orphaning existing compositions.
+const SEALED_KEY_ALIAS = {
+  "play-booster-box":"play-box", "play-booster-pack":"play-pack",
+  "collector-booster-box":"collector-box", "collector-booster-pack":"collector-pack",
+  "set-booster-box":"set-box", "set-booster-pack":"set-pack",
+  "draft-booster-box":"draft-box", "draft-booster-pack":"draft-pack",
+};
+const SEALED_UNIT = { booster_box:"box", booster_pack:"pack", booster_case:"case", bundle:"bundle", bundle_case:"case", limited_aid_tool:"prerelease", limited_aid_case:"case", box_set:"multi", deck:"multi", deck_box:"multi", multiple_decks:"multi", subset:"multi" };
+
+async function ensureSealed(setCode) {
+  const code = (setCode || "").toUpperCase();
+  if (!code || sealedCache.has(code)) return sealedCache.get(code);
+  let doc = null;
+  try {
+    const res = await fetch(`data/sealed/${code}.json`);
+    if (res.ok) doc = await res.json();
+  } catch (e) { /* file:// open or set not built — PRESETS path still works */ }
+  sealedCache.set(code, doc);
+  return doc;
+}
+
+// @pure
+// The booster a product contains most of, so cost-basis and the existing per-type notes
+// keep working for composite products (a Codex Bundle is play-dominant).
+function dominantPackType(packs) {
+  let best = null, bestN = -1;
+  for (const [code, n] of Object.entries(packs || {})) {
+    const type = code.includes(":") ? code.split(":")[1] : code;
+    if (n > bestN) { best = type; bestN = n; }
+  }
+  return best || "play";
+}
+
+// Expected copies of every distinct card in ONE unit of a sealed product.
+// Sheet picks are expectations, so a card's copies are picks * weight / totalWeight —
+// exact for EV whether or not the real pack draws that sheet without replacement.
+// Returns { draws, unpriced }, where `unpriced` is expected cards per unit landing on
+// sheet weight whose card MTGJSON could not resolve (disclosed, never dropped quietly).
+// A pack key of the form "FDN:play" is another set's booster (BLB's tins hold one); its
+// config comes from `foreign` (SET -> that file's boosters), and stays unpriced without.
+function productDraws(product, boosters, setCode, foreign = {}) {
+  const out = new Map();
+  let unpriced = 0;
+  const add = (set, cn, copies, foil) => {
+    if (!(copies > 0)) return;
+    const key = `${set}|${cn}|${foil ? "f" : "n"}`;
+    const e = out.get(key) || { set, cn: String(cn), copies: 0, foil: !!foil };
+    e.copies += copies;
+    out.set(key, e);
+  };
+  for (const f of product.fixed || []) add(f.set, f.cn, f.n, f.foil);
+  for (const [code, count] of Object.entries(product.packs || {})) {
+    const i = code.indexOf(":");
+    const owner = i < 0 ? setCode : code.slice(0, i);
+    const b = i < 0 ? boosters[code] : (foreign[owner] || {})[code.slice(i + 1)];
+    if (!b) { unpriced += count; continue; } // pack from a set this file doesn't describe
+    for (const [name, picks] of Object.entries(b.picks)) {
+      const sh = b.sheets[name];
+      if (!sh || !sh.total) continue;
+      for (const c of sh.cards) {
+        const [cset, cn, w] = c.length === 3 ? c : [owner, c[0], c[1]];
+        add(cset, cn, count * picks * w / sh.total, sh.foil);
+      }
+      if (sh.missing) unpriced += count * picks * sh.missing / sh.total;
+    }
+  }
+  return { draws: [...out.values()], unpriced };
+}
+// @end-pure
+
+// Sealed-reference products, shaped like data/products.json entries so the picker, the
+// cost-basis code and saved compositions treat them identically.
+function sealedProductsFor(setCode) {
+  const doc = sealedCache.get((setCode || "").toUpperCase());
+  if (!doc) return null;
+  const out = doc.products.map((p) => {
+    const packs = Object.values(p.packs || {}).reduce((a, b) => a + b, 0);
+    const packType = dominantPackType(p.packs);
+    return { key: SEALED_KEY_ALIAS[p.key] || p.key, label: p.label, packType, packs,
+      unit: SEALED_UNIT[p.category] || "multi", id: p.tcgId != null ? p.tcgId : undefined, sealed: p.key };
+  });
+  for (const e of out) {
+    if (e.unit === "box") continue;
+    const box = out.find((b) => b.unit === "box" && b.packType === e.packType);
+    if (box) { e.boxId = box.id; e.packsPerBox = box.packs; }
+  }
+  const rank = (e) => ({ box:0, pack:1, bundle:2, multi:3, prerelease:4, case:5 }[e.unit] ?? 9) * 10
+    + ({ play:0, collector:1, set:2, draft:3 }[e.packType] ?? 9);
+  return out.sort((a, b) => rank(a) - rank(b));
+}
+
 function productsForSet(setCode) {
+  const sealed = sealedProductsFor(setCode);
   const cat = catalog && catalog[setCode.toUpperCase()];
+  if (sealed) {
+    // tcgcsv lists a few products MTGJSON does not (sleeved packs, promo packaging);
+    // keep them so nothing selectable today disappears.
+    const have = new Set(sealed.map((p) => p.key));
+    return sealed.concat((cat ? cat.products : []).filter((p) => !have.has(p.key)));
+  }
   if (cat) return cat.products;
   const si = setIndex.find(s => s.code.toUpperCase() === setCode.toUpperCase());
   const arr = fallbackProducts(si && si.released_at);
@@ -987,6 +1119,9 @@ function openSetPicker() {
 function selectPickerSet(setCode) {
   pickerSet = setCode.toUpperCase();
   renderPicker();
+  // The set's reference file is what lists its Codex Bundle / Commander's Bundle / scene
+  // boxes, so the product list is filled in again once it lands.
+  ensureSealed(pickerSet).then((doc) => { if (doc && pickerSet === (setCode || "").toUpperCase()) renderPicker(); });
 }
 function renderPicker() {
   const btn = $("pickSet"), sel = $("pickProd");
@@ -1030,7 +1165,9 @@ function addItem(setCode, key, qty) {
 // and clear it the moment the line item leaves the break.
 function renderCollectorNote() {
   const el = $("collectorWarn");
-  const labels = [...new Set(comp.filter(i => (productOf(i) || {}).packType === "collector")
+  // A set with a reference file is priced from its Collector Booster's actual sheets,
+  // so the estimate caveat applies only to sets still on the PRESETS model.
+  const labels = [...new Set(comp.filter(i => (productOf(i) || {}).packType === "collector" && !(productOf(i) || {}).sealed)
     .map(i => `${i.set} ${(productOf(i) || {}).label || i.key}`))];
   if (!labels.length) { el.style.display = "none"; return; }
   el.textContent = `${labels.join(", ")}: Collector Booster collation is an estimate — modelled as a rough slot mix, not published sheet weights. Read those EV figures as approximate.`;
@@ -1594,26 +1731,65 @@ async function run(opts) {
     const agg = { buckets: Object.fromEntries(SLOTS.map(s => [s.id, { ev:0, hits:0 }])), contributors: [], excluded: 0, packs: 0, itemCount: comp.length };
     const merged = new Map();
     const labels = [];
+    let unmatched = 0, unpriced = 0, sheetPriced = 0;
+    const extras = new Set();
     for (const item of comp) {
       const prod = productOf(item);
       if (!prod) throw new Error(`Unknown product "${item.key}" for ${item.set} — remove the line item and re-add it.`);
-      const mode = prod.packType === "collector" ? "all" : "flag";
-      const pool = await getPool(item.set, mode, show, !fresh);
-      const m = modelFor(item, prod);
-      show(`Computing ${item.set} ${prod.label} EV…`);
-      const per = computeEV(pool, sgCards, m, tw, thr);
-      const packs = prod.packs * item.qty;
-      agg.packs += packs;
-      agg.excluded += per.excluded * packs;
+      const sealedDoc = await ensureSealed(item.set);
+      const sealedProd = sealedDoc && prod.sealed ? sealedDoc.products.find(p => p.key === prod.sealed) : null;
+      let per, scale;
+      if (sealedProd) {
+        // Exact contents: every booster in the product, its real sheet weights, and any
+        // guaranteed cards — including cards printed in another set (SOS Codex Boosters
+        // hold SOC cards, TLA's Commander's Bundle holds TLE ones), each of which needs
+        // its own pool.
+        // Packs borrowed from another set need that set's collation too.
+      const foreign = {};
+      for (const code of Object.keys(sealedProd.packs || {})) {
+        if (!code.includes(":")) continue;
+        const own = code.slice(0, code.indexOf(":"));
+        const d = await ensureSealed(own);
+        if (d) foreign[own] = d.boosters;
+      }
+      const { draws, unpriced: miss } = productDraws(sealedProd, sealedDoc.boosters, item.set.toUpperCase(), foreign);
+        const index = new Map();
+        for (const code of [...new Set(draws.map(d => d.set))]) {
+          const p = await getPool(code, "all", show, !fresh);
+          for (const c of p) index.set(`${code}|${c.cnRaw}`, c);
+        }
+        show(`Computing ${item.set} ${prod.label} EV…`);
+        per = evFromDraws(draws, index, thr);
+        scale = item.qty;
+        unpriced += miss * item.qty;
+        sheetPriced++;
+        // Some contents are only ever prose in MTGJSON ("20 Foil basic lands"), with no
+        // card list to price. Name them rather than let them vanish from the total.
+        for (const o of sealedProd.other || []) if (/card|land/i.test(o)) extras.add(`${prod.label}: ${o}`);
+      } else {
+        const mode = prod.packType === "collector" ? "all" : "flag";
+        const pool = await getPool(item.set, mode, show, !fresh);
+        const m = modelFor(item, prod);
+        show(`Computing ${item.set} ${prod.label} EV…`);
+        per = computeEV(pool, sgCards, m, tw, thr);
+        scale = prod.packs * item.qty;
+      }
+      agg.packs += prod.packs * item.qty;
+      agg.excluded += per.excluded * scale;
+      unmatched += (per.unmatched || 0) * scale;
       for (const e of per.contributors) {
         const g = merged.get(e.card.id) || { card: e.card, copies: 0, ev: 0, foilCopies: 0 };
-        g.copies += e.copies * packs;
-        g.ev += e.ev * packs;
-        g.foilCopies += e.foilCopies * packs;
+        g.copies += e.copies * scale;
+        g.ev += e.ev * scale;
+        g.foilCopies += e.foilCopies * scale;
         merged.set(e.card.id, g);
       }
       labels.push(`${item.qty}× ${item.set} ${prod.label}`);
     }
+    if (unmatched > 0.005 || unpriced > 0.005) {
+      warn(`${(unmatched + unpriced).toFixed(2)} expected cards per break could not be priced (printing missing from Scryfall or from the collation data). EV is understated by their value.`);
+    }
+    if (extras.size) warn(`Not counted in EV — the collation data names these only in prose, with no card list to price: ${[...extras].join("; ")}.`);
     for (const e of merged.values()) {
       agg.buckets[e.card.bucket].ev += e.ev;
       agg.buckets[e.card.bucket].hits += 1;
@@ -1621,7 +1797,11 @@ async function run(opts) {
     }
     agg.contributors.sort((a,b) => b.ev - a.ev);
     lastAgg = agg;
-    lastMeta = `Break: ${labels.join(" + ")} (${agg.packs} packs). Card prices: Scryfall / TCGplayer market, fetched ${new Date().toLocaleString()}. ${thr > 0 ? `Cards under ${usd(thr)} excluded from EV (your threshold).` : "All cards count toward EV."} Collation odds are editable estimates under Advanced — WotC doesn't publish exact numbers.`;
+    lastMeta = `Break: ${labels.join(" + ")} (${agg.packs} packs). Card prices: Scryfall / TCGplayer market, fetched ${new Date().toLocaleString()}. ${thr > 0 ? `Cards under ${usd(thr)} excluded from EV (your threshold).` : "All cards count toward EV."} ${sheetPriced === comp.length
+      ? "Collation is the printed contents of each product: every booster it holds, priced against that booster's own sheet weights (MTGJSON), plus any guaranteed cards."
+      : sheetPriced
+        ? "Some products are priced from their printed contents and sheet weights (MTGJSON); the rest use the editable estimates under Advanced."
+        : "Collation odds are editable estimates under Advanced — WotC doesn't publish exact numbers."}`;
 
     // A run served from a stored pool inherits that pool's age, so the stamp reads
     // STALE from the real fetch time rather than claiming a fetch it didn't make.
@@ -1905,6 +2085,10 @@ function init() {
   // answered: start the add bar on the set last worked in rather than asking again.
   if (!pickerSet && comp.length) pickerSet = comp[comp.length - 1].set;
   renderPicker();
+  // Every set already in the break needs its reference file before the board is priced,
+  // and the picker's own set needs it to list that set's full product range.
+  Promise.all([...new Set(comp.map(i => i.set).concat(pickerSet ? [pickerSet] : []))].map(ensureSealed))
+    .then(() => { renderComp(); renderPicker(); });
 
   const phases = boardPhases({ cached: !!lastAgg, cachedSet: savedCompStr, urlSet: urlCompStr });
   if (phases[0] === "paint-cached") { buildBoard(false); stampBoard(); } else { buildSkeleton(); }
