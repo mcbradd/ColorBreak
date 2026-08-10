@@ -61,13 +61,14 @@ function tcgPath(reqUrl) {
 // opts: { latency (ms, ALL hosts incl. document — G4), relays: 'all'|'none'|[hosts],
 //         bluePrice, marketPrice, onRequest(url) }
 export async function routeAll(context, opts = {}) {
-  const { latency = 0, relays = "all", bluePrice = 12, marketPrice = 123.45, onRequest } = opts;
+  const { latency = 0, scryfallDelay = 0, relays = "all", bluePrice = 12, marketPrice = 123.45, onRequest } = opts;
   const cards = synthCards({ bluePrice });
   await context.route("**/*", async (route) => {
     const url = route.request().url();
     if (onRequest) onRequest(url);
     if (latency) await sleep(latency);
     const host = new URL(url).host;
+    if (scryfallDelay && host === "api.scryfall.com") await sleep(scryfallDelay);
 
     if (url.startsWith(ORIGIN)) {
       return route.fulfill({ status: 200, contentType: "text/html; charset=utf-8", body: INDEX });

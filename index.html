@@ -41,6 +41,7 @@
   #status { font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--dim); margin:0; display:none; }
   .tik-stamp { font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:.09em; text-transform:uppercase; color:var(--faint); font-variant-numeric:tabular-nums; }
   .tik-stamp.stale { color:var(--bad); font-weight:600; }
+.cue { font-family:'IBM Plex Mono',monospace; font-size:11px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--gold); border:1px solid #6B5A1E; border-radius:20px; padding:3px 8px; white-space:nowrap; }
   .glance { display:none; font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--dim); font-variant-numeric:tabular-nums; }
   .tik-btn { background:transparent; color:var(--gold); border:1px solid var(--gold); border-radius:10px; min-height:28px; padding:4px 14px; font-weight:600; font-size:13px; cursor:pointer; }
   .tik-btn:hover { background:var(--gold); color:var(--goldink); }
@@ -173,6 +174,7 @@
   <span class="tik-spacer"></span>
   <p id="status" role="status" aria-live="polite"></p>
   <span class="glance" id="glance"></span>
+  <span class="cue" id="cue" hidden></span>
   <span class="tik-stamp" id="stamp"></span>
   <button class="tik-btn" id="rerun" type="button" hidden>Re-run</button>
   <div id="minibar" aria-hidden="true"></div>
@@ -354,6 +356,8 @@ let fetchedAt = null;
 let isStale = false;
 let lastRows = null;
 let lastNPacksTop = null;
+let liveThisSession = false; // true once this session has fetched fresh prices
+let running = false;         // in-flight pipeline guard — second tap is a no-op
 
 // ===== fetch helpers =====
 async function sfetch(url) {
@@ -551,7 +555,40 @@ function verdictOf(net, price) {
   const dead = Math.max(price * 0.08, 1);
   return net > dead ? ["+EV", "pos"] : net < -dead ? ["−EV", "neg"] : ["FAIR", "fair"];
 }
+// stale-while-revalidate: stamps, load phases, changed-verdict cue (S2)
+function priceStamp(source, ageMs) {
+  if (source === "manual") return "MANUAL";
+  if (source === "live") return "LIVE";
+  const h = Math.floor(ageMs / 3600e3);
+  if (h >= 24) return "STALE·" + Math.floor(ageMs / 86400e3) + "d";
+  if (h >= 1) return "STALE·" + h + "h";
+  return "STALE·" + Math.max(1, Math.floor(ageMs / 60e3)) + "m";
+}
+function boardPhases(state) {
+  if (state.cached && (!state.urlSet || state.urlSet === state.cachedSet)) return ["paint-cached", "revalidate"];
+  if (state.urlSet) return ["skeleton", "fetch", "paint"];
+  return ["skeleton"];
+}
+// pinned transition form (UX5-m3): "OLD→NEW on refresh"
+function verdictCue(oldTag, newTag) {
+  return oldTag && newTag && oldTag !== newTag ? oldTag + "→" + newTag + " on refresh" : null;
+}
+function cueFromVerdicts(before, after) {
+  if (!before || !after) return null;
+  for (let i = 0; i < after.length; i++) {
+    const c = verdictCue(before[i], after[i]);
+    if (c) return c;
+  }
+  return null;
+}
 // @end-pure
+function showCue(txt) {
+  const el = $("cue");
+  el.textContent = txt;
+  el.hidden = false;
+  // one tap anywhere clears it; scroll never does
+  window.addEventListener("click", () => { el.hidden = true; }, { once: true, capture: true });
+}
 function chaseOf(bucket) {
   return lastResult ? (lastResult.contributors.find(e => e.card.bucket === bucket) || null) : null;
 }
@@ -693,7 +730,7 @@ function updateBoard() {
   }
 
   const pos = rows.filter(r => verdictOf(r.net, r.price)[1] === "pos").length;
-  $("glance").textContent = `${pos}/${N_SLOTS} +EV · ${isStale ? "STALE" : fetchedAt ? "FRESH " + tstamp(fetchedAt) : ""}`;
+  $("glance").textContent = `${pos}/${N_SLOTS} +EV · ${stampText()}`;
   updateQuick();
 }
 
@@ -741,13 +778,21 @@ function animateBar() {
   setTimeout(() => segs.forEach(el => { el.classList.remove("pre","shift"); el.style.transform = ""; }), 900);
 }
 
+function stampText() {
+  if (!lastResult) return "";
+  if (isStale) return "STALE — RE-RUN";
+  if (boxPriceIsManual) return priceStamp("manual", 0);
+  if (!liveThisSession) return priceStamp("cached", fetchedAt ? Date.now() - fetchedAt : 864e7);
+  return priceStamp("live", 0) + " " + tstamp(fetchedAt);
+}
 function stampBoard() {
   const st = $("stamp");
-  if (!lastResult || !fetchedAt) { st.textContent = ""; return; }
+  if (!lastResult) { st.textContent = ""; return; }
+  const desat = isStale || !liveThisSession;
   st.classList.toggle("stale", isStale);
-  $("bar").classList.toggle("stale", isStale);
-  $("minibar").classList.toggle("stale", isStale);
-  st.textContent = isStale ? "STALE — RE-RUN" : `PRICES ${tstamp(fetchedAt)} · FRESH`;
+  $("bar").classList.toggle("stale", desat);
+  $("minibar").classList.toggle("stale", desat);
+  st.textContent = stampText();
 }
 function markStale() {
   if (!lastResult || isStale) return;
@@ -775,14 +820,20 @@ async function refreshSealed(code, setName, presetKey, warn) {
   saveState();
 }
 
-async function run() {
+async function run(opts) {
+  const bg = !!(opts && opts.background); // stale-while-revalidate: swap prices in place
+  if (running) return; // in-flight refresh — second tap is a no-op
   const code = $("setCode").value.trim().toLowerCase();
   const errEl = $("err"), warnEl = $("warn"), st = $("status");
   errEl.style.display = "none"; warnEl.style.display = "none";
   const warn = (msg) => { warnEl.textContent = msg; warnEl.style.display = "block"; };
   if (!code) { errEl.textContent = "Enter a set code first — type one like “eoe” or pick from the suggestions."; errEl.style.display = "block"; $("setCode").focus(); return; }
+  running = true;
+  const before = lastRows ? lastRows.map(r => verdictOf(r.net, r.price)[0]) : null;
+  const busyEls = [document.querySelector(".ticker"), document.querySelector(".hero"), document.querySelector(".strip")];
+  busyEls.forEach(el => el && el.setAttribute("aria-busy", "true"));
   $("run").disabled = true; $("rerun").disabled = true; $("run").classList.add("loading");
-  const show = (t) => { st.textContent = t; st.style.display = "block"; };
+  const show = bg ? () => {} : (t) => { st.textContent = t; st.style.display = "block"; };
   try {
     const presetKey = $("preset").value;
     // ---- Scryfall card pool ----
@@ -834,12 +885,17 @@ async function run() {
 
     fetchedAt = Date.now();
     isStale = false;
+    liveThisSession = true;
     st.style.display = "none";
-    buildBoard(true);
+    buildBoard(!bg); // background refresh swaps values in place — no animation, no scroll
     stampBoard();
     saveState();
     try { history.replaceState(null, "", `?set=${encodeURIComponent(code)}&preset=${encodeURIComponent(presetKey)}`); } catch (e) {}
-    $("bar").scrollIntoView({ block:"nearest" });
+    if (!bg) $("bar").scrollIntoView({ block:"nearest" });
+    // changed-verdict cue (UX5-m3): pinned "OLD→NEW on refresh" form
+    const after = lastRows ? lastRows.map(r => verdictOf(r.net, r.price)[0]) : null;
+    const cueTxt = cueFromVerdicts(before, after);
+    if (cueTxt) showCue(cueTxt);
     // ---- sealed box price: non-blocking — card EVs paint before tcgcsv answers ----
     refreshSealed(code, setInfo && setInfo.name, presetKey, warn);
   } catch (e) {
@@ -847,6 +903,8 @@ async function run() {
     errEl.textContent = e.message;
     errEl.style.display = "block";
   } finally {
+    running = false;
+    busyEls.forEach(el => el && el.removeAttribute("aria-busy"));
     $("run").disabled = false; $("rerun").disabled = false; $("run").classList.remove("loading");
   }
 }
@@ -881,7 +939,8 @@ function loadState() {
       priceInfo = s.board.priceInfo || null;
       boxPriceIsManual = !!s.board.boxPriceIsManual;
       fetchedAt = s.fetchedAt || null;
-      isStale = !!s.isStale || !fetchedAt || (Date.now() - fetchedAt > 86400e3);
+      // input-drift staleness persists; AGE staleness now wears the STALE·age stamp instead (S2)
+      isStale = !!s.isStale || !fetchedAt;
       if (s.board.setLabel) { $("setLabel").textContent = s.board.setLabel; $("setLabel").style.display = "inline-block"; }
     }
   } catch (e) {}
@@ -900,7 +959,7 @@ function init() {
   $("setup").addEventListener("keydown", e => { if (e.key === "Enter" && e.target.matches("input")) { e.preventDefault(); run(); } });
   for (const id of ["boxes","packsPerBox","shipPerSlot","feePct","uniformPrice"])
     $(id).addEventListener("input", () => { updateBoard(); saveState(); });
-  $("boxPrice").addEventListener("input", () => { boxPriceIsManual = true; updateBoard(); saveState(); });
+  $("boxPrice").addEventListener("input", () => { boxPriceIsManual = true; updateBoard(); stampBoard(); saveState(); });
   for (const id of ["setCode","cutoff","tw","sgCode","sgLo","sgHi"])
     $(id).addEventListener("input", () => { markStale(); saveState(); });
   $("modelFields").addEventListener("input", () => { markStale(); saveState(); });
@@ -922,8 +981,12 @@ function init() {
     $("setCode").value = urlSet;
     if (params.get("preset") && PRESETS[params.get("preset")]) { $("preset").value = params.get("preset"); applyPreset(params.get("preset")); }
   }
-  if (lastResult) { buildBoard(false); stampBoard(); } else { buildSkeleton(); }
-  if (urlSet && (!lastResult || savedSet !== urlSet || isStale)) run();
+  // stale-while-revalidate (S2): cached board paints < 1 s with an age-bearing
+  // stamp, then a background refresh swaps prices in place.
+  const phases = boardPhases({ cached: !!lastResult, cachedSet: savedSet, urlSet });
+  if (phases[0] === "paint-cached") { buildBoard(false); stampBoard(); } else { buildSkeleton(); }
+  if (phases.indexOf("revalidate") >= 0) run({ background: true });
+  else if (phases.indexOf("fetch") >= 0) run();
   sfetch("https://api.scryfall.com/sets").then(d => {
     if (!d) return;
     $("setList").innerHTML = d.data

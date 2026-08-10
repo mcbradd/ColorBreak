@@ -4,6 +4,9 @@
 import assert from "node:assert/strict";
 import { assertG1, assertG2 } from "./harness.mjs";
 
+// `node --test` picks this file up too; e2e only runs when invoked directly.
+if (process.env.NODE_TEST_CONTEXT) process.exit(0);
+
 assert.equal(typeof assertG1, "function", "standing gate G1 helper missing");
 assert.equal(typeof assertG2, "function", "standing gate G2 helper missing");
 
