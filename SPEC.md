@@ -61,6 +61,14 @@ added a second requirements layer, F1–F8, all of which are now implemented:
 | F7 | Sub-$1 asks flagged as advice; the allocation is unchanged | `asksBelowFloor` + desk footnote, `test/panel.test.mjs` |
 | F8 | Thin pool cache: warm start, STALE stamp, revalidate behind it | `thinPool`/`evictPools`/`getPool` (`index.html`), `test/e2e/s9-poolcache.mjs` |
 
+**Entry flow (owner ruling, 2026-08-10):** set → product → quantity are the first three
+controls on the page, numbered, in that order, and stay first — the builder is never
+demoted below the board, because a returning user landing on a cached board could not find
+where to change the set. The break itself collapses to one line (`#breakLine`) so the
+Break Bar, slot EVs and the totals strip still clear gate G2 on the first screen; picking
+a set keeps its bottom sheet, since that is the one step needing search and filters.
+Covered by `test/e2e/s10-addbar.mjs`.
+
 Four panel proposals were killed with reasons recorded in the review doc (cash-out
 haircut, probability-of-profit, collector pool narrowing, ask-floor retightening) — do not
 revive them without reading why they lost.

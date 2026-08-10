@@ -61,7 +61,7 @@ function tcgPath(reqUrl) {
 // opts: { latency (ms, ALL hosts incl. document — G4), relays: 'all'|'none'|[hosts],
 //         bluePrice, marketPrice, onRequest(url) }
 export async function routeAll(context, opts = {}) {
-  const { latency = 0, scryfallDelay = 0, relays = "all", bluePrice = 12, marketPrice = 123.45, onRequest } = opts;
+  const { latency = 0, scryfallDelay = 0, relays = "all", bluePrice = 12, marketPrice = 123.45, onRequest, sets = [] } = opts;
   const cards = synthCards({ bluePrice });
   await context.route("**/*", async (route) => {
     const url = route.request().url();
@@ -86,7 +86,8 @@ export async function routeAll(context, opts = {}) {
         return route.fulfill({ json: { object: "list", total_cards: data.length, has_more: false, data } });
       }
       if (u.pathname === "/sets/tst") return route.fulfill({ json: { code: "tst", name: "Testline", released_at: "2025-01-01", printed_size: 60 } });
-      if (u.pathname === "/sets") return route.fulfill({ json: { data: [] } });
+      // Empty by default: only the scenarios that drive the set picker need a set list.
+      if (u.pathname === "/sets") return route.fulfill({ json: { data: sets } });
       return route.fulfill({ status: 404, json: { object: "error" } });
     }
 
