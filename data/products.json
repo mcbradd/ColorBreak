@@ -1,0 +1,3111 @@
+{
+ "sets": {
+  "TRK": {
+   "groupId": 24766,
+   "name": "Star Trek",
+   "released": "2026-11-13",
+   "products": [
+    {
+     "id": 706138,
+     "key": "play-box",
+     "label": "Play Booster Box",
+     "packType": "play",
+     "packs": 30,
+     "unit": "box"
+    },
+    {
+     "id": 706142,
+     "key": "collector-box",
+     "label": "Collector Booster Box",
+     "packType": "collector",
+     "packs": 12,
+     "unit": "box"
+    },
+    {
+     "id": 706136,
+     "key": "play-pack",
+     "label": "Play Booster Pack",
+     "packType": "play",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 706138,
+     "packsPerBox": 30
+    },
+    {
+     "id": 706141,
+     "key": "collector-pack",
+     "label": "Collector Booster Pack",
+     "packType": "collector",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 706142,
+     "packsPerBox": 12
+    },
+    {
+     "id": 706150,
+     "key": "bundle",
+     "label": "Bundle",
+     "packType": "play",
+     "packs": 9,
+     "unit": "bundle",
+     "boxId": 706138,
+     "packsPerBox": 30
+    },
+    {
+     "id": 706227,
+     "key": "prerelease",
+     "label": "Prerelease Pack",
+     "packType": "play",
+     "packs": 6,
+     "unit": "prerelease",
+     "boxId": 706138,
+     "packsPerBox": 30
+    }
+   ]
+  },
+  "FRA": {
+   "groupId": 24684,
+   "name": "Reality Fracture",
+   "released": "2026-10-02",
+   "products": [
+    {
+     "id": 692980,
+     "key": "play-box",
+     "label": "Play Booster Box",
+     "packType": "play",
+     "packs": 30,
+     "unit": "box"
+    },
+    {
+     "id": 692983,
+     "key": "collector-box",
+     "label": "Collector Booster Box",
+     "packType": "collector",
+     "packs": 12,
+     "unit": "box"
+    },
+    {
+     "id": 692985,
+     "key": "bundle",
+     "label": "Bundle",
+     "packType": "play",
+     "packs": 9,
+     "unit": "bundle",
+     "boxId": 692980,
+     "packsPerBox": 30
+    },
+    {
+     "id": 692977,
+     "key": "prerelease",
+     "label": "Prerelease Pack",
+     "packType": "play",
+     "packs": 6,
+     "unit": "prerelease",
+     "boxId": 692980,
+     "packsPerBox": 30
+    }
+   ]
+  },
+  "HOB": {
+   "groupId": 24683,
+   "name": "The Hobbit",
+   "released": "2026-08-14",
+   "products": [
+    {
+     "id": 692960,
+     "key": "play-box",
+     "label": "Play Booster Box",
+     "packType": "play",
+     "packs": 30,
+     "unit": "box"
+    },
+    {
+     "id": 692963,
+     "key": "collector-box",
+     "label": "Collector Booster Box",
+     "packType": "collector",
+     "packs": 12,
+     "unit": "box"
+    },
+    {
+     "id": 692959,
+     "key": "play-pack",
+     "label": "Play Booster Pack",
+     "packType": "play",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 692960,
+     "packsPerBox": 30
+    },
+    {
+     "id": 692962,
+     "key": "collector-pack",
+     "label": "Collector Booster Pack",
+     "packType": "collector",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 692963,
+     "packsPerBox": 12
+    },
+    {
+     "id": 692966,
+     "key": "bundle",
+     "label": "Bundle",
+     "packType": "play",
+     "packs": 9,
+     "unit": "bundle",
+     "boxId": 692960,
+     "packsPerBox": 30
+    },
+    {
+     "id": 692973,
+     "key": "prerelease",
+     "label": "Prerelease Pack",
+     "packType": "play",
+     "packs": 6,
+     "unit": "prerelease",
+     "boxId": 692960,
+     "packsPerBox": 30
+    }
+   ]
+  },
+  "MSH": {
+   "groupId": 24553,
+   "name": "Marvel Super Heroes",
+   "released": "2026-06-26",
+   "products": [
+    {
+     "id": 675603,
+     "key": "play-box",
+     "label": "Play Booster Box",
+     "packType": "play",
+     "packs": 30,
+     "unit": "box"
+    },
+    {
+     "id": 675606,
+     "key": "collector-box",
+     "label": "Collector Booster Box",
+     "packType": "collector",
+     "packs": 12,
+     "unit": "box"
+    },
+    {
+     "id": 675602,
+     "key": "play-pack",
+     "label": "Play Booster Pack",
+     "packType": "play",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 675603,
+     "packsPerBox": 30
+    },
+    {
+     "id": 703189,
+     "key": "play-sleeved",
+     "label": "Sleeved Play Booster",
+     "packType": "play",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 675603,
+     "packsPerBox": 30
+    },
+    {
+     "id": 675605,
+     "key": "collector-pack",
+     "label": "Collector Booster Pack",
+     "packType": "collector",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 675606,
+     "packsPerBox": 12
+    },
+    {
+     "id": 675615,
+     "key": "bundle",
+     "label": "Bundle",
+     "packType": "play",
+     "packs": 9,
+     "unit": "bundle",
+     "boxId": 675603,
+     "packsPerBox": 30
+    },
+    {
+     "id": 675610,
+     "key": "prerelease",
+     "label": "Prerelease Pack",
+     "packType": "play",
+     "packs": 6,
+     "unit": "prerelease",
+     "boxId": 675603,
+     "packsPerBox": 30
+    }
+   ]
+  },
+  "SOS": {
+   "groupId": 24601,
+   "name": "Secrets of Strixhaven",
+   "released": "2026-04-24",
+   "products": [
+    {
+     "id": 675555,
+     "key": "play-box",
+     "label": "Play Booster Box",
+     "packType": "play",
+     "packs": 30,
+     "unit": "box"
+    },
+    {
+     "id": 675558,
+     "key": "collector-box",
+     "label": "Collector Booster Box",
+     "packType": "collector",
+     "packs": 12,
+     "unit": "box"
+    },
+    {
+     "id": 675554,
+     "key": "play-pack",
+     "label": "Play Booster Pack",
+     "packType": "play",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 675555,
+     "packsPerBox": 30
+    },
+    {
+     "id": 696231,
+     "key": "play-sleeved",
+     "label": "Sleeved Play Booster",
+     "packType": "play",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 675555,
+     "packsPerBox": 30
+    },
+    {
+     "id": 675557,
+     "key": "collector-pack",
+     "label": "Collector Booster Pack",
+     "packType": "collector",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 675558,
+     "packsPerBox": 12
+    },
+    {
+     "id": 675561,
+     "key": "bundle",
+     "label": "Bundle",
+     "packType": "play",
+     "packs": 9,
+     "unit": "bundle",
+     "boxId": 675555,
+     "packsPerBox": 30
+    }
+   ]
+  },
+  "TMT": {
+   "groupId": 24495,
+   "name": "Teenage Mutant Ninja Turtles",
+   "released": "2026-03-06",
+   "products": [
+    {
+     "id": 657849,
+     "key": "play-box",
+     "label": "Play Booster Box",
+     "packType": "play",
+     "packs": 30,
+     "unit": "box"
+    },
+    {
+     "id": 657852,
+     "key": "collector-box",
+     "label": "Collector Booster Box",
+     "packType": "collector",
+     "packs": 12,
+     "unit": "box"
+    },
+    {
+     "id": 657848,
+     "key": "play-pack",
+     "label": "Play Booster Pack",
+     "packType": "play",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 657849,
+     "packsPerBox": 30
+    },
+    {
+     "id": 657851,
+     "key": "collector-pack",
+     "label": "Collector Booster Pack",
+     "packType": "collector",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 657852,
+     "packsPerBox": 12
+    },
+    {
+     "id": 657856,
+     "key": "bundle",
+     "label": "Bundle",
+     "packType": "play",
+     "packs": 9,
+     "unit": "bundle",
+     "boxId": 657849,
+     "packsPerBox": 30
+    },
+    {
+     "id": 657862,
+     "key": "prerelease",
+     "label": "Prerelease Pack",
+     "packType": "play",
+     "packs": 6,
+     "unit": "prerelease",
+     "boxId": 657849,
+     "packsPerBox": 30
+    }
+   ]
+  },
+  "ECL": {
+   "groupId": 24463,
+   "name": "Lorwyn Eclipsed",
+   "released": "2026-01-23",
+   "products": [
+    {
+     "id": 656312,
+     "key": "play-box",
+     "label": "Play Booster Box",
+     "packType": "play",
+     "packs": 30,
+     "unit": "box"
+    },
+    {
+     "id": 656322,
+     "key": "collector-box",
+     "label": "Collector Booster Box",
+     "packType": "collector",
+     "packs": 12,
+     "unit": "box"
+    },
+    {
+     "id": 656311,
+     "key": "play-pack",
+     "label": "Play Booster Pack",
+     "packType": "play",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 656312,
+     "packsPerBox": 30
+    },
+    {
+     "id": 673734,
+     "key": "play-sleeved",
+     "label": "Sleeved Play Booster",
+     "packType": "play",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 656312,
+     "packsPerBox": 30
+    },
+    {
+     "id": 656318,
+     "key": "collector-pack",
+     "label": "Collector Booster Pack",
+     "packType": "collector",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 656322,
+     "packsPerBox": 12
+    },
+    {
+     "id": 656340,
+     "key": "bundle",
+     "label": "Bundle",
+     "packType": "play",
+     "packs": 9,
+     "unit": "bundle",
+     "boxId": 656312,
+     "packsPerBox": 30
+    },
+    {
+     "id": 656336,
+     "key": "prerelease",
+     "label": "Prerelease Pack",
+     "packType": "play",
+     "packs": 6,
+     "unit": "prerelease",
+     "boxId": 656312,
+     "packsPerBox": 30
+    }
+   ]
+  },
+  "TLA": {
+   "groupId": 24421,
+   "name": "Avatar: The Last Airbender",
+   "released": "2025-11-21",
+   "products": [
+    {
+     "id": 648643,
+     "key": "play-box",
+     "label": "Play Booster Box",
+     "packType": "play",
+     "packs": 30,
+     "unit": "box"
+    },
+    {
+     "id": 648650,
+     "key": "collector-box",
+     "label": "Collector Booster Box",
+     "packType": "collector",
+     "packs": 12,
+     "unit": "box"
+    },
+    {
+     "id": 648640,
+     "key": "play-pack",
+     "label": "Play Booster Pack",
+     "packType": "play",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 648643,
+     "packsPerBox": 30
+    },
+    {
+     "id": 710682,
+     "key": "play-sleeved",
+     "label": "Sleeved Play Booster",
+     "packType": "play",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 648643,
+     "packsPerBox": 30
+    },
+    {
+     "id": 648646,
+     "key": "collector-pack",
+     "label": "Collector Booster Pack",
+     "packType": "collector",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 648650,
+     "packsPerBox": 12
+    },
+    {
+     "id": 648684,
+     "key": "bundle",
+     "label": "Bundle",
+     "packType": "play",
+     "packs": 9,
+     "unit": "bundle",
+     "boxId": 648643,
+     "packsPerBox": 30
+    }
+   ]
+  },
+  "SPM": {
+   "groupId": 24245,
+   "name": "Marvel's Spider-Man",
+   "released": "2025-09-26",
+   "products": [
+    {
+     "id": 621107,
+     "key": "play-box",
+     "label": "Play Booster Box",
+     "packType": "play",
+     "packs": 30,
+     "unit": "box"
+    },
+    {
+     "id": 621110,
+     "key": "collector-box",
+     "label": "Collector Booster Box",
+     "packType": "collector",
+     "packs": 12,
+     "unit": "box"
+    },
+    {
+     "id": 621106,
+     "key": "play-pack",
+     "label": "Play Booster Pack",
+     "packType": "play",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 621107,
+     "packsPerBox": 30
+    },
+    {
+     "id": 656486,
+     "key": "play-sleeved",
+     "label": "Sleeved Play Booster",
+     "packType": "play",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 621107,
+     "packsPerBox": 30
+    },
+    {
+     "id": 621109,
+     "key": "collector-pack",
+     "label": "Collector Booster Pack",
+     "packType": "collector",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 621110,
+     "packsPerBox": 12
+    },
+    {
+     "id": 621115,
+     "key": "bundle",
+     "label": "Bundle",
+     "packType": "play",
+     "packs": 9,
+     "unit": "bundle",
+     "boxId": 621107,
+     "packsPerBox": 30
+    },
+    {
+     "id": 621112,
+     "key": "prerelease",
+     "label": "Prerelease Pack",
+     "packType": "play",
+     "packs": 6,
+     "unit": "prerelease",
+     "boxId": 621107,
+     "packsPerBox": 30
+    }
+   ]
+  },
+  "EOE": {
+   "groupId": 24233,
+   "name": "Edge of Eternities",
+   "released": "2025-08-01",
+   "products": [
+    {
+     "id": 619674,
+     "key": "play-box",
+     "label": "Play Booster Box",
+     "packType": "play",
+     "packs": 30,
+     "unit": "box"
+    },
+    {
+     "id": 619672,
+     "key": "collector-box",
+     "label": "Collector Booster Box",
+     "packType": "collector",
+     "packs": 12,
+     "unit": "box"
+    },
+    {
+     "id": 619697,
+     "key": "play-pack",
+     "label": "Play Booster Pack",
+     "packType": "play",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 619674,
+     "packsPerBox": 30
+    },
+    {
+     "id": 648271,
+     "key": "play-sleeved",
+     "label": "Sleeved Play Booster",
+     "packType": "play",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 619674,
+     "packsPerBox": 30
+    },
+    {
+     "id": 619696,
+     "key": "collector-pack",
+     "label": "Collector Booster Pack",
+     "packType": "collector",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 619672,
+     "packsPerBox": 12
+    },
+    {
+     "id": 619673,
+     "key": "bundle",
+     "label": "Bundle",
+     "packType": "play",
+     "packs": 9,
+     "unit": "bundle",
+     "boxId": 619674,
+     "packsPerBox": 30
+    },
+    {
+     "id": 619675,
+     "key": "prerelease",
+     "label": "Prerelease Pack",
+     "packType": "play",
+     "packs": 6,
+     "unit": "prerelease",
+     "boxId": 619674,
+     "packsPerBox": 30
+    }
+   ]
+  },
+  "FIN": {
+   "groupId": 24219,
+   "name": "FINAL FANTASY",
+   "released": "2025-06-13",
+   "products": [
+    {
+     "id": 618890,
+     "key": "play-box",
+     "label": "Play Booster Box",
+     "packType": "play",
+     "packs": 30,
+     "unit": "box"
+    },
+    {
+     "id": 618893,
+     "key": "collector-box",
+     "label": "Collector Booster Box",
+     "packType": "collector",
+     "packs": 12,
+     "unit": "box"
+    },
+    {
+     "id": 618889,
+     "key": "play-pack",
+     "label": "Play Booster Pack",
+     "packType": "play",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 618890,
+     "packsPerBox": 30
+    },
+    {
+     "id": 650422,
+     "key": "play-sleeved",
+     "label": "Sleeved Play Booster",
+     "packType": "play",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 618890,
+     "packsPerBox": 30
+    },
+    {
+     "id": 618892,
+     "key": "collector-pack",
+     "label": "Collector Booster Pack",
+     "packType": "collector",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 618893,
+     "packsPerBox": 12
+    },
+    {
+     "id": 618897,
+     "key": "bundle",
+     "label": "Bundle",
+     "packType": "play",
+     "packs": 9,
+     "unit": "bundle",
+     "boxId": 618890,
+     "packsPerBox": 30
+    },
+    {
+     "id": 618896,
+     "key": "prerelease",
+     "label": "Prerelease Pack",
+     "packType": "play",
+     "packs": 6,
+     "unit": "prerelease",
+     "boxId": 618890,
+     "packsPerBox": 30
+    }
+   ]
+  },
+  "TDM": {
+   "groupId": 24232,
+   "name": "Tarkir: Dragonstorm",
+   "released": "2025-04-11",
+   "products": [
+    {
+     "id": 619645,
+     "key": "play-box",
+     "label": "Play Booster Box",
+     "packType": "play",
+     "packs": 30,
+     "unit": "box"
+    },
+    {
+     "id": 619649,
+     "key": "collector-box",
+     "label": "Collector Booster Box",
+     "packType": "collector",
+     "packs": 12,
+     "unit": "box"
+    },
+    {
+     "id": 619644,
+     "key": "play-pack",
+     "label": "Play Booster Pack",
+     "packType": "play",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 619645,
+     "packsPerBox": 30
+    },
+    {
+     "id": 647714,
+     "key": "play-sleeved",
+     "label": "Sleeved Play Booster",
+     "packType": "play",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 619645,
+     "packsPerBox": 30
+    },
+    {
+     "id": 619648,
+     "key": "collector-pack",
+     "label": "Collector Booster Pack",
+     "packType": "collector",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 619649,
+     "packsPerBox": 12
+    },
+    {
+     "id": 619653,
+     "key": "bundle",
+     "label": "Bundle",
+     "packType": "play",
+     "packs": 9,
+     "unit": "bundle",
+     "boxId": 619645,
+     "packsPerBox": 30
+    }
+   ]
+  },
+  "DFT": {
+   "groupId": 23874,
+   "name": "Aetherdrift",
+   "released": "2025-02-14",
+   "products": [
+    {
+     "id": 604250,
+     "key": "play-box",
+     "label": "Play Booster Box",
+     "packType": "play",
+     "packs": 30,
+     "unit": "box"
+    },
+    {
+     "id": 604253,
+     "key": "collector-box",
+     "label": "Collector Booster Box",
+     "packType": "collector",
+     "packs": 12,
+     "unit": "box"
+    },
+    {
+     "id": 604249,
+     "key": "play-pack",
+     "label": "Play Booster Pack",
+     "packType": "play",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 604250,
+     "packsPerBox": 30
+    },
+    {
+     "id": 638084,
+     "key": "play-sleeved",
+     "label": "Sleeved Play Booster",
+     "packType": "play",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 604250,
+     "packsPerBox": 30
+    },
+    {
+     "id": 604252,
+     "key": "collector-pack",
+     "label": "Collector Booster Pack",
+     "packType": "collector",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 604253,
+     "packsPerBox": 12
+    },
+    {
+     "id": 604256,
+     "key": "bundle",
+     "label": "Bundle",
+     "packType": "play",
+     "packs": 9,
+     "unit": "bundle",
+     "boxId": 604250,
+     "packsPerBox": 30
+    },
+    {
+     "id": 604255,
+     "key": "prerelease",
+     "label": "Prerelease Pack",
+     "packType": "play",
+     "packs": 6,
+     "unit": "prerelease",
+     "boxId": 604250,
+     "packsPerBox": 30
+    }
+   ]
+  },
+  "INR": {
+   "groupId": 23848,
+   "name": "Innistrad Remastered",
+   "released": "2025-01-24",
+   "products": [
+    {
+     "id": 594672,
+     "key": "play-box",
+     "label": "Play Booster Box",
+     "packType": "play",
+     "packs": 36,
+     "unit": "box"
+    },
+    {
+     "id": 594681,
+     "key": "collector-box",
+     "label": "Collector Booster Box",
+     "packType": "collector",
+     "packs": 12,
+     "unit": "box"
+    },
+    {
+     "id": 594669,
+     "key": "play-pack",
+     "label": "Play Booster Pack",
+     "packType": "play",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 594672,
+     "packsPerBox": 36
+    },
+    {
+     "id": 655092,
+     "key": "play-sleeved",
+     "label": "Sleeved Play Booster",
+     "packType": "play",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 594672,
+     "packsPerBox": 36
+    },
+    {
+     "id": 594678,
+     "key": "collector-pack",
+     "label": "Collector Booster Pack",
+     "packType": "collector",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 594681,
+     "packsPerBox": 12
+    }
+   ]
+  },
+  "FDN": {
+   "groupId": 23556,
+   "name": "Foundations",
+   "released": "2024-11-15",
+   "products": [
+    {
+     "id": 562118,
+     "key": "play-box",
+     "label": "Play Booster Box",
+     "packType": "play",
+     "packs": 36,
+     "unit": "box"
+    },
+    {
+     "id": 562122,
+     "key": "collector-box",
+     "label": "Collector Booster Box",
+     "packType": "collector",
+     "packs": 12,
+     "unit": "box"
+    },
+    {
+     "id": 562116,
+     "key": "play-pack",
+     "label": "Play Booster Pack",
+     "packType": "play",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 562118,
+     "packsPerBox": 36
+    },
+    {
+     "id": 655093,
+     "key": "play-sleeved",
+     "label": "Sleeved Play Booster",
+     "packType": "play",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 562118,
+     "packsPerBox": 36
+    },
+    {
+     "id": 562121,
+     "key": "collector-pack",
+     "label": "Collector Booster Pack",
+     "packType": "collector",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 562122,
+     "packsPerBox": 12
+    },
+    {
+     "id": 562125,
+     "key": "bundle",
+     "label": "Bundle",
+     "packType": "play",
+     "packs": 9,
+     "unit": "bundle",
+     "boxId": 562118,
+     "packsPerBox": 36
+    },
+    {
+     "id": 562127,
+     "key": "prerelease",
+     "label": "Prerelease Pack",
+     "packType": "play",
+     "packs": 6,
+     "unit": "prerelease",
+     "boxId": 562118,
+     "packsPerBox": 36
+    }
+   ]
+  },
+  "DSK": {
+   "groupId": 23550,
+   "name": "Duskmourn: House of Horror",
+   "released": "2024-09-27",
+   "products": [
+    {
+     "id": 557241,
+     "key": "play-box",
+     "label": "Play Booster Box",
+     "packType": "play",
+     "packs": 36,
+     "unit": "box"
+    },
+    {
+     "id": 557244,
+     "key": "collector-box",
+     "label": "Collector Booster Box",
+     "packType": "collector",
+     "packs": 12,
+     "unit": "box"
+    },
+    {
+     "id": 557240,
+     "key": "play-pack",
+     "label": "Play Booster Pack",
+     "packType": "play",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 557241,
+     "packsPerBox": 36
+    },
+    {
+     "id": 598060,
+     "key": "play-sleeved",
+     "label": "Sleeved Play Booster",
+     "packType": "play",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 557241,
+     "packsPerBox": 36
+    },
+    {
+     "id": 557243,
+     "key": "collector-pack",
+     "label": "Collector Booster Pack",
+     "packType": "collector",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 557244,
+     "packsPerBox": 12
+    },
+    {
+     "id": 557249,
+     "key": "bundle",
+     "label": "Bundle",
+     "packType": "play",
+     "packs": 9,
+     "unit": "bundle",
+     "boxId": 557241,
+     "packsPerBox": 36
+    },
+    {
+     "id": 557252,
+     "key": "prerelease",
+     "label": "Prerelease Pack",
+     "packType": "play",
+     "packs": 6,
+     "unit": "prerelease",
+     "boxId": 557241,
+     "packsPerBox": 36
+    }
+   ]
+  },
+  "BLB": {
+   "groupId": 23447,
+   "name": "Bloomburrow",
+   "released": "2024-08-02",
+   "products": [
+    {
+     "id": 541235,
+     "key": "play-box",
+     "label": "Play Booster Box",
+     "packType": "play",
+     "packs": 36,
+     "unit": "box"
+    },
+    {
+     "id": 541238,
+     "key": "collector-box",
+     "label": "Collector Booster Box",
+     "packType": "collector",
+     "packs": 12,
+     "unit": "box"
+    },
+    {
+     "id": 541234,
+     "key": "play-pack",
+     "label": "Play Booster Pack",
+     "packType": "play",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 541235,
+     "packsPerBox": 36
+    },
+    {
+     "id": 564083,
+     "key": "play-sleeved",
+     "label": "Sleeved Play Booster",
+     "packType": "play",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 541235,
+     "packsPerBox": 36
+    },
+    {
+     "id": 541237,
+     "key": "collector-pack",
+     "label": "Collector Booster Pack",
+     "packType": "collector",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 541238,
+     "packsPerBox": 12
+    },
+    {
+     "id": 541241,
+     "key": "bundle",
+     "label": "Bundle",
+     "packType": "play",
+     "packs": 9,
+     "unit": "bundle",
+     "boxId": 541235,
+     "packsPerBox": 36
+    },
+    {
+     "id": 541245,
+     "key": "prerelease",
+     "label": "Prerelease Pack",
+     "packType": "play",
+     "packs": 6,
+     "unit": "prerelease",
+     "boxId": 541235,
+     "packsPerBox": 36
+    }
+   ]
+  },
+  "ACR": {
+   "groupId": 23446,
+   "name": "Universes Beyond: Assassin's Creed",
+   "released": "2024-07-05",
+   "products": [
+    {
+     "id": 541225,
+     "key": "collector-box",
+     "label": "Collector Booster Box",
+     "packType": "collector",
+     "packs": 12,
+     "unit": "box"
+    },
+    {
+     "id": 541224,
+     "key": "collector-pack",
+     "label": "Collector Booster Pack",
+     "packType": "collector",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 541225,
+     "packsPerBox": 12
+    },
+    {
+     "id": 541228,
+     "key": "bundle",
+     "label": "Bundle",
+     "packType": "play",
+     "packs": 9,
+     "unit": "bundle"
+    }
+   ]
+  },
+  "MH3": {
+   "groupId": 23444,
+   "name": "Modern Horizons 3",
+   "released": "2024-06-14",
+   "products": [
+    {
+     "id": 541164,
+     "key": "play-box",
+     "label": "Play Booster Box",
+     "packType": "play",
+     "packs": 36,
+     "unit": "box"
+    },
+    {
+     "id": 541179,
+     "key": "collector-box",
+     "label": "Collector Booster Box",
+     "packType": "collector",
+     "packs": 12,
+     "unit": "box"
+    },
+    {
+     "id": 541163,
+     "key": "play-pack",
+     "label": "Play Booster Pack",
+     "packType": "play",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 541164,
+     "packsPerBox": 36
+    },
+    {
+     "id": 564079,
+     "key": "play-sleeved",
+     "label": "Sleeved Play Booster",
+     "packType": "play",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 541164,
+     "packsPerBox": 36
+    },
+    {
+     "id": 541173,
+     "key": "collector-pack",
+     "label": "Collector Booster Pack",
+     "packType": "collector",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 541179,
+     "packsPerBox": 12
+    },
+    {
+     "id": 541185,
+     "key": "bundle",
+     "label": "Bundle",
+     "packType": "play",
+     "packs": 9,
+     "unit": "bundle",
+     "boxId": 541164,
+     "packsPerBox": 36
+    },
+    {
+     "id": 541159,
+     "key": "prerelease",
+     "label": "Prerelease Pack",
+     "packType": "play",
+     "packs": 6,
+     "unit": "prerelease",
+     "boxId": 541164,
+     "packsPerBox": 36
+    }
+   ]
+  },
+  "OTJ": {
+   "groupId": 23439,
+   "name": "Outlaws of Thunder Junction",
+   "released": "2024-04-19",
+   "products": [
+    {
+     "id": 541084,
+     "key": "play-box",
+     "label": "Play Booster Box",
+     "packType": "play",
+     "packs": 36,
+     "unit": "box"
+    },
+    {
+     "id": 541090,
+     "key": "collector-box",
+     "label": "Collector Booster Box",
+     "packType": "collector",
+     "packs": 12,
+     "unit": "box"
+    },
+    {
+     "id": 541083,
+     "key": "play-pack",
+     "label": "Play Booster Pack",
+     "packType": "play",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 541084,
+     "packsPerBox": 36
+    },
+    {
+     "id": 564080,
+     "key": "play-sleeved",
+     "label": "Sleeved Play Booster",
+     "packType": "play",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 541084,
+     "packsPerBox": 36
+    },
+    {
+     "id": 541086,
+     "key": "collector-pack",
+     "label": "Collector Booster Pack",
+     "packType": "collector",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 541090,
+     "packsPerBox": 12
+    },
+    {
+     "id": 541094,
+     "key": "bundle",
+     "label": "Bundle",
+     "packType": "play",
+     "packs": 9,
+     "unit": "bundle",
+     "boxId": 541084,
+     "packsPerBox": 36
+    },
+    {
+     "id": 541082,
+     "key": "prerelease",
+     "label": "Prerelease Pack",
+     "packType": "play",
+     "packs": 6,
+     "unit": "prerelease",
+     "boxId": 541084,
+     "packsPerBox": 36
+    }
+   ]
+  },
+  "PIP": {
+   "groupId": 23337,
+   "name": "Universes Beyond: Fallout",
+   "released": "2024-03-08",
+   "products": [
+    {
+     "id": 523185,
+     "key": "collector-box",
+     "label": "Collector Booster Box",
+     "packType": "collector",
+     "packs": 12,
+     "unit": "box"
+    },
+    {
+     "id": 523180,
+     "key": "collector-pack",
+     "label": "Collector Booster Pack",
+     "packType": "collector",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 523185,
+     "packsPerBox": 12
+    }
+   ]
+  },
+  "MKM": {
+   "groupId": 23361,
+   "name": "Murders at Karlov Manor",
+   "released": "2024-02-09",
+   "products": [
+    {
+     "id": 529964,
+     "key": "play-box",
+     "label": "Play Booster Box",
+     "packType": "play",
+     "packs": 36,
+     "unit": "box"
+    },
+    {
+     "id": 529968,
+     "key": "collector-box",
+     "label": "Collector Booster Box",
+     "packType": "collector",
+     "packs": 12,
+     "unit": "box"
+    },
+    {
+     "id": 529962,
+     "key": "play-pack",
+     "label": "Play Booster Pack",
+     "packType": "play",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 529964,
+     "packsPerBox": 36
+    },
+    {
+     "id": 529967,
+     "key": "collector-pack",
+     "label": "Collector Booster Pack",
+     "packType": "collector",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 529968,
+     "packsPerBox": 12
+    },
+    {
+     "id": 529971,
+     "key": "bundle",
+     "label": "Bundle",
+     "packType": "play",
+     "packs": 9,
+     "unit": "bundle",
+     "boxId": 529964,
+     "packsPerBox": 36
+    },
+    {
+     "id": 531817,
+     "key": "prerelease",
+     "label": "Prerelease Pack",
+     "packType": "play",
+     "packs": 6,
+     "unit": "prerelease",
+     "boxId": 529964,
+     "packsPerBox": 36
+    }
+   ]
+  },
+  "RVR": {
+   "groupId": 23319,
+   "name": "Ravnica Remastered",
+   "released": "2024-01-12",
+   "products": [
+    {
+     "id": 517708,
+     "key": "collector-box",
+     "label": "Collector Booster Box",
+     "packType": "collector",
+     "packs": 12,
+     "unit": "box"
+    },
+    {
+     "id": 517705,
+     "key": "draft-box",
+     "label": "Draft Booster Box",
+     "packType": "draft",
+     "packs": 36,
+     "unit": "box"
+    },
+    {
+     "id": 517707,
+     "key": "collector-pack",
+     "label": "Collector Booster Pack",
+     "packType": "collector",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 517708,
+     "packsPerBox": 12
+    },
+    {
+     "id": 517704,
+     "key": "draft-pack",
+     "label": "Draft Booster Pack",
+     "packType": "draft",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 517705,
+     "packsPerBox": 36
+    },
+    {
+     "id": 638805,
+     "key": "draft-sleeved",
+     "label": "Sleeved Draft Booster",
+     "packType": "draft",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 517705,
+     "packsPerBox": 36
+    }
+   ]
+  },
+  "LCI": {
+   "groupId": 23312,
+   "name": "The Lost Caverns of Ixalan",
+   "released": "2023-11-17",
+   "products": [
+    {
+     "id": 516614,
+     "key": "collector-box",
+     "label": "Collector Booster Box",
+     "packType": "collector",
+     "packs": 12,
+     "unit": "box"
+    },
+    {
+     "id": 516622,
+     "key": "set-box",
+     "label": "Set Booster Box",
+     "packType": "set",
+     "packs": 30,
+     "unit": "box"
+    },
+    {
+     "id": 516619,
+     "key": "draft-box",
+     "label": "Draft Booster Box",
+     "packType": "draft",
+     "packs": 36,
+     "unit": "box"
+    },
+    {
+     "id": 516613,
+     "key": "collector-pack",
+     "label": "Collector Booster Pack",
+     "packType": "collector",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 516614,
+     "packsPerBox": 12
+    },
+    {
+     "id": 516621,
+     "key": "set-pack",
+     "label": "Set Booster Pack",
+     "packType": "set",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 516622,
+     "packsPerBox": 30
+    },
+    {
+     "id": 516618,
+     "key": "draft-pack",
+     "label": "Draft Booster Pack",
+     "packType": "draft",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 516619,
+     "packsPerBox": 36
+    },
+    {
+     "id": 516610,
+     "key": "bundle",
+     "label": "Bundle",
+     "packType": "set",
+     "packs": 8,
+     "unit": "bundle",
+     "boxId": 516622,
+     "packsPerBox": 30
+    },
+    {
+     "id": 516678,
+     "key": "prerelease",
+     "label": "Prerelease Pack",
+     "packType": "draft",
+     "packs": 6,
+     "unit": "prerelease",
+     "boxId": 516619,
+     "packsPerBox": 36
+    }
+   ]
+  },
+  "WHO": {
+   "groupId": 23165,
+   "name": "Universes Beyond: Doctor Who",
+   "released": "2023-10-13",
+   "products": [
+    {
+     "id": 496076,
+     "key": "collector-box",
+     "label": "Collector Booster Box",
+     "packType": "collector",
+     "packs": 12,
+     "unit": "box"
+    },
+    {
+     "id": 496075,
+     "key": "collector-pack",
+     "label": "Collector Booster Pack",
+     "packType": "collector",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 496076,
+     "packsPerBox": 12
+    }
+   ]
+  },
+  "WOE": {
+   "groupId": 23163,
+   "name": "Wilds of Eldraine",
+   "released": "2023-09-08",
+   "products": [
+    {
+     "id": 496041,
+     "key": "collector-box",
+     "label": "Collector Booster Box",
+     "packType": "collector",
+     "packs": 12,
+     "unit": "box"
+    },
+    {
+     "id": 496038,
+     "key": "set-box",
+     "label": "Set Booster Box",
+     "packType": "set",
+     "packs": 30,
+     "unit": "box"
+    },
+    {
+     "id": 496035,
+     "key": "draft-box",
+     "label": "Draft Booster Box",
+     "packType": "draft",
+     "packs": 36,
+     "unit": "box"
+    },
+    {
+     "id": 496040,
+     "key": "collector-pack",
+     "label": "Collector Booster Pack",
+     "packType": "collector",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 496041,
+     "packsPerBox": 12
+    },
+    {
+     "id": 496037,
+     "key": "set-pack",
+     "label": "Set Booster Pack",
+     "packType": "set",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 496038,
+     "packsPerBox": 30
+    },
+    {
+     "id": 496034,
+     "key": "draft-pack",
+     "label": "Draft Booster Pack",
+     "packType": "draft",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 496035,
+     "packsPerBox": 36
+    },
+    {
+     "id": 496046,
+     "key": "bundle",
+     "label": "Bundle",
+     "packType": "set",
+     "packs": 8,
+     "unit": "bundle",
+     "boxId": 496038,
+     "packsPerBox": 30
+    },
+    {
+     "id": 496048,
+     "key": "prerelease",
+     "label": "Prerelease Pack",
+     "packType": "draft",
+     "packs": 6,
+     "unit": "prerelease",
+     "boxId": 496035,
+     "packsPerBox": 36
+    }
+   ]
+  },
+  "CMM": {
+   "groupId": 23020,
+   "name": "Commander Masters",
+   "released": "2023-08-04",
+   "products": [
+    {
+     "id": 484929,
+     "key": "collector-box",
+     "label": "Collector Booster Box",
+     "packType": "collector",
+     "packs": 12,
+     "unit": "box"
+    },
+    {
+     "id": 484927,
+     "key": "set-box",
+     "label": "Set Booster Box",
+     "packType": "set",
+     "packs": 30,
+     "unit": "box"
+    },
+    {
+     "id": 484924,
+     "key": "draft-box",
+     "label": "Draft Booster Box",
+     "packType": "draft",
+     "packs": 36,
+     "unit": "box"
+    },
+    {
+     "id": 484928,
+     "key": "collector-pack",
+     "label": "Collector Booster Pack",
+     "packType": "collector",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 484929,
+     "packsPerBox": 12
+    },
+    {
+     "id": 484926,
+     "key": "set-pack",
+     "label": "Set Booster Pack",
+     "packType": "set",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 484927,
+     "packsPerBox": 30
+    },
+    {
+     "id": 484923,
+     "key": "draft-pack",
+     "label": "Draft Booster Pack",
+     "packType": "draft",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 484924,
+     "packsPerBox": 36
+    }
+   ]
+  },
+  "LTR": {
+   "groupId": 23019,
+   "name": "Universes Beyond: The Lord of the Rings: Tales of Middle-earth",
+   "released": "2023-06-23",
+   "products": [
+    {
+     "id": 484912,
+     "key": "collector-box",
+     "label": "Collector Booster Box",
+     "packType": "collector",
+     "packs": 12,
+     "unit": "box"
+    },
+    {
+     "id": 484909,
+     "key": "set-box",
+     "label": "Set Booster Box",
+     "packType": "set",
+     "packs": 30,
+     "unit": "box"
+    },
+    {
+     "id": 484906,
+     "key": "draft-box",
+     "label": "Draft Booster Box",
+     "packType": "draft",
+     "packs": 36,
+     "unit": "box"
+    },
+    {
+     "id": 484911,
+     "key": "collector-pack",
+     "label": "Collector Booster Pack",
+     "packType": "collector",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 484912,
+     "packsPerBox": 12
+    },
+    {
+     "id": 484908,
+     "key": "set-pack",
+     "label": "Set Booster Pack",
+     "packType": "set",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 484909,
+     "packsPerBox": 30
+    },
+    {
+     "id": 648268,
+     "key": "set-sleeved",
+     "label": "Sleeved Set Booster",
+     "packType": "set",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 484909,
+     "packsPerBox": 30
+    },
+    {
+     "id": 484905,
+     "key": "draft-pack",
+     "label": "Draft Booster Pack",
+     "packType": "draft",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 484906,
+     "packsPerBox": 36
+    },
+    {
+     "id": 484917,
+     "key": "bundle",
+     "label": "Bundle",
+     "packType": "set",
+     "packs": 8,
+     "unit": "bundle",
+     "boxId": 484909,
+     "packsPerBox": 30
+    },
+    {
+     "id": 484922,
+     "key": "prerelease",
+     "label": "Prerelease Pack",
+     "packType": "draft",
+     "packs": 6,
+     "unit": "prerelease",
+     "boxId": 484906,
+     "packsPerBox": 36
+    }
+   ]
+  },
+  "MAT": {
+   "groupId": 22876,
+   "name": "March of the Machine: The Aftermath",
+   "released": "2023-05-12",
+   "products": [
+    {
+     "id": 489207,
+     "key": "collector-box",
+     "label": "Collector Booster Box",
+     "packType": "collector",
+     "packs": 12,
+     "unit": "box"
+    },
+    {
+     "id": 489204,
+     "key": "collector-pack",
+     "label": "Collector Booster Pack",
+     "packType": "collector",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 489207,
+     "packsPerBox": 12
+    },
+    {
+     "id": 489214,
+     "key": "bundle",
+     "label": "Bundle",
+     "packType": "set",
+     "packs": 8,
+     "unit": "bundle"
+    }
+   ]
+  },
+  "MOM": {
+   "groupId": 22875,
+   "name": "March of the Machine",
+   "released": "2023-04-14",
+   "products": [
+    {
+     "id": 475584,
+     "key": "collector-box",
+     "label": "Collector Booster Box",
+     "packType": "collector",
+     "packs": 12,
+     "unit": "box"
+    },
+    {
+     "id": 475579,
+     "key": "set-box",
+     "label": "Set Booster Box",
+     "packType": "set",
+     "packs": 30,
+     "unit": "box"
+    },
+    {
+     "id": 475575,
+     "key": "draft-box",
+     "label": "Draft Booster Box",
+     "packType": "draft",
+     "packs": 36,
+     "unit": "box"
+    },
+    {
+     "id": 475583,
+     "key": "collector-pack",
+     "label": "Collector Booster Pack",
+     "packType": "collector",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 475584,
+     "packsPerBox": 12
+    },
+    {
+     "id": 475578,
+     "key": "set-pack",
+     "label": "Set Booster Pack",
+     "packType": "set",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 475579,
+     "packsPerBox": 30
+    },
+    {
+     "id": 494954,
+     "key": "set-sleeved",
+     "label": "Sleeved Set Booster",
+     "packType": "set",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 475579,
+     "packsPerBox": 30
+    },
+    {
+     "id": 475577,
+     "key": "draft-pack",
+     "label": "Draft Booster Pack",
+     "packType": "draft",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 475575,
+     "packsPerBox": 36
+    },
+    {
+     "id": 475586,
+     "key": "bundle",
+     "label": "Bundle",
+     "packType": "set",
+     "packs": 8,
+     "unit": "bundle",
+     "boxId": 475579,
+     "packsPerBox": 30
+    },
+    {
+     "id": 475588,
+     "key": "prerelease",
+     "label": "Prerelease Pack",
+     "packType": "draft",
+     "packs": 6,
+     "unit": "prerelease",
+     "boxId": 475575,
+     "packsPerBox": 36
+    }
+   ]
+  },
+  "ONE": {
+   "groupId": 17684,
+   "name": "Phyrexia: All Will Be One",
+   "released": "2023-02-03",
+   "products": [
+    {
+     "id": 451880,
+     "key": "collector-box",
+     "label": "Collector Booster Box",
+     "packType": "collector",
+     "packs": 12,
+     "unit": "box"
+    },
+    {
+     "id": 451872,
+     "key": "set-box",
+     "label": "Set Booster Box",
+     "packType": "set",
+     "packs": 30,
+     "unit": "box"
+    },
+    {
+     "id": 451869,
+     "key": "draft-box",
+     "label": "Draft Booster Box",
+     "packType": "draft",
+     "packs": 36,
+     "unit": "box"
+    },
+    {
+     "id": 451879,
+     "key": "collector-pack",
+     "label": "Collector Booster Pack",
+     "packType": "collector",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 451880,
+     "packsPerBox": 12
+    },
+    {
+     "id": 451871,
+     "key": "set-pack",
+     "label": "Set Booster Pack",
+     "packType": "set",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 451872,
+     "packsPerBox": 30
+    },
+    {
+     "id": 451868,
+     "key": "draft-pack",
+     "label": "Draft Booster Pack",
+     "packType": "draft",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 451869,
+     "packsPerBox": 36
+    },
+    {
+     "id": 451877,
+     "key": "bundle",
+     "label": "Bundle",
+     "packType": "set",
+     "packs": 8,
+     "unit": "bundle",
+     "boxId": 451872,
+     "packsPerBox": 30
+    },
+    {
+     "id": 475570,
+     "key": "prerelease",
+     "label": "Prerelease Pack",
+     "packType": "draft",
+     "packs": 6,
+     "unit": "prerelease",
+     "boxId": 451869,
+     "packsPerBox": 36
+    }
+   ]
+  },
+  "DMR": {
+   "groupId": 17670,
+   "name": "Dominaria Remastered",
+   "released": "2023-01-13",
+   "products": [
+    {
+     "id": 449559,
+     "key": "collector-box",
+     "label": "Collector Booster Box",
+     "packType": "collector",
+     "packs": 12,
+     "unit": "box"
+    },
+    {
+     "id": 449558,
+     "key": "draft-box",
+     "label": "Draft Booster Box",
+     "packType": "draft",
+     "packs": 36,
+     "unit": "box"
+    },
+    {
+     "id": 449570,
+     "key": "collector-pack",
+     "label": "Collector Booster Pack",
+     "packType": "collector",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 449559,
+     "packsPerBox": 12
+    },
+    {
+     "id": 449571,
+     "key": "draft-pack",
+     "label": "Draft Booster Pack",
+     "packType": "draft",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 449558,
+     "packsPerBox": 36
+    }
+   ]
+  },
+  "BRO": {
+   "groupId": 3157,
+   "name": "The Brothers' War",
+   "released": "2022-11-18",
+   "products": [
+    {
+     "id": 282224,
+     "key": "collector-box",
+     "label": "Collector Booster Box",
+     "packType": "collector",
+     "packs": 12,
+     "unit": "box"
+    },
+    {
+     "id": 282230,
+     "key": "set-box",
+     "label": "Set Booster Box",
+     "packType": "set",
+     "packs": 30,
+     "unit": "box"
+    },
+    {
+     "id": 282226,
+     "key": "draft-box",
+     "label": "Draft Booster Box",
+     "packType": "draft",
+     "packs": 36,
+     "unit": "box"
+    },
+    {
+     "id": 282223,
+     "key": "collector-pack",
+     "label": "Collector Booster Pack",
+     "packType": "collector",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 282224,
+     "packsPerBox": 12
+    },
+    {
+     "id": 282231,
+     "key": "set-pack",
+     "label": "Set Booster Pack",
+     "packType": "set",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 282230,
+     "packsPerBox": 30
+    },
+    {
+     "id": 282227,
+     "key": "draft-pack",
+     "label": "Draft Booster Pack",
+     "packType": "draft",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 282226,
+     "packsPerBox": 36
+    },
+    {
+     "id": 282221,
+     "key": "bundle",
+     "label": "Bundle",
+     "packType": "set",
+     "packs": 8,
+     "unit": "bundle",
+     "boxId": 282230,
+     "packsPerBox": 30
+    }
+   ]
+  },
+  "DMU": {
+   "groupId": 3102,
+   "name": "Dominaria United",
+   "released": "2022-09-09",
+   "products": [
+    {
+     "id": 275412,
+     "key": "collector-box",
+     "label": "Collector Booster Box",
+     "packType": "collector",
+     "packs": 12,
+     "unit": "box"
+    },
+    {
+     "id": 275430,
+     "key": "set-box",
+     "label": "Set Booster Box",
+     "packType": "set",
+     "packs": 30,
+     "unit": "box"
+    },
+    {
+     "id": 275403,
+     "key": "draft-box",
+     "label": "Draft Booster Box",
+     "packType": "draft",
+     "packs": 36,
+     "unit": "box"
+    },
+    {
+     "id": 275407,
+     "key": "collector-pack",
+     "label": "Collector Booster Pack",
+     "packType": "collector",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 275412,
+     "packsPerBox": 12
+    },
+    {
+     "id": 275405,
+     "key": "set-pack",
+     "label": "Set Booster Pack",
+     "packType": "set",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 275430,
+     "packsPerBox": 30
+    },
+    {
+     "id": 275432,
+     "key": "draft-pack",
+     "label": "Draft Booster Pack",
+     "packType": "draft",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 275403,
+     "packsPerBox": 36
+    },
+    {
+     "id": 275414,
+     "key": "bundle",
+     "label": "Bundle",
+     "packType": "set",
+     "packs": 8,
+     "unit": "bundle",
+     "boxId": 275430,
+     "packsPerBox": 30
+    },
+    {
+     "id": 275422,
+     "key": "prerelease",
+     "label": "Prerelease Pack",
+     "packType": "draft",
+     "packs": 6,
+     "unit": "prerelease",
+     "boxId": 275403,
+     "packsPerBox": 36
+    }
+   ]
+  },
+  "UNF": {
+   "groupId": 2958,
+   "name": "Unfinity",
+   "released": "2022-07-29",
+   "products": [
+    {
+     "id": 275406,
+     "key": "collector-box",
+     "label": "Collector Booster Box",
+     "packType": "collector",
+     "packs": 12,
+     "unit": "box"
+    },
+    {
+     "id": 275404,
+     "key": "draft-box",
+     "label": "Draft Booster Box",
+     "packType": "draft",
+     "packs": 36,
+     "unit": "box"
+    },
+    {
+     "id": 275409,
+     "key": "collector-pack",
+     "label": "Collector Booster Pack",
+     "packType": "collector",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 275406,
+     "packsPerBox": 12
+    },
+    {
+     "id": 275408,
+     "key": "draft-pack",
+     "label": "Draft Booster Pack",
+     "packType": "draft",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 275404,
+     "packsPerBox": 36
+    }
+   ]
+  },
+  "2X2": {
+   "groupId": 3070,
+   "name": "Double Masters 2022",
+   "released": "2022-07-08",
+   "products": [
+    {
+     "id": 271509,
+     "key": "collector-box",
+     "label": "Collector Booster Box",
+     "packType": "collector",
+     "packs": 12,
+     "unit": "box"
+    },
+    {
+     "id": 271506,
+     "key": "draft-box",
+     "label": "Draft Booster Box",
+     "packType": "draft",
+     "packs": 36,
+     "unit": "box"
+    },
+    {
+     "id": 271508,
+     "key": "collector-pack",
+     "label": "Collector Booster Pack",
+     "packType": "collector",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 271509,
+     "packsPerBox": 12
+    },
+    {
+     "id": 271507,
+     "key": "draft-pack",
+     "label": "Draft Booster Pack",
+     "packType": "draft",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 271506,
+     "packsPerBox": 36
+    },
+    {
+     "id": 282700,
+     "key": "draft-sleeved",
+     "label": "Sleeved Draft Booster",
+     "packType": "draft",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 271506,
+     "packsPerBox": 36
+    }
+   ]
+  },
+  "CLB": {
+   "groupId": 3047,
+   "name": "Commander Legends: Battle for Baldur's Gate",
+   "released": "2022-06-10",
+   "products": [
+    {
+     "id": 267023,
+     "key": "collector-box",
+     "label": "Collector Booster Box",
+     "packType": "collector",
+     "packs": 12,
+     "unit": "box"
+    },
+    {
+     "id": 267022,
+     "key": "set-box",
+     "label": "Set Booster Box",
+     "packType": "set",
+     "packs": 30,
+     "unit": "box"
+    },
+    {
+     "id": 267019,
+     "key": "draft-box",
+     "label": "Draft Booster Box",
+     "packType": "draft",
+     "packs": 36,
+     "unit": "box"
+    },
+    {
+     "id": 267024,
+     "key": "collector-pack",
+     "label": "Collector Booster Pack",
+     "packType": "collector",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 267023,
+     "packsPerBox": 12
+    },
+    {
+     "id": 267021,
+     "key": "set-pack",
+     "label": "Set Booster Pack",
+     "packType": "set",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 267022,
+     "packsPerBox": 30
+    },
+    {
+     "id": 267020,
+     "key": "draft-pack",
+     "label": "Draft Booster Pack",
+     "packType": "draft",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 267019,
+     "packsPerBox": 36
+    },
+    {
+     "id": 267034,
+     "key": "bundle",
+     "label": "Bundle",
+     "packType": "set",
+     "packs": 8,
+     "unit": "bundle",
+     "boxId": 267022,
+     "packsPerBox": 30
+    },
+    {
+     "id": 267035,
+     "key": "prerelease",
+     "label": "Prerelease Pack",
+     "packType": "draft",
+     "packs": 6,
+     "unit": "prerelease",
+     "boxId": 267019,
+     "packsPerBox": 36
+    }
+   ]
+  },
+  "SNC": {
+   "groupId": 3026,
+   "name": "Streets of New Capenna",
+   "released": "2022-04-29",
+   "products": [
+    {
+     "id": 264767,
+     "key": "collector-box",
+     "label": "Collector Booster Box",
+     "packType": "collector",
+     "packs": 12,
+     "unit": "box"
+    },
+    {
+     "id": 264763,
+     "key": "set-box",
+     "label": "Set Booster Box",
+     "packType": "set",
+     "packs": 30,
+     "unit": "box"
+    },
+    {
+     "id": 264760,
+     "key": "draft-box",
+     "label": "Draft Booster Box",
+     "packType": "draft",
+     "packs": 36,
+     "unit": "box"
+    },
+    {
+     "id": 264766,
+     "key": "collector-pack",
+     "label": "Collector Booster Pack",
+     "packType": "collector",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 264767,
+     "packsPerBox": 12
+    },
+    {
+     "id": 264765,
+     "key": "set-pack",
+     "label": "Set Booster Pack",
+     "packType": "set",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 264763,
+     "packsPerBox": 30
+    },
+    {
+     "id": 264759,
+     "key": "draft-pack",
+     "label": "Draft Booster Pack",
+     "packType": "draft",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 264760,
+     "packsPerBox": 36
+    },
+    {
+     "id": 264769,
+     "key": "bundle",
+     "label": "Bundle",
+     "packType": "set",
+     "packs": 8,
+     "unit": "bundle",
+     "boxId": 264763,
+     "packsPerBox": 30
+    }
+   ]
+  },
+  "NEO": {
+   "groupId": 2965,
+   "name": "Kamigawa: Neon Dynasty",
+   "released": "2022-02-18",
+   "products": [
+    {
+     "id": 257563,
+     "key": "collector-box",
+     "label": "Collector Booster Box",
+     "packType": "collector",
+     "packs": 12,
+     "unit": "box"
+    },
+    {
+     "id": 257560,
+     "key": "set-box",
+     "label": "Set Booster Box",
+     "packType": "set",
+     "packs": 30,
+     "unit": "box"
+    },
+    {
+     "id": 257557,
+     "key": "draft-box",
+     "label": "Draft Booster Box",
+     "packType": "draft",
+     "packs": 36,
+     "unit": "box"
+    },
+    {
+     "id": 257562,
+     "key": "collector-pack",
+     "label": "Collector Booster Pack",
+     "packType": "collector",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 257563,
+     "packsPerBox": 12
+    },
+    {
+     "id": 257561,
+     "key": "set-pack",
+     "label": "Set Booster Pack",
+     "packType": "set",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 257560,
+     "packsPerBox": 30
+    },
+    {
+     "id": 257556,
+     "key": "draft-pack",
+     "label": "Draft Booster Pack",
+     "packType": "draft",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 257557,
+     "packsPerBox": 36
+    },
+    {
+     "id": 257566,
+     "key": "bundle",
+     "label": "Bundle",
+     "packType": "set",
+     "packs": 8,
+     "unit": "bundle",
+     "boxId": 257560,
+     "packsPerBox": 30
+    },
+    {
+     "id": 257568,
+     "key": "prerelease",
+     "label": "Prerelease Pack",
+     "packType": "draft",
+     "packs": 6,
+     "unit": "prerelease",
+     "boxId": 257557,
+     "packsPerBox": 36
+    }
+   ]
+  },
+  "DBL": {
+   "groupId": 2942,
+   "name": "Innistrad: Double Feature",
+   "released": "2022-01-28",
+   "products": [
+    {
+     "id": 255911,
+     "key": "draft-box",
+     "label": "Draft Booster Box",
+     "packType": "draft",
+     "packs": 36,
+     "unit": "box"
+    },
+    {
+     "id": 255912,
+     "key": "draft-pack",
+     "label": "Draft Booster Pack",
+     "packType": "draft",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 255911,
+     "packsPerBox": 36
+    }
+   ]
+  },
+  "VOW": {
+   "groupId": 2862,
+   "name": "Innistrad: Crimson Vow",
+   "released": "2021-11-19",
+   "products": [
+    {
+     "id": 246457,
+     "key": "collector-box",
+     "label": "Collector Booster Box",
+     "packType": "collector",
+     "packs": 12,
+     "unit": "box"
+    },
+    {
+     "id": 246470,
+     "key": "set-box",
+     "label": "Set Booster Box",
+     "packType": "set",
+     "packs": 30,
+     "unit": "box"
+    },
+    {
+     "id": 246467,
+     "key": "draft-box",
+     "label": "Draft Booster Box",
+     "packType": "draft",
+     "packs": 36,
+     "unit": "box"
+    },
+    {
+     "id": 246459,
+     "key": "collector-pack",
+     "label": "Collector Booster Pack",
+     "packType": "collector",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 246457,
+     "packsPerBox": 12
+    },
+    {
+     "id": 246472,
+     "key": "set-pack",
+     "label": "Set Booster Pack",
+     "packType": "set",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 246470,
+     "packsPerBox": 30
+    },
+    {
+     "id": 246469,
+     "key": "draft-pack",
+     "label": "Draft Booster Pack",
+     "packType": "draft",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 246467,
+     "packsPerBox": 36
+    },
+    {
+     "id": 246455,
+     "key": "bundle",
+     "label": "Bundle",
+     "packType": "set",
+     "packs": 8,
+     "unit": "bundle",
+     "boxId": 246470,
+     "packsPerBox": 30
+    },
+    {
+     "id": 252126,
+     "key": "prerelease",
+     "label": "Prerelease Pack",
+     "packType": "draft",
+     "packs": 6,
+     "unit": "prerelease",
+     "boxId": 246467,
+     "packsPerBox": 36
+    }
+   ]
+  },
+  "MID": {
+   "groupId": 2864,
+   "name": "Innistrad: Midnight Hunt",
+   "released": "2021-09-24",
+   "products": [
+    {
+     "id": 244384,
+     "key": "collector-box",
+     "label": "Collector Booster Box",
+     "packType": "collector",
+     "packs": 12,
+     "unit": "box"
+    },
+    {
+     "id": 244389,
+     "key": "set-box",
+     "label": "Set Booster Box",
+     "packType": "set",
+     "packs": 30,
+     "unit": "box"
+    },
+    {
+     "id": 244379,
+     "key": "draft-box",
+     "label": "Draft Booster Box",
+     "packType": "draft",
+     "packs": 36,
+     "unit": "box"
+    },
+    {
+     "id": 244383,
+     "key": "collector-pack",
+     "label": "Collector Booster Pack",
+     "packType": "collector",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 244384,
+     "packsPerBox": 12
+    },
+    {
+     "id": 244387,
+     "key": "set-pack",
+     "label": "Set Booster Pack",
+     "packType": "set",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 244389,
+     "packsPerBox": 30
+    },
+    {
+     "id": 673066,
+     "key": "set-sleeved",
+     "label": "Sleeved Set Booster",
+     "packType": "set",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 244389,
+     "packsPerBox": 30
+    },
+    {
+     "id": 244378,
+     "key": "draft-pack",
+     "label": "Draft Booster Pack",
+     "packType": "draft",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 244379,
+     "packsPerBox": 36
+    },
+    {
+     "id": 244382,
+     "key": "bundle",
+     "label": "Bundle",
+     "packType": "set",
+     "packs": 8,
+     "unit": "bundle",
+     "boxId": 244389,
+     "packsPerBox": 30
+    },
+    {
+     "id": 247383,
+     "key": "prerelease",
+     "label": "Prerelease Pack",
+     "packType": "draft",
+     "packs": 6,
+     "unit": "prerelease",
+     "boxId": 244379,
+     "packsPerBox": 36
+    }
+   ]
+  },
+  "AFR": {
+   "groupId": 2823,
+   "name": "Adventures in the Forgotten Realms",
+   "released": "2021-07-23",
+   "products": [
+    {
+     "id": 238745,
+     "key": "collector-box",
+     "label": "Collector Booster Box",
+     "packType": "collector",
+     "packs": 12,
+     "unit": "box"
+    },
+    {
+     "id": 238739,
+     "key": "set-box",
+     "label": "Set Booster Box",
+     "packType": "set",
+     "packs": 30,
+     "unit": "box"
+    },
+    {
+     "id": 238730,
+     "key": "draft-box",
+     "label": "Draft Booster Box",
+     "packType": "draft",
+     "packs": 36,
+     "unit": "box"
+    },
+    {
+     "id": 238746,
+     "key": "collector-pack",
+     "label": "Collector Booster Pack",
+     "packType": "collector",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 238745,
+     "packsPerBox": 12
+    },
+    {
+     "id": 238741,
+     "key": "set-pack",
+     "label": "Set Booster Pack",
+     "packType": "set",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 238739,
+     "packsPerBox": 30
+    },
+    {
+     "id": 238731,
+     "key": "draft-pack",
+     "label": "Draft Booster Pack",
+     "packType": "draft",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 238730,
+     "packsPerBox": 36
+    },
+    {
+     "id": 653251,
+     "key": "draft-sleeved",
+     "label": "Sleeved Draft Booster",
+     "packType": "draft",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 238730,
+     "packsPerBox": 36
+    },
+    {
+     "id": 238732,
+     "key": "bundle",
+     "label": "Bundle",
+     "packType": "set",
+     "packs": 8,
+     "unit": "bundle",
+     "boxId": 238739,
+     "packsPerBox": 30
+    },
+    {
+     "id": 238845,
+     "key": "prerelease",
+     "label": "Prerelease Pack",
+     "packType": "draft",
+     "packs": 6,
+     "unit": "prerelease",
+     "boxId": 238730,
+     "packsPerBox": 36
+    }
+   ]
+  },
+  "MH2": {
+   "groupId": 2809,
+   "name": "Modern Horizons 2",
+   "released": "2021-06-19",
+   "products": [
+    {
+     "id": 236348,
+     "key": "collector-box",
+     "label": "Collector Booster Box",
+     "packType": "collector",
+     "packs": 12,
+     "unit": "box"
+    },
+    {
+     "id": 236353,
+     "key": "set-box",
+     "label": "Set Booster Box",
+     "packType": "set",
+     "packs": 30,
+     "unit": "box"
+    },
+    {
+     "id": 236354,
+     "key": "draft-box",
+     "label": "Draft Booster Box",
+     "packType": "draft",
+     "packs": 36,
+     "unit": "box"
+    },
+    {
+     "id": 236349,
+     "key": "collector-pack",
+     "label": "Collector Booster Pack",
+     "packType": "collector",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 236348,
+     "packsPerBox": 12
+    },
+    {
+     "id": 236351,
+     "key": "set-pack",
+     "label": "Set Booster Pack",
+     "packType": "set",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 236353,
+     "packsPerBox": 30
+    },
+    {
+     "id": 236356,
+     "key": "draft-pack",
+     "label": "Draft Booster Pack",
+     "packType": "draft",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 236354,
+     "packsPerBox": 36
+    },
+    {
+     "id": 530775,
+     "key": "draft-sleeved",
+     "label": "Sleeved Draft Booster",
+     "packType": "draft",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 236354,
+     "packsPerBox": 36
+    },
+    {
+     "id": 238649,
+     "key": "bundle",
+     "label": "Bundle",
+     "packType": "set",
+     "packs": 8,
+     "unit": "bundle",
+     "boxId": 236353,
+     "packsPerBox": 30
+    },
+    {
+     "id": 238648,
+     "key": "prerelease",
+     "label": "Prerelease Pack",
+     "packType": "draft",
+     "packs": 6,
+     "unit": "prerelease",
+     "boxId": 236354,
+     "packsPerBox": 36
+    }
+   ]
+  },
+  "STX": {
+   "groupId": 2773,
+   "name": "Strixhaven: School of Mages",
+   "released": "2021-04-23",
+   "products": [
+    {
+     "id": 233232,
+     "key": "collector-box",
+     "label": "Collector Booster Box",
+     "packType": "collector",
+     "packs": 12,
+     "unit": "box"
+    },
+    {
+     "id": 233229,
+     "key": "set-box",
+     "label": "Set Booster Box",
+     "packType": "set",
+     "packs": 30,
+     "unit": "box"
+    },
+    {
+     "id": 233249,
+     "key": "draft-box",
+     "label": "Draft Booster Box",
+     "packType": "draft",
+     "packs": 36,
+     "unit": "box"
+    },
+    {
+     "id": 233230,
+     "key": "collector-pack",
+     "label": "Collector Booster Pack",
+     "packType": "collector",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 233232,
+     "packsPerBox": 12
+    },
+    {
+     "id": 233228,
+     "key": "set-pack",
+     "label": "Set Booster Pack",
+     "packType": "set",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 233229,
+     "packsPerBox": 30
+    },
+    {
+     "id": 596372,
+     "key": "set-sleeved",
+     "label": "Sleeved Set Booster",
+     "packType": "set",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 233229,
+     "packsPerBox": 30
+    },
+    {
+     "id": 233248,
+     "key": "draft-pack",
+     "label": "Draft Booster Pack",
+     "packType": "draft",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 233249,
+     "packsPerBox": 36
+    },
+    {
+     "id": 233245,
+     "key": "bundle",
+     "label": "Bundle",
+     "packType": "set",
+     "packs": 8,
+     "unit": "bundle",
+     "boxId": 233229,
+     "packsPerBox": 30
+    }
+   ]
+  },
+  "TSR": {
+   "groupId": 2772,
+   "name": "Time Spiral: Remastered",
+   "released": "2021-03-21",
+   "products": [
+    {
+     "id": 230384,
+     "key": "draft-box",
+     "label": "Draft Booster Box",
+     "packType": "draft",
+     "packs": 36,
+     "unit": "box"
+    },
+    {
+     "id": 230383,
+     "key": "draft-pack",
+     "label": "Draft Booster Pack",
+     "packType": "draft",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 230384,
+     "packsPerBox": 36
+    }
+   ]
+  },
+  "KHM": {
+   "groupId": 2750,
+   "name": "Kaldheim",
+   "released": "2021-02-05",
+   "products": [
+    {
+     "id": 228249,
+     "key": "collector-box",
+     "label": "Collector Booster Box",
+     "packType": "collector",
+     "packs": 12,
+     "unit": "box"
+    },
+    {
+     "id": 228251,
+     "key": "set-box",
+     "label": "Set Booster Box",
+     "packType": "set",
+     "packs": 30,
+     "unit": "box"
+    },
+    {
+     "id": 228245,
+     "key": "draft-box",
+     "label": "Draft Booster Box",
+     "packType": "draft",
+     "packs": 36,
+     "unit": "box"
+    },
+    {
+     "id": 228250,
+     "key": "collector-pack",
+     "label": "Collector Booster Pack",
+     "packType": "collector",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 228249,
+     "packsPerBox": 12
+    },
+    {
+     "id": 228252,
+     "key": "set-pack",
+     "label": "Set Booster Pack",
+     "packType": "set",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 228251,
+     "packsPerBox": 30
+    },
+    {
+     "id": 653253,
+     "key": "set-sleeved",
+     "label": "Sleeved Set Booster",
+     "packType": "set",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 228251,
+     "packsPerBox": 30
+    },
+    {
+     "id": 228246,
+     "key": "draft-pack",
+     "label": "Draft Booster Pack",
+     "packType": "draft",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 228245,
+     "packsPerBox": 36
+    },
+    {
+     "id": 653254,
+     "key": "draft-sleeved",
+     "label": "Sleeved Draft Booster",
+     "packType": "draft",
+     "packs": 1,
+     "unit": "pack",
+     "boxId": 228245,
+     "packsPerBox": 36
+    },
+    {
+     "id": 228248,
+     "key": "bundle",
+     "label": "Bundle",
+     "packType": "set",
+     "packs": 8,
+     "unit": "bundle",
+     "boxId": 228251,
+     "packsPerBox": 30
+    },
+    {
+     "id": 230377,
+     "key": "prerelease",
+     "label": "Prerelease Pack",
+     "packType": "draft",
+     "packs": 6,
+     "unit": "prerelease",
+     "boxId": 228245,
+     "packsPerBox": 36
+    }
+   ]
+  }
+ },
+ "builtAt": "2026-08-10T19:29:39.075Z",
+ "source": "tcgcsv.com (TCGplayer catalog mirror)"
+}
