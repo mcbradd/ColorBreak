@@ -44,6 +44,16 @@ test("build: MTGJSON default-config snippet lands in the pinned v2 key; jumpstar
   assert.equal(Object.keys(out.products).length, 1);
 });
 
+test("build: real MTGJSON per-set shape (code/releaseDate/booster/cards nested under `data`) resolves set + products", () => {
+  const nested = readJSON("./fixtures/mtgjson/zzz-nested-data.json");
+  const zzzSlotMap = { ZZZ: { play: { slots: { commonSheet: "common" }, topper: null } } };
+  const out = buildCollation(nested, zzzSlotMap, ppbTable);
+  assert.equal(out.set, "ZZZ");
+  assert.equal(Object.keys(out.products).length, 1, "'default' config must resolve to a real product, not be silently dropped");
+  assert.ok(out.products.play, "2025-01-10 release is >= 2024-01-01 cutover, so 'default' maps to 'play'");
+  assert.equal(out.src.mtgjsonVersion, "5.2.1+fixture");
+});
+
 test("build: EOE play topper is SPG cross-set and multi-card", () => {
   const out = buildCollation(eoe, slotMap, ppbTable);
   const topper = out.products.play.boxTopper;

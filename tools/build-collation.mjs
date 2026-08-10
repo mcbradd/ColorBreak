@@ -1,16 +1,20 @@
 // Collation format v2 builder (S3a). Node stdlib only — no network, no deps.
 //
-// Input shape: a NORMALIZED set config — either a raw MTGJSON per-set export (top-level
-// `data.cards[]`, keyed by `uuid`) or the pre-flattened form (`cardsById: {id: {...}}`); both
-// are accepted, see buildCollation below.
+// Input shape: a NORMALIZED set config — either a raw MTGJSON per-set export, which nests
+// code/releaseDate/booster/cards[] (keyed by `uuid`) all under a `data` object (with `meta`
+// alongside `data`, not inside it), or the pre-flattened test-fixture form with those same
+// fields at the top level and `cardsById: {id: {...}}` instead of `cards[]`. Both are accepted
+// — see buildCollation below, which resolves `data ?? normalized` once and reads everything
+// through that.
 //   { code, releaseDate, meta: { version, date }, cardsById?: { id: { number, setCode, rarity } },
-//     data?: { cards: [{ uuid, number, setCode, rarity }, …] },
-//     booster: { <rawConfigName>: { boosters: [{ contents: {sheet: count}, weight }], sheets: { name: { foil, cards: {id: weight} } } } } }
+//     data?: { code, releaseDate, cards: [{ uuid, number, setCode, rarity }, …],
+//              booster: { <rawConfigName>: { boosters: [...], sheets: {...} } } },
+//     booster?: { <rawConfigName>: { boosters: [{ contents: {sheet: count}, weight }], sheets: { name: { foil, cards: {id: weight} } } } } }
 //
 // Output: collation format v2, frozen per plan §3.2.
 
 import { readFileSync } from "node:fs";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const DROPPED_CONFIGS = new Set(["jumpstart", "arena", "box", "sample"]);
 const KNOWN_CONFIGS = new Set(["play", "collector", "draft", "set"]);
@@ -94,19 +98,24 @@ function buildSheets(boosterCfg, sheetNames, cardsById, setCode) {
   return sheets;
 }
 
-// Accepts either the pre-flattened `cardsById` map or a raw MTGJSON per-set export
-// (`{ data: { cards: [{ uuid, … }] } }` or `{ cards: [...] }` at top level).
-function resolveCardsById(normalized) {
-  if (normalized.cardsById) return normalized.cardsById;
-  const cards = normalized.data?.cards ?? normalized.cards ?? [];
+// Accepts either the pre-flattened `cardsById` map or a raw MTGJSON per-set export's
+// `cards[]` array (`{ uuid, … }` entries), whichever the resolved data section carries.
+function resolveCardsById(d) {
+  if (d.cardsById) return d.cardsById;
+  const cards = d.cards ?? [];
   return Object.fromEntries(cards.map((c) => [c.uuid, c]));
 }
 
 export function buildCollation(normalized, slotMap, ppbTable) {
-  const setCode = normalized.code;
-  const releaseDate = normalized.releaseDate;
-  const cardsById = resolveCardsById(normalized);
-  const rawEntries = Object.entries(normalized.booster || {});
+  // Real MTGJSON per-set exports nest code/releaseDate/booster/cards under `data`
+  // (top-level `meta` sits alongside `data`, not inside it); the pre-flattened test-fixture
+  // form has no `data` wrapper and carries those fields at the top level directly. Both are
+  // the same document shape family — resolve once here so every reader below agrees.
+  const d = normalized.data ?? normalized;
+  const setCode = d.code;
+  const releaseDate = d.releaseDate;
+  const cardsById = resolveCardsById(d);
+  const rawEntries = Object.entries(d.booster || {});
 
   // Resolve explicit config names first; 'default' only fills a still-empty slot (era rule
   // never clobbers an explicitly-named product that already resolved to the same v2 key).
@@ -155,7 +164,7 @@ export function buildCollation(normalized, slotMap, ppbTable) {
 
 // CLI: node tools/build-collation.mjs <normalized-set.json> [slot-map.json] [ppb.json]
 if (import.meta.url === pathToFileURL(process.argv[1] || "").href) {
-  const [, , setPath, slotMapPath = new URL("./slot-map.json", import.meta.url).pathname, ppbPath = new URL("./ppb.json", import.meta.url).pathname] = process.argv;
+  const [, , setPath, slotMapPath = fileURLToPath(new URL("./slot-map.json", import.meta.url)), ppbPath = fileURLToPath(new URL("./ppb.json", import.meta.url))] = process.argv;
   if (!setPath) {
     console.error("usage: node build-collation.mjs <normalized-set.json> [slot-map.json] [ppb.json]");
     process.exit(1);
