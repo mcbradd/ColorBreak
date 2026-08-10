@@ -1,0 +1,3 @@
+# Orders are buyer-grouped slot sets, not one-order-per-slot
+
+The initial fee model assumed one order per slot (each color sold separately, its own $0.30 processing fee and buyer S&H). Real buyers often win multiple slots in one break and pay for them together, and sellers sometimes discount or waive S&H on multi-slot orders as their own enticement — not a Whatnot platform feature. We're modeling an **order** as a buyer-chosen group of one or more won slots (any combination, not required to be adjacent), with fulfillment cost and buyer S&H editable per order rather than fixed to a single global default. Rejected: keeping strict one-order-per-slot, which is simpler but doesn't match observed seller behavior and would understate seller net on combined orders.

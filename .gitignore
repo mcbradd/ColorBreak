@@ -1,2 +1,4 @@
 .claude/
 .tokensave/
+.agents/
+skills-lock.json
