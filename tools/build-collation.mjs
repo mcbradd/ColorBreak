@@ -123,7 +123,7 @@ function buildSheets(boosterCfg, sheetNames, cardsById, setCode) {
 
 // Accepts either the pre-flattened `cardsById` map or a raw MTGJSON per-set export's
 // `cards[]` array (`{ uuid, … }` entries), whichever the resolved data section carries.
-function resolveCardsById(d) {
+export function resolveCardsById(d) {
   if (d.cardsById) return d.cardsById;
   const cards = d.cards ?? [];
   return Object.fromEntries(cards.map((c) => [c.uuid, c]));
