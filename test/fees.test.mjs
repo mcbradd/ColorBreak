@@ -22,10 +22,13 @@ test("orderNet: zero hammer still nets buyer S&H minus flat processing minus ful
 });
 
 // ---- compBreakEven (inverse of orderNet, with a floor at 0) ----
+// n singleton orders with no per-order overrides == the old integer-count model (ADR 0001).
+const ordersOf = (n) => Array.from({ length: n }, () => ({}));
+
 test("compBreakEven: unclamped round-trip recovers cost via orderNet", () => {
   for (const cost of [100, 5000, 1_000_000]) {
     for (const n of [1, 8, 20]) {
-      const be = P.compBreakEven(cost, n, DEFAULT_FEES);
+      const be = P.compBreakEven(cost, ordersOf(n), DEFAULT_FEES);
       const recovered = n * P.orderNet(be / n, DEFAULT_FEES);
       assert.ok(Math.abs(recovered - cost) < 1e-6, `cost=${cost} n=${n}: recovered ${recovered}`);
     }
@@ -33,19 +36,29 @@ test("compBreakEven: unclamped round-trip recovers cost via orderNet", () => {
 });
 
 test("compBreakEven: clamps to 0 rather than going negative (buyer S&H exceeds fulfillment)", () => {
-  assert.equal(P.compBreakEven(0, 8, DEFAULT_FEES), 0);
+  assert.equal(P.compBreakEven(0, ordersOf(8), DEFAULT_FEES), 0);
 });
 
 test("compBreakEven: cost 0 round-trips when per-order fee balance is negative", () => {
   const highFulfillment = { ...DEFAULT_FEES, fulfillment: 8.00 };
-  const be = P.compBreakEven(0, 8, highFulfillment);
+  const be = P.compBreakEven(0, ordersOf(8), highFulfillment);
   const recovered = 8 * P.orderNet(be / 8, highFulfillment);
   near(recovered, 0, 1e-6);
 });
 
 test("compBreakEven: keep <= 0 (fees consume the whole order) is Infinity", () => {
   const crushingFees = { commissionPct: 90, procPct: 20, procFlat: 0, buyerSH: 0, fulfillment: 0 };
-  assert.equal(P.compBreakEven(1000, 5, crushingFees), Infinity);
+  assert.equal(P.compBreakEven(1000, ordersOf(5), crushingFees), Infinity);
+});
+
+test("compBreakEven: per-order buyerSH/fulfillment overrides change the break-even (ADR 0001)", () => {
+  const baseline = P.compBreakEven(1000, ordersOf(2), DEFAULT_FEES);
+  const overridden = P.compBreakEven(
+    1000,
+    [{ buyerSH: 0, fulfillment: null }, { buyerSH: null, fulfillment: 0 }],
+    DEFAULT_FEES
+  );
+  assert.notEqual(overridden, baseline);
 });
 
 // ---- chooseBasis (item 7) ----
