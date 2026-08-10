@@ -245,7 +245,7 @@ footer { margin-top:16px; color:var(--faint); font-size:12px; line-height:1.6; f
   <details class="adv" id="advanced">
     <summary>Advanced: fees, thresholds &amp; collation</summary>
     <div class="row" style="margin-top:10px">
-      <label class="f" style="max-width:160px"><span>Fulfillment $ / order</span><input type="number" id="fulfillment" step="0.25" min="0" value="0" inputmode="decimal"></label>
+      <label class="f" style="max-width:160px"><span>Fulfillment $ / order</span><input type="number" id="fulfillment" step="0.25" min="0" placeholder="not set" inputmode="decimal"></label>
       <label class="f" style="max-width:160px"><span>Buyer S&amp;H $ / order</span><input type="number" id="buyerSH" step="0.01" min="0" value="4.99" inputmode="decimal"></label>
       <label class="f" style="max-width:140px"><span>Commission %</span><input type="number" id="commissionPct" step="0.1" min="0" value="8" inputmode="decimal"></label>
       <label class="f" style="max-width:140px"><span>Processing %</span><input type="number" id="procPct" step="0.1" min="0" value="2.9" inputmode="decimal"></label>
@@ -314,6 +314,10 @@ footer { margin-top:16px; color:var(--faint); font-size:12px; line-height:1.6; f
       <label class="f" style="max-width:220px"><span>Slot</span><select id="qcSlot" name="qcSlot"></select></label>
       <label class="f" style="max-width:220px"><span>Asking $</span><input type="number" id="qcPrice" step="0.5" min="0" placeholder="18" inputmode="decimal"></label>
     </div>
+    <label class="f" id="qcCombineRow" style="flex-direction:row; align-items:center; gap:8px; min-height:44px; margin-top:8px">
+      <input type="checkbox" id="qcCombine" style="width:20px; min-height:20px">
+      <span style="margin:0; text-transform:none; letter-spacing:0; font-family:'IBM Plex Sans',sans-serif; font-size:13px; color:var(--text)">Combining with a slot I already won (S&amp;H paid once)</span>
+    </label>
     <div class="qc-slab"><span class="qc-net" id="qcNet">&mdash;</span><span class="tag" id="qcTag" hidden></span></div>
     <p class="note" id="qcNote">Load a board, pick a slot, type the asking price — verdict in one glance.</p>
   </section>
@@ -327,6 +331,7 @@ footer { margin-top:16px; color:var(--faint); font-size:12px; line-height:1.6; f
   <!-- ===== seller costs ===== -->
   <section class="panel seller-only" aria-label="Costs">
     <div class="panelhead"><h2>Your cost</h2><span class="badge" id="priceBadge"></span></div>
+    <div class="banner warn" id="fulfillWarn"></div>
     <div class="banner warn" id="costWarn"></div>
     <div id="costList"></div>
     <p class="note" id="priceSource"></p>
@@ -525,6 +530,20 @@ function orderGroupNet(order, prices, f) {
   const buyerSH = order.buyerSH != null ? order.buyerSH : f.buyerSH;
   const fulfillment = order.fulfillment != null ? order.fulfillment : f.fulfillment;
   return orderNet(hammer, { ...f, buyerSH, fulfillment });
+}
+// Which contributors survive into localStorage. A global top-N loses a weak slot's
+// tail, so a restored drill-down could show fewer than 10 cards while the slot total
+// (restored from `buckets`) still counted them all — list and total disagreed. Keep the
+// top `perSlot` of every slot plus the global top `globalN`, in the input's EV order.
+function persistContributors(contributors, perSlot, globalN) {
+  const seen = new Map();
+  const keep = new Set();
+  contributors.forEach((e, i) => {
+    if (i < globalN) keep.add(e.card.id);
+    const n = seen.get(e.card.bucket) || 0;
+    if (n < perSlot) { seen.set(e.card.bucket, n + 1); keep.add(e.card.id); }
+  });
+  return contributors.filter(e => keep.has(e.card.id));
 }
 // @end-pure
 
@@ -780,6 +799,14 @@ function verdictOf(net, price) {
   const dead = Math.max(price * 0.08, 1);
   return net > dead ? ["+EV", "pos"] : net < -dead ? ["−EV", "neg"] : ["FAIR", "fair"];
 }
+// What the buyer actually pays for a slot: the bid plus Whatnot's buyer-paid S&H. The
+// S&H is charged once per order, not once per slot (ADR 0001 — orders are buyer-grouped),
+// so a slot the buyer folds into an order already paying S&H adds none. Verdicts run on
+// this, not on the bare bid: the seller side has always modelled S&H and the buyer side
+// must too, or every near-deadband FAIR is really −EV.
+function landedCost(bid, buyerSH, combining) {
+  return bid + (combining ? 0 : buyerSH);
+}
 // stale-while-revalidate: stamps, load phases, changed-verdict cue (S2)
 function priceStamp(source, ageMs) {
   if (source === "manual") return "MANUAL";
@@ -824,8 +851,27 @@ function feeCfg() {
 
 // ===== sheets =====
 let openSheetId = null;
+let sheetReturn = null; // control that opened the sheet — focus returns to it on close
+const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+function sheetFocusables() {
+  if (!openSheetId) return [];
+  return [...$(openSheetId).querySelectorAll(FOCUSABLE)].filter(el => el.offsetWidth > 0 || el.offsetHeight > 0);
+}
+// The sheets are aria-modal, so Tab must not walk out behind the scrim.
+function trapTab(e) {
+  if (e.key !== "Tab" || !openSheetId) return;
+  const els = sheetFocusables();
+  if (!els.length) return;
+  const first = els[0], last = els[els.length - 1];
+  const active = document.activeElement;
+  if (!$(openSheetId).contains(active)) { e.preventDefault(); (e.shiftKey ? last : first).focus(); }
+  else if (e.shiftKey && active === first) { e.preventDefault(); last.focus(); }
+  else if (!e.shiftKey && active === last) { e.preventDefault(); first.focus(); }
+}
 function openSheet(id) {
+  const opener = document.activeElement;
   closeSheet();
+  sheetReturn = opener && opener !== document.body ? opener : null;
   $("scrim").classList.add("open");
   $(id).classList.add("open");
   openSheetId = id;
@@ -839,6 +885,8 @@ function closeSheet() {
   $("scrim").classList.remove("open");
   document.body.style.overflow = "";
   openSheetId = null;
+  if (sheetReturn && document.contains(sheetReturn)) sheetReturn.focus({ preventScroll: true });
+  sheetReturn = null;
 }
 
 // ===== set picker (item 2) =====
@@ -943,7 +991,7 @@ function buildSkeleton() {
   $("legend").innerHTML = SLOTS.map(s =>
     `<div class="li"><span class="chip" style="background:${s.color}"></span><span class="ln">${s.name}</span><span class="lv" data-slot="${s.id}">—</span></div>`).join("");
   $("slotCards").innerHTML = `<p class="note" style="margin:0">Add a product and load the board to price all 8 slots.</p>`;
-  $("deskBody").innerHTML = `<tr><td colspan="5" class="empty">Load the board to see what each slot must clear.</td></tr>`;
+  $("deskBody").innerHTML = `<tr><td colspan="6" class="empty">Load the board to see what each slot must clear.</td></tr>`;
   $("topBody").innerHTML = `<tr><td colspan="4" class="empty">Load the board to see which cards carry it.</td></tr>`;
 }
 
@@ -1003,10 +1051,15 @@ function updateBoard() {
   const fees = feeCfg();
   const uni = num($("uniformPrice").value);
 
+  // `price` is the hammer, which every seller figure runs on. `landed` adds the buyer-paid
+  // S&H and drives buyer-side net and verdicts (F1). S&H is charged once per order, so
+  // slots after the first in a combined order add none.
+  const combinedSlots = new Set(orderGroups.flatMap(g => g.slotIds.slice(1)));
   const rows = SLOTS.map(s => {
     const evTotal = lastAgg.buckets[s.id].ev;
     const price = (slotPrices[s.id] === undefined || slotPrices[s.id] === "") ? uni : num(slotPrices[s.id]);
-    return { ...s, evTotal, hits: lastAgg.buckets[s.id].hits, price, net: evTotal - price };
+    const landed = landedCost(price, fees.buyerSH, combinedSlots.has(s.id));
+    return { ...s, evTotal, hits: lastAgg.buckets[s.id].hits, price, landed, net: evTotal - landed };
   });
   lastRows = rows;
   const totalEV = rows.reduce((a,r)=>a+r.evTotal,0);
@@ -1094,7 +1147,8 @@ function updateBoard() {
     if (r) el.setAttribute("aria-label", `${r.name} — ${money(r.evTotal)}, ${totalEV > 0 ? Math.round(r.evTotal / totalEV * 100) : 0}% of EV. Top 10 cards.`);
   });
 
-  // ---- seller cost list + basis banner (item 7) ----
+  // ---- seller cost list + basis banner (item 7) + unset-fulfillment prompt (F2) ----
+  renderFulfillPrompt();
   renderCosts();
 
   // ---- top contributors ----
@@ -1123,6 +1177,21 @@ function updateGlance(rows, totalEV, netAtAsks, anyMissing) {
     g.textContent = "EV " + usd0(totalEV);
     g.style.color = "";
   }
+}
+
+// Fulfillment is the one seller input the page can't derive, and a blank field used to
+// read as a deliberate $0 — which, against buyer S&H credited per order, understated
+// break-even by roughly $36 on a default eight-order break. Blank now means unset: the
+// math still treats it as 0, but the seller view says so and offers a starting value.
+const FULFILL_SUGGESTION = 2.00;
+function fulfillmentUnset() { return $("fulfillment").value.trim() === ""; }
+function renderFulfillPrompt() {
+  const w = $("fulfillWarn");
+  if (!fulfillmentUnset()) { w.style.display = "none"; return; }
+  const sh = num($("buyerSH").value, 4.99);
+  w.innerHTML = `Fulfillment cost isn't set, so break-even leaves out what it costs you to get an order out the door — while every order still credits ${usd(sh)} of buyer S&amp;H. That reads far too good. Most sellers land near ${usd(FULFILL_SUGGESTION)} per order. ` +
+    `<button type="button" class="ghost" id="fulfillAccept" style="min-height:36px; padding:6px 12px; margin-top:8px; font-size:13px">Use ${usd(FULFILL_SUGGESTION)} / order</button>`;
+  w.style.display = "block";
 }
 
 function renderCosts() {
@@ -1194,7 +1263,7 @@ function updateQuick() {
   if (!r) return;
   const raw = $("qcPrice").value;
   const ch = chaseOf(r.id);
-  const sh = ch && r.evTotal > 0 ? Math.round(ch.ev / r.evTotal * 100) : 0;
+  const shPct = ch && r.evTotal > 0 ? Math.round(ch.ev / r.evTotal * 100) : 0;
   const nm = ch ? ch.card.name.split(" // ")[0] : "";
   if (raw === "") {
     $("qcNet").textContent = money(r.evTotal);
@@ -1202,16 +1271,23 @@ function updateQuick() {
     $("qcTag").hidden = true;
     $("qcNote").textContent = `${r.name} slot EV at market. Enter the asking price to see your edge.`;
   } else {
-    const price = num(raw);
-    const net = r.evTotal - price;
-    const [vLabel, vCls] = verdictOf(net, price);
+    const bid = num(raw);
+    const sh = num($("buyerSH").value, 4.99);
+    const combining = $("qcCombine").checked;
+    const landed = landedCost(bid, sh, combining);
+    const net = r.evTotal - landed;
+    const [vLabel, vCls] = verdictOf(net, landed);
     $("qcNet").textContent = signed(net);
     $("qcNet").className = "qc-net " + vCls;
     const tag = $("qcTag");
     tag.hidden = false; tag.textContent = vLabel; tag.className = "tag " + vCls;
-    $("qcNote").textContent = !ch ? "No priced cards in this slot."
-      : sh >= 50 ? `${sh}% of this slot rides on ${nm} — floor if it misses ${money(r.evTotal - ch.ev)}.`
-      : `Steady slot — top card ${nm} is ${sh}% of its EV.`;
+    const costLine = combining
+      ? `Net at ${money(bid)} — S&H already paid on that order.`
+      : `Net at ${money(bid)} + ${money(sh)} S&H = ${money(landed)} landed.`;
+    const slotLine = !ch ? "No priced cards in this slot."
+      : shPct >= 50 ? `${shPct}% of this slot rides on ${nm} — floor if it misses ${money(r.evTotal - ch.ev)}.`
+      : `Steady slot — top card ${nm} is ${shPct}% of its EV.`;
+    $("qcNote").textContent = costLine + " " + slotLine;
   }
 }
 
@@ -1338,7 +1414,7 @@ async function run(opts) {
   const errEl = $("err"), warnEl = $("warn"), st = $("status");
   errEl.style.display = "none"; warnEl.style.display = "none";
   running = true;
-  const before = lastRows ? lastRows.map(r => verdictOf(r.net, r.price)[0]) : null;
+  const before = lastRows ? lastRows.map(r => verdictOf(r.net, r.landed)[0]) : null;
   const busyEls = [document.querySelector(".ticker"), document.querySelector(".hero")];
   busyEls.forEach(el => el && el.setAttribute("aria-busy", "true"));
   $("run").disabled = true; $("run").classList.add("loading");
@@ -1401,7 +1477,7 @@ async function run(opts) {
     saveState();
     try { history.replaceState(null, "", "?b=" + encodeURIComponent(encodeComp(comp))); } catch (e) {}
     if (!bg) $("bar").scrollIntoView({ block:"nearest" });
-    const after = lastRows ? lastRows.map(r => verdictOf(r.net, r.price)[0]) : null;
+    const after = lastRows ? lastRows.map(r => verdictOf(r.net, r.landed)[0]) : null;
     const cueTxt = cueFromVerdicts(before, after);
     if (cueTxt) showCue(cueTxt);
     // ---- sealed prices: non-blocking — card EVs paint before tcgcsv answers ----
@@ -1463,7 +1539,7 @@ function saveState() {
       models: MODELS, fetchedAt, isStale,
       board: lastAgg ? {
         buckets: lastAgg.buckets, excluded: lastAgg.excluded, packs: lastAgg.packs, itemCount: lastAgg.itemCount,
-        contributors: lastAgg.contributors.slice(0, 60).map(e => ({ card: { id:e.card.id, name:e.card.name, cn:e.card.cn, cnRaw:e.card.cnRaw, set:e.card.set, bucket:e.card.bucket, treat:e.card.treat, u:e.card.u, f:e.card.f, img:e.card.img, o:e.card.o }, copies:e.copies, ev:e.ev, foilCopies:e.foilCopies })),
+        contributors: persistContributors(lastAgg.contributors, 10, 18).map(e => ({ card: { id:e.card.id, name:e.card.name, cn:e.card.cn, cnRaw:e.card.cnRaw, set:e.card.set, bucket:e.card.bucket, treat:e.card.treat, u:e.card.u, f:e.card.f, img:e.card.img, o:e.card.o }, copies:e.copies, ev:e.ev, foilCopies:e.foilCopies })),
         meta: lastMeta, setLabel: $("setLabel").textContent, costInfo,
       } : null };
     localStorage.setItem(LS_KEY, JSON.stringify(s));
@@ -1561,7 +1637,7 @@ function init() {
   // sheets
   $("scrim").addEventListener("click", closeSheet);
   document.querySelectorAll(".sheet-close").forEach(b => b.addEventListener("click", closeSheet));
-  window.addEventListener("keydown", e => { if (e.key === "Escape") closeSheet(); });
+  window.addEventListener("keydown", e => { if (e.key === "Escape") closeSheet(); else trapTab(e); });
   $("setSearch").addEventListener("input", renderSetRows);
   $("setSort").addEventListener("change", renderSetRows);
   $("setTypes").addEventListener("click", e => {
@@ -1631,6 +1707,13 @@ function init() {
   $("qcSlot").innerHTML = SLOTS.map(s => `<option value="${s.id}">${s.name}</option>`).join("");
   $("qcSlot").addEventListener("input", updateQuick);
   $("qcPrice").addEventListener("input", updateQuick);
+  $("qcCombine").addEventListener("change", updateQuick);
+  $("fulfillWarn").addEventListener("click", e => {
+    if (!e.target.closest("#fulfillAccept")) return;
+    $("fulfillment").value = FULFILL_SUGGESTION.toFixed(2);
+    updateBoard();
+    saveState();
+  });
 
   loadCatalog().then(() => { renderComp(); });
   loadState();
