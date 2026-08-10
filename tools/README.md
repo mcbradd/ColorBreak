@@ -28,6 +28,11 @@ network calls — `node tools/build-collation.mjs <normalized-set.json> [slot-ma
   document that already carries every uuid). An unresolved uuid is a build failure, named by
   sheet + uuid, never a silent skip or guess (ponytail: this builder doesn't fetch/merge
   foreign sets — upgrade path is a maintainer pre-merge step or an AllPrintings-based input).
+  `test/fixtures/mtgjson/eoe-normalized.json` (SPG cards inlined in `cardsById`) IS this
+  documented pre-merged input shape, not an unrealistic shortcut — it's what a raw per-set
+  export looks like after the required pre-merge step, and its passing "SPG cross-set
+  multi-card play-topper" test is the proof the contract's happy path works.
+  `eoe-missing-foreign.json` is the raw (not pre-merged) counterpart, which correctly fails.
 - **`layout[].slot`** comes from `tools/slot-map.json`, not from MTGJSON — sheet names are
   a set's own convention (e.g. a set may reuse one physical sheet across two slot
   purposes), so the mapping is hand-maintained. Resolution rule: `selector.slot` in a
