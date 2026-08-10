@@ -86,6 +86,35 @@ test("asksBelowFloor: unpriced slots (null ask) are not advice", () => {
   assert.deepEqual(P.asksBelowFloor([{ id: "W", ask: null }, { id: "U", ask: undefined }], 1), []);
 });
 
+// ---- F8: pool cache ----
+test("thinPool: keeps the math fields and drops image + oracle text", () => {
+  const fat = [{ id: "x", name: "Card", cn: 12, rarity: "rare", bucket: "R", basic: false,
+    treat: true, u: 1.5, f: 4, set: "eoe", cnRaw: "12a",
+    img: "https://cards.scryfall.io/normal/front/x.jpg", o: "Flying\nHaste" }];
+  const [c] = P.thinPool(fat);
+  assert.deepEqual(Object.keys(c).sort(), [...P.POOL_KEEP].sort());
+  assert.equal(c.u, 1.5);
+  assert.equal(c.cnRaw, "12a");
+  assert.ok(!("img" in c) && !("o" in c), "the two fat fields refetch by id when a popup opens");
+});
+
+test("thinPool: a missing optional field stays present as undefined, not dropped", () => {
+  const [c] = P.thinPool([{ id: "x", name: "N" }]);
+  assert.equal(Object.keys(c).length, P.POOL_KEEP.length);
+  assert.equal(c.u, undefined);
+});
+
+test("evictPools: keeps the two most recently stored sets", () => {
+  const store = { "eoe|flag": { at: 30 }, "fin|flag": { at: 10 }, "blb|all": { at: 20 } };
+  assert.deepEqual(Object.keys(P.evictPools(store, 2)).sort(), ["blb|all", "eoe|flag"]);
+});
+
+test("evictPools: a store under the limit is returned whole", () => {
+  const store = { "eoe|flag": { at: 1 } };
+  assert.deepEqual(P.evictPools(store, 2), store);
+  assert.deepEqual(P.evictPools({}, 2), {});
+});
+
 test("asksBelowFloor: flagging leaves the allocation summing to break-even", () => {
   const be = 100, evs = { W: 60, U: 39.5, C: 0.5 };
   const total = 100;

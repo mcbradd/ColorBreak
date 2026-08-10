@@ -11,7 +11,7 @@ assert.equal(typeof assertG1, "function", "standing gate G1 helper missing");
 assert.equal(typeof assertG2, "function", "standing gate G2 helper missing");
 
 const files = process.argv.slice(2).length ? process.argv.slice(2)
-  : ["./s1-relays.mjs", "./s2-swr.mjs", "./s8a-gates.mjs"];
+  : ["./s1-relays.mjs", "./s2-swr.mjs", "./s8a-gates.mjs", "./s9-poolcache.mjs"];
 
 let failed = 0;
 for (const f of files) {

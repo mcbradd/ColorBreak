@@ -434,6 +434,9 @@ const PROXIES = [
 ];
 const LS_KEY = "colorBreakEV.v3";
 const LS_KEY_V2 = "colorBreakEV.v2";
+const LS_KEY_POOLS = "colorBreakEV.pools.v1";
+const POOL_TTL_MS = 6 * 3600e3;  // past this, a warm start would be more lie than help
+const POOL_SETS = 2;
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;" }[c]));
 const num = (v, f=0) => { const n = parseFloat(v); return Number.isFinite(n) ? n : f; };
@@ -568,6 +571,8 @@ let liveThisSession = false;
 let running = false;
 let pickerSet = null;      // set chosen in the picker, awaiting product pick
 const poolCache = new Map();   // "set|mode" -> pool
+const storedPoolKeys = new Set(); // poolCache entries that came from localStorage, not the wire
+let usedStoredPoolAt = null;   // oldest stored-pool timestamp the current run leaned on
 const priceCache = new Map();  // "SET" -> Map(productId -> market)
 const setInfoCache = new Map();// "set" -> scryfall set object
 
@@ -819,6 +824,21 @@ function landedCost(bid, buyerSH, combining) {
 const ASK_FLOOR = 1;
 function asksBelowFloor(asks, floor) {
   return asks.filter(a => Number.isFinite(a.ask) && a.ask < floor).map(a => a.id);
+}
+
+// Pool cache (F8): the fields the EV math reads, minus the two fat ones — image URL
+// and oracle text — which are only read when a card popup opens, and refetch by id
+// there. Measured 50–56 KB per set, 110 KB for the worst case (a collector "all
+// prints" pool), so two sets sit well inside a localStorage budget that also has to
+// hold the board.
+const POOL_KEEP = ["id","name","cn","rarity","bucket","basic","treat","u","f","set","cnRaw"];
+function thinPool(pool) {
+  return pool.map(c => Object.fromEntries(POOL_KEEP.map(k => [k, c[k]])));
+}
+// Newest `keep` sets survive; a break of more than two sets simply refetches the rest.
+function evictPools(store, keep) {
+  return Object.fromEntries(Object.keys(store)
+    .sort((a, b) => store[b].at - store[a].at).slice(0, keep).map(k => [k, store[k]]));
 }
 // stale-while-revalidate: stamps, load phases, changed-verdict cue (S2)
 function priceStamp(source, ageMs) {
@@ -1347,6 +1367,24 @@ function openSlotSheet(slotId) {
 
 // ===== card popup (item 11) =====
 function openCardSheet(e) {
+  renderCardBody(e);
+  openSheet("sheetCard");
+  cardSheetId = e.card.id;
+  if (!e.card.img || e.card.o == null) hydrateCard(e);
+}
+// Cards from a stored pool (F8) carry no image or oracle text. Fetch the detail once,
+// on demand, and only repaint if the sheet is still showing that same card.
+let cardSheetId = null;
+async function hydrateCard(e) {
+  try {
+    const j = await sfetch(`https://api.scryfall.com/cards/${e.card.id}`);
+    if (!j) return;
+    e.card.img = cardImg(j);
+    e.card.o = cardOracle(j);
+    if (openSheetId === "sheetCard" && cardSheetId === e.card.id) renderCardBody(e);
+  } catch (err) { /* the popup still shows name, printing and price */ }
+}
+function renderCardBody(e) {
   const c = e.card;
   $("cardTitle").textContent = c.name.split(" // ")[0];
   const foilShare = e.copies > 0 ? e.foilCopies / e.copies : 0;
@@ -1356,13 +1394,38 @@ function openCardSheet(e) {
     ${c.img ? `<img src="${esc(c.img)}" alt="${esc(c.name)} card image" loading="lazy">` : ""}
     <p class="printing">${esc((c.set || "").toUpperCase())} #${esc(c.cnRaw || String(c.cn))} · priced as ${finish}${priceLine ? " · " + priceLine : ""}</p>
     <div class="oracle">${esc(c.o || "").replace(/\n/g, "<br>")}</div>`;
-  openSheet("sheetCard");
 }
 
 // ===== pools & prices =====
-async function getPool(setCode, mode, show) {
+// A stored pool is a warm start, never a substitute for a refresh: it paints at once,
+// the board stamps itself STALE from the pool's own timestamp, and a background
+// revalidate fetches live prices behind it. An explicit Re-run always goes to the wire.
+function readPoolStore() { try { return JSON.parse(localStorage.getItem(LS_KEY_POOLS)) || {}; } catch (e) { return {}; } }
+function storePool(key, pool) {
+  try {
+    const store = readPoolStore();
+    store[key] = { at: Date.now(), pool: thinPool(pool) };
+    localStorage.setItem(LS_KEY_POOLS, JSON.stringify(evictPools(store, POOL_SETS)));
+  } catch (e) { /* quota: the cache is an optimisation, never a requirement */ }
+}
+// A fresh run must not be served the stored copy it seeded the in-memory cache with.
+function dropStoredPools() {
+  for (const k of storedPoolKeys) poolCache.delete(k);
+  storedPoolKeys.clear();
+}
+
+async function getPool(setCode, mode, show, allowStored) {
   const key = setCode.toLowerCase() + "|" + mode;
   if (poolCache.has(key)) return poolCache.get(key);
+  if (allowStored) {
+    const st = readPoolStore()[key];
+    if (st && Array.isArray(st.pool) && Date.now() - st.at < POOL_TTL_MS) {
+      poolCache.set(key, st.pool);
+      storedPoolKeys.add(key);
+      usedStoredPoolAt = usedStoredPoolAt == null ? st.at : Math.min(usedStoredPoolAt, st.at);
+      return st.pool;
+    }
+  }
   const code = setCode.toLowerCase();
   let cards, usedMode = mode, cutoff = null;
   if (mode === "all") {
@@ -1386,6 +1449,7 @@ async function getPool(setCode, mode, show) {
   }
   const pool = buildPool(cards, usedMode, cutoff);
   poolCache.set(key, pool);
+  storePool(key, pool);
   return pool;
 }
 async function getSetInfo(code) {
@@ -1446,7 +1510,10 @@ function modelFor(item, prod) {
 }
 async function run(opts) {
   const bg = !!(opts && opts.background);
+  const fresh = !!(opts && opts.fresh);   // Re-run and revalidate go to the wire (F8)
   if (running || !comp.length) return;
+  if (fresh) dropStoredPools();
+  usedStoredPoolAt = null;
   const errEl = $("err"), warnEl = $("warn"), st = $("status");
   errEl.style.display = "none"; warnEl.style.display = "none";
   running = true;
@@ -1477,7 +1544,7 @@ async function run(opts) {
       const prod = productOf(item);
       if (!prod) throw new Error(`Unknown product "${item.key}" for ${item.set} — remove the line item and re-add it.`);
       const mode = prod.packType === "collector" ? "all" : "flag";
-      const pool = await getPool(item.set, mode, show);
+      const pool = await getPool(item.set, mode, show, !fresh);
       const m = modelFor(item, prod);
       show(`Computing ${item.set} ${prod.label} EV…`);
       const per = computeEV(pool, sgCards, m, tw, thr);
@@ -1502,9 +1569,11 @@ async function run(opts) {
     lastAgg = agg;
     lastMeta = `Break: ${labels.join(" + ")} (${agg.packs} packs). Card prices: Scryfall / TCGplayer market, fetched ${new Date().toLocaleString()}. ${thr > 0 ? `Cards under ${usd(thr)} excluded from EV (your threshold).` : "All cards count toward EV."} Collation odds are editable estimates under Advanced — WotC doesn't publish exact numbers.`;
 
-    fetchedAt = Date.now();
-    isStale = false;
-    liveThisSession = true;
+    // A run served from a stored pool inherits that pool's age, so the stamp reads
+    // STALE from the real fetch time rather than claiming a fetch it didn't make.
+    fetchedAt = usedStoredPoolAt != null ? usedStoredPoolAt : Date.now();
+    isStale = usedStoredPoolAt != null;
+    liveThisSession = usedStoredPoolAt == null;
     st.style.display = "none";
     $("setLabel").textContent = labels.join(" + ");
     $("setLabel").hidden = false;
@@ -1518,6 +1587,8 @@ async function run(opts) {
     if (cueTxt) showCue(cueTxt);
     // ---- sealed prices: non-blocking — card EVs paint before tcgcsv answers ----
     refreshCosts();
+    // A warm start owes the user live prices: revalidate behind the painted board.
+    if (usedStoredPoolAt != null && !bg) setTimeout(() => run({ background: true, fresh: true }), 0);
   } catch (e) {
     st.style.display = "none";
     errEl.textContent = e.message;
@@ -1642,7 +1713,7 @@ function init() {
   });
   $("modeBuyer").addEventListener("click", () => setView("buyer"));
   $("modeSeller").addEventListener("click", () => setView("seller"));
-  $("run").addEventListener("click", () => run());
+  $("run").addEventListener("click", () => run({ fresh: true }));
   $("addProduct").addEventListener("click", openSetPicker);
 
   // composition list interactions
@@ -1765,7 +1836,7 @@ function init() {
 
   const phases = boardPhases({ cached: !!lastAgg, cachedSet: savedCompStr, urlSet: urlCompStr });
   if (phases[0] === "paint-cached") { buildBoard(false); stampBoard(); } else { buildSkeleton(); }
-  if (phases.indexOf("revalidate") >= 0) run({ background: true });
+  if (phases.indexOf("revalidate") >= 0) run({ background: true, fresh: true });
   else if (phases.indexOf("fetch") >= 0) run();
 
   sfetch("https://api.scryfall.com/sets").then(d => {
