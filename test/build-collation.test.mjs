@@ -52,6 +52,10 @@ test("build: real MTGJSON per-set shape (code/releaseDate/booster/cards nested u
   assert.equal(Object.keys(out.products).length, 1, "'default' config must resolve to a real product, not be silently dropped");
   assert.ok(out.products.play, "2025-01-10 release is >= 2024-01-01 cutover, so 'default' maps to 'play'");
   assert.equal(out.src.mtgjsonVersion, "5.2.1+fixture");
+  // Pin actual card content, not just "didn't crash": the reported bug was silent EMPTY
+  // output, so proving cards[] -> uuid -> [cn, weight] resolved correctly matters as much
+  // as proving `set`/`products` are populated.
+  assert.deepEqual(out.products.play.sheets.commonSheet.cards, [["1", 1]]);
 });
 
 test("build: EOE play topper is SPG cross-set and multi-card", () => {
