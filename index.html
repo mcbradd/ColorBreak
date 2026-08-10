@@ -400,6 +400,7 @@ async function tcgFetch(path) {
 }
 
 // ===== card classification =====
+// @pure
 const cnnum = (c) => { const d = (c.collector_number||"").replace(/\D/g,""); return d ? parseInt(d,10) : 0; };
 function bucketOf(card) {
   const face = card.card_faces && card.card_faces[0] && card.card_faces[0].colors != null ? card.card_faces[0] : card;
@@ -410,6 +411,7 @@ function bucketOf(card) {
   if (cols.length > 1) return "M";
   return cols[0];
 }
+// @end-pure
 function metaTreatment(c) {
   const pt = (c.promo_types || []).filter(p => p !== "universesbeyond");
   const fe = c.frame_effects || [];
@@ -526,10 +528,12 @@ async function fetchSealedPrice(code, setName, presetKey, statusFn) {
 }
 
 // ===== verdicts =====
+// @pure
 function verdictOf(net, price) {
   const dead = Math.max(price * 0.08, 1);
   return net > dead ? ["+EV", "pos"] : net < -dead ? ["−EV", "neg"] : ["FAIR", "fair"];
 }
+// @end-pure
 function chaseOf(bucket) {
   return lastResult ? (lastResult.contributors.find(e => e.card.bucket === bucket) || null) : null;
 }

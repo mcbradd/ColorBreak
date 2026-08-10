@@ -34,3 +34,18 @@ exact numbers.
 
 Everything is one `index.html`: vanilla JS, no build step, state in `localStorage`.
 Design decisions live in [DESIGN.md](DESIGN.md).
+
+## Development
+
+Pure logic in `index.html` is fenced with `// @pure … // @end-pure` comments.
+`test/extract.mjs` lifts those blocks out of the page verbatim (no build step) so
+unit tests run against the exact shipped code:
+
+```
+node --test
+```
+
+Browser acceptance checks (standing gates G1–G4, iPhone 15 Pro Max descriptor) live in
+`test/e2e/`; they need a local Playwright install — point `PLAYWRIGHT_DIR` at a
+directory whose `node_modules` contains `playwright`, then `node test/e2e/run-all.mjs`.
+The `test/` directory is repo-only; nothing in it ships to the page.
