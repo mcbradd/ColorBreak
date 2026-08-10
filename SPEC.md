@@ -47,6 +47,10 @@ No open P0/P1 carryover as of this writing — the e2e harness (`test/e2e/harnes
 already targets the rewritten page's ids (`body[data-view]`, `.strip`, `#glance`); it is
 not stale.
 
+Open follow-ups from the 2026-08-10 expert panel re-review (buyer-side S&H in verdicts,
+unset-vs-zero fulfillment, restore fidelity, a11y) are planned in
+[docs/panel-review-2026-08-10.md](docs/panel-review-2026-08-10.md); none are implemented yet.
+
 ## Delegated decisions — how they resolved
 
 The feedback doc explicitly left these to the implementer:
