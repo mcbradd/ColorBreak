@@ -337,9 +337,11 @@ footer { margin-top:16px; color:var(--faint); font-size:12px; line-height:1.6; f
     <div class="panelhead"><h2>Pricing desk</h2><p class="note" style="margin:0">What each slot must sell for — and where you land</p></div>
     <div class="beline"><span id="floorVal">Break-even &mdash;</span><span class="rule"></span><span id="deskNet"></span></div>
     <div class="scroll"><table>
-      <thead><tr><th scope="col">Slot</th><th scope="col">EV (break)</th><th scope="col">Ask to clear</th><th scope="col">Your $</th><th scope="col">Net / order</th></tr></thead>
+      <thead><tr><th scope="col">Slot</th><th scope="col">EV (break)</th><th scope="col">Ask to clear</th><th scope="col">Your $</th><th scope="col">Net / order</th><th scope="col">Combine</th></tr></thead>
       <tbody id="deskBody"></tbody>
     </table></div>
+    <div class="beline"><button type="button" class="ghost" id="combineBtn" disabled>Combine checked into one order</button></div>
+    <div id="groupList"></div>
   </section>
 
   <!-- ===== contributors ===== -->
@@ -445,13 +447,20 @@ function orderNet(hammer, f) {
   const processing = (hammer + f.buyerSH) * f.procPct / 100 + f.procFlat;
   return hammer - commission - processing - f.fulfillment + f.buyerSH;
 }
-// Total hammer H across nOrders orders such that sum(orderNet) covers `cost`.
-// Derivation: sum = H·(1−c−p) + n·(SH·(1−p) − flat − fulfillment); solve sum = cost.
-function compBreakEven(cost, nOrders, f) {
+// Total hammer H across `orders` such that sum(orderNet) covers `cost`. Each order's
+// buyerSH/fulfillment can override the global default (ADR 0001: buyer-grouped orders),
+// so the per-order term is summed individually rather than multiplied by a count.
+// Derivation per order: net_i = H_i·(1−c−p) + SH_i·(1−p) − flat − fulfillment_i;
+// sum over i, solve sum = cost for total H = ΣH_i.
+function compBreakEven(cost, orders, f) {
   const keep = 1 - f.commissionPct / 100 - f.procPct / 100;
   if (keep <= 0) return Infinity;
-  const perOrder = f.buyerSH * (1 - f.procPct / 100) - f.procFlat - f.fulfillment;
-  return Math.max(0, (cost - nOrders * perOrder) / keep);
+  const sumPerOrder = orders.reduce((a, o) => {
+    const buyerSH = o.buyerSH != null ? o.buyerSH : f.buyerSH;
+    const fulfillment = o.fulfillment != null ? o.fulfillment : f.fulfillment;
+    return a + (buyerSH * (1 - f.procPct / 100) - f.procFlat - fulfillment);
+  }, 0);
+  return Math.max(0, (cost - sumPerOrder) / keep);
 }
 // Cost-basis pick (item 7): sealed-box fraction is the primary basis, loose packs the
 // fallback. "Unreliable sealed data" heuristic: tcgcsv exposes no sales-volume signal,
@@ -492,11 +501,40 @@ function evNote(excluded, thr) {
 }
 // @end-pure
 
+// ===== order grouping (buyer-grouped orders, ADR 0001) =====
+// @pure
+// Partition all 8 slots into orders per seller-defined groups; any slot not covered
+// by a group defaults to its own singleton order — matches shipped one-order-per-slot
+// behavior until a seller opts into combining. Groups need not be adjacent slots.
+function partitionOrders(groups) {
+  const grouped = new Set(groups.flatMap(g => g.slotIds));
+  const orders = groups.map(g => ({ id: g.id, slotIds: [...g.slotIds], buyerSH: g.buyerSH, fulfillment: g.fulfillment }));
+  for (const s of SLOTS) if (!grouped.has(s.id)) orders.push({ id: s.id, slotIds: [s.id], buyerSH: null, fulfillment: null });
+  return orders;
+}
+// Net for one order: hammer is the sum of its member slots' asking prices (prices[id]
+// may be a raw input string or blank — parseFloat inline since num() lives outside the
+// @pure blocks). A null buyerSH/fulfillment on the order falls back to the seller's
+// global default — the seller's combined-order entry replaces the per-slot default,
+// it doesn't add to it.
+function orderGroupNet(order, prices, f) {
+  const hammer = order.slotIds.reduce((a, id) => {
+    const n = parseFloat(prices[id]);
+    return a + (Number.isFinite(n) ? n : 0);
+  }, 0);
+  const buyerSH = order.buyerSH != null ? order.buyerSH : f.buyerSH;
+  const fulfillment = order.fulfillment != null ? order.fulfillment : f.fulfillment;
+  return orderNet(hammer, { ...f, buyerSH, fulfillment });
+}
+// @end-pure
+
 // ===== state =====
 let comp = [];             // [{ set, key, qty, ub, basis, paid }]
 let catalog = null;        // data/products.json .sets, or null when unreachable
 let setIndex = [];         // Scryfall /sets rows
 let slotPrices = {};
+let orderGroups = []; // [{ id, slotIds, buyerSH:null|number, fulfillment:null|number }] — combined orders only; ungrouped slots default to singleton orders (ADR 0001)
+let grpChecked = new Set(); // slot ids checked in the desk table, pending "Combine"
 let lastAgg = null;        // { buckets, contributors, excluded, packs }
 let lastMeta = "";
 let costInfo = [];         // per line item { label, cost, basis, forced, manual }
@@ -928,13 +966,35 @@ function buildBoard(animate) {
       <td class="c-ask" data-l="Ask to clear">—</td>
       <td class="c-price" data-l="Your $"><input type="number" step="0.5" min="0" value="${slotPrices[s.id] || ""}" data-slot="${s.id}" aria-label="${s.name} price" inputmode="decimal"></td>
       <td class="c-net" data-l="Net / order">—</td>
+      <td class="c-grp" data-l="Combine"><input type="checkbox" class="grpChk" data-slot="${s.id}" aria-label="Select ${s.name} to combine into one order"></td>
     </tr>`).join("");
-  document.querySelectorAll("#deskBody input").forEach(inp => {
+  document.querySelectorAll("#deskBody input[type=number]").forEach(inp => {
     inp.classList.toggle("set", inp.value !== "");
     inp.addEventListener("input", e => { slotPrices[e.target.dataset.slot] = e.target.value; e.target.classList.toggle("set", e.target.value !== ""); updateBoard(); saveState(); });
   });
+  document.querySelectorAll("#deskBody .grpChk").forEach(chk => {
+    chk.checked = grpChecked.has(chk.dataset.slot);
+    chk.addEventListener("change", e => {
+      if (e.target.checked) grpChecked.add(e.target.dataset.slot); else grpChecked.delete(e.target.dataset.slot);
+      $("combineBtn").disabled = grpChecked.size < 2;
+    });
+  });
+  $("combineBtn").disabled = grpChecked.size < 2;
+  renderGroups();
   updateBoard();
   if (animate) animateBar();
+}
+
+function renderGroups() {
+  $("groupList").innerHTML = orderGroups.map(g => {
+    const names = g.slotIds.map(id => SLOTS.find(s => s.id === id).name).join(" + ");
+    return `<div class="grow" style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--line2)">
+      <strong>${esc(names)}</strong>
+      <label class="f" style="max-width:120px"><span>Fulfillment $</span><input type="number" step="0.25" min="0" data-grp-field="fulfillment" data-grp-id="${g.id}" value="${g.fulfillment ?? ""}" placeholder="default" inputmode="decimal"></label>
+      <label class="f" style="max-width:120px"><span>Buyer S&amp;H $</span><input type="number" step="0.01" min="0" data-grp-field="buyerSH" data-grp-id="${g.id}" value="${g.buyerSH ?? ""}" placeholder="default" inputmode="decimal"></label>
+      <button type="button" class="ghost" data-ungroup="${g.id}">Ungroup</button>
+    </div>`;
+  }).join("");
 }
 
 function updateBoard() {
@@ -985,9 +1045,11 @@ function updateBoard() {
   // ---- seller: cost + break-even + desk ----
   const totalCost = costInfo.reduce((a,c) => a + (c.cost || 0), 0);
   const anyMissing = costInfo.some(c => c.cost == null);
-  const be = compBreakEven(totalCost, N_SLOTS, fees);
+  const orders = partitionOrders(orderGroups);
+  const priceMap = Object.fromEntries(rows.map(r => [r.id, r.price]));
+  const be = compBreakEven(totalCost, orders, fees);
   const hammer = rows.reduce((a,r)=>a+r.price,0);
-  const netAtAsks = rows.reduce((a,r)=>a+orderNet(r.price, fees),0) - totalCost;
+  const netAtAsks = orders.reduce((a,o)=>a+orderGroupNet(o, priceMap, fees),0) - totalCost;
 
   $("sCost").textContent = anyMissing ? "—" : usd0(totalCost);
   $("sCosts").textContent = anyMissing ? "price missing — see Your cost" : costInfo.length + " line item" + (costInfo.length > 1 ? "s" : "") + " at market";
@@ -1000,7 +1062,7 @@ function updateBoard() {
   $("sNets").textContent = "at your asks, after fees";
 
   $("floorVal").textContent = Number.isFinite(be) && !anyMissing
-    ? `Break-even ${usd(be)} hammer · ${usd(be / N_SLOTS)}/slot avg`
+    ? `Break-even ${usd(be)} hammer · ${usd(be / orders.length)}/order avg`
     : "Break-even needs a cost — set one under Your cost";
   const pricedCount = rows.filter(r => slotPrices[r.id] !== undefined && slotPrices[r.id] !== "").length;
   $("deskNet").textContent = anyMissing ? "" :
@@ -1014,9 +1076,10 @@ function updateBoard() {
     // ask-to-clear: break-even hammer allocated by EV share — sell each slot at this and the break clears exactly
     const ask = Number.isFinite(be) && totalEV > 0 ? be * r.evTotal / totalEV : null;
     tr.querySelector(".c-ask").textContent = ask != null && !anyMissing ? money(ask) : "—";
-    const net = orderNet(r.price, fees);
+    const order = orders.find(o => o.slotIds.includes(r.id));
+    const net = orderGroupNet(order, priceMap, fees);
     const nc = tr.querySelector(".c-net");
-    nc.textContent = signed(net);
+    nc.textContent = signed(net) + (order.slotIds.length > 1 ? ` (order of ${order.slotIds.length})` : "");
     nc.style.color = netColor(net);
     const inp = tr.querySelector("input");
     if (inp) inp.placeholder = uni;
@@ -1395,7 +1458,7 @@ async function refreshCosts() {
 function saveState() {
   try {
     const s = {
-      comp, view: document.body.dataset.view, slotPrices,
+      comp, view: document.body.dataset.view, slotPrices, orderGroups,
       settings: Object.fromEntries(["fulfillment","buyerSH","commissionPct","procPct","procFlat","uniformPrice","thr","tw","cutoff","sgCode","sgLo","sgHi","proxyUrl"].map(id => [id, $(id).value])),
       models: MODELS, fetchedAt, isStale,
       board: lastAgg ? {
@@ -1417,6 +1480,7 @@ function loadState() {
     }
     comp = Array.isArray(s.comp) ? s.comp : [];
     slotPrices = s.slotPrices || {};
+    orderGroups = Array.isArray(s.orderGroups) ? s.orderGroups : [];
     if (s.settings) for (const [id, v] of Object.entries(s.settings)) if ($(id) && v !== undefined && v !== "") $(id).value = v;
     if (s.models) for (const k of Object.keys(MODELS)) if (s.models[k]) MODELS[k] = { ...MODELS[k], ...s.models[k] };
     if (s.view === "seller" || s.view === "buyer") setView(s.view, false);
@@ -1531,6 +1595,27 @@ function init() {
   document.querySelector(".desk").addEventListener("click", e => {
     const l = e.target.closest(".slotlink");
     if (l && lastAgg) openSlotSheet(l.dataset.slot);
+  });
+  $("combineBtn").addEventListener("click", () => {
+    if (grpChecked.size < 2) return;
+    orderGroups.push({ id: "grp" + Date.now(), slotIds: [...grpChecked], buyerSH: null, fulfillment: null });
+    grpChecked.clear();
+    buildBoard(false);
+    saveState();
+  });
+  $("groupList").addEventListener("click", e => {
+    const b = e.target.closest("[data-ungroup]");
+    if (b) { orderGroups = orderGroups.filter(g => g.id !== b.dataset.ungroup); buildBoard(false); saveState(); }
+  });
+  $("groupList").addEventListener("input", e => {
+    const inp = e.target.closest("[data-grp-field]");
+    if (!inp) return;
+    const g = orderGroups.find(x => x.id === inp.dataset.grpId);
+    if (!g) return;
+    const v = inp.value === "" ? null : num(inp.value, null);
+    g[inp.dataset.grpField] = v;
+    updateBoard();
+    saveState();
   });
   $("topBody").addEventListener("click", e => {
     const b = e.target.closest("[data-ci]");
