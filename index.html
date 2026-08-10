@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Color Break EV &middot; MTG Break Economics</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700;9..144,900&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#0e1219; --panel:#161c28; --panel2:#131824; --line:#232c3e; --line2:#1d2434;
+    --field:#0c1017; --fieldline:#2a3346; --text:#e8eaf0; --dim:#8b94a6; --faint:#67718a;
+    --gold:#C9A227; --goldink:#1c1607; --good:#5fd68b; --bad:#f07a70;
+  }
+  * { box-sizing:border-box; }
+  html { scroll-behavior:smooth; }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior:auto; } * { transition:none !important; } }
+  body { margin:0; background:var(--bg); color:var(--text); font-family:'IBM Plex Sans',sans-serif; padding:0 14px 56px; }
+  .wrap { max-width:960px; margin:0 auto; }
+  header.top { padding:26px 2px 18px; display:flex; align-items:baseline; gap:14px; flex-wrap:wrap; }
+  h1 { font-family:'Fraunces',serif; font-size:clamp(26px,4.5vw,38px); font-weight:900; margin:0; letter-spacing:-0.01em; }
+  h1 .accent { color:var(--gold); }
+  .tagline { color:var(--dim); font-size:13px; }
+  h2 { font-family:'Fraunces',serif; font-size:18px; margin:0; font-weight:700; }
+  h2 .sub { font-family:'IBM Plex Sans',sans-serif; font-weight:400; font-size:12px; color:var(--faint); margin-left:10px; letter-spacing:.02em; }
+  .panel { background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:18px; margin-bottom:16px; }
+  .panelhead { display:flex; align-items:baseline; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-bottom:14px; }
+  .row { display:flex; flex-wrap:wrap; gap:12px; align-items:flex-end; }
+  label.f { display:flex; flex-direction:column; gap:5px; flex:1; min-width:100px; }
+  label.f > span, .lbl { font-size:10.5px; letter-spacing:.09em; text-transform:uppercase; color:var(--dim); font-weight:500; }
+  input, select { background:var(--field); border:1px solid var(--fieldline); border-radius:9px; padding:10px 11px; color:var(--text); font-family:'IBM Plex Mono',monospace; font-size:14px; outline:none; width:100%; transition:border-color .15s; }
+  input:focus-visible, select:focus-visible, button:focus-visible { border-color:var(--gold); outline:2px solid rgba(201,162,39,.25); outline-offset:1px; }
+  select, input[type=text] { font-family:'IBM Plex Sans',sans-serif; }
+  .small { padding:7px 9px; font-size:13px; }
+  button.go { background:var(--gold); color:var(--goldink); border:1px solid transparent; border-radius:9px; padding:12px 22px; font-weight:600; font-size:14px; cursor:pointer; font-family:'IBM Plex Sans',sans-serif; }
+  button.go:hover { filter:brightness(1.07); }
+  button.go:disabled { background:var(--fieldline); color:var(--dim); cursor:wait; }
+  button.link { background:none; border:none; color:var(--gold); font-size:12.5px; padding:0; cursor:pointer; font-family:'IBM Plex Sans',sans-serif; }
+  .note { color:var(--faint); font-size:11px; line-height:1.55; margin:10px 0 0; }
+  .banner { border-radius:11px; padding:10px 14px; font-size:12.5px; margin-bottom:14px; line-height:1.5; display:none; }
+  .banner.warn { background:#2a2410; border:1px solid #6b5a1e; color:#e8cf7a; }
+  .banner.err { background:#2a1518; border:1px solid #6b2f33; color:#f0a8a2; font-size:13px; }
+  .status { color:var(--gold); font-size:13px; font-family:'IBM Plex Mono',monospace; margin:0 0 12px; display:none; }
+  .badge { display:inline-block; font-size:10px; letter-spacing:.06em; text-transform:uppercase; padding:2px 8px; border-radius:20px; border:1px solid var(--fieldline); color:var(--dim); vertical-align:2px; }
+  .badge.live { border-color:#2c5b3f; color:var(--good); }
+  .badge.manual { border-color:#6b5a1e; color:#e8cf7a; }
+  /* summary strip */
+  .strip { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:1px; background:var(--line); border:1px solid var(--line); border-radius:16px; overflow:hidden; margin-bottom:16px; }
+  .strip > div { background:var(--panel2); padding:13px 15px; }
+  .strip .k { font-size:10.5px; letter-spacing:.09em; text-transform:uppercase; color:var(--dim); margin-bottom:5px; }
+  .strip .v { font-family:'IBM Plex Mono',monospace; font-size:19px; font-weight:600; }
+  .strip .s { font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--faint); margin-top:3px; }
+  /* stat rows inside seller panel */
+  .stats { display:grid; grid-template-columns:1fr auto; gap:6px 16px; font-size:13px; margin-top:6px; }
+  .stats .k { color:var(--dim); }
+  .stats .v { font-family:'IBM Plex Mono',monospace; text-align:right; }
+  .stats .big { font-size:15px; font-weight:600; }
+  .divider { border-top:1px solid var(--line2); margin:10px 0; grid-column:1/-1; }
+  .bar { display:flex; height:36px; border-radius:11px; overflow:hidden; border:1px solid var(--line); margin-bottom:14px; }
+  .bar > div { display:flex; align-items:center; justify-content:center; font-family:'IBM Plex Mono',monospace; font-size:11px; font-weight:600; min-width:0; overflow:hidden; white-space:nowrap; transition:width .25s ease; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  thead tr { color:var(--dim); font-size:10.5px; letter-spacing:.07em; text-transform:uppercase; }
+  th { padding:11px 12px; border-bottom:1px solid var(--line); font-weight:500; text-align:right; }
+  th:first-child { text-align:left; }
+  td { padding:9px 12px; border-bottom:1px solid var(--line2); text-align:right; font-family:'IBM Plex Mono',monospace; }
+  tr:last-child td { border-bottom:none; }
+  td:first-child { text-align:left; font-family:'IBM Plex Sans',sans-serif; font-weight:500; }
+  .chip { display:inline-block; width:12px; height:12px; border-radius:3px; margin-right:8px; vertical-align:-1px; }
+  .tag { border-radius:4px; padding:1px 6px; font-size:10.5px; font-weight:600; }
+  .scroll { overflow-x:auto; margin:0 -18px; padding:0 18px; }
+  .panel.table { padding:0 0 4px; }
+  .panel.table .panelhead { padding:16px 18px 0; margin-bottom:6px; }
+  .panel.table .scroll { margin:0; padding:0; }
+  td input { width:72px; padding:6px 8px; font-size:13px; text-align:right; border-radius:7px; font-family:'IBM Plex Mono',monospace; }
+  .mf { display:flex; flex-direction:column; gap:4px; width:120px; }
+  .mf span { font-size:10px; }
+  .collapse { margin-top:12px; padding-top:12px; border-top:1px solid var(--line); display:none; }
+  .treat { color:var(--gold); font-size:10px; margin-left:6px; }
+  #results { display:none; }
+  pre.code { background:var(--field); border:1px solid var(--fieldline); border-radius:9px; padding:12px; font-size:11px; line-height:1.5; overflow-x:auto; color:#b9c2d4; margin:8px 0 0; }
+  footer { margin-top:14px; color:var(--faint); font-size:11.5px; line-height:1.6; font-family:'IBM Plex Mono',monospace; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <noscript>
+    <div class="banner err" style="display:block">
+      This viewer isn't running JavaScript, so the tool can't work here. iOS Files preview and the Claude artifact pane both do this.
+      Host this file (GitHub Pages / Netlify) and open the URL in Safari or Chrome, or open the file directly in a desktop browser.
+    </div>
+  </noscript>
+  <header class="top">
+    <h1>Color Break <span class="accent">EV</span></h1>
+    <span class="tagline">Sealed-box economics &amp; per-slot expected value for Whatnot MTG color breaks</span>
+  </header>
+
+  <div class="banner err" id="err"></div>
+  <div class="banner warn" id="warn"></div>
+
+  <!-- ============ setup ============ -->
+  <section class="panel">
+    <div class="panelhead"><h2>Break setup</h2><span id="setLabel" class="badge" style="display:none"></span></div>
+    <div class="row">
+      <label class="f" style="min-width:120px"><span>Set code</span>
+        <input type="text" id="setCode" list="setList" placeholder="hob, eoe, blb\u2026" autocapitalize="off">
+        <datalist id="setList"></datalist>
+      </label>
+      <label class="f" style="flex:1.5; min-width:180px"><span>Booster type</span><select id="preset"></select></label>
+      <label class="f" style="min-width:80px"><span>Boxes</span><input type="number" id="boxes" step="1" min="1" value="1"></label>
+      <label class="f" style="min-width:95px"><span>Packs / box</span><input type="number" id="packsPerBox" step="1" min="1" value="30"></label>
+      <button class="go" id="run">Fetch live data</button>
+    </div>
+    <div class="row" id="cutoffRow" style="margin-top:12px; display:none">
+      <label class="f" style="max-width:190px"><span>Play pool max collector #</span><input type="number" id="cutoff" step="1"></label>
+      <p class="note" style="flex:2; min-width:220px; margin:0">Scryfall hasn't flagged booster prints for this set yet (normal for previews). Enter the top collector number from the product's "may contain" line on its WPN page.</p>
+    </div>
+    <button class="link" id="toggleModel" style="margin-top:12px">&#9656; Pack model, bonus sheet &amp; price source</button>
+    <div class="collapse" id="modelBox">
+      <div class="row" style="gap:10px" id="modelFields"></div>
+      <div class="row" style="gap:10px; margin-top:10px">
+        <label class="mf"><span class="lbl">Bonus sheet set</span><input type="text" id="sgCode" class="small" placeholder="spg"></label>
+        <label class="mf"><span class="lbl">CN from</span><input type="number" id="sgLo" class="small"></label>
+        <label class="mf"><span class="lbl">CN to</span><input type="number" id="sgHi" class="small"></label>
+        <label class="mf"><span class="lbl">Treatment weight</span><input type="number" id="tw" class="small" step="0.025" value="0.125"></label>
+      </div>
+      <p class="note">Collation odds are editable estimates: WotC doesn't publish exact numbers and they shift per set. Treatment weight = odds of a showcase/borderless/variant print vs. a base print within its rarity. Bonus sheet (Special Guests / The List) replaces a common at the % / pack rate.</p>
+      <div class="divider" style="margin:14px 0"></div>
+      <label class="f" style="max-width:460px"><span>Sealed price proxy URL (optional, recommended)</span>
+        <input type="text" id="proxyUrl" placeholder="https://your-worker.workers.dev">
+      </label>
+      <p class="note">Sealed box prices come from tcgcsv.com (a daily mirror of TCGplayer market data), which blocks direct browser access. Without a proxy this tool tries public CORS relays, which work most days but not all. For a permanent fix, deploy this free Cloudflare Worker once and paste its URL above:</p>
+      <pre class="code">export default { async fetch(req) {
+  const u = new URL(req.url);
+  const r = await fetch("https://tcgcsv.com" + u.pathname + u.search);
+  const res = new Response(r.body, r);
+  res.headers.set("Access-Control-Allow-Origin", "*");
+  return res;
+}};</pre>
+    </div>
+  </section>
+
+  <p class="status" id="status"></p>
+
+  <div id="results">
+    <!-- ============ summary strip ============ -->
+    <div class="strip" id="strip"></div>
+
+    <!-- ============ seller economics ============ -->
+    <section class="panel">
+      <div class="panelhead">
+        <h2>Seller economics<span class="sub">buying sealed boxes at market</span></h2>
+        <span id="priceBadge" class="badge"></span>
+      </div>
+      <div class="row">
+        <label class="f" style="min-width:130px"><span>Box market price $</span><input type="number" id="boxPrice" step="0.01" min="0"></label>
+        <label class="f" style="min-width:130px"><span>Shipping / slot $</span><input type="number" id="shipPerSlot" step="0.5" min="0" value="5"></label>
+        <label class="f" style="min-width:130px"><span>Platform fees %</span><input type="number" id="feePct" step="0.1" min="0" value="0"></label>
+        <label class="f" style="min-width:130px"><span>Default slot price $</span><input type="number" id="uniformPrice" step="0.5" min="0" value="18"></label>
+      </div>
+      <p class="note" id="priceSource" style="margin-top:8px"></p>
+      <div class="divider" style="margin:14px 0 10px"></div>
+      <div class="stats" id="sellerStats"></div>
+    </section>
+
+    <!-- ============ buyer value ============ -->
+    <section class="panel table">
+      <div class="panelhead"><h2>Buyer value per slot<span class="sub">cards over $1, foils at foil prices</span></h2></div>
+      <div style="padding:0 18px"><div class="bar" id="bar"></div></div>
+      <div class="scroll"><table style="min-width:680px">
+        <thead><tr><th>Slot</th><th>$1+ cards</th><th>EV / pack</th><th>EV (run)</th><th>Slot price $</th><th>Buyer net</th><th>Buyer ROI</th></tr></thead>
+        <tbody id="slotBody"></tbody>
+      </table></div>
+    </section>
+
+    <section class="panel table">
+      <div class="panelhead"><h2>Top EV contributors</h2></div>
+      <div class="scroll"><table style="min-width:580px; font-size:12.5px">
+        <thead><tr><th>Card</th><th>CN</th><th>Slot</th><th>Exp. copies (run)</th><th>EV (run)</th></tr></thead>
+        <tbody id="topBody"></tbody>
+      </table></div>
+    </section>
+
+    <footer id="footNote"></footer>
+  </div>
+</div>
+
+<script>
+"use strict";
+// ================= constants =================
+const SLOTS = [
+  { id:"C", name:"Colorless",    color:"#8E97A3", ink:"#14181d" },
+  { id:"L", name:"Lands",        color:"#A9743F", ink:"#fdf3e8" },
+  { id:"M", name:"Multicolored", color:"#C9A227", ink:"#2a2410" },
+  { id:"W", name:"White",        color:"#EDE8C8", ink:"#2b2a1f" },
+  { id:"U", name:"Blue",         color:"#1E7CC2", ink:"#eaf4fc" },
+  { id:"B", name:"Black",        color:"#5C4A73", ink:"#efeaf6" },
+  { id:"R", name:"Red",          color:"#C8342E", ink:"#fdeeee" },
+  { id:"G", name:"Green",        color:"#1E7A48", ink:"#e9f6ef" },
+];
+const N_SLOTS = SLOTS.length;
+const MODEL_KEYS = [
+  ["commons","Commons / pack"], ["uncommons","Uncommons / pack"],
+  ["rareSlots","R/M / pack (nonfoil)"], ["mythicPct","Mythic % of R/M"],
+  ["wildcards","Wildcards"], ["foilWildcards","Foil cards / pack"],
+  ["wcCommonPct","Foil/WC common %"], ["wcUncommonPct","Foil/WC uncommon %"],
+  ["wcRareMythicPct","Foil/WC rare+my %"], ["landSlot","Land slots"],
+  ["landFoilPct","Land foil %"], ["sgRate","Bonus sheet % / pack"],
+];
+const PRESETS = {
+  play:      { label:"Play Booster (generic 2024+)", ppb:30, match:/play booster (display|box)/i,
+               commons:6.985, uncommons:3, rareSlots:1, mythicPct:13.5, wildcards:1, foilWildcards:1, wcCommonPct:50, wcUncommonPct:37.5, wcRareMythicPct:12.5, landSlot:1, landFoilPct:20, sgRate:1.5 },
+  playUB:    { label:"Play Booster (no-wildcard, e.g. HOB)", ppb:30, match:/play booster (display|box)/i,
+               commons:7.34, uncommons:3.51, rareSlots:1.20, mythicPct:13.5, wildcards:0, foilWildcards:1, wcCommonPct:60.7, wcUncommonPct:29.2, wcRareMythicPct:10.1, landSlot:1, landFoilPct:20, sgRate:0 },
+  set:       { label:"Set Booster", ppb:30, match:/set booster (display|box)/i,
+               commons:4.7, uncommons:2.3, rareSlots:1, mythicPct:13.5, wildcards:3, foilWildcards:1, wcCommonPct:45, wcUncommonPct:33, wcRareMythicPct:22, landSlot:1, landFoilPct:15, sgRate:25 },
+  draft:     { label:"Draft Booster", ppb:36, match:/draft booster (display|box)/i,
+               commons:10, uncommons:3, rareSlots:1, mythicPct:12.5, wildcards:0, foilWildcards:0.33, wcCommonPct:60, wcUncommonPct:27, wcRareMythicPct:13, landSlot:1, landFoilPct:0, sgRate:0 },
+  collector: { label:"Collector Booster (rough)", ppb:12, match:/collector booster (display|box)/i,
+               commons:5, uncommons:4, rareSlots:5, mythicPct:13.5, wildcards:0, foilWildcards:1, wcCommonPct:0, wcUncommonPct:0, wcRareMythicPct:100, landSlot:1, landFoilPct:100, sgRate:0 },
+};
+const PROXIES = [
+  (u) => "https://api.allorigins.win/raw?url=" + encodeURIComponent(u),
+  (u) => "https://proxy.cors.sh/" + u,
+  (u) => "https://api.codetabs.com/v1/proxy?quest=" + u,
+];
+const LS_KEY = "colorBreakEV.v2";
+const $ = (id) => document.getElementById(id);
+const num = (v, f=0) => { const n = parseFloat(v); return Number.isFinite(n) ? n : f; };
+const usd = (n) => n.toLocaleString("en-US",{style:"currency",currency:"USD"});
+const pct1 = (n) => n.toFixed(1) + "%";
+const netColor = (n) => n > 0.005 ? "var(--good)" : n < -0.005 ? "var(--bad)" : "var(--dim)";
+
+// ================= state =================
+let slotPrices = {};
+let lastResult = null;   // { buckets, contributors }
+let lastMeta = "";
+let priceInfo = null;    // { product, market, source }
+let boxPriceIsManual = false;
+
+// ================= fetch helpers =================
+async function sfetch(url) {
+  for (let a = 0; a < 4; a++) {
+    const res = await fetch(url);
+    if (res.status === 429) { await new Promise(r => setTimeout(r, 800*(a+1))); continue; }
+    if (res.status === 404) return null;
+    if (!res.ok) throw new Error("Scryfall " + res.status);
+    return res.json();
+  }
+  throw new Error("Scryfall rate limit; try again shortly.");
+}
+async function fetchAllCards(query, onProgress) {
+  let url = "https://api.scryfall.com/cards/search?unique=prints&q=" + encodeURIComponent(query);
+  const out = [];
+  while (url) {
+    const page = await sfetch(url);
+    if (!page) return out;
+    out.push(...page.data);
+    onProgress && onProgress(out.length, page.total_cards);
+    url = page.has_more ? page.next_page : null;
+    if (url) await new Promise(r => setTimeout(r, 110));
+  }
+  return out;
+}
+async function tcgFetch(path) {
+  const target = "https://tcgcsv.com" + path;
+  const worker = $("proxyUrl").value.trim().replace(/\/$/, "");
+  const attempts = worker ? [() => worker + path] : [];
+  for (const p of PROXIES) attempts.push(() => p(target));
+  let lastErr = null;
+  for (const build of attempts) {
+    try {
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), 12000);
+      const res = await fetch(build(), { signal: ctrl.signal });
+      clearTimeout(t);
+      if (!res.ok) { lastErr = new Error("HTTP " + res.status); continue; }
+      const data = await res.json();
+      if (data && data.results) return { data: data.results, via: build === attempts[0] && worker ? "worker" : "relay" };
+    } catch (e) { lastErr = e; }
+  }
+  throw lastErr || new Error("All price routes failed");
+}
+
+// ================= card classification =================
+const cnnum = (c) => { const d = (c.collector_number||"").replace(/\D/g,""); return d ? parseInt(d,10) : 0; };
+function bucketOf(card) {
+  const face = card.card_faces && card.card_faces[0] && card.card_faces[0].colors != null ? card.card_faces[0] : card;
+  const type = (face.type_line || card.type_line || "").split("//")[0];
+  if (type.includes("Land")) return "L";
+  const cols = face.colors != null ? face.colors : (card.colors || []);
+  if (cols.length === 0) return "C";
+  if (cols.length > 1) return "M";
+  return cols[0];
+}
+function metaTreatment(c) {
+  const pt = (c.promo_types || []).filter(p => p !== "universesbeyond");
+  const fe = c.frame_effects || [];
+  return pt.length > 0 || c.border_color === "borderless" || c.full_art === true ||
+         fe.some(f => ["inverted","extendedart","etched","showcase"].includes(f));
+}
+const collectorOnly = (c) => (c.promo_types || []).some(p => ["surgefoil","headliner","bundle","promopack","prerelease","buyabox"].includes(p));
+
+function buildPool(cards, mode, cutoff) {
+  let pool;
+  if (mode === "flag") pool = cards.filter(c => c.booster && !collectorOnly(c));
+  else if (mode === "cutoff") pool = cards.filter(c => cnnum(c) <= cutoff && !collectorOnly(c));
+  else pool = cards.filter(c => !(c.promo_types||[]).includes("bundle"));
+  // duplicate-name rule: lowest CN of a name = base print; higher CNs = variant treatments
+  const seen = new Map();
+  const treatIds = new Set();
+  for (const c of [...pool].sort((a,b) => cnnum(a) - cnnum(b))) {
+    if (seen.has(c.name)) treatIds.add(c.id); else seen.set(c.name, c.id);
+  }
+  return pool.map(c => ({
+    id:c.id, name:c.name, cn:cnnum(c), rarity:c.rarity, bucket:bucketOf(c),
+    basic:(c.type_line||"").startsWith("Basic Land"),
+    treat: metaTreatment(c) || treatIds.has(c.id),
+    u: c.prices && c.prices.usd ? parseFloat(c.prices.usd) : null,
+    f: c.prices && c.prices.usd_foil ? parseFloat(c.prices.usd_foil) : null,
+  }));
+}
+
+// ================= EV engine =================
+function readModel() {
+  const m = {};
+  for (const [k] of MODEL_KEYS) m[k] = num($("m_"+k).value);
+  return m;
+}
+function computeEV(pool, sgCards, m, tw) {
+  const pools = { common:[], uncommon:[], rare:[], mythic:[], land:[] };
+  for (const c of pool) {
+    if (c.basic) { pools.land.push(c); continue; }
+    if (pools[c.rarity]) pools[c.rarity].push(c);
+  }
+  const my = m.mythicPct / 100;
+  const wcDist = (count) => ({
+    common: count*m.wcCommonPct/100, uncommon: count*m.wcUncommonPct/100,
+    rare: count*m.wcRareMythicPct/100*(1-my), mythic: count*m.wcRareMythicPct/100*my,
+  });
+  const nonfoil = { common:m.commons, uncommon:m.uncommons, rare:m.rareSlots*(1-my), mythic:m.rareSlots*my, land:m.landSlot*(1-m.landFoilPct/100) };
+  const wc = wcDist(m.wildcards);
+  for (const r of ["common","uncommon","rare","mythic"]) nonfoil[r] += wc[r];
+  const foil = Object.assign(wcDist(m.foilWildcards), { land: m.landSlot*m.landFoilPct/100 });
+
+  const per = new Map();
+  const add = (c, copies, price) => {
+    const e = per.get(c.id) || { card:c, copies:0, ev:0 };
+    e.copies += copies;
+    if (price != null && price > 1.0) e.ev += copies * price;
+    per.set(c.id, e);
+  };
+  const distribute = (cards, en, ef) => {
+    if (!cards.length) return;
+    const w = cards.map(c => c.treat ? tw : 1);
+    const ws = w.reduce((a,b)=>a+b,0);
+    cards.forEach((c,i) => {
+      const s = w[i]/ws;
+      if (en) add(c, en*s, c.u);
+      if (ef) add(c, ef*s, c.f != null ? c.f : c.u);
+    });
+  };
+  for (const r of ["common","uncommon","rare","mythic"]) distribute(pools[r], nonfoil[r]||0, foil[r]||0);
+  distribute(pools.land, nonfoil.land, foil.land);
+  if (sgCards.length && m.sgRate > 0) {
+    const each = m.sgRate/100 / sgCards.length;
+    for (const c of sgCards) add(c, each, c.u);
+  }
+  const buckets = Object.fromEntries(SLOTS.map(s => [s.id, { ev:0, hits:0 }]));
+  const contributors = [];
+  for (const e of per.values()) {
+    if (e.ev > 0) { buckets[e.card.bucket].ev += e.ev; buckets[e.card.bucket].hits += 1; contributors.push(e); }
+  }
+  contributors.sort((a,b) => b.ev - a.ev);
+  return { buckets, contributors };
+}
+
+// ================= sealed price =================
+let groupsCache = null;
+async function getGroups(statusFn) {
+  if (groupsCache) return groupsCache;
+  try {
+    const c = JSON.parse(localStorage.getItem(LS_KEY + ".groups"));
+    if (c && Date.now() - c.at < 86400e3) { groupsCache = c.data; return c.data; }
+  } catch (e) {}
+  statusFn("Fetching set list from TCGplayer mirror\u2026");
+  const { data } = await tcgFetch("/tcgplayer/1/groups");
+  groupsCache = data;
+  try { localStorage.setItem(LS_KEY + ".groups", JSON.stringify({ at: Date.now(), data })); } catch (e) {}
+  return data;
+}
+async function fetchSealedPrice(code, setName, presetKey, statusFn) {
+  const groups = await getGroups(statusFn);
+  const up = code.toUpperCase();
+  let group = groups.find(g => (g.abbreviation||"").toUpperCase() === up);
+  if (!group && setName) group = groups.find(g => g.name.toLowerCase() === setName.toLowerCase());
+  if (!group) throw new Error(`No TCGplayer group matches "${code}".`);
+  statusFn(`Fetching sealed prices for ${group.name}\u2026`);
+  const [prodRes, priceRes] = [await tcgFetch(`/tcgplayer/1/${group.groupId}/products`), await tcgFetch(`/tcgplayer/1/${group.groupId}/prices`)];
+  const prices = new Map(priceRes.data.map(p => [p.productId + "|" + (p.subTypeName||""), p]));
+  const rx = PRESETS[presetKey].match;
+  const candidates = prodRes.data.filter(p => rx.test(p.name) && !/case/i.test(p.name));
+  if (!candidates.length) throw new Error(`No "${PRESETS[presetKey].label}" box product found for ${group.name}.`);
+  const product = candidates[0];
+  const pr = prices.get(product.productId + "|Normal") || prices.get(product.productId + "|");
+  const market = pr && (pr.marketPrice != null ? pr.marketPrice : pr.lowPrice);
+  if (market == null) throw new Error(`No market price listed yet for ${product.name}.`);
+  return { product: product.name, market, via: prodRes.via, low: pr.lowPrice };
+}
+
+// ================= render =================
+function render() {
+  if (!lastResult) return;
+  const boxes = Math.max(1, Math.round(num($("boxes").value, 1)));
+  const ppb = Math.max(1, num($("packsPerBox").value, 30));
+  const nPacks = boxes * ppb;
+  const boxPrice = num($("boxPrice").value);
+  const shipSlot = num($("shipPerSlot").value);
+  const feePct = num($("feePct").value) / 100;
+  const uni = num($("uniformPrice").value);
+
+  // buyer side
+  const rows = SLOTS.map(s => {
+    const evPack = lastResult.buckets[s.id].ev;
+    const evTotal = evPack * nPacks;
+    const price = (slotPrices[s.id] === undefined || slotPrices[s.id] === "") ? uni : num(slotPrices[s.id]);
+    return { ...s, evPack, evTotal, hits:lastResult.buckets[s.id].hits, price, net:evTotal - price, roi: price>0 ? (evTotal-price)/price*100 : null };
+  });
+  const totalEV = rows.reduce((a,r)=>a+r.evTotal,0);
+  const revenue = rows.reduce((a,r)=>a+r.price,0);
+
+  // seller side: sealed boxes only
+  const productCost = boxes * boxPrice;
+  const shipTotal = shipSlot * N_SLOTS;
+  const totalCost = productCost + shipTotal;
+  const breakEven = totalCost / N_SLOTS;
+  const breakEvenFee = feePct < 1 ? totalCost / (N_SLOTS * (1 - feePct)) : Infinity;
+  const netRevenue = revenue * (1 - feePct);
+  const sellerMargin = netRevenue - totalCost;
+
+  // summary strip
+  $("strip").innerHTML = [
+    ["Seller cost", usd(totalCost), `${boxes} box${boxes>1?"es":""} + shipping`],
+    ["Break-even / slot", usd(breakEvenFee), feePct>0 ? `${usd(breakEven)} before ${pct1(feePct*100)} fees` : "no platform fees set"],
+    ["Total buyer EV", usd(totalEV), `${usd(totalEV/nPacks)} / pack \u00d7 ${nPacks} packs`],
+    ["Seller margin", usd(sellerMargin), `at current slot prices`, netColor(sellerMargin)],
+  ].map(([k,v,s,c]) => `<div><div class="k">${k}</div><div class="v"${c?` style="color:${c}"`:""}>${v}</div><div class="s">${s}</div></div>`).join("");
+
+  // seller stats
+  $("sellerStats").innerHTML = `
+    <span class="k">Box market price (sealed, TCGplayer)</span><span class="v">${usd(boxPrice)}</span>
+    <span class="k">Effective cost per pack</span><span class="v">${usd(ppb>0 ? boxPrice/ppb : 0)}</span>
+    <span class="k">Product cost (${boxes} \u00d7 ${usd(boxPrice)})</span><span class="v">${usd(productCost)}</span>
+    <span class="k">Shipping (${N_SLOTS} slots \u00d7 ${usd(shipSlot)})</span><span class="v">${usd(shipTotal)}</span>
+    <span class="k big">Total cost</span><span class="v big">${usd(totalCost)}</span>
+    <div class="divider"></div>
+    <span class="k">Break-even per slot${feePct>0 ? " (before fees)" : ""}</span><span class="v">${usd(breakEven)}</span>
+    ${feePct>0 ? `<span class="k big">Break-even per slot after ${pct1(feePct*100)} fees</span><span class="v big">${usd(breakEvenFee)}</span>` : ""}
+    <span class="k">Revenue at current slot prices</span><span class="v">${usd(revenue)}${feePct>0 ? ` <span style="color:var(--faint)">(${usd(netRevenue)} net)</span>` : ""}</span>
+    <span class="k big">Seller margin</span><span class="v big" style="color:${netColor(sellerMargin)}">${usd(sellerMargin)}</span>`;
+
+  // price badge
+  if (priceInfo && !boxPriceIsManual) {
+    $("priceBadge").className = "badge live"; $("priceBadge").textContent = "live market price";
+    $("priceSource").textContent = `${priceInfo.product} \u00b7 TCGplayer market ${usd(priceInfo.market)}${priceInfo.low != null ? ` (low ${usd(priceInfo.low)})` : ""} via tcgcsv, updated daily \u00b7 edit the field to override.`;
+  } else {
+    $("priceBadge").className = "badge manual"; $("priceBadge").textContent = boxPriceIsManual ? "manual price" : "enter price";
+    $("priceSource").textContent = boxPriceIsManual ? "Using your manually entered box price." : "Live price unavailable; enter the box's TCGplayer market price manually.";
+  }
+
+  // bar + slot table
+  $("bar").innerHTML = rows.map(r => {
+    const share = totalEV > 0 ? r.evTotal/totalEV*100 : 0;
+    return `<div style="width:${share}%;background:${r.color};color:${r.ink}" title="${r.name}: ${pct1(share)} \u00b7 ${usd(r.evTotal)}">${share>=6 ? r.id : ""}</div>`;
+  }).join("");
+  $("slotBody").innerHTML = rows.map(r => `<tr>
+    <td><span class="chip" style="background:${r.color}"></span>${r.name}</td>
+    <td style="color:var(--dim)">${r.hits}</td>
+    <td>${usd(r.evPack)}</td>
+    <td style="font-weight:600">${usd(r.evTotal)}</td>
+    <td style="padding:6px 12px"><input type="number" step="0.5" placeholder="${uni}" value="${slotPrices[r.id] ?? ""}" data-slot="${r.id}" aria-label="${r.name} slot price"></td>
+    <td style="color:${netColor(r.net)};font-weight:600">${usd(r.net)}</td>
+    <td style="color:${netColor(r.net)}">${r.roi !== null ? pct1(r.roi) : "\u2014"}</td>
+  </tr>`).join("");
+  $("slotBody").querySelectorAll("input").forEach(inp =>
+    inp.addEventListener("input", e => { slotPrices[e.target.dataset.slot] = e.target.value; render(); saveState(); }));
+
+  $("topBody").innerHTML = lastResult.contributors.slice(0,18).map(e => {
+    const meta = SLOTS.find(s => s.id === e.card.bucket);
+    return `<tr>
+      <td>${e.card.name.split(" // ")[0]}${e.card.treat ? '<span class="treat">\u2726 variant</span>' : ""}</td>
+      <td style="color:var(--dim)">${e.card.cn}</td>
+      <td><span class="tag" style="background:${meta.color};color:${meta.ink}">${meta.id}</span></td>
+      <td style="color:var(--dim)">${(e.copies*nPacks).toFixed(2)}</td>
+      <td style="font-weight:600">${usd(e.ev*nPacks)}</td>
+    </tr>`;
+  }).join("");
+
+  $("footNote").textContent = lastMeta;
+  $("results").style.display = "block";
+}
+
+// ================= run =================
+async function run() {
+  const code = $("setCode").value.trim().toLowerCase();
+  const errEl = $("err"), warnEl = $("warn"), st = $("status");
+  errEl.style.display = "none"; warnEl.style.display = "none";
+  const warn = (msg) => { warnEl.textContent = msg; warnEl.style.display = "block"; };
+  if (!code) { errEl.textContent = "Enter a set code (e.g. hob, eoe, blb)."; errEl.style.display = "block"; return; }
+  $("run").disabled = true;
+  const show = (t) => { st.textContent = t; st.style.display = "block"; };
+  try {
+    const presetKey = $("preset").value;
+    // ---- Scryfall card pool ----
+    let mode, cards, cutoff = null, setInfo = null;
+    if (presetKey === "collector") {
+      show("Fetching full set from Scryfall\u2026");
+      cards = await fetchAllCards(`e:${code}`, (n,t) => show(`Fetching full set\u2026 ${n}/${t}`));
+      mode = "all";
+    } else {
+      show("Fetching booster pool from Scryfall\u2026");
+      cards = await fetchAllCards(`e:${code} is:booster`, (n,t) => show(`Fetching booster pool\u2026 ${n}/${t}`));
+      mode = "flag";
+      if (!cards.length) {
+        show("No booster flags; fetching full set\u2026");
+        cards = await fetchAllCards(`e:${code}`, (n,t) => show(`Fetching full set\u2026 ${n}/${t}`));
+        if (!cards.length) throw new Error(`Scryfall has no cards for set "${code}".`);
+        mode = "cutoff";
+        setInfo = await sfetch(`https://api.scryfall.com/sets/${code}`);
+        const maxCN = Math.max(...cards.map(cnnum));
+        cutoff = num($("cutoff").value) || (setInfo && setInfo.printed_size) || maxCN;
+        $("cutoff").value = cutoff;
+        $("cutoffRow").style.display = "flex";
+        warn(`Preview-mode pool: Scryfall hasn't flagged which "${code.toUpperCase()}" prints appear in boosters, so the pool is collector number 1\u2013${cutoff} with collector-only promos excluded. Verify the cutoff against the product's "may contain" line and re-run if needed.`);
+      } else {
+        $("cutoffRow").style.display = "none";
+      }
+    }
+    if (!setInfo) setInfo = await sfetch(`https://api.scryfall.com/sets/${code}`);
+    $("setLabel").textContent = setInfo ? `${setInfo.name} \u00b7 ${setInfo.released_at}` : code.toUpperCase();
+    $("setLabel").style.display = "inline-block";
+
+    // ---- bonus sheet ----
+    let sgCards = [];
+    const m = readModel();
+    const sgCode = $("sgCode").value.trim().toLowerCase();
+    if (m.sgRate > 0 && sgCode) {
+      show("Fetching bonus sheet\u2026");
+      let q = `e:${sgCode}`;
+      const lo = $("sgLo").value, hi = $("sgHi").value;
+      if (lo && hi) q += ` cn>=${lo} cn<=${hi}`;
+      sgCards = (await fetchAllCards(q, ()=>{})).map(c => ({ id:c.id, name:c.name, cn:cnnum(c), rarity:c.rarity, bucket:bucketOf(c), basic:false, treat:false, u:c.prices&&c.prices.usd?parseFloat(c.prices.usd):null, f:null }));
+    }
+
+    // ---- EV ----
+    show("Computing expected value\u2026");
+    const pool = buildPool(cards, mode, cutoff);
+    lastResult = computeEV(pool, sgCards, m, num($("tw").value, 0.125));
+    lastMeta = `Pool: ${mode === "all" ? "all prints (rough collector model)" : mode === "flag" ? "Scryfall booster-flagged prints" : `CN 1\u2013${cutoff}, collector-only promos excluded`} (${pool.length} prints). Card prices: Scryfall / TCGplayer market, fetched ${new Date().toLocaleString()}. Cards under $1 excluded from EV, included in pull-rate math. Box toppers not modeled. Collation odds are editable estimates.`;
+
+    // ---- sealed box price ----
+    boxPriceIsManual = false;
+    try {
+      priceInfo = await fetchSealedPrice(code, setInfo && setInfo.name, presetKey, show);
+      $("boxPrice").value = priceInfo.market.toFixed(2);
+    } catch (e) {
+      priceInfo = null;
+      if (!num($("boxPrice").value)) warn(`Sealed price lookup failed (${e.message}). Enter the box's TCGplayer market price manually, or set up the price proxy under settings for reliable lookups.`);
+      else boxPriceIsManual = true;
+    }
+
+    st.style.display = "none";
+    render();
+    saveState();
+    $("strip").scrollIntoView({ block:"nearest" });
+  } catch (e) {
+    st.style.display = "none";
+    errEl.textContent = e.message;
+    errEl.style.display = "block";
+  } finally {
+    $("run").disabled = false;
+  }
+}
+
+// ================= persistence =================
+function saveState() {
+  try {
+    const s = { setCode:$("setCode").value, preset:$("preset").value, boxes:$("boxes").value, packsPerBox:$("packsPerBox").value,
+      boxPrice:$("boxPrice").value, shipPerSlot:$("shipPerSlot").value, feePct:$("feePct").value, uniformPrice:$("uniformPrice").value,
+      cutoff:$("cutoff").value, tw:$("tw").value, sgCode:$("sgCode").value, sgLo:$("sgLo").value, sgHi:$("sgHi").value,
+      proxyUrl:$("proxyUrl").value, slotPrices, model:readModel() };
+    localStorage.setItem(LS_KEY, JSON.stringify(s));
+  } catch (e) {}
+}
+function loadState() {
+  try {
+    const s = JSON.parse(localStorage.getItem(LS_KEY));
+    if (!s) return;
+    for (const id of ["setCode","preset","boxes","packsPerBox","boxPrice","shipPerSlot","feePct","uniformPrice","cutoff","tw","sgCode","sgLo","sgHi","proxyUrl"])
+      if (s[id] !== undefined && s[id] !== "") $(id).value = s[id];
+    if (s.model) for (const [k] of MODEL_KEYS) if (s.model[k] !== undefined) $("m_"+k).value = s.model[k];
+    slotPrices = s.slotPrices || {};
+  } catch (e) {}
+}
+
+// ================= init =================
+function init() {
+  $("preset").innerHTML = Object.entries(PRESETS).map(([k,p]) => `<option value="${k}">${p.label}</option>`).join("");
+  $("modelFields").innerHTML = MODEL_KEYS.map(([k,label]) =>
+    `<label class="mf"><span class="lbl">${label}</span><input type="number" step="0.1" class="small" id="m_${k}"></label>`).join("");
+  const applyPreset = (k) => { const p = PRESETS[k]; for (const [key] of MODEL_KEYS) $("m_"+key).value = p[key]; $("packsPerBox").value = p.ppb; };
+  applyPreset("play");
+  $("preset").addEventListener("change", e => { applyPreset(e.target.value); saveState(); });
+  $("toggleModel").addEventListener("click", () => {
+    const box = $("modelBox"); const open = box.style.display === "block";
+    box.style.display = open ? "none" : "block";
+    $("toggleModel").innerHTML = (open ? "&#9656;" : "&#9662;") + " Pack model, bonus sheet &amp; price source";
+  });
+  $("run").addEventListener("click", run);
+  $("setCode").addEventListener("keydown", e => { if (e.key === "Enter") run(); });
+  for (const id of ["boxes","packsPerBox","shipPerSlot","feePct","uniformPrice"])
+    $(id).addEventListener("input", () => { render(); saveState(); });
+  $("boxPrice").addEventListener("input", () => { boxPriceIsManual = true; render(); saveState(); });
+  loadState();
+  sfetch("https://api.scryfall.com/sets").then(d => {
+    if (!d) return;
+    $("setList").innerHTML = d.data
+      .filter(s => ["expansion","masters","draft_innovation","core","commander"].includes(s.set_type))
+      .map(s => `<option value="${s.code}">${s.name} (${s.released_at})</option>`).join("");
+  }).catch(()=>{});
+}
+try { init(); } catch (e) {
+  const el = document.getElementById("err");
+  el.textContent = "Startup error: " + e.message;
+  el.style.display = "block";
+}
+</script>
+</body>
+</html>
