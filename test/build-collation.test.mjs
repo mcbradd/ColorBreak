@@ -94,6 +94,16 @@ test("build: a sheet that contributes cards with no slot-map entry is a build fa
   assert.throws(() => buildCollation(eoe, noWildcard, ppbTable), /no slot-map entry/);
 });
 
+test("build: a bonus-sheet card uuid absent from this document's cardsById fails loudly by name, not TypeError", () => {
+  // Simulates a real single-set MTGJSON export: a booster sheet (boxToppers) references
+  // cross-set card uuids (spg1/spg2) that live in the foreign set's own file, not here.
+  const missingForeign = readJSON("./fixtures/mtgjson/eoe-missing-foreign.json");
+  assert.throws(
+    () => buildCollation(missingForeign, slotMap, ppbTable),
+    /absent from this document's cards.*boxToppers\/spg1.*boxToppers\/spg2/s
+  );
+});
+
 test("build: ppb reflects DFT cutover for the fixture's 2025-07-25 release", () => {
   const out = buildCollation(eoe, slotMap, ppbTable);
   assert.equal(out.ppb.play, 30);

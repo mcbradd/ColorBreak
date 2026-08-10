@@ -11,6 +11,13 @@
 //              booster: { <rawConfigName>: { boosters: [...], sheets: {...} } } },
 //     booster?: { <rawConfigName>: { boosters: [{ contents: {sheet: count}, weight }], sheets: { name: { foil, cards: {id: weight} } } } } }
 //
+// Cross-set foreign cards (bonus sheets — SPG, PLST, …): the builder resolves ONLY uuids
+// present in this document's own cardsById/cards[]. It does not fetch or merge foreign sets
+// itself. A real per-set MTGJSON export's own file may not embed foreign bonus-sheet cards —
+// pre-merge the foreign set's cardsById into the input (or build from an AllPrintings-derived
+// document) before calling buildCollation. An unresolved uuid fails loudly by name (see
+// buildSheets) rather than being guessed or silently dropped.
+//
 // Output: collation format v2, frozen per plan §3.2.
 
 import { readFileSync } from "node:fs";
@@ -83,6 +90,7 @@ function computeLayout(boosterCfg, productSlotMap) {
 
 function buildSheets(boosterCfg, sheetNames, cardsById, setCode) {
   const sheets = {};
+  const missing = [];
   for (const sheetName of sheetNames) {
     const raw = boosterCfg.sheets[sheetName];
     if (!raw) continue;
@@ -91,9 +99,24 @@ function buildSheets(boosterCfg, sheetNames, cardsById, setCode) {
       // [setCode?, cn, weight]: 3-element when foreign (setCode !== file's own set), else 2-element.
       cards: Object.entries(raw.cards).map(([cardId, weight]) => {
         const card = cardsById[cardId];
+        if (!card) {
+          missing.push(`${sheetName}/${cardId}`);
+          return null;
+        }
         return card.setCode === setCode ? [card.number, weight] : [card.setCode, card.number, weight];
       }),
     };
+  }
+  if (missing.length) {
+    // Real per-set MTGJSON exports don't embed foreign bonus-sheet cards (e.g. SPG) in their
+    // own cardsById/cards[] — those live in the foreign set's own file. ponytail: this builder
+    // only resolves uuids present in the input document; it does not fetch or merge foreign
+    // sets itself. Upgrade path: pre-merge the foreign set's cardsById into the input (or build
+    // from an AllPrintings-derived document) before calling buildCollation. Fail loudly by name
+    // rather than guessing or silently dropping cards, matching the unmapped-sheet rule above.
+    throw new Error(
+      `build-collation: sheet(s) reference card uuid(s) absent from this document's cards (cross-set bonus cards are never silently dropped): ${missing.join(", ")}`
+    );
   }
   return sheets;
 }

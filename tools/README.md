@@ -20,6 +20,14 @@ network calls — `node tools/build-collation.mjs <normalized-set.json> [slot-ma
   `[setCode, cn, weight]` when it's foreign (bonus sheets — SPG, PLST, …). Consumers
   branch on `array.length`, not on the type of element 0 (collector numbers are strings
   too, e.g. `"A-123"`).
+- **Cross-set foreign cards, resolution contract:** the builder resolves a bonus-sheet card
+  only if its uuid is present in the input document's own `cardsById`/`cards[]`. It never
+  fetches or merges another set's file itself — a real per-set MTGJSON export's own file may
+  not embed foreign cards (e.g. SPG), so building against one requires pre-merging the
+  foreign set's `cardsById` into the input first (or building from an AllPrintings-derived
+  document that already carries every uuid). An unresolved uuid is a build failure, named by
+  sheet + uuid, never a silent skip or guess (ponytail: this builder doesn't fetch/merge
+  foreign sets — upgrade path is a maintainer pre-merge step or an AllPrintings-based input).
 - **`layout[].slot`** comes from `tools/slot-map.json`, not from MTGJSON — sheet names are
   a set's own convention (e.g. a set may reuse one physical sheet across two slot
   purposes), so the mapping is hand-maintained. Resolution rule: `selector.slot` in a
