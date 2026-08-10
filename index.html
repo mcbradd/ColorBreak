@@ -32,7 +32,9 @@ b, strong { font-weight:600; }
 .fair { color:var(--dim); }
 .mono { font-family:'IBM Plex Mono',monospace; font-variant-numeric:tabular-nums; }
 /* ===== ticker header ===== */
-.ticker { position:sticky; top:0; z-index:40; display:flex; gap:10px; align-items:center; flex-wrap:wrap; min-height:44px; padding:8px 12px; background:rgba(11,14,20,.92); backdrop-filter:blur(8px); border-bottom:1px solid var(--line2); }
+/* min-height covers the worst-case wrap (cue text present forces mode onto its own row) so
+   the cue appearing/disappearing never reflows page content below (S2: layout-stable refresh). */
+.ticker { position:sticky; top:0; z-index:40; display:flex; gap:6px; align-items:center; flex-wrap:wrap; min-height:92px; padding:6px 12px; background:rgba(11,14,20,.92); backdrop-filter:blur(8px); border-bottom:1px solid var(--line2); }
 h1.wordmark { font-family:'Fraunces',serif; font-weight:900; font-size:19px; margin:0; letter-spacing:-.01em; }
 h1.wordmark span { color:var(--gold); }
 .tik-set { font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:.09em; text-transform:uppercase; color:var(--faint); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:34ch; }
@@ -45,7 +47,7 @@ h1.wordmark span { color:var(--gold); }
 #minibar > div { min-width:2px; }
 /* mode switch — the buyer/seller segmented control */
 .mode { display:flex; border:1px solid var(--fieldline); border-radius:10px; overflow:hidden; }
-.mode button { background:transparent; color:var(--dim); border:0; min-height:36px; min-width:72px; padding:6px 14px; font-family:'IBM Plex Sans',sans-serif; font-size:13px; font-weight:600; cursor:pointer; }
+.mode button { background:transparent; color:var(--dim); border:0; min-height:32px; min-width:68px; padding:5px 12px; font-family:'IBM Plex Sans',sans-serif; font-size:13px; font-weight:600; cursor:pointer; }
 .mode button[aria-pressed="true"] { background:var(--gold); color:var(--goldink); }
 body[data-view="buyer"] .seller-only { display:none !important; }
 body[data-view="seller"] .buyer-only { display:none !important; }
@@ -498,6 +500,7 @@ let slotPrices = {};
 let lastAgg = null;        // { buckets, contributors, excluded, packs }
 let lastMeta = "";
 let costInfo = [];         // per line item { label, cost, basis, forced, manual }
+const fallbackIds = new Map(); // setCode (upper) -> { productKey: tcgProductId } — resolved ids for era-template (non-catalog) sets, since fallbackProducts() returns fresh objects each call
 let fetchedAt = null;
 let isStale = false;
 let lastRows = null;
@@ -718,7 +721,10 @@ function productsForSet(setCode) {
   const cat = catalog && catalog[setCode.toUpperCase()];
   if (cat) return cat.products;
   const si = setIndex.find(s => s.code.toUpperCase() === setCode.toUpperCase());
-  return fallbackProducts(si && si.released_at);
+  const arr = fallbackProducts(si && si.released_at);
+  const ids = fallbackIds.get(setCode.toUpperCase());
+  if (ids) for (const p of arr) if (ids[p.key] != null) p.id = ids[p.key];
+  return arr;
 }
 function productOf(item) {
   return productsForSet(item.set).find(p => p.key === item.key) || null;
@@ -1243,7 +1249,11 @@ async function getPrices(setCode) {
     // Normal subtype outranks foil-only rows for sealed
     if (!cur || (pr.subTypeName || "") === "Normal") map.set(pr.productId, pr.marketPrice != null ? pr.marketPrice : pr.lowPrice);
   }
-  if (idMap) for (const p of productsForSet(key)) { const pid = idMap.get(p.key); p.id = pid || p.id; }
+  if (idMap) {
+    const ids = {};
+    for (const [k, v] of idMap) ids[k] = v;
+    fallbackIds.set(key, ids);
+  }
   priceCache.set(key, map);
   return map;
 }
@@ -1349,12 +1359,15 @@ async function run(opts) {
 async function refreshCosts() {
   const out = [];
   for (const item of comp) {
-    const prod = productOf(item);
+    let prod = productOf(item);
     const label = `${item.qty}× ${item.set} ${prod ? prod.label : item.key}`;
     if (item.paid != null && item.paid !== "") { out.push({ label, cost: num(item.paid), basis: "manual", forced: false, manual: true }); continue; }
     let sealed = null, loose = null;
     try {
       const prices = await getPrices(item.set);
+      // getPrices() resolves and caches fallback-set product ids as a side effect; re-fetch
+      // prod so this first-ever lookup for the set picks up the now-populated id (fallbackIds).
+      prod = productOf(item);
       const priceOf = (id) => id != null && prices.has(id) ? prices.get(id) : null;
       const own = priceOf(prod.id);
       const boxKey = prod.boxId != null ? prod.boxId : (prod.boxKey ? (productsForSet(item.set).find(p => p.key === prod.boxKey) || {}).id : null);

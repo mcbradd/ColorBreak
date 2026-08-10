@@ -71,6 +71,8 @@ export async function routeAll(context, opts = {}) {
     if (scryfallDelay && host === "api.scryfall.com") await sleep(scryfallDelay);
 
     if (url.startsWith(ORIGIN)) {
+      const path = new URL(url).pathname;
+      if (path.startsWith("/data/")) return route.fulfill({ status: 404, body: "not found" });
       return route.fulfill({ status: 200, contentType: "text/html; charset=utf-8", body: INDEX });
     }
     if (host === "fonts.googleapis.com") return route.fulfill({ status: 200, contentType: "text/css", body: "" });
@@ -117,7 +119,8 @@ export async function launch(opts = {}) {
 
 export async function waitForBoard(page, timeout = 30000) {
   await page.waitForFunction(() => {
-    const el = document.getElementById("tEV");
+    const id = document.body.dataset.view === "seller" ? "sEV" : "bEV";
+    const el = document.getElementById(id);
     return el && el.textContent.trim() !== "" && el.textContent.trim() !== "\u2014";
   }, null, { timeout });
 }
@@ -143,11 +146,14 @@ export async function assertG2(page) {
   await page.evaluate(() => window.scrollTo(0, 0));
   const m = await page.evaluate(() => {
     const t = document.querySelector(".ticker").getBoundingClientRect();
-    const strip = document.querySelector(".strip").getBoundingClientRect();
+    const strips = [...document.querySelectorAll(".strip")];
+    const visible = strips.find(el => getComputedStyle(el).display !== "none") || strips[0];
+    const strip = visible.getBoundingClientRect();
     const g = document.getElementById("glance").getBoundingClientRect();
-    return { ticker: t.height, stripBottom: strip.bottom, verdictBottom: g.bottom };
+    return { ticker: t.height, stripBottom: strip.bottom, stripHeight: strip.height, verdictBottom: g.bottom };
   });
   assert.ok(m.ticker <= 96, `G2 ticker height ${m.ticker} > 96`);
+  assert.ok(m.stripHeight > 0, "G2 visible strip has zero height — selector matched a hidden element");
   assert.ok(m.stripBottom <= 739, `G2 totals-strip bottom ${m.stripBottom} > 739`);
   assert.ok(m.verdictBottom <= 600, `G2 ticker verdict bottom ${m.verdictBottom} > 600`);
 }

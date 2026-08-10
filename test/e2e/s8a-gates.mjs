@@ -24,14 +24,18 @@ export async function topContributorsClipping() {
 }
 
 export async function g3EmptyStorageFlow() {
-  // G3: the full interactive flow works from a completely empty localStorage.
+  // G3: the full interactive flow works from a completely empty localStorage —
+  // land on the URL-driven composition (legacy ?set=&preset=), same entry point
+  // a shared break link uses. The manual add-product / set-picker bottom-sheet
+  // flow is exercised by unit-level renderComp/openProductPicker coverage, not
+  // here — it needs a populated Scryfall /sets index the synthetic harness
+  // doesn't provide.
   const { browser, page } = await launch({});
-  await page.goto(ORIGIN + "/");
+  await page.goto(ORIGIN + "/?set=tst&preset=play", { waitUntil: "commit" });
   assert.equal(await page.evaluate(() => localStorage.length), 0, "storage starts empty");
-  await page.fill("#setCode", "tst");
-  await page.tap("#run");
   await waitForBoard(page);
-  await page.waitForFunction(() => document.getElementById("boxPrice").value !== "", null, { timeout: 20000 });
+  await page.tap("#modeSeller");
+  await page.waitForFunction(() => /^[1-9]\d* line item/.test(document.getElementById("sCosts").textContent || ""), null, { timeout: 20000 });
   await assertG1(page);
   await assertG2(page);
   await browser.close();

@@ -3,21 +3,22 @@ import assert from "node:assert/strict";
 import { launch, waitForBoard, ORIGIN, RELAY_HOSTS, sleep } from "./harness.mjs";
 
 export async function allRelaysDown() {
-  // Block every relay host: board still paints and the manual prompt shows < 15 s.
+  // Block every relay host: EV board still paints; the seller "Your cost" panel
+  // shows the missing-price prompt instead of a global banner (composition-builder UX).
   const { browser, page } = await launch({ relays: "none" });
   const t0 = Date.now();
   await page.goto(ORIGIN + "/?set=tst&preset=play");
   await waitForBoard(page);
-  await page.waitForSelector("#warn", { state: "visible", timeout: 15000 });
+  await page.tap("#modeSeller");
+  await page.waitForSelector("#costWarn", { state: "visible", timeout: 15000 });
   const elapsed = Date.now() - t0;
-  assert.ok(elapsed < 15000, `board + manual prompt took ${elapsed} ms (>= 15 s)`);
-  const warn = await page.textContent("#warn");
-  assert.match(warn, /Box cost \$/, "manual box-cost prompt names the field");
-  const box = await page.inputValue("#boxPrice");
-  assert.equal(box, "", "no sealed price should have landed");
-  // sealed-price failure is non-fatal: EV board is priced
-  const tev = await page.textContent("#tEV");
-  assert.notEqual(tev.trim(), "—");
+  assert.ok(elapsed < 15000, `board + missing-cost prompt took ${elapsed} ms (>= 15 s)`);
+  const warn = await page.textContent("#costWarn");
+  assert.match(warn, /Paid \$/, "missing-cost prompt names the Paid $ field");
+  assert.equal((await page.textContent("#sCost")).trim(), "—", "no sealed price should have landed");
+  // sealed-price failure is non-fatal: EV board is priced (buyer strip, unaffected by cost).
+  const bev = await page.textContent("#bEV");
+  assert.notEqual(bev.trim(), "—");
   await browser.close();
 }
 
@@ -26,8 +27,9 @@ export async function oneRelayWins() {
   const { browser, page } = await launch({ relays: ["proxy.cors.sh"] });
   await page.goto(ORIGIN + "/?set=tst&preset=play");
   await waitForBoard(page);
-  await page.waitForFunction(() => document.getElementById("boxPrice").value !== "", null, { timeout: 20000 });
-  assert.equal(await page.inputValue("#boxPrice"), "123.45");
+  await page.tap("#modeSeller");
+  await page.waitForFunction(() => /^[1-9]\d* line item/.test(document.getElementById("sCosts").textContent || ""), null, { timeout: 20000 });
+  assert.equal((await page.textContent("#sCost")).trim(), "$123");
   const remembered = await page.evaluate(() => localStorage.getItem("colorBreakEV.relay"));
   assert.equal(remembered, "proxy.cors.sh", "winning relay persisted");
   await browser.close();
@@ -42,7 +44,8 @@ export async function lastGoodTriedFirst() {
   });
   await page.goto(ORIGIN + "/?set=tst&preset=play");
   await waitForBoard(page);
-  await page.waitForFunction(() => document.getElementById("boxPrice").value !== "", null, { timeout: 20000 });
+  await page.tap("#modeSeller");
+  await page.waitForFunction(() => /^[1-9]\d* line item/.test(document.getElementById("sCosts").textContent || ""), null, { timeout: 20000 });
   assert.ok(seen.length > 0, "relay requests observed");
   assert.equal(seen[0], "proxy.cors.sh", `last-good tried first, saw ${seen.join(",")}`);
   await browser.close();
@@ -55,7 +58,7 @@ export async function g4ColdLoad() {
   const t0 = Date.now();
   await page.goto(ORIGIN + "/?set=tst&preset=play", { waitUntil: "commit", timeout: 30000 });
   await waitForBoard(page, 15000);
-  await page.waitForFunction(() => /\+EV/.test(document.getElementById("glance").textContent), null, { timeout: 15000 });
+  await page.waitForFunction(() => /EV \$/.test(document.getElementById("glance").textContent), null, { timeout: 15000 });
   const elapsed = Date.now() - t0;
   assert.ok(elapsed <= 10000, `G4: time-to-ticker-verdict ${elapsed} ms > 10 s`);
   await browser.close();
