@@ -95,6 +95,7 @@ const SEALED = {
       { key: "play-booster-pack", label: "Play Booster Pack", category: "booster_pack",
         packs: { play: 1 }, contains: [{ pack: "play", n: 1 }] },
       { key: "bundle", label: "Bundle", category: "bundle",
+        suspect: "MTGJSON lists 1 of the 3 units this product's name declares; contents and EV are understated by the rest.",
         packs: { play: 9 }, fixed: [{ set: "TST", cn: "9", n: 1, foil: true }],
         other: ["20 Foil basic lands"],
         contains: [{ product: "play-booster-pack", n: 9 }, { card: "TST:9", foil: true, n: 1 },
@@ -181,5 +182,37 @@ export async function rolledOutContentsKeepTheSealedCost() {
   await browser.close();
 }
 
+// A line the collation data cannot fully describe says so on its own row, and only the
+// lines that have something to say carry the icon.
+export async function aLineDisclosesWhatTheDataCannotSay() {
+  const { browser, page } = await launch({ sets: SETS, sealed: SEALED });
+  await page.goto(ORIGIN + "/?b=TST.bundle.1");
+  await waitForBoard(page);
+  await page.click("#breakBox summary");
+
+  const info = "#compList .citem .info";
+  await page.waitForSelector(info);
+  assert.equal(await page.evaluate(() => document.querySelectorAll("#compList .cfind").length), 0,
+    "the notes stay closed until the icon is tapped");
+  await page.click(info);
+  const notes = await page.evaluate(() =>
+    [...document.querySelectorAll("#compList .cfind li")].map(li => li.textContent));
+  assert.equal(notes.length, 2, `expected the short count and the prose contents, got ${JSON.stringify(notes)}`);
+  assert.ok(notes.some(n => /lists 1 of the 3 units/.test(n)), JSON.stringify(notes));
+  assert.ok(notes.some(n => /20 Foil basic lands/.test(n)), JSON.stringify(notes));
+  await assertG1(page);
+
+  await page.click(info);
+  assert.equal(await page.evaluate(() => document.querySelectorAll("#compList .cfind").length), 0,
+    "tapping again puts them away");
+
+  // A product whose contents are fully described carries no icon at all.
+  await page.goto(ORIGIN + "/?b=TST.play-booster-box.1");
+  await waitForBoard(page);
+  await page.click("#breakBox summary");
+  assert.equal(await page.evaluate(() => document.querySelectorAll("#compList .citem .info").length), 0);
+  await browser.close();
+}
+
 export const scenarios = { pickSetProductQuantity, returningBreakKeepsItsSet, productChoiceSticks,
-  bundleRollsOutIntoItsContents, rolledOutContentsKeepTheSealedCost };
+  bundleRollsOutIntoItsContents, rolledOutContentsKeepTheSealedCost, aLineDisclosesWhatTheDataCannotSay };
