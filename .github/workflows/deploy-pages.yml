@@ -3,6 +3,8 @@ name: Test and deploy ColorBreak
 on:
   push:
     branches: [main]
+  schedule:
+    - cron: "41 11 * * *"
   workflow_dispatch:
 
 permissions:
@@ -27,6 +29,8 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci
+      - name: Refresh compact exact-printing price snapshot
+        run: npm run data:prices
       - name: Test and build
         run: npm run check
       - name: Configure Pages

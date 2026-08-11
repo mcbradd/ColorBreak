@@ -90,6 +90,24 @@ describe("calculateBreak", () => {
     const result = calculateBreak({ draws, prices, omissions: [{ code: "missing", message: "topper missing", material: true }] });
     expect(buyerVerdict(result.slots.find((slot) => slot.id === "G")!, 5, result.status)).toBe("NO VERDICT");
   });
+
+  it("does not mislabel a price-source outage as incomplete product contents", () => {
+    const result = calculateBreak({
+      draws,
+      prices: [],
+      sourceStatus: "verified",
+      omissions: [{
+        code: "price-source-unavailable",
+        message: "Scryfall is rate limited.",
+        material: true,
+      }],
+    });
+    expect(result.status).toBe("incomplete");
+    expect(result.statusReason).toContain("Product contents are resolved");
+    expect(result.evidence.contents).toBe("mtgjson-structured");
+    expect(result.evidence.collation).toBe("weighted-upstream");
+    expect(result.evidence.finish).toBe("unresolved");
+  });
 });
 
 describe("slotOfCard", () => {

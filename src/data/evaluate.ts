@@ -4,7 +4,8 @@ import { calculateBreak } from "../domain/valuation";
 import { outcomeModelForProduct } from "./outcome-model";
 import { expectedDraws, loadSealed } from "./sealed";
 import type { SealedDocument } from "./sealed";
-import { loadCardPrices } from "./scryfall";
+import { loadPrices } from "./scryfall";
+import type { PriceAvailability } from "./scryfall";
 
 function genericPackDraws(set: string, cards: CardPrice[], packs: number): ExpectedDraw[] {
   const byRarity = new Map<string, CardPrice[]>();
@@ -36,6 +37,7 @@ export interface BreakAnalysis {
   valuation: ValuationResult;
   outcomeModel: PackOutcomeModel;
   outcomeOmissions: Omission[];
+  priceAvailability: PriceAvailability;
 }
 
 export async function evaluateBreakAnalysis(lines: BreakLine[], threshold: number): Promise<BreakAnalysis> {
@@ -59,7 +61,13 @@ export async function evaluateBreakAnalysis(lines: BreakLine[], threshold: numbe
       document: null as SealedDocument | null, productKey: line.productKey,
     };
   }));
-  const prices = (await Promise.all([...allSets].map(loadCardPrices))).flat();
+  const exactDraws = lineResults.flatMap((result) => result.draws);
+  const priceResult = await loadPrices({
+    sets: allSets,
+    printings: exactDraws.map((draw) => ({ set: draw.set, collectorNumber: draw.collectorNumber })),
+    fullSets: lineResults.flatMap((result, index) => result.draws.length ? [] : [lines[index].set]),
+  });
+  const prices = priceResult.cards;
   const draws = lineResults.flatMap((result, index) => {
     if (result.draws.length) return result.draws;
     const line = lines[index];
@@ -72,7 +80,7 @@ export async function evaluateBreakAnalysis(lines: BreakLine[], threshold: numbe
     threshold,
     sourceStatus: lineResults.some((result) => result.status === "incomplete") ? "incomplete"
       : lineResults.some((result) => result.status === "estimated") ? "estimated" : "verified",
-    omissions: lineResults.flatMap((result) => result.omissions),
+    omissions: [...lineResults.flatMap((result) => result.omissions), ...priceResult.omissions],
     pricedAt: prices.map((card) => card.priceObservedAt).filter((value): value is string => Boolean(value)).sort()[0],
     dataVersion: `${lines.map((line) => `${line.set}:${line.productKey}:${line.quantity}`).join("|")}@${prices.map((card) => card.priceObservedAt).filter(Boolean).sort()[0] ?? "unpriced"}`,
   });
@@ -93,7 +101,7 @@ export async function evaluateBreakAnalysis(lines: BreakLine[], threshold: numbe
     packs: outcomeResults.flatMap((result) => result.model.packs),
     complete: outcomeResults.every((result) => result.model.complete !== false),
   };
-  return { valuation, outcomeModel, outcomeOmissions };
+  return { valuation, outcomeModel, outcomeOmissions, priceAvailability: priceResult.availability };
 }
 
 export async function evaluateBreak(lines: BreakLine[], threshold: number): Promise<ValuationResult> {

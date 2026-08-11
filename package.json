@@ -11,8 +11,10 @@
     "test:watch": "vitest",
     "data:coverage": "node tools/report-coverage.mjs",
     "data:diff": "node tools/source-diff.mjs",
+    "data:prices": "node tools/build-price-snapshot.mjs",
     "check:data": "node tools/report-coverage.mjs --check",
-    "check": "npm run test && npm run check:data && npm run build"
+    "check:prices": "node tools/build-price-snapshot.mjs --check",
+    "check": "npm run test && npm run check:data && npm run check:prices && npm run build"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",

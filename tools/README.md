@@ -5,6 +5,12 @@ Current production data gates:
 - `node tools/report-coverage.mjs` regenerates `data/coverage.json`; `--check` compares eligibility with `data/coverage-baseline.json` and blocks regressions.
 - `node tools/source-diff.mjs` compares rebuilt sealed documents with `HEAD` and reports product additions/removals, content changes, booster branches, and sheet weights/identifiers. `.github/workflows/data-audit.yml` runs this review daily and blocks unreviewed upstream changes.
 - Production outcome analysis consumes the weighted variants in `data/sealed/{SET}.json`; the older standalone `data/collation` experiment remains disconnected.
+- `node tools/build-price-snapshot.mjs` downloads Scryfall's compressed `default_cards`
+  bulk export once, extracts only set/collector-number printings referenced by the
+  normalized sealed corpus, and publishes checksum-pinned `data/prices/{SET}.json`
+  shards. `--check` proves every required printing is present and every shard matches
+  the index before a release. Runtime analysis reads these shards first; it never scans
+  whole Scryfall sets for an exact sealed product.
 - `node tools/build-deck-card-index.mjs --source-dir <AllSetFiles>` regenerates the compact
   exact-printing lookup for deck UUIDs that individual set exports reference but omit.
 

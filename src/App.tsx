@@ -1026,6 +1026,11 @@ function BreakBalance({
 
 function EvidenceLens({ analysis }: { analysis: BreakAnalysis }) {
   const { valuation } = analysis;
+  const priceAvailability = analysis.priceAvailability ?? {
+    status: "unavailable" as const,
+    source: "none" as const,
+    message: "Price-source availability was not reported for this analysis.",
+  };
   const priced = Date.parse(valuation.pricedAt);
   const ageHours = Number.isFinite(priced) ? Math.max(0, (Date.now() - priced) / 36e5) : undefined;
   const labels = [
@@ -1033,6 +1038,7 @@ function EvidenceLens({ analysis }: { analysis: BreakAnalysis }) {
     ["Contents", valuation.evidence.contents],
     ["Collation", valuation.evidence.collation],
     ["Finish", valuation.evidence.finish],
+    ["Prices", `${priceAvailability.status} · ${priceAvailability.source}`],
     ["Break rules", valuation.evidence.breakRules],
   ];
   return (
@@ -1044,6 +1050,7 @@ function EvidenceLens({ analysis }: { analysis: BreakAnalysis }) {
       <div className="evidence-grid">
         {labels.map(([label, value]) => <div key={label}><span>{label}</span><b>{value}</b></div>)}
       </div>
+      <p className="evidence-price-note">{priceAvailability.message}</p>
       {analysis.outcomeOmissions.length > 0 && (
         <ul>{analysis.outcomeOmissions.slice(0, 8).map((omission, index) => <li key={`${omission.code}-${index}`}>{omission.message}</li>)}</ul>
       )}
@@ -1211,7 +1218,7 @@ export function BuyerView({
         {simulation.error && <p className="blocked"><ShieldAlert />{simulation.error}</p>}
         {result.status === "incomplete" && (
           <p className="blocked">
-            <ShieldAlert /> Verdict withheld because product data is incomplete.
+            <ShieldAlert /> Verdict withheld. {result.statusReason}
           </p>
         )}
       </section>

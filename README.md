@@ -29,10 +29,12 @@ npm run check
 
 - `data/sealed/*.json`: normalized MTGJSON sealed products and collation.
 - `data/corrections.json`: narrowly scoped, sourced product corrections. This layer is authoritative over upstream sealed metadata.
-- Scryfall: live exact-printing card prices.
+- `data/prices/*.json`: a compact, timestamped Scryfall bulk-data snapshot containing only exact printings referenced by the normalized corpus. It is refreshed for every deployment and by the daily Pages workflow.
+- Scryfall live lookup: globally throttled recovery path for a printing absent from the snapshot; it is not the primary page-load path.
 - tcgcsv: best-effort sealed market cost. The seller can always enter actual cost.
 
 Unresolved contents and exact-finish prices are surfaced as named omissions; they are never silently replaced with a proxy.
+Price-source availability is reported separately from product-content completeness, so a transient remote failure cannot make an otherwise exact product look structurally incomplete.
 
 ## Structure
 

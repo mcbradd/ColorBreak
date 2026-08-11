@@ -96,11 +96,18 @@ export function calculateBreak(input: ValuationInput): ValuationResult {
   const materialOmission = omissions.some((item) => item.material);
   const sourceStatus = input.sourceStatus ?? "verified";
   const status = worstStatus(sourceStatus, materialOmission ? "incomplete" : "verified");
+  const structuralOmission = omissions.some((item) => item.material && !(
+    item.code === "price-source-unavailable" || item.code === "missing-printing" || item.code.includes("price")
+  ));
+  const priceUnavailable = omissions.some((item) => item.material && item.code === "price-source-unavailable");
+  const priceOmission = omissions.some((item) => item.material && (
+    item.code === "missing-printing" || item.code.includes("price")
+  ));
   const evidence: EvidenceState = input.evidence ?? {
-    productIdentity: status === "incomplete" ? "ambiguous" : "aggregate-identified",
-    contents: status === "incomplete" ? "unresolved" : "mtgjson-structured",
-    collation: status === "incomplete" ? "unresolved" : status === "estimated" ? "unvalidated" : "weighted-upstream",
-    finish: materialOmission && omissions.some((item) => item.code.includes("price")) ? "unresolved" : "exact",
+    productIdentity: sourceStatus === "incomplete" && structuralOmission ? "ambiguous" : "aggregate-identified",
+    contents: sourceStatus === "incomplete" && structuralOmission ? "unresolved" : "mtgjson-structured",
+    collation: sourceStatus === "incomplete" && structuralOmission ? "unresolved" : sourceStatus === "estimated" ? "unvalidated" : "weighted-upstream",
+    finish: priceOmission ? "unresolved" : "exact",
     breakRules: "preset",
   };
   return {
@@ -113,7 +120,11 @@ export function calculateBreak(input: ValuationInput): ValuationResult {
       ? "Product contents, collation, and exact-finish prices resolved."
       : status === "estimated"
         ? "Product contents are known, but at least one collation rule is modeled."
-        : "Known contents or exact-finish prices are unresolved; values are a lower bound.",
+        : priceUnavailable && !structuralOmission
+          ? "Product contents are resolved, but exact-printing prices are temporarily unavailable; values are a lower bound."
+          : structuralOmission
+            ? "Known product contents or collation are unresolved; values are a lower bound."
+            : "One or more exact-printing prices are unavailable; values are a lower bound.",
     slots,
     omissions,
     pricedAt: input.pricedAt ?? new Date().toISOString(),
