@@ -1,4 +1,13 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "motion/react";
 import {
   ArrowLeft,
@@ -144,12 +153,113 @@ export function NumberField({
   );
 }
 
-function Tip({ text }: { text: string }) {
+export function Tip({ text }: { text: string }) {
+  const id = useId();
+  const anchorRef = useRef<HTMLSpanElement>(null);
+  const popoverRef = useRef<HTMLSpanElement>(null);
+  const [open, setOpen] = useState(false);
+  const [position, setPosition] = useState({ left: 12, top: 12 });
+
+  const place = useCallback(() => {
+    const anchor = anchorRef.current;
+    const popover = popoverRef.current;
+    if (!anchor || !popover) return;
+    const anchorBox = anchor.getBoundingClientRect();
+    const popoverBox = popover.getBoundingClientRect();
+    const gutter = 12;
+    const left = Math.min(
+      window.innerWidth - popoverBox.width - gutter,
+      Math.max(gutter, anchorBox.left + anchorBox.width / 2 - popoverBox.width / 2),
+    );
+    const top = anchorBox.top >= popoverBox.height + gutter
+      ? anchorBox.top - popoverBox.height - 8
+      : anchorBox.bottom + 8;
+    setPosition({
+      left: Math.max(gutter, left),
+      top: Math.min(
+        window.innerHeight - popoverBox.height - gutter,
+        Math.max(gutter, top),
+      ),
+    });
+  }, []);
+
+  useLayoutEffect(() => {
+    if (open) place();
+  }, [open, place]);
+
+  useEffect(() => {
+    if (!open) return;
+    const dismiss = (event: PointerEvent) => {
+      const target = event.target as Node;
+      if (!anchorRef.current?.contains(target) && !popoverRef.current?.contains(target)) {
+        setOpen(false);
+      }
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setOpen(false);
+        anchorRef.current?.focus();
+      }
+    };
+    document.addEventListener("pointerdown", dismiss);
+    document.addEventListener("keydown", onKeyDown);
+    window.addEventListener("resize", place);
+    window.addEventListener("scroll", place, true);
+    return () => {
+      document.removeEventListener("pointerdown", dismiss);
+      document.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("resize", place);
+      window.removeEventListener("scroll", place, true);
+    };
+  }, [open, place]);
+
   return (
-    <span className="tip" tabIndex={0} aria-label={text}>
-      <CircleHelp size={14} />
-      <span role="tooltip">{text}</span>
-    </span>
+    <>
+      <span
+        ref={anchorRef}
+        className="tip"
+        role="button"
+        tabIndex={0}
+        aria-label={text}
+        aria-expanded={open}
+        aria-describedby={open ? id : undefined}
+        onClick={(event) => {
+          event.stopPropagation();
+          setOpen(true);
+        }}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            event.stopPropagation();
+            setOpen(true);
+          }
+        }}
+        onPointerEnter={(event) => {
+          if (event.pointerType === "mouse") setOpen(true);
+        }}
+        onPointerLeave={(event) => {
+          if (
+            event.pointerType === "mouse" &&
+            document.activeElement !== anchorRef.current
+          ) setOpen(false);
+        }}
+        onBlur={() => setOpen(false)}
+      >
+        <CircleHelp size={14} />
+      </span>
+      {open && createPortal(
+        <span
+          ref={popoverRef}
+          id={id}
+          className="tip-popover"
+          role="tooltip"
+          style={position}
+        >
+          {text}
+        </span>,
+        document.body,
+      )}
+    </>
   );
 }
 
@@ -161,11 +271,11 @@ function Status({ result }: { result: ValuationResult }) {
       <BadgeCheck size={16} />
     );
   return (
-    <button className={`status ${result.status}`} title={result.statusReason}>
+    <span className={`status ${result.status}`}>
       {icon}
       <span>{result.status}</span>
       <Tip text={result.statusReason} />
-    </button>
+    </span>
   );
 }
 
