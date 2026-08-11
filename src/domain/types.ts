@@ -37,6 +37,7 @@ export interface ExpectedDraw {
   set: string;
   collectorNumber: string;
   copies: number;
+  pullProbability?: number;
   foil: boolean;
   source: string;
 }
@@ -55,6 +56,7 @@ export interface Contributor {
   marketValue: number;
   sellableValue: number;
   foilCopies: number;
+  pullProbability: number;
 }
 
 export interface SlotValuation {

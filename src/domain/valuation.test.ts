@@ -35,6 +35,18 @@ describe("calculateBreak", () => {
     expect(result.omissions[0].code).toBe("missing-foil-price");
   });
 
+  it("combines pull odds across every source in the current break", () => {
+    const result = calculateBreak({
+      prices,
+      draws: [
+        { ...draws[0], pullProbability: 0.25, source: "box-one" },
+        { ...draws[0], pullProbability: 0.5, source: "box-two" },
+      ],
+    });
+    const chase = result.slots.find((slot) => slot.id === "G")!.contributors[0];
+    expect(chase.pullProbability).toBeCloseTo(0.625);
+  });
+
   it("suppresses buyer verdicts for incomplete results", () => {
     const result = calculateBreak({ draws, prices, omissions: [{ code: "missing", message: "topper missing", material: true }] });
     expect(buyerVerdict(result.slots.find((slot) => slot.id === "G")!, 5, result.status)).toBe("NO VERDICT");

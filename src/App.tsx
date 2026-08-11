@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import {
   ArrowLeft,
@@ -31,6 +31,7 @@ import {
 import { buyerVerdict } from "./domain/valuation";
 import type {
   BreakLine,
+  Contributor,
   ProductChoice,
   SetChoice,
   SlotId,
@@ -48,7 +49,71 @@ const money = new Intl.NumberFormat("en-US", {
 const fmt = (value: number | undefined) =>
   value == null ? "—" : money.format(value);
 
-function NumberField({
+function NumericInput({
+  value,
+  onCommit,
+  placeholder = "0",
+  disabled = false,
+}: {
+  value: number | undefined;
+  onCommit: (value: number | undefined) => void;
+  placeholder?: string;
+  disabled?: boolean;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [draft, setDraft] = useState(value == null ? "" : String(value));
+
+  useEffect(() => {
+    if (document.activeElement !== inputRef.current) {
+      setDraft(value == null ? "" : String(value));
+    }
+  }, [value]);
+
+  const commit = () => {
+    const normalized = draft.trim().replace(",", ".");
+    if (!normalized || normalized === ".") {
+      setDraft("");
+      onCommit(undefined);
+      return;
+    }
+
+    const parsed = Number(normalized);
+    if (Number.isFinite(parsed)) {
+      const next = Math.max(0, parsed);
+      setDraft(String(next));
+      onCommit(next);
+      return;
+    }
+
+    setDraft(value == null ? "" : String(value));
+  };
+
+  return (
+    <input
+      ref={inputRef}
+      type="text"
+      inputMode="decimal"
+      enterKeyHint="done"
+      pattern="[0-9]*[.,]?[0-9]*"
+      value={draft}
+      placeholder={placeholder}
+      disabled={disabled}
+      onChange={(event) => {
+        const next = event.target.value;
+        if (/^\d*(?:[.,]\d*)?$/.test(next)) setDraft(next);
+      }}
+      onBlur={commit}
+      onKeyDown={(event) => {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          event.currentTarget.blur();
+        }
+      }}
+    />
+  );
+}
+
+export function NumberField({
   label,
   value,
   onChange,
@@ -69,13 +134,10 @@ function NumberField({
       </span>
       <div>
         <b>{prefix}</b>
-        <input
-          inputMode="decimal"
-          value={value ?? ""}
+        <NumericInput
+          value={value}
           placeholder="0"
-          onChange={(e) =>
-            onChange(e.target.value === "" ? undefined : Number(e.target.value))
-          }
+          onCommit={onChange}
         />
       </div>
     </label>
@@ -503,10 +565,156 @@ function SlotRail({
   );
 }
 
+export function CardInspector({
+  row,
+  status,
+  onClose,
+}: {
+  row: Contributor | null;
+  status: ValuationResult["status"];
+  onClose: () => void;
+}) {
+  const dialogRef = useRef<HTMLElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!row) return;
+    const previous = document.activeElement as HTMLElement | null;
+    const scrollY = window.scrollY;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    closeRef.current?.focus({ preventScroll: true });
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onClose();
+        return;
+      }
+      if (event.key !== "Tab" || !dialogRef.current) return;
+      const focusable = [...dialogRef.current.querySelectorAll<HTMLElement>(
+        "button:not(:disabled), [href], [tabindex='0']",
+      )];
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      document.body.style.overflow = previousOverflow;
+      previous?.focus({ preventScroll: true });
+      window.scrollTo(0, scrollY);
+    };
+  }, [row, onClose]);
+
+  const odds = row?.pullProbability ?? 0;
+  const oddsLabel = odds >= 0.9995
+    ? "100%"
+    : odds > 0
+      ? `${(odds * 100).toFixed(odds < 0.01 ? 2 : 1)}%`
+      : "0%";
+  return (
+    <AnimatePresence>
+      {row && (
+        <motion.div
+          className="scrim card-scrim"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          onPointerDown={onClose}
+        >
+          <motion.section
+            ref={dialogRef}
+            className="card-inspector"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="card-inspector-title"
+            initial={{ opacity: 0, y: 32, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 24, scale: 0.98 }}
+            transition={{ type: "spring", damping: 28, stiffness: 340 }}
+            onPointerDown={(event) => event.stopPropagation()}
+          >
+            <header>
+              <div>
+                <p className="section-label">CARD DETAILS</p>
+                <h2 id="card-inspector-title">{row.card.name}</h2>
+              </div>
+              <button
+                ref={closeRef}
+                className="icon-button"
+                onClick={onClose}
+                aria-label="Close card details"
+              >
+                <X />
+              </button>
+            </header>
+            <div className="card-inspector-body">
+              <div className="card-art">
+                {row.card.image ? (
+                  <img src={row.card.image} alt={`${row.card.name} card`} />
+                ) : (
+                  <span>Image unavailable</span>
+                )}
+              </div>
+              <div className="card-info">
+                <div className="card-stat primary-stat">
+                  <span>Pull odds in this break</span>
+                  <strong>{oddsLabel}</strong>
+                  <small>
+                    {odds > 0 && odds < 1
+                      ? `About 1 in ${(1 / odds).toFixed(odds < 0.1 ? 1 : 0)} breaks`
+                      : odds >= 1
+                        ? "Guaranteed by known contents"
+                        : "No known pull path"}
+                  </small>
+                </div>
+                <div className="card-price-grid">
+                  <div className="card-stat">
+                    <span>Nonfoil market</span>
+                    <strong>{fmt(row.card.nonfoil ?? undefined)}</strong>
+                  </div>
+                  <div className="card-stat">
+                    <span>Foil market</span>
+                    <strong>{fmt(row.card.foil ?? undefined)}</strong>
+                  </div>
+                </div>
+                <div className="card-stat">
+                  <span>Expected copies</span>
+                  <strong>
+                    {row.copies.toFixed(3).replace(/0+$/, "").replace(/\.$/, "")}
+                  </strong>
+                  <small>
+                    {status === "verified"
+                      ? "Calculated from the current break configuration."
+                      : "Known-data estimate; unresolved contents may increase these odds."}
+                  </small>
+                </div>
+                {row.card.oracleText && (
+                  <p className="oracle-text">{row.card.oracleText}</p>
+                )}
+              </div>
+            </div>
+          </motion.section>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
 function BuyerView({ result }: { result: ValuationResult }) {
   const [selected, setSelected] = useState<SlotId>("W");
   const [bid, setBid] = useState<number>();
   const [shipping, setShipping] = useState<number>();
+  const [inspectedCard, setInspectedCard] = useState<Contributor | null>(null);
   const slot = result.slots.find((row) => row.id === selected)!;
   const landed = (bid ?? 0) + (shipping ?? 0);
   const verdict =
@@ -583,7 +791,12 @@ function BuyerView({ result }: { result: ValuationResult }) {
             <article className="card-row" key={row.card.id}>
               {row.card.image && <img src={row.card.image} alt="" />}
               <span>
-                <strong>{row.card.name}</strong>
+                <button
+                  className="card-name"
+                  onClick={() => setInspectedCard(row)}
+                >
+                  {row.card.name}
+                </button>
                 <small>
                   {row.copies.toFixed(2)} expected ·{" "}
                   {row.foilCopies ? "foil" : "nonfoil"}
@@ -594,6 +807,11 @@ function BuyerView({ result }: { result: ValuationResult }) {
           ))}
         </details>
       </section>
+      <CardInspector
+        row={inspectedCard}
+        status={result.status}
+        onClose={() => setInspectedCard(null)}
+      />
     </>
   );
 }
@@ -838,18 +1056,14 @@ function SellerView({
               </div>
               <label>
                 <small>Actual</small>
-                <input
-                  inputMode="decimal"
+                <NumericInput
                   placeholder={unsold.has(slot.id) ? "unsold" : "—"}
                   disabled={unsold.has(slot.id)}
-                  value={actual[slot.id] ?? ""}
-                  onChange={(e) =>
+                  value={actual[slot.id]}
+                  onCommit={(value) =>
                     setActual({
                       ...actual,
-                      [slot.id]:
-                        e.target.value === ""
-                          ? undefined
-                          : Number(e.target.value),
+                      [slot.id]: value,
                     })
                   }
                 />
@@ -1001,10 +1215,9 @@ function Workspace({
             <label className="threshold">
               <Settings2 />
               <span>Sellable ≥</span>
-              <input
-                inputMode="decimal"
+              <NumericInput
                 value={threshold}
-                onChange={(e) => setThreshold(Number(e.target.value) || 0)}
+                onCommit={(value) => setThreshold(value ?? 0)}
               />
             </label>
           )}

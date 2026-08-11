@@ -13,7 +13,14 @@ function genericPackDraws(set: string, cards: CardPrice[], packs: number): Expec
   const add = (rarity: string, copies: number) => {
     const pool = byRarity.get(rarity) ?? [];
     if (!pool.length) return;
-    for (const card of pool) draws.push({ set, collectorNumber: card.collectorNumber, copies: copies / pool.length, foil: false, source: "estimated-pack" });
+    for (const card of pool) draws.push({
+      set,
+      collectorNumber: card.collectorNumber,
+      copies: copies / pool.length,
+      pullProbability: 1 - Math.pow(1 - 1 / pool.length, copies),
+      foil: false,
+      source: "estimated-pack",
+    });
   };
   add("common", 10 * packs);
   add("uncommon", 3 * packs);

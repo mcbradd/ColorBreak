@@ -130,6 +130,7 @@ export async function expectedDraws(
     draws.push({
       set: fixed.set.toUpperCase(), collectorNumber: String(fixed.cn),
       copies: fixed.n * multiplier, foil: fixed.foil, source: `${product.key}/fixed`,
+      pullProbability: fixed.n * multiplier > 0 ? 1 : 0,
     });
   }
   for (const [packCode, unitCount] of Object.entries(packs)) {
@@ -158,6 +159,10 @@ export async function expectedDraws(
           set: String(set).toUpperCase(),
           collectorNumber: String(collectorNumber),
           copies: unitCount * multiplier * picks * Number(weight) / sheet.total,
+          pullProbability: 1 - Math.pow(
+            1 - Number(weight) / sheet.total,
+            unitCount * multiplier * picks,
+          ),
           foil: sheet.foil,
           source: `${product.key}/${packCode}/${sheetName}`,
         });

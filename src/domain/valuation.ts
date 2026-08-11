@@ -48,11 +48,18 @@ export function calculateBreak(input: ValuationInput): ValuationResult {
     }
     const existing = byCard.get(card.id) ?? {
       card, copies: 0, marketValue: 0, sellableValue: 0, foilCopies: 0,
+      pullProbability: 0,
     };
     existing.copies += draw.copies;
     existing.marketValue += draw.copies * price;
     if (price >= threshold) existing.sellableValue += draw.copies * price;
     if (draw.foil) existing.foilCopies += draw.copies;
+    const sourceProbability = Math.max(
+      0,
+      Math.min(1, draw.pullProbability ?? 1 - Math.exp(-draw.copies)),
+    );
+    existing.pullProbability =
+      1 - (1 - existing.pullProbability) * (1 - sourceProbability);
     byCard.set(card.id, existing);
   }
 
