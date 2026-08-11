@@ -717,6 +717,9 @@ function buildPool(cards, mode, cutoff) {
   let pool;
   if (mode === "flag") pool = cards.filter(c => c.booster && !collectorOnly(c));
   else if (mode === "cutoff") pool = cards.filter(c => cnnum(c) <= cutoff && !collectorOnly(c));
+  // "index" prices a named card the collation data says a product contains, so it keeps
+  // every printing. "all" is a pack's pool, where a bundle promo is not a possible pull.
+  else if (mode === "index") pool = cards;
   else pool = cards.filter(c => !(c.promo_types||[]).includes("bundle"));
   // duplicate-name rule: lowest CN of a name = base print; higher CNs = variant treatments
   const seen = new Map();
@@ -1774,7 +1777,7 @@ async function getPool(setCode, mode, show, allowStored) {
   }
   const code = setCode.toLowerCase();
   let cards, usedMode = mode, cutoff = null;
-  if (mode === "all") {
+  if (mode === "all" || mode === "index") {
     show(`Fetching ${setCode} full set…`);
     cards = await fetchAllCards(`e:${code}`, (n,t) => show(`Fetching ${setCode} full set… ${n}/${t}`));
   } else {
@@ -1929,7 +1932,7 @@ async function run(opts) {
       const { draws, unpriced: miss } = productDraws(sealedProd, sealedDoc.boosters, item.set.toUpperCase(), foreign);
         const index = new Map();
         for (const code of [...new Set(draws.map(d => d.set))]) {
-          const p = await getPool(code, "all", show, !fresh);
+          const p = await getPool(code, "index", show, !fresh);
           for (const c of p) index.set(`${code}|${c.cnRaw}`, c);
         }
         show(`Computing ${item.set} ${prod.label} EV…`);
