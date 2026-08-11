@@ -49,6 +49,7 @@ import type {
   ValuationResult,
 } from "./domain/types";
 import { SLOT_IDS, SLOT_NAMES } from "./domain/types";
+import { useMobileInputViewport } from "./mobile-input-viewport";
 
 type Mode = "home" | "buyer" | "seller";
 const money = new Intl.NumberFormat("en-US", {
@@ -416,7 +417,7 @@ function Builder({
     document.addEventListener("keydown", onKeyDown);
     return () => {
       document.removeEventListener("keydown", onKeyDown);
-      previous?.focus();
+      previous?.focus({ preventScroll: true });
     };
   }, [open, onClose]);
   const visible = sets
@@ -1487,6 +1488,7 @@ function Workspace({
 }
 
 export function App() {
+  useMobileInputViewport();
   const hasSharedBreak = decodeLegacySearch(location.search).length > 0;
   const initial: Mode =
     location.hash === "#seller"

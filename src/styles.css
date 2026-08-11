@@ -25,3 +25,5 @@
 .line-controls{display:flex;align-items:center;gap:7px}.stepper button:disabled{opacity:.3;cursor:not-allowed}.remove-line{display:grid;place-items:center;width:34px;height:34px;padding:0;border:1px solid #402730;border-radius:9px;color:#d87b8d;background:#25171c;cursor:pointer}.remove-line:hover,.remove-line:focus-visible{border-color:#8d4052;color:#ff91a4;background:#351d24;outline:0}.remove-line svg{width:15px}
 
 .contributor-columns{align-items:stretch;padding-bottom:0}.contributor-columns span:first-child{padding-bottom:7px}.contributor-columns span:last-child{min-width:94px;padding:7px 10px;border-radius:8px 8px 0 0;background:#181d27}.ev-contribution{align-self:stretch;display:flex;align-items:center;justify-content:flex-end;min-width:94px;margin-block:-9px;padding:9px 10px;background:#181d27}.ev-contribution b{margin-top:0}
+
+.scrim{top:var(--visual-viewport-top,0);bottom:auto;height:var(--visual-viewport-height,100dvh)}.sheet{max-height:min(88dvh,calc(var(--visual-viewport-height,100dvh) - 12px));overscroll-behavior:contain}
