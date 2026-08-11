@@ -222,3 +222,30 @@ test("keyFor/labelFor: the set-name prefix goes, including its dropped punctuati
   assert.equal(labelFor("Avatar The Last Airbender Commanders Bundle", "Avatar: The Last Airbender"), "Commanders Bundle");
   assert.equal(keyFor("—", "Secrets of Strixhaven"), "product"); // never an empty key
 });
+
+// A deck's card list cites `{ count, uuid, isFoil }` and no collector number, so a deck
+// only prices if its uuids are resolved against the card index. Reading a number straight
+// off the deck entry silently dropped every deck card in the set (bundle land packs,
+// Commander decks, scene boxes).
+const DECKED = {
+  code: "TST", name: "Testline", releaseDate: "2025-01-01",
+  booster: {},
+  cards: [{ uuid: "u1", number: "10", setCode: "TST" }, { uuid: "u2", number: "11", setCode: "TST" }],
+  decks: [{ name: "Testline Bundle Land Pack", mainBoard: [{ uuid: "u1", count: 2 }, { uuid: "u2", count: 1, isFoil: true }], sideBoard: [] }],
+  sealedProduct: [{ uuid: "p1", name: "Testline Bundle", category: "bundle",
+    contents: { deck: [{ name: "Testline Bundle Land Pack", set: "tst" }] } }],
+};
+
+test("buildSet: a deck's cards are priced by uuid, with their own collector numbers and finish", () => {
+  const p = buildSet(DECKED).products[0];
+  assert.deepEqual(p.fixed, [{ set: "TST", cn: "10", n: 2, foil: false }, { set: "TST", cn: "11", n: 1, foil: true }]);
+  const row = p.contains.find(c => c.deck);
+  assert.deepEqual(row.fixed.map(f => f.cn), ["10", "11"], "the rolled-out deck row carries the same cards");
+});
+
+test("buildSet: a deck card whose uuid is in no card index is a named failure, never a silent drop", () => {
+  const data = { ...DECKED, cards: [DECKED.cards[0]] };
+  assert.throws(() => buildSet(data), /u2/);
+  const out = buildSet(data, new Map(), true); // allowMissing: the last-resort disclosure path
+  assert.deepEqual(out.products[0].fixed, [{ set: "TST", cn: "10", n: 2, foil: false }]);
+});

@@ -48,10 +48,25 @@ export function expectedPicks(config) {
 }
 // @end-pure
 
+// A deck's card list cites uuids and nothing else — `{ count, uuid, isFoil }` — so the
+// collector number every consumer prices on comes from the set's own card index. An
+// unresolvable uuid is recorded like any other missing ref: the sibling-set merge gets a
+// chance at it before the shortfall is disclosed.
+function deckCards(deck, cardsByUuid, fallbackSet, deckName, unresolved) {
+  const out = [];
+  for (const dc of [...(deck.mainBoard || []), ...(deck.sideBoard || [])]) {
+    const card = cardsByUuid.get(dc.uuid);
+    if (!card) { unresolved.push({ booster: "deck", sheet: deckName, uuid: dc.uuid }); continue; }
+    out.push({ set: (card.setCode || fallbackSet).toUpperCase(), cn: String(card.number),
+      n: dc.count || 1, foil: !!dc.isFoil });
+  }
+  return out;
+}
+
 // Flatten one product into the boosters it ultimately contains. `contents.sealed`
 // entries point at other products in the same document (a case holds bundles, a bundle
 // holds packs), so expansion recurses.
-function expand(product, byUuid, decksByName, missingDecks, missingSealed, seen = new Set()) {
+function expand(product, byUuid, cardsByUuid, decksByName, missingDecks, missingSealed, unresolved, seen = new Set()) {
   const fixed = new Map(), decks = [], other = [];
   // Guaranteed cards, from two shapes: `contents.card` (a single named promo, e.g. the
   // ONE Compleat Bundle's foil Phyrexian Arena) and `contents.deck` (a named deck in the
@@ -112,8 +127,8 @@ function expand(product, byUuid, decksByName, missingDecks, missingSealed, seen 
         other.push(d.name); // disclosed as unpriced prose if it stays unresolvable
         continue;
       }
-      for (const dc of [...(deck.mainBoard || []), ...(deck.sideBoard || [])]) {
-        addFixed((dc.setCode || p.__set || product.__set).toUpperCase(), dc.number, (dc.count || 1) * mult, !!dc.isFoil);
+      for (const dc of deckCards(deck, cardsByUuid, p.__set || product.__set, d.name, unresolved)) {
+        addFixed(dc.set, dc.cn, dc.n * mult, dc.foil);
       }
     }
     for (const o of c.other || []) other.push(o.name);
@@ -200,6 +215,7 @@ export function buildSet(data, extraCards = new Map(), allowMissing = false, ext
   for (const d of data.decks || []) decksByName.set(slug(d.name), d);
   const missingDecks = [];
   const missingSealed = [];
+  const unresolved = []; // filled by deck expansion first, then by the booster sheets below
   const products = [];
   const usedConfigs = new Set();
   const keys = new Map();
@@ -207,7 +223,7 @@ export function buildSet(data, extraCards = new Map(), allowMissing = false, ext
   for (const p of data.sealedProduct || []) {
     if (SKIP_CATEGORY.test(`${p.category}/${p.subtype}`)) continue;
     p.__set = set;
-    const { packs, fixed, decks, other } = expand(p, byUuid, decksByName, missingDecks, missingSealed);
+    const { packs, fixed, decks, other } = expand(p, byUuid, cardsByUuid, decksByName, missingDecks, missingSealed, unresolved);
     if (!Object.keys(packs).length && !fixed.length) continue; // dice/boxes only — not a break input
     let key = keyFor(p.name, data.name);
     if (keys.has(key)) key = `${key}-${keys.get(key) + 1}`;
@@ -249,8 +265,7 @@ export function buildSet(data, extraCards = new Map(), allowMissing = false, ext
       // A rolled-out land pack still has to price its cards, so the deck's list rides
       // along; an unresolved deck was already recorded as prose by `expand`.
       const deck = decksByName.get(slug(d.name));
-      const cards = [...(deck?.mainBoard || []), ...(deck?.sideBoard || [])].map((dc) => ({
-        set: (dc.setCode || set).toUpperCase(), cn: String(dc.number), n: dc.count || 1, foil: !!dc.isFoil }));
+      const cards = deck ? deckCards(deck, cardsByUuid, set, d.name, unresolved) : [];
       contains.push({ deck: d.name, n: 1, ...(cards.length ? { fixed: cards } : {}) });
     }
     for (const o of c.other || []) contains.push({ other: o.name, n: 1 });
@@ -270,7 +285,6 @@ export function buildSet(data, extraCards = new Map(), allowMissing = false, ext
   // Only configs some product actually contains: drops play-arena and other
   // digital/never-sold configs without a hand-maintained skip list.
   const boosters = {};
-  const unresolved = [];
   for (const [code, config] of Object.entries(data.booster || {})) {
     if (!usedConfigs.has(code)) continue;
     const sheets = {};
