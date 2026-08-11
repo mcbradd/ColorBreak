@@ -7,7 +7,7 @@ import {
   useRef,
   useState,
 } from "react";
-import type { CSSProperties } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "motion/react";
 import {
@@ -93,11 +93,13 @@ function NumericInput({
   onCommit,
   placeholder = "0",
   disabled = false,
+  ariaLabel,
 }: {
   value: number | undefined;
   onCommit: (value: number | undefined) => void;
   placeholder?: string;
   disabled?: boolean;
+  ariaLabel?: string;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [draft, setDraft] = useState(value == null ? "" : String(value));
@@ -137,6 +139,7 @@ function NumericInput({
       value={draft}
       placeholder={placeholder}
       disabled={disabled}
+      aria-label={ariaLabel}
       onChange={(event) => {
         const next = event.target.value;
         if (/^\d*(?:[.,]\d*)?$/.test(next)) setDraft(next);
@@ -178,13 +181,24 @@ export function NumberField({
           value={value}
           placeholder="0"
           onCommit={onChange}
+          ariaLabel={label}
         />
       </div>
     </label>
   );
 }
 
-export function Tip({ text }: { text: string }) {
+export function Tip({
+  text,
+  children,
+  className = "",
+  label,
+}: {
+  text: string;
+  children?: ReactNode;
+  className?: string;
+  label?: string;
+}) {
   const id = useId();
   const anchorRef = useRef<HTMLSpanElement>(null);
   const popoverRef = useRef<HTMLSpanElement>(null);
@@ -248,10 +262,10 @@ export function Tip({ text }: { text: string }) {
     <>
       <span
         ref={anchorRef}
-        className="tip"
+        className={`tip ${children ? "tip-indicator" : "tip-icon"} ${className}`.trim()}
         role="button"
         tabIndex={0}
-        aria-label={text}
+        aria-label={label ?? text}
         aria-expanded={open}
         aria-describedby={open ? id : undefined}
         onPointerDown={(event) => {
@@ -261,27 +275,19 @@ export function Tip({ text }: { text: string }) {
         onClick={(event) => {
           event.preventDefault();
           event.stopPropagation();
-          setOpen(true);
+          setOpen((current) => !current);
         }}
         onKeyDown={(event) => {
           if (event.key === "Enter" || event.key === " ") {
             event.preventDefault();
             event.stopPropagation();
-            setOpen(true);
+            setOpen((current) => !current);
           }
-        }}
-        onPointerEnter={(event) => {
-          if (event.pointerType === "mouse") setOpen(true);
-        }}
-        onPointerLeave={(event) => {
-          if (
-            event.pointerType === "mouse" &&
-            document.activeElement !== anchorRef.current
-          ) setOpen(false);
         }}
         onBlur={() => setOpen(false)}
       >
-        <CircleHelp size={14} />
+        {children ?? <CircleHelp />}
+        {children && <CircleHelp className="tip-help-icon" aria-hidden="true" />}
       </span>
       {open && createPortal(
         <span
@@ -299,6 +305,15 @@ export function Tip({ text }: { text: string }) {
   );
 }
 
+function SectionLabel({ children, text }: { children: ReactNode; text: string }) {
+  return (
+    <p className="section-label">
+      <span>{children}</span>
+      <Tip text={text} />
+    </p>
+  );
+}
+
 function Status({ result }: { result: ValuationResult }) {
   const icon =
     result.status === "incomplete" ? (
@@ -307,11 +322,14 @@ function Status({ result }: { result: ValuationResult }) {
       <BadgeCheck size={16} />
     );
   return (
-    <span className={`status ${result.status}`}>
+    <Tip
+      className={`status ${result.status}`}
+      text={result.statusReason}
+      label={`${result.status} data status: ${result.statusReason}`}
+    >
       {icon}
       <span>{result.status}</span>
-      <Tip text={result.statusReason} />
-    </span>
+    </Tip>
   );
 }
 
@@ -610,7 +628,9 @@ export function Composition({
     <section className="composition panel">
       <header>
         <div>
-          <p className="section-label">BREAK</p>
+          <SectionLabel text="The sealed products and quantities being opened in this break. Changing any line immediately recalculates card contents, prices, color-slot value, and modeled outcomes.">
+            BREAK
+          </SectionLabel>
           <h2>
             {lines.length} product{lines.length === 1 ? "" : "s"}
           </h2>
@@ -670,7 +690,9 @@ export function ValueSummary({ result }: { result: ValuationResult }) {
     <section className="value-summary panel">
       <header>
         <div>
-          <p className="section-label">BREAK EV AFTER BULK FILTER</p>
+          <SectionLabel text="The break's counted expected value after excluding every card finish priced below your Ignore bulk under threshold. This is an average across modeled openings, not a guaranteed result.">
+            BREAK EV AFTER BULK FILTER
+          </SectionLabel>
           <h2>{fmt(result.sellableEV)}</h2>
         </div>
         <Status result={result} />
@@ -679,7 +701,7 @@ export function ValueSummary({ result }: { result: ValuationResult }) {
         <div>
           <span>
             Raw modeled EV
-            <Tip text={`Expected value from every priced card before applying the ${fmt(result.threshold)} bulk filter. This number is shown for reconciliation only; ColorBreak uses the ${fmt(result.sellableEV)} counted EV for decisions.`} />
+            <Tip text={`Average value from every priced card before applying the ${fmt(result.threshold)} bulk filter. This number is shown so you can check the math; ColorBreak uses the ${fmt(result.sellableEV)} value left after ignoring bulk for decisions.`} />
           </span>
           <b>{fmt(result.marketEV)}</b>
         </div>
@@ -730,20 +752,26 @@ function SlotRail({
   setSelected: (id: SlotId) => void;
 }) {
   return (
-    <div className="slot-rail" role="tablist" aria-label="Color slots">
-      {result.slots.map((slot) => (
-        <button
-          role="tab"
-          aria-selected={selected === slot.id}
-          className={`slot slot-${slot.id} ${selected === slot.id ? "active" : ""}`}
-          key={slot.id}
-          onClick={() => setSelected(slot.id)}
-        >
-          <span>{slot.id}</span>
-          <b>{fmt(slot.sellableEV)}</b>
-        </button>
-      ))}
-    </div>
+    <section className="slot-browser">
+      <div className="slot-browser-heading">
+        <span>Inspect a color slot</span>
+        <Tip text="Choose a color to update the card-level views below. These buttons inspect a slot; they do not remove it from the remaining random-assignment pool." />
+      </div>
+      <div className="slot-rail" role="tablist" aria-label="Color slots">
+        {result.slots.map((slot) => (
+          <button
+            role="tab"
+            aria-selected={selected === slot.id}
+            className={`slot slot-${slot.id} ${selected === slot.id ? "active" : ""}`}
+            key={slot.id}
+            onClick={() => setSelected(slot.id)}
+          >
+            <span>{slot.id}</span>
+            <b>{fmt(slot.sellableEV)}</b>
+          </button>
+        ))}
+      </div>
+    </section>
   );
 }
 
@@ -957,29 +985,43 @@ function useOutcomeSimulation(
   return state;
 }
 
-function OutcomeFingerprint({ summary, landed }: { summary?: DistributionSummary; landed?: number }) {
+function OutcomeRange({ summary, landed }: { summary?: DistributionSummary; landed?: number }) {
   if (!summary) return <div className="distribution-empty">Distribution unavailable until every material input is resolved.</div>;
-  const clears = landed == null ? undefined : summary.fingerprint.filter((value) => value >= landed).length;
+  const chanceToClear = landed == null
+    ? undefined
+    : summary.chanceToClearCost ?? summary.fingerprint.filter((value) => value >= landed).length / summary.fingerprint.length;
   return (
-    <div className="fingerprint" aria-label="Twenty equal-probability modeled outcome bands">
-      <div className="fingerprint-dots">
-        {summary.fingerprint.map((value, index) => (
-          <span
-            key={index}
-            className={landed != null && value >= landed ? "clears" : ""}
-            title={`${Math.round((index + .5) * 5)}th percentile: ${fmt(value)}`}
-          />
-        ))}
+    <div className="outcome-range" aria-label="Possible opening values">
+      <div className="outcome-range-heading">
+        <span>Possible opening values</span>
+        <Tip text="Shows a lower result, a middle result, and a higher result across many simulated openings. These are examples of the range you could see, not a prediction of the next opening." />
       </div>
-      <div className="fingerprint-scale">
-        <span>P10 {fmt(summary.p10)}</span>
-        <strong>Typical {fmt(summary.median)}</strong>
-        <span>P90 {fmt(summary.p90)}</span>
+      <div className="outcome-landmarks">
+        <div>
+          <span>Lower result</span>
+          <b>{fmt(summary.p10)}</b>
+          <small>About 1 in 10 openings are worth this or less</small>
+        </div>
+        <div className="typical">
+          <span>Typical result</span>
+          <b>{fmt(summary.median)}</b>
+          <small>About half are worth less and half are worth more</small>
+        </div>
+        <div>
+          <span>Higher result</span>
+          <b>{fmt(summary.p90)}</b>
+          <small>About 1 in 10 openings are worth this or more</small>
+        </div>
       </div>
-      {clears != null && (
-        <p><b>{clears} of 20</b> modeled outcome bands clear {fmt(landed)}.</p>
+      {chanceToClear != null && landed != null && (
+        <div className="clear-chance">
+          <div><span>Chance card value covers your {fmt(landed)} cost</span><b>{Math.round(chanceToClear * 100)}%</b></div>
+          <div className="clear-chance-track" aria-label={`${Math.round(chanceToClear * 100)}% chance card value covers your cost`}>
+            <span style={{ width: `${chanceToClear * 100}%` }} />
+          </div>
+        </div>
       )}
-      <small>Modeled possibilities—not a prediction of the next opening.</small>
+      <p>Modeled possibilities—not a prediction of the next opening.</p>
     </div>
   );
 }
@@ -1000,10 +1042,20 @@ function BreakBalance({
     <section className="panel balance-panel">
       <header>
         <div>
-          <p className="section-label">BREAK BALANCE</p>
+          <SectionLabel text="Compares the remaining color slots even though each is equally likely to be assigned. Taller bars mean a higher middle result; the thin lines show how high the value can reach in stronger openings.">
+            BREAK BALANCE
+          </SectionLabel>
           <h2>Equal chance, unequal pools</h2>
         </div>
-        <b>{strongest ? `${Math.round(weakest / strongest * 100)}%` : "—"}</b>
+        <Tip
+          className="balance-score"
+          text={strongest
+            ? `The weakest remaining slot has ${Math.round(weakest / strongest * 100)}% as much average card value after the bulk filter as the strongest remaining slot. 100% would mean equal slot values; a lower percentage means a more uneven break.`
+            : "There is not enough counted value to compare the weakest and strongest remaining slots."}
+          label="Explain the Break Balance percentage"
+        >
+          <b>{strongest ? `${Math.round(weakest / strongest * 100)}%` : "—"}</b>
+        </Tip>
       </header>
       <p className="balance-note">Each remaining slot is equally likely. The card value assigned to each slot is not equal.</p>
       <div className="balance-chart" style={{ "--equal": `${equalShare / max * 100}%` } as CSSProperties}>
@@ -1020,7 +1072,7 @@ function BreakBalance({
           );
         })}
       </div>
-      <p className="balance-caption">Dashed line: equal share {fmt(equalShare)} · Bars: {simulation ? "typical modeled value" : "mean EV"}</p>
+      <p className="balance-caption">Dashed line: equal share {fmt(equalShare)} · Bars: {simulation ? "typical card value" : "average card value"}</p>
     </section>
   );
 }
@@ -1045,7 +1097,7 @@ function EvidenceLens({ analysis }: { analysis: BreakAnalysis }) {
   return (
     <details className="panel evidence-lens">
       <summary>
-        <span><ShieldAlert /><b>Evidence lens</b><small>{analysis.outcomeModel.complete === false ? "Outcome chart blocked by known gaps" : "Inputs eligible for modeled outcomes"}</small></span>
+        <span><ShieldAlert /><b>Evidence lens <Tip text="Shows how trustworthy each input is: product identity, exact contents, pack collation, card finishes, prices, and break rules. Known material gaps block outcome claims rather than being silently guessed." /></b><small>{analysis.outcomeModel.complete === false ? "Outcome chart blocked by known gaps" : "Inputs eligible for modeled outcomes"}</small></span>
         <span>{ageHours == null ? "Price time unknown" : `Prices ${ageHours < 1 ? "<1" : Math.round(ageHours)}h old`}</span>
       </summary>
       <div className="evidence-grid">
@@ -1071,7 +1123,7 @@ function ChaseConstellation({
   const maxContribution = Math.max(1, ...rows.map((row) => row.sellableValue));
   return (
     <details className="panel supporting-view">
-      <summary><span><b>Chase Constellation</b><small>Pull chance × market price; bubble size is EV contribution</small></span><span>{SLOT_NAMES[slot.id]}</span></summary>
+      <summary><span><b>Chase Constellation <Tip text="Maps the selected slot's qualifying cards by pull chance and market price. Farther right means more frequent, higher means more expensive, and a larger bubble contributes more expected value." /></b><small>Pull chance × market price; bubble size is EV contribution</small></span><span>{SLOT_NAMES[slot.id]}</span></summary>
       {!rows.length ? <p className="supporting-empty">No cards meet the current bulk boundary.</p> : (
         <div className="constellation" aria-label={`${SLOT_NAMES[slot.id]} pull chance by market price`}>
           <span className="constellation-y">Higher price ↑</span>
@@ -1106,7 +1158,7 @@ function BulkBoundary({ result }: { result: ValuationResult }) {
   const retained = result.marketEV > 0 ? result.sellableEV / result.marketEV : 0;
   return (
     <details className="panel supporting-view">
-      <summary><span><b>Bulk Boundary</b><small>How “Ignore bulk under {fmt(result.threshold)}” changes modeled value</small></span><span>{Math.round(retained * 100)}% retained</span></summary>
+      <summary><span><b>Bulk Boundary <Tip text={`Shows how much modeled card value remains after excluding individual card finishes priced below ${fmt(result.threshold)}. This threshold is a value filter, not a claim that every retained card is easy to sell.`} /></b><small>How “Ignore bulk under {fmt(result.threshold)}” changes modeled value</small></span><span>{Math.round(retained * 100)}% retained</span></summary>
       <div className="bulk-boundary">
         <div><span>All resolved card value</span><b>{fmt(result.marketEV)}</b></div>
         <div className="boundary-track" aria-label={`${Math.round(retained * 100)} percent of raw modeled value remains counted`}><span style={{ width: `${retained * 100}%` }} /></div>
@@ -1121,7 +1173,7 @@ function EVRiver({ result }: { result: ValuationResult }) {
   const total = Math.max(result.marketEV, 1);
   return (
     <details className="panel supporting-view">
-      <summary><span><b>EV River</b><small>Resolved product contents → color slots → counted value</small></span><span>{fmt(result.sellableEV)}</span></summary>
+      <summary><span><b>EV River <Tip text="Traces expected value from all resolved card contents into color slots, then separates value retained by the bulk threshold from value below it. Width represents EV share, not pull probability." /></b><small>Resolved product contents → color slots → counted value</small></span><span>{fmt(result.sellableEV)}</span></summary>
       <div className="ev-river" aria-label="Expected value flow by color slot">
         <div className="river-source"><b>{fmt(result.marketEV)}</b><span>resolved card value</span></div>
         <div className="river-slots">
@@ -1167,7 +1219,7 @@ export function BuyerView({
   const fallbackMean = assignmentMode === "random"
     ? result.slots.filter((row) => auction.remaining.includes(row.id)).reduce((sum, row) => sum + row.sellableEV, 0) / Math.max(1, auction.remaining.length)
     : slot.sellableEV;
-  const decision = bid == null ? "READY"
+  const decision = bid == null ? "ENTER BID"
     : result.status === "incomplete" ? "NO VERDICT"
       : distribution?.chanceToClearCost == null
         ? buyerVerdict(slot, landed, result.status)
@@ -1184,15 +1236,18 @@ export function BuyerView({
         </div>
         <div className="verdict-head">
           <div>
-            <p className="section-label">
+            <SectionLabel text={assignmentMode === "random"
+              ? "The next buyer is assigned one of these remaining color slots at random. Enter the current bid to compare your total cost with all the ways the remaining slots could turn out."
+              : "Pick My Color evaluates only the selected color slot instead of averaging across a random assignment from the remaining pool."}
+            >
               {assignmentMode === "random" ? `${auction.remaining.length} RANDOM SLOTS REMAIN` : `${SLOT_NAMES[selected].toUpperCase()} SLOT`}
-            </p>
+            </SectionLabel>
             <h2>{decision}</h2>
           </div>
           <div className="ev-orb">
-            <small>TYPICAL MODELED VALUE</small>
+            <small>TYPICAL CARD VALUE <Tip text="The middle result across many simulated openings: about half are worth less and half are worth more. The average below it can be pulled upward by rare expensive cards." /></small>
             <strong>{fmt(distribution?.median ?? fallbackMean)}</strong>
-            <span>Mean {fmt(distribution?.mean ?? fallbackMean)}</span>
+            <span>Average {fmt(distribution?.mean ?? fallbackMean)}</span>
           </div>
         </div>
         <div className="bid-inputs">
@@ -1210,11 +1265,11 @@ export function BuyerView({
               Landed cost <b>{fmt(landed)}</b>
             </span>
             <span>
-              Mean gap <b>{fmt((distribution?.mean ?? fallbackMean) - landed)}</b>
+              Average gap <b>{fmt((distribution?.mean ?? fallbackMean) - landed)}</b>
             </span>
           </div>
         )}
-        <OutcomeFingerprint summary={distribution} landed={bid == null ? undefined : landed} />
+        <OutcomeRange summary={distribution} landed={bid == null ? undefined : landed} />
         {simulation.busy && <p className="simulation-state">Refining 10,000 modeled openings…</p>}
         {simulation.error && <p className="blocked"><ShieldAlert />{simulation.error}</p>}
         {result.status === "incomplete" && (
@@ -1226,7 +1281,12 @@ export function BuyerView({
       {assignmentMode === "random" && (
         <section className="panel assignment-panel">
           <header>
-            <div><p className="section-label">AFTER EACH AUCTION</p><h2>Tap the assigned slot</h2></div>
+            <div>
+              <SectionLabel text="After Whatnot reveals which color the buyer received, tap that matching circle once. ColorBreak removes it from the random pool and recalculates the next auction. Dimmed circles are already assigned; Undo restores the most recent one.">
+                AFTER EACH AUCTION
+              </SectionLabel>
+              <h2>Tap the assigned slot</h2>
+            </div>
             <button className="quiet" disabled={!auction.assignments.length} onClick={() => setAuction(undoAssignment(auction))}>Undo</button>
           </header>
           <div className="assignment-slots">
@@ -1256,16 +1316,28 @@ export function BuyerView({
       <section className="panel slot-detail">
         <header>
           <div>
-            <p className="section-label">SLOT VALUE MAKEUP</p>
+            <SectionLabel text="Explains which qualifying card printings create the selected color slot's counted expected value and how concentrated that value is in its biggest chase card.">
+              SLOT VALUE MAKEUP
+            </SectionLabel>
             <h2>What makes up {fmt(slot.sellableEV)}?</h2>
             <p className="risk-explainer">
               {SLOT_NAMES[selected]} cards worth {fmt(result.threshold)} or more.
               Bulk below the threshold is not included.
             </p>
           </div>
-          <span className={`risk-label risk-${profileLabel.toLowerCase().replace(/[^a-z]+/g, "-")}`}>
-            {profileLabel}
-          </span>
+          <Tip
+            className={`risk-label risk-${profileLabel.toLowerCase().replace(/[^a-z]+/g, "-")}`}
+            text={profileLabel === "DIVERSIFIED"
+              ? `Diversified means the top card supplies less than 30% of this slot's value after ignoring bulk. Value is spread across more qualifying cards, but this does not guarantee a minimum return.`
+              : profileLabel === "MIXED"
+                ? `Mixed means the top card supplies 30% to 49% of this slot's value after ignoring bulk. One chase matters, but other cards still add meaningful value.`
+                : profileLabel === "CHASE-HEAVY"
+                  ? `Chase-heavy means one card supplies at least 50% of this slot's value after ignoring bulk. The average depends heavily on pulling that card.`
+                  : `No counted value means no ${SLOT_NAMES[selected].toLowerCase()} card finish meets the current ${fmt(result.threshold)} bulk threshold.`}
+            label={`Explain ${profileLabel.toLowerCase()} risk profile`}
+          >
+            <span>{profileLabel}</span>
+          </Tip>
         </header>
         <div className="concentration">
           <div className="concentration-labels">
@@ -1274,7 +1346,7 @@ export function BuyerView({
           </div>
           <div
             className="risk-bar"
-            aria-label={`${Math.round(slot.chaseShare * 100)}% of counted EV comes from the top card`}
+            aria-label={`${Math.round(slot.chaseShare * 100)}% of the slot's filtered value comes from the top card`}
           >
             <span style={{ width: `${Math.min(100, slot.chaseShare * 100)}%` }} />
           </div>
@@ -1283,13 +1355,13 @@ export function BuyerView({
           <div>
             <span>
               #1 card share
-              <Tip text="The percentage of this slot's counted EV supplied by its single largest card contributor. Higher means the slot is more chase-dependent." />
+              <Tip text="The percentage of this slot's value after ignoring bulk that comes from its single biggest card. A higher percentage means more of the value depends on pulling that chase." />
             </span>
             <b>{Math.round(slot.chaseShare * 100)}%</b>
           </div>
           <div>
             <span>
-              EV without #1
+              Value without #1
               <Tip text="The slot's counted expected value after removing its largest card contributor. This is not a guaranteed floor." />
             </span>
             <b>{fmt(slot.withoutChase)}</b>
@@ -1305,7 +1377,7 @@ export function BuyerView({
         <details open className="contributors">
           <summary>
             <span>
-              Cards driving this EV
+              Cards driving this EV <Tip text="Lists the selected slot's qualifying printings from largest to smallest EV contribution. EV contribution combines pull chance and market price, so a frequent inexpensive card can rank alongside a rare chase." />
               <small>Sorted by EV contribution—not pull frequency</small>
             </span>
           </summary>
@@ -1414,8 +1486,25 @@ function EnticementLab() {
   return (
     <section className="panel enticement-lab">
       <header>
-        <div><p className="section-label">ENTICEMENT FRONTIER</p><h2>Design a disclosed break</h2></div>
-        <span className={`compliance-badge compliance-${scenario.compliance}`}>{complianceLabel}</span>
+        <div>
+          <SectionLabel text="Compares precommitted seller-funded additions by incremental cost, buyer value, slot balance, margin impact, and current Whatnot US policy state.">
+            ENTICEMENT FRONTIER
+          </SectionLabel>
+          <h2>Design a disclosed break</h2>
+        </div>
+        <Tip
+          className={`compliance-badge compliance-${scenario.compliance}`}
+          text={scenario.compliance === "permitted"
+            ? "This scenario is currently modeled as permitted under the cited Whatnot US policy when disclosed before sales. Policy can change; review the evidence before running a show."
+            : scenario.compliance === "written-approval-required"
+              ? "Do not export or advertise this scenario for Whatnot unless you have current written platform approval stored with the plan."
+              : scenario.compliance === "prohibited"
+                ? "Current Whatnot US policy prohibits this mechanic. ColorBreak may analyze it for research, but will not export it as a compliant show rule."
+                : "ColorBreak does not have enough current policy evidence to classify this scenario. Treat it as unavailable until verified."}
+          label={`Explain ${complianceLabel.toLowerCase()} compliance status`}
+        >
+          <span>{complianceLabel}</span>
+        </Tip>
       </header>
       <p className="enticement-intro">Compare expected buyer value delivered per seller dollar. Inputs are planning assumptions until the product is added to the break above.</p>
       <div className="scenario-tabs" role="tablist" aria-label="Enticement scenario">
@@ -1538,13 +1627,15 @@ function SellerView({
       <section className="panel seller-plan">
         <header>
           <div>
-            <p className="section-label">TARGET PLAN</p>
+            <SectionLabel text="Calculates the total hammer revenue needed to cover entered product costs, platform fees, fulfillment assumptions, and your target profit. It is a planning target, not a forecast.">
+              TARGET PLAN
+            </SectionLabel>
             <h2>{costsComplete ? fmt(target) : "Add your costs"}</h2>
           </div>
-          <span className="market-badge">
+          <Tip className="market-badge" text="The active marketplace fee preset. Percentage fees apply to each purchase; fulfillment and seller-covered shipping apply according to the buyer-grouped order settings below." label={`Explain the ${marketplace.name} marketplace preset`}>
             <Store />
             {marketplace.name}
-          </span>
+          </Tip>
         </header>
         <div className="cost-lines">
           {lines.map((line) => (
@@ -1609,7 +1700,9 @@ function SellerView({
         <section className="panel ask-grid">
           <header>
             <div>
-              <p className="section-label">ASKS TO CLEAR</p>
+              <SectionLabel text="Allocates the target hammer total across color slots using their modeled value shares. These are suggested starting points; thin or chase-heavy slots may need manual adjustment.">
+                ASKS TO CLEAR
+              </SectionLabel>
               <h2>{fmt(askTotal)} total</h2>
             </div>
             <button
@@ -1696,7 +1789,9 @@ function SellerView({
         <section
           className={`panel profit ${profit.profit >= targetProfit ? "positive" : "negative"}`}
         >
-          <p className="section-label">ACTUAL OUTCOME</p>
+          <SectionLabel text="Projects seller profit from the asks marked sold after platform fees, product costs, fulfillment, and seller-covered shipping. Unsold slots contribute no revenue.">
+            ACTUAL OUTCOME
+          </SectionLabel>
           <h2>{fmt(profit.profit)} profit</h2>
           <div className="metric-row">
             <div>

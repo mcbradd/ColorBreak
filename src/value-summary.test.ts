@@ -1,5 +1,5 @@
 import { createElement } from "react";
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { ValueSummary } from "./App";
 import { calculateBreak } from "./domain/valuation";
@@ -32,5 +32,9 @@ describe("filtered value summary", () => {
     expect(
       screen.getByLabelText(/Counted EV \(\$10\.00\) plus bulk excluded \(\$1\.00\) equals raw modeled EV \(\$11\.00\).*not a loss or negative value/),
     ).toBeInTheDocument();
+    const status = screen.getByRole("button", { name: /verified data status/i });
+    expect(status).toHaveClass("tip-indicator", "status", "verified");
+    fireEvent.click(status);
+    expect(screen.getByRole("tooltip")).toHaveTextContent(result.statusReason);
   });
 });

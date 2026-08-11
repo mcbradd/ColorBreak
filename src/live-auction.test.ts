@@ -41,6 +41,13 @@ describe("live random-slot buyer workflow", () => {
   it("removes the revealed slot in one tap and restores it with undo", async () => {
     render(createElement(Harness));
     expect(screen.getByText("8 RANDOM SLOTS REMAIN")).toBeInTheDocument();
+    expect(screen.getByText("ENTER BID")).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByLabelText("Possible opening values")).toBeInTheDocument());
+    expect(screen.queryByLabelText("Twenty equal-probability modeled outcome bands")).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Current bid"), { target: { value: "12.50" } });
+    fireEvent.blur(screen.getByLabelText("Current bid"));
+    await waitFor(() => expect(screen.getByText(/Chance card value covers your \$12\.50 cost/)).toBeInTheDocument());
 
     fireEvent.click(screen.getByRole("button", { name: "Mark Blue assigned" }));
     expect(screen.getByText("7 RANDOM SLOTS REMAIN")).toBeInTheDocument();
@@ -48,6 +55,6 @@ describe("live random-slot buyer workflow", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Undo" }));
     expect(screen.getByText("8 RANDOM SLOTS REMAIN")).toBeInTheDocument();
-    await waitFor(() => expect(screen.getByLabelText("Twenty equal-probability modeled outcome bands")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByLabelText("Possible opening values")).toBeInTheDocument());
   });
 });

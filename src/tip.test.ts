@@ -43,4 +43,30 @@ describe("info tooltip", () => {
     expect(defaultAllowed).toBe(false);
     expect(inputActivation).not.toHaveBeenCalled();
   });
+
+  it("uses the same popover behavior for a tappable informational pill", () => {
+    render(
+      createElement(
+        Tip,
+        {
+          text: "The weakest slot has 18% as much EV as the strongest.",
+          label: "Explain the Break Balance percentage",
+          className: "balance-score",
+        },
+        "18%",
+      ),
+    );
+
+    const indicator = screen.getByRole("button", {
+      name: "Explain the Break Balance percentage",
+    });
+    expect(indicator).toHaveClass("tip-indicator", "balance-score");
+
+    fireEvent.pointerEnter(indicator, { pointerType: "mouse" });
+    fireEvent.click(indicator);
+    expect(screen.getByRole("tooltip")).toHaveTextContent("18% as much EV");
+
+    fireEvent.click(indicator);
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+  });
 });
