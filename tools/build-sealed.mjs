@@ -247,7 +247,10 @@ export function buildSet(data, extraCards = new Map(), allowMissing = false, ext
     const contains = [];
     for (const pack of c.pack || []) {
       const code = pack.set && pack.set.toUpperCase() !== set ? `${pack.set.toUpperCase()}:${pack.code}` : pack.code;
-      contains.push({ pack: code, n: 1 });
+      // `packs` has already resolved one physical booster listed under both a generic and
+      // a variant name (TDM's `prerelease` + `prerelease-abzan`) down to the variant. A
+      // roll-out row for the name that lost would be a second, unpriceable booster.
+      if (code in p.packs) contains.push({ pack: code, n: 1 });
     }
     for (const s of c.sealed || []) {
       const childKey = keyByUuid.get(s.uuid);
