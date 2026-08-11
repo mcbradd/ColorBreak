@@ -145,6 +145,7 @@ function NumericInput({
       onKeyDown={(event) => {
         if (event.key === "Enter") {
           event.preventDefault();
+          commit();
           event.currentTarget.blur();
         }
       }}

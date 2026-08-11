@@ -1,6 +1,6 @@
 import { createElement, useState } from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { NumberField } from "./App";
 
 function Harness() {
@@ -44,5 +44,18 @@ describe("mobile numeric entry", () => {
 
     expect(input).toHaveValue("7.25");
     expect(screen.getByTestId("committed-value")).toHaveTextContent("7.25");
+  });
+
+  it("commits with Enter even when the browser does not deliver a blur event", () => {
+    render(createElement(Harness));
+    const input = screen.getByRole("textbox", { name: /Cost/ }) as HTMLInputElement;
+    input.focus();
+    const blur = vi.spyOn(input, "blur").mockImplementation(() => undefined);
+
+    fireEvent.change(input, { target: { value: "12.50" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    expect(blur).toHaveBeenCalledOnce();
+    expect(screen.getByTestId("committed-value")).toHaveTextContent("12.5");
   });
 });
