@@ -1864,6 +1864,13 @@ function warn(msg) {
   el.textContent = el.style.display === "block" ? el.textContent + " " + msg : msg;
   el.style.display = "block";
 }
+// Prose contents worth naming are the ones that are cardboard with a price: foil basic
+// lands, scene cards, dungeon cards. A card *storage box* is not a card, and saying it
+// "was not counted in EV" reads as a missing value rather than an accessory.
+const PROSE_CARDS = /(cards?|lands?)/i;
+const PROSE_NOT_CARDS = /storage|box|sleeve|deck box|display|walk-?through|reference|arena code|helper/i;
+const isProseCards = (s) => PROSE_CARDS.test(s) && !PROSE_NOT_CARDS.test(s);
+
 async function run(opts) {
   const bg = !!(opts && opts.background);
   const fresh = !!(opts && opts.fresh);   // Re-run and revalidate go to the wire (F8)
@@ -1942,10 +1949,10 @@ async function run(opts) {
         sheetPriced++;
         // Some contents are only ever prose in MTGJSON ("20 Foil basic lands"), with no
         // card list to price. Name them rather than let them vanish from the total.
-        for (const o of sealedProd.other || []) if (/card|land/i.test(o)) extras.add(`${prod.label}: ${o}`);
+        for (const o of sealedProd.other || []) if (isProseCards(o)) extras.add(`${prod.label}: ${o}`);
         // Rolled out, that prose is its own line: it says so itself rather than through
         // the product it came out of.
-        if (itemKind(item.key) === "other" && /card|land/i.test(prod.label)) extras.add(prod.label);
+        if (itemKind(item.key) === "other" && isProseCards(prod.label)) extras.add(prod.label);
       } else {
         const mode = prod.packType === "collector" ? "all" : "flag";
         const pool = await getPool(item.set, mode, show, !fresh);
