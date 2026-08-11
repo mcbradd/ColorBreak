@@ -1,6 +1,6 @@
 import { createElement } from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { Tip } from "./App";
 
 describe("info tooltip", () => {
@@ -21,5 +21,26 @@ describe("info tooltip", () => {
 
     fireEvent.pointerDown(document.body);
     expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+  });
+
+  it("does not activate a numeric input when tapped inside its label", () => {
+    const inputActivation = vi.fn();
+    render(
+      createElement(
+        "label",
+        null,
+        "Ignore bulk under",
+        createElement("input", { inputMode: "decimal", onClick: inputActivation }),
+        createElement(Tip, { text: "Threshold explanation" }),
+      ),
+    );
+
+    const defaultAllowed = fireEvent.click(
+      screen.getByLabelText("Threshold explanation"),
+    );
+
+    expect(screen.getByRole("tooltip")).toBeInTheDocument();
+    expect(defaultAllowed).toBe(false);
+    expect(inputActivation).not.toHaveBeenCalled();
   });
 });

@@ -241,7 +241,12 @@ export function Tip({ text }: { text: string }) {
         aria-label={text}
         aria-expanded={open}
         aria-describedby={open ? id : undefined}
+        onPointerDown={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+        }}
         onClick={(event) => {
+          event.preventDefault();
           event.stopPropagation();
           setOpen(true);
         }}
