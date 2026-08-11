@@ -623,7 +623,7 @@ function Composition({
   );
 }
 
-function ValueSummary({ result }: { result: ValuationResult }) {
+export function ValueSummary({ result }: { result: ValuationResult }) {
   const ignoredEV = Math.max(0, result.marketEV - result.sellableEV);
   const countedCards = result.slots.reduce(
     (total, slot) => total + slot.contributors.length,
@@ -648,10 +648,10 @@ function ValueSummary({ result }: { result: ValuationResult }) {
         </div>
         <div>
           <span>
-            Bulk ignored
-            <Tip text={`Expected value from cards priced below ${fmt(result.threshold)}. This amount is disclosed here but excluded from every decision metric.`} />
+            Bulk excluded
+            <Tip text={`Cards priced below ${fmt(result.threshold)} contribute ${fmt(ignoredEV)} of raw modeled EV, but ColorBreak excludes that amount from decisions. Counted EV (${fmt(result.sellableEV)}) plus bulk excluded (${fmt(ignoredEV)}) equals raw modeled EV (${fmt(result.marketEV)}). This is a reconciliation—not a loss or negative value.`} />
           </span>
-          <b>−{fmt(ignoredEV)}</b>
+          <b>{fmt(ignoredEV)}</b>
         </div>
         <div>
           <span>

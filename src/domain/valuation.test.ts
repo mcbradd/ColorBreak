@@ -27,6 +27,23 @@ describe("calculateBreak", () => {
     expect(green.contributors.map((row) => row.card.name)).toEqual(["Green Chase"]);
   });
 
+  it("reconciles counted EV and excluded bulk at every threshold boundary", () => {
+    const cases = [
+      { threshold: 0, counted: 16, excluded: 0 },
+      { threshold: 0.5, counted: 16, excluded: 0 },
+      { threshold: 2, counted: 15, excluded: 1 },
+      { threshold: 100, counted: 0, excluded: 16 },
+    ];
+    for (const expected of cases) {
+      const result = calculateBreak({ draws, prices, threshold: expected.threshold });
+      const excluded = result.marketEV - result.sellableEV;
+      expect(result.sellableEV).toBeCloseTo(expected.counted);
+      expect(excluded).toBeCloseTo(expected.excluded);
+      expect(result.marketEV).toBeCloseTo(result.sellableEV + excluded);
+      expect(excluded).toBeGreaterThanOrEqual(0);
+    }
+  });
+
   it("never substitutes a nonfoil price for a missing foil price", () => {
     const result = calculateBreak({
       draws: [{ set: "TST", collectorNumber: "2", copies: 1, foil: true, source: "foil" }],
