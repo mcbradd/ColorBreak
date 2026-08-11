@@ -253,8 +253,21 @@ export function buildSet(data, extraCards = new Map(), allowMissing = false, ext
       const childKey = keyByUuid.get(s.uuid);
       // A child this build could not resolve, or one whose own contents were dice only,
       // has no line item to roll out to; it stays the prose note `expand` already made.
-      if (childKey) contains.push({ product: childKey, n: s.count || 1 });
-      else contains.push({ other: s.name, n: s.count || 1 });
+      if (childKey) { contains.push({ product: childKey, n: s.count || 1 }); continue; }
+      // A child from another set has no line item here (BLB's Tin Mouse holds a
+      // Foundations Play Booster Pack) but its boosters are already in `packs` and
+      // already priced. Roll it out as those boosters, not as prose that reads unpriced.
+      const foreign = byUuid.get(s.uuid);
+      const fp = foreign ? expand(foreign, byUuid, cardsByUuid, decksByName, [], [], []).packs : {};
+      if (Object.keys(fp).length) {
+        // `expand` keys a product's own boosters bare; from here they belong to the
+        // child's set, which is what `packs` on this product already says.
+        const owner = (foreign.__set || s.set || "").toUpperCase();
+        for (const [code, n] of Object.entries(fp)) {
+          const key = code.includes(":") || owner === set ? code : `${owner}:${code}`;
+          contains.push({ pack: key, n: n * (s.count || 1) });
+        }
+      } else contains.push({ other: s.name, n: s.count || 1 });
     }
     for (const card of c.card || []) {
       const foil = card.foil != null ? card.foil
