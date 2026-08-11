@@ -18,11 +18,13 @@ describe("calculateBreak", () => {
     const result = calculateBreak({ draws, prices, threshold: 2, sourceStatus: "verified" });
     expect(result.marketEV).toBe(16);
     expect(result.sellableEV).toBe(15);
-    expect(result.knownEV).toBe(16);
+    expect(result.knownEV).toBe(15);
     expect(result.status).toBe("verified");
     const green = result.slots.find((slot) => slot.id === "G")!;
     expect(green.marketEV).toBe(11);
-    expect(green.withoutChase).toBe(1);
+    expect(green.withoutChase).toBe(0);
+    expect(green.chaseShare).toBe(1);
+    expect(green.contributors.map((row) => row.card.name)).toEqual(["Green Chase"]);
   });
 
   it("never substitutes a nonfoil price for a missing foil price", () => {

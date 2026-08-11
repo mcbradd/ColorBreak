@@ -16,10 +16,13 @@ const card: Contributor = {
     image: "https://example.com/card.jpg",
   },
   copies: 0.42,
+  sellableCopies: 0.42,
   marketValue: 10.29,
   sellableValue: 10.29,
   foilCopies: 0,
+  sellableFoilCopies: 0,
   pullProbability: 0.36,
+  sellablePullProbability: 0.36,
 };
 
 function Harness() {
@@ -31,6 +34,7 @@ function Harness() {
     createElement(CardInspector, {
       row: open ? card : null,
       status: "verified",
+      threshold: 2,
       onClose: () => setOpen(false),
     }),
   );

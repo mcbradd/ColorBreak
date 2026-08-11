@@ -57,6 +57,24 @@ const money = new Intl.NumberFormat("en-US", {
 });
 const fmt = (value: number | undefined) =>
   value == null ? "—" : money.format(value);
+const oddsLabel = (probability: number) =>
+  probability >= 0.9995
+    ? "100%"
+    : probability > 0
+      ? `${(probability * 100).toFixed(probability < 0.01 ? 2 : 1)}%`
+      : "0%";
+
+function countedMarketLabel(row: Contributor): string {
+  const labels: string[] = [];
+  const nonfoilCopies = row.sellableCopies - row.sellableFoilCopies;
+  if (nonfoilCopies > 0 && row.card.nonfoil != null) {
+    labels.push(`${fmt(row.card.nonfoil)} nonfoil`);
+  }
+  if (row.sellableFoilCopies > 0 && row.card.foil != null) {
+    labels.push(`${fmt(row.card.foil)} foil`);
+  }
+  return labels.join(" / ") || "Price unavailable";
+}
 
 function NumericInput({
   value,
@@ -601,11 +619,16 @@ function Composition({
 }
 
 function ValueSummary({ result }: { result: ValuationResult }) {
+  const ignoredEV = Math.max(0, result.marketEV - result.sellableEV);
+  const countedCards = result.slots.reduce(
+    (total, slot) => total + slot.contributors.length,
+    0,
+  );
   return (
     <section className="value-summary panel">
       <header>
         <div>
-          <p className="section-label">BREAK VALUE</p>
+          <p className="section-label">COUNTED BREAK EV</p>
           <h2>{fmt(result.sellableEV)}</h2>
         </div>
         <Status result={result} />
@@ -613,24 +636,24 @@ function ValueSummary({ result }: { result: ValuationResult }) {
       <div className="metric-row">
         <div>
           <span>
-            Market EV
-            <Tip text="Every priced card, including bulk." />
-          </span>
-          <b>{fmt(result.marketEV)}</b>
-        </div>
-        <div>
-          <span>
-            Sellable EV
-            <Tip text={`Cards priced at least ${fmt(result.threshold)}.`} />
+            Counted EV
+            <Tip text={`Expected value from cards whose current market price is ${fmt(result.threshold)} or more. This is the value used throughout ColorBreak.`} />
           </span>
           <b>{fmt(result.sellableEV)}</b>
         </div>
         <div>
           <span>
-            Known EV
-            <Tip text="Conservative priced value after unresolved items are omitted." />
+            Bulk ignored
+            <Tip text={`Expected value from cards priced below ${fmt(result.threshold)}. This amount is disclosed here but excluded from every decision metric.`} />
           </span>
-          <b>{fmt(result.knownEV)}</b>
+          <b>−{fmt(ignoredEV)}</b>
+        </div>
+        <div>
+          <span>
+            Printings counted
+            <Tip text={`Distinct card printings with a qualifying ${fmt(result.threshold)}+ finish in this break.`} />
+          </span>
+          <b>{countedCards}</b>
         </div>
       </div>
       {result.omissions.length > 0 && (
@@ -678,10 +701,12 @@ function SlotRail({
 export function CardInspector({
   row,
   status,
+  threshold,
   onClose,
 }: {
   row: Contributor | null;
   status: ValuationResult["status"];
+  threshold: number;
   onClose: () => void;
 }) {
   const dialogRef = useRef<HTMLElement>(null);
@@ -725,12 +750,7 @@ export function CardInspector({
     };
   }, [row, onClose]);
 
-  const odds = row?.pullProbability ?? 0;
-  const oddsLabel = odds >= 0.9995
-    ? "100%"
-    : odds > 0
-      ? `${(odds * 100).toFixed(odds < 0.01 ? 2 : 1)}%`
-      : "0%";
+  const odds = row?.sellablePullProbability ?? 0;
   return (
     <AnimatePresence>
       {row && (
@@ -778,7 +798,7 @@ export function CardInspector({
               <div className="card-info">
                 <div className="card-stat primary-stat">
                   <span>Pull odds in this break</span>
-                  <strong>{oddsLabel}</strong>
+                  <strong>{oddsLabel(odds)}</strong>
                   <small>
                     {odds > 0 && odds < 1
                       ? `About 1 in ${(1 / odds).toFixed(odds < 0.1 ? 1 : 0)} breaks`
@@ -798,14 +818,14 @@ export function CardInspector({
                   </div>
                 </div>
                 <div className="card-stat">
-                  <span>Expected copies</span>
+                  <span>Counted expected copies</span>
                   <strong>
-                    {row.copies.toFixed(3).replace(/0+$/, "").replace(/\.$/, "")}
+                    {row.sellableCopies.toFixed(3).replace(/0+$/, "").replace(/\.$/, "")}
                   </strong>
                   <small>
                     {status === "verified"
-                      ? "Calculated from the current break configuration."
-                      : "Known-data estimate; unresolved contents may increase these odds."}
+                      ? `Qualifying finishes worth ${fmt(threshold)} or more in this break.`
+                      : `Known-data estimate for qualifying ${fmt(threshold)}+ finishes; unresolved contents may increase these odds.`}
                   </small>
                 </div>
                 {row.card.oracleText && (
@@ -826,6 +846,13 @@ function BuyerView({ result }: { result: ValuationResult }) {
   const [shipping, setShipping] = useState<number>();
   const [inspectedCard, setInspectedCard] = useState<Contributor | null>(null);
   const slot = result.slots.find((row) => row.id === selected)!;
+  const profileLabel = !slot.contributors.length
+    ? "NO COUNTED VALUE"
+    : slot.chaseShare >= 0.5
+      ? "CHASE-HEAVY"
+      : slot.chaseShare >= 0.3
+        ? "MIXED"
+        : "DIVERSIFIED";
   const landed = (bid ?? 0) + (shipping ?? 0);
   const verdict =
     bid == null ? "READY" : buyerVerdict(slot, landed, result.status);
@@ -842,7 +869,7 @@ function BuyerView({ result }: { result: ValuationResult }) {
             <h2>{verdict}</h2>
           </div>
           <div className="ev-orb">
-            <small>SELLABLE EV</small>
+            <small>COUNTED EV</small>
             <strong>{fmt(slot.sellableEV)}</strong>
           </div>
         </div>
@@ -875,51 +902,101 @@ function BuyerView({ result }: { result: ValuationResult }) {
       <section className="panel slot-detail">
         <header>
           <div>
-            <p className="section-label">RISK PROFILE</p>
-            <h2>{SLOT_NAMES[selected]} value</h2>
+            <p className="section-label">SLOT VALUE MAKEUP</p>
+            <h2>What makes up {fmt(slot.sellableEV)}?</h2>
+            <p className="risk-explainer">
+              {SLOT_NAMES[selected]} cards worth {fmt(result.threshold)} or more.
+              Bulk below the threshold is not included.
+            </p>
           </div>
-          <span className={slot.chaseShare > 0.5 ? "lottery" : "steady"}>
-            {slot.chaseShare > 0.5 ? "LOTTERY" : "STEADY"}
+          <span className={`risk-label risk-${profileLabel.toLowerCase().replace(/[^a-z]+/g, "-")}`}>
+            {profileLabel}
           </span>
         </header>
-        <div className="risk-bar">
-          <span style={{ width: `${Math.min(100, slot.chaseShare * 100)}%` }} />
+        <div className="concentration">
+          <div className="concentration-labels">
+            <span>Value spread across cards</span>
+            <span>Value depends on one chase</span>
+          </div>
+          <div
+            className="risk-bar"
+            aria-label={`${Math.round(slot.chaseShare * 100)}% of counted EV comes from the top card`}
+          >
+            <span style={{ width: `${Math.min(100, slot.chaseShare * 100)}%` }} />
+          </div>
         </div>
-        <div className="metric-row">
+        <div className="metric-row risk-metrics">
           <div>
-            <span>Top-card share</span>
+            <span>
+              #1 card share
+              <Tip text="The percentage of this slot's counted EV supplied by its single largest card contributor. Higher means the slot is more chase-dependent." />
+            </span>
             <b>{Math.round(slot.chaseShare * 100)}%</b>
           </div>
           <div>
-            <span>Without chase</span>
+            <span>
+              EV without #1
+              <Tip text="The slot's counted expected value after removing its largest card contributor. This is not a guaranteed floor." />
+            </span>
             <b>{fmt(slot.withoutChase)}</b>
           </div>
+          <div>
+            <span>
+              Printings counted
+              <Tip text={`Distinct ${SLOT_NAMES[selected].toLowerCase()} card printings with a market price of ${fmt(result.threshold)} or more.`} />
+            </span>
+            <b>{slot.contributors.length}</b>
+          </div>
         </div>
-        <details>
-          <summary>Top value contributors</summary>
-          {slot.contributors.slice(0, 8).map((row) => (
-            <article className="card-row" key={row.card.id}>
-              {row.card.image && <img src={row.card.image} alt="" />}
-              <span>
-                <button
-                  className="card-name"
-                  onClick={() => setInspectedCard(row)}
-                >
-                  {row.card.name}
-                </button>
-                <small>
-                  {row.copies.toFixed(2)} expected ·{" "}
-                  {row.foilCopies ? "foil" : "nonfoil"}
-                </small>
-              </span>
-              <b>{fmt(row.marketValue)}</b>
-            </article>
-          ))}
+        <details open className="contributors">
+          <summary>
+            <span>
+              Cards driving this EV
+              <small>Sorted by EV contribution—not pull frequency</small>
+            </span>
+          </summary>
+          {!slot.contributors.length ? (
+            <p className="no-contributors">
+              No {SLOT_NAMES[selected].toLowerCase()} cards meet the {fmt(result.threshold)} threshold.
+            </p>
+          ) : (
+            <>
+              <div className="contributor-columns">
+                <span>Card · pull chance · market price</span>
+                <span>EV contribution</span>
+              </div>
+              {slot.contributors.slice(0, 8).map((row) => (
+                <article className="card-row" key={row.card.id}>
+                  {row.card.image ? (
+                    <img src={row.card.image} alt="" />
+                  ) : (
+                    <span className="card-placeholder" />
+                  )}
+                  <span>
+                    <button
+                      className="card-name"
+                      onClick={() => setInspectedCard(row)}
+                    >
+                      {row.card.name}
+                    </button>
+                    <small>
+                      {oddsLabel(row.sellablePullProbability)} pull chance · {countedMarketLabel(row)} market
+                    </small>
+                  </span>
+                  <span className="ev-contribution">
+                    <small>EV contribution</small>
+                    <b>{fmt(row.sellableValue)}</b>
+                  </span>
+                </article>
+              ))}
+            </>
+          )}
         </details>
       </section>
       <CardInspector
         row={inspectedCard}
         status={result.status}
+        threshold={result.threshold}
         onClose={() => setInspectedCard(null)}
       />
     </>
@@ -1122,7 +1199,7 @@ function SellerView({
             </button>
           </header>
           <p className="muted">
-            Target {fmt(target)} · allocated by sellable value. Lock a strong
+            Target {fmt(target)} · allocated by counted EV. Lock a strong
             slot or remove an unsold slot; the rest redistributes automatically.
           </p>
           {result.slots.map((slot) => (
@@ -1133,7 +1210,7 @@ function SellerView({
               <span className="slot-letter">{slot.id}</span>
               <span>
                 <strong>{slot.name}</strong>
-                <small>{fmt(slot.sellableEV)} sellable EV</small>
+                <small>{fmt(slot.sellableEV)} counted EV</small>
               </span>
               <b>{fmt(asks[slot.id])}</b>
               <div className="ask-actions">
@@ -1324,10 +1401,14 @@ function Workspace({
           {lines.length > 0 && (
             <label className="threshold">
               <Settings2 />
-              <span>Sellable ≥</span>
+              <span>Ignore bulk under</span>
+              <b>$</b>
               <NumericInput
                 value={threshold}
                 onCommit={(value) => setThreshold(value ?? 0)}
+              />
+              <Tip
+                text={`Cards with a current market price below ${fmt(threshold)} are excluded from every EV total, color-slot value, risk metric, contributor list, buyer verdict, and seller ask. Cards priced at exactly ${fmt(threshold)} are included.`}
               />
             </label>
           )}

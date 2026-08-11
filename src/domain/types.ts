@@ -53,10 +53,13 @@ export interface Omission {
 export interface Contributor {
   card: CardPrice;
   copies: number;
+  sellableCopies: number;
   marketValue: number;
   sellableValue: number;
   foilCopies: number;
+  sellableFoilCopies: number;
   pullProbability: number;
+  sellablePullProbability: number;
 }
 
 export interface SlotValuation {

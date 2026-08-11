@@ -47,12 +47,12 @@ export function calculateBreak(input: ValuationInput): ValuationResult {
       continue;
     }
     const existing = byCard.get(card.id) ?? {
-      card, copies: 0, marketValue: 0, sellableValue: 0, foilCopies: 0,
-      pullProbability: 0,
+      card, copies: 0, sellableCopies: 0, marketValue: 0, sellableValue: 0,
+      foilCopies: 0, sellableFoilCopies: 0, pullProbability: 0,
+      sellablePullProbability: 0,
     };
     existing.copies += draw.copies;
     existing.marketValue += draw.copies * price;
-    if (price >= threshold) existing.sellableValue += draw.copies * price;
     if (draw.foil) existing.foilCopies += draw.copies;
     const sourceProbability = Math.max(
       0,
@@ -60,24 +60,34 @@ export function calculateBreak(input: ValuationInput): ValuationResult {
     );
     existing.pullProbability =
       1 - (1 - existing.pullProbability) * (1 - sourceProbability);
+    if (price >= threshold) {
+      existing.sellableValue += draw.copies * price;
+      existing.sellableCopies += draw.copies;
+      if (draw.foil) existing.sellableFoilCopies += draw.copies;
+      existing.sellablePullProbability =
+        1 - (1 - existing.sellablePullProbability) * (1 - sourceProbability);
+    }
     byCard.set(card.id, existing);
   }
 
-  const contributors = [...byCard.values()].sort((a, b) => b.marketValue - a.marketValue);
+  const contributors = [...byCard.values()];
   const slots: SlotValuation[] = SLOT_IDS.map((id) => {
-    const rows = contributors.filter((row) => row.card.slot === id);
-    const marketEV = rows.reduce((sum, row) => sum + row.marketValue, 0);
+    const allRows = contributors.filter((row) => row.card.slot === id);
+    const rows = allRows
+      .filter((row) => row.sellableValue > 0)
+      .sort((a, b) => b.sellableValue - a.sellableValue);
+    const marketEV = allRows.reduce((sum, row) => sum + row.marketValue, 0);
     const sellableEV = rows.reduce((sum, row) => sum + row.sellableValue, 0);
-    const chase = rows[0]?.marketValue ?? 0;
+    const chase = rows[0]?.sellableValue ?? 0;
     return {
       id,
       name: SLOT_NAMES[id],
       marketEV,
       sellableEV,
-      knownEV: marketEV,
+      knownEV: sellableEV,
       contributors: rows,
-      chaseShare: marketEV > 0 ? chase / marketEV : 0,
-      withoutChase: Math.max(0, marketEV - chase),
+      chaseShare: sellableEV > 0 ? chase / sellableEV : 0,
+      withoutChase: Math.max(0, sellableEV - chase),
     };
   });
   const materialOmission = omissions.some((item) => item.material);
