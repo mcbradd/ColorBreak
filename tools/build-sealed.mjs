@@ -18,8 +18,10 @@
 // pick counts, so the average is exact for EV; it does not preserve variance, which the
 // board never reports.
 
-import { writeFileSync, mkdirSync, readdirSync } from "node:fs";
+import { writeFileSync, mkdirSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 const OUT_DIR = fileURLToPath(new URL("../data/sealed/", import.meta.url));
 const UA = { "user-agent": "colorbreak-sealed/1.0 (+https://mcbradd.github.io/ColorBreak)" };
@@ -50,7 +52,7 @@ export function expectedPicks(config) {
 // entries point at other products in the same document (a case holds bundles, a bundle
 // holds packs), so expansion recurses.
 function expand(product, byUuid, decksByName, missingDecks, missingSealed, seen = new Set()) {
-  const packs = {}, fixed = new Map(), decks = [], other = [];
+  const fixed = new Map(), decks = [], other = [];
   // Guaranteed cards, from two shapes: `contents.card` (a single named promo, e.g. the
   // ONE Compleat Bundle's foil Phyrexian Arena) and `contents.deck` (a named deck in the
   // set's own `decks[]`, which is how bundle land packs are carried). Both are worth real
@@ -63,15 +65,39 @@ function expand(product, byUuid, decksByName, missingDecks, missingSealed, seen 
     e.n += n;
     fixed.set(key, e);
   };
-  const addPack = (code, set, n) => {
-    const key = set && set.toUpperCase() !== product.__set ? `${set.toUpperCase()}:${code}` : code;
-    packs[key] = (packs[key] || 0) + n;
+  const packKey = (code, set) =>
+    set && set.toUpperCase() !== product.__set ? `${set.toUpperCase()}:${code}` : code;
+  const merge = (into, from) => {
+    for (const [k, n] of Object.entries(from)) into[k] = (into[k] || 0) + n;
+    return into;
+  };
+  // MTGJSON states one booster twice in some products: a prerelease pack names both the
+  // generic `prerelease` config and its faction-specific `prerelease-aang` — one physical
+  // booster under two names. The specific config wins. Both spellings occur: Tarkir
+  // Dragonstorm puts the variant in a sealed child, Avatar lists both in one `pack` array,
+  // so a generic is dropped when any sibling — its node's own packs or its children's —
+  // names a variant of it. A `-sample` config is never a variant: a Collector Sample Pack
+  // is its own product, not another name for a Collector Booster.
+  const dedupe = (own, below) => {
+    const siblings = merge({ ...below }, own);
+    for (const key of Object.keys(own)) {
+      const dup = Object.keys(siblings)
+        .filter((k) => k.startsWith(key + "-") && !k.endsWith("-sample"))
+        .reduce((a, k) => a + siblings[k], 0);
+      if (dup > 0) own[key] -= Math.min(own[key], dup);
+      if (!own[key]) delete own[key];
+    }
+    return own;
   };
   const walk = (p, mult) => {
     if (seen.has(p.uuid)) throw new Error(`cyclic sealed contents at ${p.name}`);
     seen.add(p.uuid);
     const c = p.contents || {};
-    for (const pack of c.pack || []) addPack(pack.code, pack.set, mult);
+    const own = {}, below = {};
+    for (const pack of c.pack || []) {
+      const k = packKey(pack.code, pack.set);
+      own[k] = (own[k] || 0) + mult;
+    }
     for (const card of c.card || []) {
       const foil = card.foil != null ? card.foil : (card.finishes || []).includes("foil") && !(card.finishes || []).includes("nonfoil");
       addFixed((card.set || p.__set || product.__set).toUpperCase(), card.number, mult, foil);
@@ -102,11 +128,12 @@ function expand(product, byUuid, decksByName, missingDecks, missingSealed, seen 
         other.push(s.name); // disclosed as unpriced prose if it stays unresolvable
         continue;
       }
-      walk(child, mult * (s.count || 1));
+      merge(below, walk(child, mult * (s.count || 1)));
     }
     seen.delete(p.uuid);
+    return merge(dedupe(own, below), below);
   };
-  walk(product, 1);
+  const packs = walk(product, 1);
   return { packs, fixed: [...fixed.values()], decks, other };
 }
 
@@ -128,6 +155,22 @@ export function labelFor(name, setName) {
   let i = 0;
   while (i < pw.length && nw[i] && bare(nw[i]) === bare(pw[i])) i++;
   return nw.slice(i).join(" ") || name;
+}
+// @end-pure
+
+// @pure
+// A multi-pack whose name declares how many units it holds ("Scene Box Set of 4") must
+// hold that many. MTGJSON's Final Fantasy entry lists one scene box, count 1, so its
+// contents — and every EV computed from them — are a quarter of the truth. The count
+// cannot be guessed back (which three of the four are missing is not stated), so the
+// product ships with the discrepancy named, the same way an unresolved uuid does.
+export function shortCount(product) {
+  const m = /\b(?:set|display|case)\s+of\s+(\d+)\b/i.exec(product.name || "");
+  if (!m) return null;
+  const declared = Number(m[1]);
+  const units = (product.contents?.sealed || []).reduce((a, s) => a + (s.count || 1), 0);
+  if (!units || units >= declared) return null;
+  return `MTGJSON lists ${units} of the ${declared} units this product's name declares; contents and EV are understated by the rest.`;
 }
 // @end-pure
 
@@ -174,7 +217,54 @@ export function buildSet(data, extraCards = new Map(), allowMissing = false, ext
       key, label: labelFor(p.name, data.name), name: p.name, category: p.category, subtype: p.subtype,
       tcgId: p.identifiers?.tcgplayerProductId ? Number(p.identifiers.tcgplayerProductId) : null,
       packs, ...(fixed.length ? { fixed } : {}), ...(decks.length ? { decks } : {}), ...(other.length ? { other } : {}),
+      ...(shortCount(p) ? { suspect: shortCount(p) } : {}),
+      __uuid: p.uuid, __contents: p.contents || {},
     });
+  }
+
+  // `packs` is the product flattened all the way down to boosters, which is what EV needs.
+  // The page also has to offer a break one level at a time — a case rolls out to boxes,
+  // a box to packs — so every product additionally carries its immediate children.
+  const keyByUuid = new Map(products.map((p) => [p.__uuid, p.key]));
+  for (const p of products) {
+    const c = p.__contents;
+    const contains = [];
+    for (const pack of c.pack || []) {
+      const code = pack.set && pack.set.toUpperCase() !== set ? `${pack.set.toUpperCase()}:${pack.code}` : pack.code;
+      contains.push({ pack: code, n: 1 });
+    }
+    for (const s of c.sealed || []) {
+      const childKey = keyByUuid.get(s.uuid);
+      // A child this build could not resolve, or one whose own contents were dice only,
+      // has no line item to roll out to; it stays the prose note `expand` already made.
+      if (childKey) contains.push({ product: childKey, n: s.count || 1 });
+      else contains.push({ other: s.name, n: s.count || 1 });
+    }
+    for (const card of c.card || []) {
+      const foil = card.foil != null ? card.foil
+        : (card.finishes || []).includes("foil") && !(card.finishes || []).includes("nonfoil");
+      contains.push({ card: `${(card.set || set).toUpperCase()}:${card.number}`, ...(foil ? { foil: true } : {}), n: 1 });
+    }
+    for (const d of c.deck || []) {
+      // A rolled-out land pack still has to price its cards, so the deck's list rides
+      // along; an unresolved deck was already recorded as prose by `expand`.
+      const deck = decksByName.get(slug(d.name));
+      const cards = [...(deck?.mainBoard || []), ...(deck?.sideBoard || [])].map((dc) => ({
+        set: (dc.setCode || set).toUpperCase(), cn: String(dc.number), n: dc.count || 1, foil: !!dc.isFoil }));
+      contains.push({ deck: d.name, n: 1, ...(cards.length ? { fixed: cards } : {}) });
+    }
+    for (const o of c.other || []) contains.push({ other: o.name, n: 1 });
+    // Merge the identical rows MTGJSON lists separately, so the roll-out reads
+    // "20× Foil basic land", not twenty rows of one.
+    const merged = [];
+    for (const e of contains) {
+      const same = merged.find((m) => m.pack === e.pack && m.product === e.product
+        && m.card === e.card && m.foil === e.foil && m.deck === e.deck && m.other === e.other);
+      if (same) same.n += e.n; else merged.push(e);
+    }
+    p.contains = merged;
+    delete p.__uuid;
+    delete p.__contents;
   }
 
   // Only configs some product actually contains: drops play-arena and other
@@ -206,10 +296,22 @@ export function buildSet(data, extraCards = new Map(), allowMissing = false, ext
   };
 }
 
+// A full rebuild pulls ~45 per-set exports plus every sibling set a bonus sheet reaches
+// into, at several MB each. Maintainer reruns are frequent while contents rules change,
+// so downloads are cached in the OS temp dir for a day — deleting the directory is the
+// only invalidation anyone needs.
+const CACHE_DIR = join(tmpdir(), "colorbreak-mtgjson");
+const CACHE_MS = 24 * 3600e3;
 async function fetchSet(code) {
+  const file = join(CACHE_DIR, `${code}.json`);
+  try {
+    if (Date.now() - statSync(file).mtimeMs < CACHE_MS) return JSON.parse(readFileSync(file, "utf8"));
+  } catch { /* cold cache */ }
   const res = await fetch(`https://mtgjson.com/api/v5/${code}.json`, { headers: UA });
   if (!res.ok) throw new Error(`${code}: HTTP ${res.status}`);
-  return res.json();
+  const doc = await res.json();
+  try { mkdirSync(CACHE_DIR, { recursive: true }); writeFileSync(file, JSON.stringify(doc)); } catch { /* cache is optional */ }
+  return doc;
 }
 
 // Booster sheets routinely quote cards a per-set export does not embed: the SOS Codex

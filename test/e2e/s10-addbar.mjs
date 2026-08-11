@@ -84,4 +84,102 @@ export async function productChoiceSticks() {
   await browser.close();
 }
 
-export const scenarios = { pickSetProductQuantity, returningBreakKeepsItsSet, productChoiceSticks };
+// A bundle with the shapes that matter: two kinds of booster, a guaranteed card, and a
+// content MTGJSON only describes in prose.
+const SEALED = {
+  TST: {
+    v: 1, set: "TST", name: "Testline",
+    products: [
+      { key: "play-booster-box", label: "Play Booster Box", category: "booster_box", tcgId: 9,
+        packs: { play: 30 }, contains: [{ product: "play-booster-pack", n: 30 }] },
+      { key: "play-booster-pack", label: "Play Booster Pack", category: "booster_pack",
+        packs: { play: 1 }, contains: [{ pack: "play", n: 1 }] },
+      { key: "bundle", label: "Bundle", category: "bundle",
+        packs: { play: 9 }, fixed: [{ set: "TST", cn: "9", n: 1, foil: true }],
+        other: ["20 Foil basic lands"],
+        contains: [{ product: "play-booster-pack", n: 9 }, { card: "TST:9", foil: true, n: 1 },
+          { other: "20 Foil basic lands", n: 1 }] },
+    ],
+    boosters: { play: { picks: { rare: 1 }, sheets: { rare: { foil: false, total: 2, cards: [["1", 1], ["2", 1]] } } } },
+  },
+};
+
+// The break is what is actually being opened, which is not always the whole sealed
+// product: sellers pull the promo out, or the break is only the packs from a case.
+export async function bundleRollsOutIntoItsContents() {
+  const { browser, page } = await launch({ sets: SETS, sealed: SEALED });
+  await page.goto(ORIGIN + "/?b=TST.bundle.3");
+  await waitForBoard(page);
+  const evWhole = await page.evaluate(() => document.getElementById("bEV").textContent);
+
+  // The line starts complete — one line item for the whole bundle, checkbox checked.
+  const chk = "#compList .cwhole input";
+  await page.click("#breakBox summary");
+  assert.equal(await page.evaluate(s => document.querySelectorAll(s).length, chk), 1);
+  assert.equal(await page.evaluate(s => document.querySelector(s).checked, chk), true,
+    "a sealed product is complete until it is said not to be");
+  assert.match(await page.textContent("#compList .citem-name"), /Complete Bundle/);
+
+  // Unchecking replaces it with what is inside, multiplied by the three bundles.
+  await page.uncheck(chk);
+  await waitForBoard(page);
+  const rows = await page.evaluate(() =>
+    [...document.querySelectorAll("#compList .cchild")].map(el => [
+      el.querySelector(".citem-name").textContent.split("\n")[0].trim(),
+      el.querySelector(".qv").textContent]));
+  assert.equal(rows.length, 3, `bundle rolled out to ${JSON.stringify(rows)}`);
+  assert.deepEqual(rows.map(r => r[1]), ["27", "3", "3"], "contents scale with the line's quantity");
+  assert.match(rows[0][0], /Play Booster Pack/);
+
+  // Same cards, so the same EV: opening the box changes nothing about what is in it.
+  assert.equal(await page.evaluate(() => document.getElementById("bEV").textContent), evWhole,
+    "rolling a product out does not change the value of its contents");
+
+  // Zero is how a promo the seller kept is said, and the row stays to say it.
+  const promoDec = '#compList .cchild >> nth=1 >> [data-act="dec"]';
+  for (let i = 0; i < 3; i++) await page.click(promoDec); // 3 bundles' worth of promo, stepped to none
+  await waitForBoard(page);
+  assert.equal(await page.evaluate(() => comp.filter(i => i.key === "card:TST:9:f").length), 1,
+    "the excluded promo is still a line in the break");
+  assert.equal(await page.evaluate(() => comp.find(i => i.key === "card:TST:9:f").qty), 0);
+  const evNoPromo = await page.evaluate(() => document.getElementById("bEV").textContent);
+  assert.notEqual(evNoPromo, evWhole, "a content set to zero is out of the EV");
+
+  // The group's checkbox — now unchecked — puts the bundle back.
+  const groupChk = page.locator("#compList .cghead input");
+  await groupChk.scrollIntoViewIfNeeded();
+  await groupChk.click(); // click, not check(): re-render replaces the node, so check() waits on a detached one
+  await waitForBoard(page);
+  assert.equal(await page.evaluate(() => comp.length), 1);
+  assert.equal(await page.evaluate(() => comp[0].key), "bundle");
+  assert.equal(await page.evaluate(() => comp[0].qty), 3);
+  await assertG1(page);
+  await browser.close();
+}
+
+// Cost follows what was bought, not what came out of it (owner ruling): packs opened from
+// a box are never repriced as loose packs.
+export async function rolledOutContentsKeepTheSealedCost() {
+  const { browser, page } = await launch({ sets: SETS, sealed: SEALED });
+  await page.goto(ORIGIN + "/?b=TST.play-booster-box.1");
+  await waitForBoard(page);
+  await page.evaluate(() => refreshCosts());
+  const costWhole = await page.evaluate(() => costInfo.map(c => c.cost));
+
+  await page.evaluate(() => {
+    const item = comp[0];
+    comp.splice(0, 1, ...rollOut(item, productOf(item)));
+    renderComp(); saveState(); return run();
+  });
+  await waitForBoard(page);
+  await page.evaluate(() => refreshCosts());
+  const rolled = await page.evaluate(() => costInfo.map(c => ({ cost: c.cost, basis: c.basis, label: c.label })));
+  assert.equal(rolled.length, 1, "one cost line, for the box that was bought");
+  assert.equal(rolled[0].cost, costWhole[0], "opening the box did not change what it cost");
+  assert.equal(rolled[0].basis, "sealed");
+  assert.match(rolled[0].label, /basis for everything rolled out of it/);
+  await browser.close();
+}
+
+export const scenarios = { pickSetProductQuantity, returningBreakKeepsItsSet, productChoiceSticks,
+  bundleRollsOutIntoItsContents, rolledOutContentsKeepTheSealedCost };

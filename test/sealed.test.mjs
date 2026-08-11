@@ -5,9 +5,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { loadPure } from "./extract.mjs";
-import { expectedPicks, keyFor, labelFor } from "../tools/build-sealed.mjs";
+import { expectedPicks, keyFor, labelFor, buildSet, shortCount } from "../tools/build-sealed.mjs";
 
-const { productDraws, evFromDraws, dominantPackType } = loadPure();
+const { productDraws, evFromDraws, dominantPackType, rollOut, drawSpecOf, itemKind, itemRef, itemFoil, packLabel } = loadPure();
 const near = (a, b, eps = 1e-9) => assert.ok(Math.abs(a - b) < eps, `${a} != ${b}`);
 const copiesOf = (draws, set, cn) => draws.filter(d => d.set === set && d.cn === cn).reduce((a, d) => a + d.copies, 0);
 
@@ -112,6 +112,107 @@ test("expectedPicks: weighted pack variants average to expected cards per sheet"
 test("expectedPicks: totalWeight is derived when MTGJSON omits it", () => {
   const p = expectedPicks({ boosters: [{ weight: 1, contents: { a: 2 } }, { weight: 1, contents: { a: 4 } }] });
   near(p.a, 3);
+});
+
+// ===== rolling a sealed product out into its contents =====
+
+const CODEX_CONTAINS = [
+  { pack: "codex-bundle", n: 1 },
+  { product: "play-booster-pack", n: 6 },
+  { product: "collector-booster-pack", n: 2 },
+  { card: "SOC:427", foil: true, n: 1 },
+  { deck: "Codex Land Pack", n: 1, fixed: [{ set: "SOS", cn: "300", n: 5, foil: false }] },
+  { other: "20 Foil basic lands", n: 1 },
+];
+
+test("rollOut: contents are multiplied by the line's quantity and keep what they came out of", () => {
+  const rows = rollOut({ set: "SOS", key: "codex-bundle", qty: 3, ub: false }, { contains: CODEX_CONTAINS });
+  assert.deepEqual(rows.map(r => [r.key, r.qty]), [
+    ["pack:codex-bundle", 3],
+    ["play-booster-pack", 18],
+    ["collector-booster-pack", 6],
+    ["card:SOC:427:f", 3],
+    ["deck:Codex Land Pack", 3],
+    ["other:20 Foil basic lands", 3],
+  ]);
+  // Cost is read from the sealed product actually bought, at the quantity bought, so every
+  // row carries it — three bundles, not eighteen loose packs.
+  for (const r of rows) { assert.equal(r.of, "codex-bundle"); assert.equal(r.ofQty, 3); }
+});
+
+test("rollOut: a case opened to boxes keeps the case as the origin when a box is opened again", () => {
+  const box = rollOut({ set: "SOS", key: "play-booster-box-case", qty: 1 }, { contains: [{ product: "play-booster-box", n: 6 }] })[0];
+  const packs = rollOut(box, { contains: [{ product: "play-booster-pack", n: 30 }] });
+  assert.equal(packs.length, 1);
+  assert.equal(packs[0].qty, 180);
+  assert.equal(packs[0].of, "play-booster-box-case", "the case is still what was paid for");
+  assert.equal(packs[0].ofQty, 1);
+});
+
+test("itemKind/itemRef/itemFoil: a line item's key says what it is, so nothing else has to be stored", () => {
+  assert.equal(itemKind("play-box"), "product");
+  assert.equal(itemKind("pack:FDN:play"), "pack");
+  assert.equal(itemRef("pack:FDN:play"), "FDN:play");
+  assert.equal(itemKind("card:ONE:283:f"), "card");
+  assert.equal(itemRef("card:ONE:283:f"), "ONE:283");
+  assert.equal(itemFoil("card:ONE:283:f"), true);
+  assert.equal(itemFoil("card:ONE:283"), false);
+  assert.equal(itemKind("other:1 Spindown die"), "other");
+});
+
+test("drawSpecOf: a rolled-out pack draws that one booster, and a card is guaranteed", () => {
+  const { draws } = productDraws(drawSpecOf({ key: "pack:play" }, null), SOS.boosters, "SOS");
+  near(copiesOf(draws, "SOS", "101"), 3 / 4);   // one Play Booster, not the bundle's six
+  const card = productDraws(drawSpecOf({ key: "card:SOC:427:f" }, null), SOS.boosters, "SOS");
+  assert.deepEqual(card.draws, [{ set: "SOC", cn: "427", copies: 1, foil: true }]);
+  // Prose has no card list, so it draws nothing rather than guessing at one.
+  assert.deepEqual(productDraws(drawSpecOf({ key: "other:20 Foil basic lands" }, null), SOS.boosters, "SOS").draws, []);
+  // A deck's cards live on the product it came out of, and are passed in.
+  const deck = productDraws(drawSpecOf({ key: "deck:Codex Land Pack" }, null, [{ set: "SOS", cn: "300", n: 5, foil: false }]), SOS.boosters, "SOS");
+  near(copiesOf(deck.draws, "SOS", "300"), 5);
+});
+
+test("packLabel: a booster code reads as its product name", () => {
+  assert.equal(packLabel("play"), "Play Booster");
+  assert.equal(packLabel("FDN:play"), "FDN Play Booster");
+  assert.equal(packLabel("prerelease-abzan"), "Prerelease Booster (abzan)");
+});
+
+// ===== MTGJSON contents defects the builder has to catch =====
+
+test("buildSet: a booster named both generically and by variant is one booster, not two", () => {
+  // The shape Avatar ships: one node lists `prerelease` and `prerelease-aang` together.
+  const data = {
+    code: "TST", name: "Testline", releaseDate: "2025-01-01",
+    booster: { play: { boosters: [{ weight: 1, contents: { s: 1 } }], boostersTotalWeight: 1, sheets: { s: { totalWeight: 1, cards: { u1: 1 } } } },
+      "prerelease": { boosters: [{ weight: 1, contents: { s: 1 } }], boostersTotalWeight: 1, sheets: { s: { totalWeight: 1, cards: { u1: 1 } } } },
+      "prerelease-aang": { boosters: [{ weight: 1, contents: { s: 1 } }], boostersTotalWeight: 1, sheets: { s: { totalWeight: 1, cards: { u1: 1 } } } } },
+    cards: [{ uuid: "u1", number: "1", setCode: "TST" }],
+    sealedProduct: [{ uuid: "p1", name: "Testline Prerelease Pack Aang", category: "limited_aid_tool",
+      contents: { pack: [{ code: "prerelease", set: "tst" }, { code: "prerelease-aang", set: "tst" }] } }],
+  };
+  const out = buildSet(data);
+  assert.deepEqual(out.products[0].packs, { "prerelease-aang": 1 });
+});
+
+test("buildSet: a Collector Sample Pack is its own product, never a variant of a Collector Booster", () => {
+  const cfg = { boosters: [{ weight: 1, contents: { s: 1 } }], boostersTotalWeight: 1, sheets: { s: { totalWeight: 1, cards: { u1: 1 } } } };
+  const data = {
+    code: "TST", name: "Testline", releaseDate: "2025-01-01",
+    booster: { collector: cfg, "collector-sample": cfg },
+    cards: [{ uuid: "u1", number: "1", setCode: "TST" }],
+    sealedProduct: [{ uuid: "p1", name: "Testline Deck", category: "deck",
+      contents: { pack: [{ code: "collector", set: "tst" }, { code: "collector-sample", set: "tst" }] } }],
+  };
+  assert.deepEqual(buildSet(data).products[0].packs, { collector: 1, "collector-sample": 1 });
+});
+
+test("shortCount: a product holding fewer units than its name declares says so", () => {
+  assert.match(shortCount({ name: "Final Fantasy Scene Box Set of 4", contents: { sealed: [{ count: 1 }] } }),
+    /lists 1 of the 4 units/);
+  assert.equal(shortCount({ name: "Scene Box Set of 4", contents: { sealed: [{ count: 4 }] } }), null);
+  assert.equal(shortCount({ name: "Retail Tins Set of 3", contents: { sealed: [{ count: 1 }, { count: 1 }, { count: 1 }] } }), null);
+  assert.equal(shortCount({ name: "Play Booster Box", contents: { sealed: [{ count: 30 }] } }), null);
 });
 
 test("keyFor/labelFor: the set-name prefix goes, including its dropped punctuation", () => {

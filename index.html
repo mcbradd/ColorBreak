@@ -107,6 +107,18 @@ pre.code { background:var(--field); border:1px solid var(--fieldline); border-ra
 .citem .more { background:transparent; border:0; color:var(--faint); min-width:44px; min-height:44px; font-size:19px; cursor:pointer; }
 .citem-detail { display:none; border-top:1px solid var(--line2); margin-top:10px; padding-top:10px; }
 .citem.open .citem-detail { display:block; }
+/* A sealed product opened into its contents: the group keeps the checkbox that opened it,
+   so the same control puts it back, and its contents are visibly inside it. */
+.cgroup { border:1px solid var(--line2); border-radius:10px; background:var(--panel2); padding:10px 12px; }
+.cghead { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:8px; }
+.cghead .cs { font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--faint); }
+.cwhole { display:flex; align-items:center; gap:8px; min-height:44px; font-weight:600; font-size:15px; cursor:pointer; }
+.cwhole input { width:20px; height:20px; min-height:20px; flex:none; }
+.cgroup .citem.cchild { background:var(--panel); margin-left:12px; }
+.cgroup > .citem + .citem { margin-top:6px; }
+/* Quantity zero is a content deliberately left out of the break, not a deleted line. */
+.citem.czero { opacity:.55; }
+.citem.czero .citem-name { text-decoration:line-through; }
 /* ===== break bar ===== */
 .hero { margin:20px 0 8px; }
 .bar { display:flex; gap:2px; height:56px; border-radius:10px; overflow:hidden; }
@@ -512,8 +524,12 @@ function chooseBasis(sealedCost, looseCost, force) {
   return { cost: null, basis: "none", forced: false };
 }
 // URL codec for full compositions: ?b=EOE.play-box.2~TDM.collector-pack.1
+// A line item rolled out of a sealed product adds where it came from, since that is what
+// its cost is read from: ?b=SOS.pack:play.18.of=codex-bundle:3
 function encodeComp(items) {
-  return items.map(i => [i.set, i.key, i.qty].join(".") + (i.ub ? ".ub" : "")).join("~");
+  return items.map(i => [i.set, i.key, i.qty].join(".")
+    + (i.ub ? ".ub" : "")
+    + (i.of ? `.of=${i.of}:${i.ofQty}` : "")).join("~");
 }
 function decodeComp(s) {
   if (!s) return [];
@@ -522,8 +538,15 @@ function decodeComp(s) {
     const seg = part.split(".");
     if (seg.length < 3) continue;
     const qty = parseInt(seg[2], 10);
-    if (!seg[0] || !seg[1] || !Number.isFinite(qty) || qty < 1) continue;
-    out.push({ set: seg[0].toUpperCase(), key: seg[1], qty: Math.min(qty, 99), ub: seg[3] === "ub" });
+    const flags = seg.slice(3);
+    const origin = (flags.find(f => f.startsWith("of=")) || "").slice(3);
+    const [of, ofQty] = origin ? origin.split(":") : [];
+    // Quantity 0 is a real state for a content rolled out of a sealed product — it is how
+    // "the seller pulled the promo out of this bundle" is said, and the row stays visible
+    // saying it. A whole product at zero is just a line nobody meant to add.
+    if (!seg[0] || !seg[1] || !Number.isFinite(qty) || qty < 0 || (qty === 0 && !of)) continue;
+    out.push({ set: seg[0].toUpperCase(), key: seg[1], qty: Math.min(qty, 99), ub: flags.includes("ub"),
+      ...(of ? { of, ofQty: Math.max(1, parseInt(ofQty, 10) || 1) } : {}) });
   }
   return out;
 }
@@ -912,6 +935,65 @@ function productDraws(product, boosters, setCode, foreign = {}) {
   }
   return { draws: [...out.values()], unpriced };
 }
+
+// A booster code as a person says it: "play" -> "Play Booster", "FDN:play" -> "FDN Play
+// Booster", "prerelease-abzan" -> "Prerelease Booster (Abzan)".
+function packLabel(code) {
+  const [set, bare] = code.includes(":") ? code.split(":") : [null, code];
+  const [base, ...rest] = bare.split("-");
+  const name = base.charAt(0).toUpperCase() + base.slice(1);
+  const variant = rest.length ? ` (${rest.join(" ")})` : "";
+  return `${set ? set + " " : ""}${name} Booster${variant}`;
+}
+
+// A line item's key says what the line is, so a break restored from a share link or from
+// storage needs nothing else: `play-box` is a catalog product, `pack:FDN:play` is one
+// booster rolled out of one, `card:ONE:283:f` a guaranteed foil, `other:Spindown die` a
+// content MTGJSON only ever describes in prose.
+const CONTENT_KINDS = ["pack", "card", "deck", "other"];
+function itemKind(key) {
+  const t = String(key || "").split(":")[0];
+  return CONTENT_KINDS.includes(t) ? t : "product";
+}
+function itemRef(key) {
+  const kind = itemKind(key);
+  if (kind === "product") return key;
+  const rest = String(key).slice(String(key).indexOf(":") + 1);
+  return kind === "card" && rest.endsWith(":f") ? rest.slice(0, -2) : rest;
+}
+function itemFoil(key) { return itemKind(key) === "card" && String(key).endsWith(":f"); }
+
+// Unchecking "complete" replaces one line item with its immediate contents, each with its
+// own quantity: a case becomes boxes, a box becomes packs, a bundle becomes packs plus the
+// promo card and the prose the box also holds. Contents come one level at a time, so a case
+// can be opened to boxes and left there. `of`/`ofQty` carry the sealed product actually
+// bought, because that — not the loose-pack price of what came out of it — is the cost.
+function rollOut(item, prod) {
+  const of = item.of || item.key, ofQty = item.ofQty != null ? item.ofQty : item.qty;
+  return (prod.contains || []).map((c) => {
+    const key = c.product ? c.product
+      : c.pack ? `pack:${c.pack}`
+      : c.card ? `card:${c.card}${c.foil ? ":f" : ""}`
+      : c.deck ? `deck:${c.deck}`
+      : `other:${c.other}`;
+    return { set: item.set, key, qty: c.n * item.qty, ub: item.ub, basis: "", paid: null, of, ofQty };
+  });
+}
+
+// What one unit of a line item contains, shaped like a sealed product so productDraws can
+// expand it. A rolled-out line stands for a single pack, a single guaranteed card, or a
+// deck's card list; prose contents stand for nothing priceable and draw nothing.
+function drawSpecOf(item, sealedProd, deckCards) {
+  const kind = itemKind(item.key);
+  if (kind === "pack") return { packs: { [itemRef(item.key)]: 1 } };
+  if (kind === "card") {
+    const ref = itemRef(item.key), i = ref.indexOf(":");
+    return { packs: {}, fixed: [{ set: ref.slice(0, i), cn: ref.slice(i + 1), n: 1, foil: itemFoil(item.key) }] };
+  }
+  if (kind === "deck") return { packs: {}, fixed: deckCards || [] };
+  if (kind === "other") return { packs: {} };
+  return sealedProd;
+}
 // @end-pure
 
 // Sealed-reference products, shaped like data/products.json entries so the picker, the
@@ -923,7 +1005,8 @@ function sealedProductsFor(setCode) {
     const packs = Object.values(p.packs || {}).reduce((a, b) => a + b, 0);
     const packType = dominantPackType(p.packs);
     return { key: SEALED_KEY_ALIAS[p.key] || p.key, label: p.label, packType, packs,
-      unit: SEALED_UNIT[p.category] || "multi", id: p.tcgId != null ? p.tcgId : undefined, sealed: p.key };
+      unit: SEALED_UNIT[p.category] || "multi", id: p.tcgId != null ? p.tcgId : undefined, sealed: p.key,
+      contains: p.contains || [], ...(p.suspect ? { suspect: p.suspect } : {}) };
   });
   for (const e of out) {
     if (e.unit === "box") continue;
@@ -933,6 +1016,19 @@ function sealedProductsFor(setCode) {
   const rank = (e) => ({ box:0, pack:1, bundle:2, multi:3, prerelease:4, case:5 }[e.unit] ?? 9) * 10
     + ({ play:0, collector:1, set:2, draft:3 }[e.packType] ?? 9);
   return out.sort((a, b) => rank(a) - rank(b));
+}
+
+// A rolled-out deck line (a bundle's land pack) keeps its card list in the sealed product
+// it came out of rather than on the line item, so share links stay short and a restored
+// break still prices the cards.
+function deckCardsFor(item, doc) {
+  if (itemKind(item.key) !== "deck" || !doc) return [];
+  const name = itemRef(item.key);
+  for (const p of doc.products || []) {
+    const hit = (p.contains || []).find(c => c.deck === name && c.fixed);
+    if (hit) return hit.fixed;
+  }
+  return [];
 }
 
 function productsForSet(setCode) {
@@ -951,8 +1047,26 @@ function productsForSet(setCode) {
   if (ids) for (const p of arr) if (ids[p.key] != null) p.id = ids[p.key];
   return arr;
 }
+// A rolled-out line has no catalog entry — it is one pack or one card out of a product —
+// so it answers with the same shape the rest of the page reads: a label to show, a pack
+// count for the packs-in-break figure, and `content: true` to say its cost belongs to the
+// sealed product it came out of, not to itself.
 function productOf(item) {
-  return productsForSet(item.set).find(p => p.key === item.key) || null;
+  const kind = itemKind(item.key);
+  if (kind === "product") {
+    // contains[] carries raw MTGJSON keys; the catalog aliases some of them (SEALED_KEY_ALIAS).
+    const list = productsForSet(item.set) || [];
+    return list.find(p => p.key === item.key) || list.find(p => p.sealed === item.key) || null;
+  }
+  const ref = itemRef(item.key);
+  if (kind === "pack") {
+    const bare = ref.includes(":") ? ref.slice(ref.indexOf(":") + 1) : ref;
+    return { key: item.key, label: packLabel(ref), packType: bare.split("-")[0], packs: 1, unit: "pack", content: true };
+  }
+  const label = kind === "card"
+    ? `${itemFoil(item.key) ? "Foil card" : "Card"} ${ref.replace(":", " ")}`
+    : ref;
+  return { key: item.key, label, packType: "play", packs: 0, unit: kind, content: true };
 }
 function setDisplayName(code) {
   const si = setIndex.find(s => s.code.toUpperCase() === code.toUpperCase());
@@ -1154,7 +1268,9 @@ function renderPicker() {
 }
 function addItem(setCode, key, qty) {
   const n = Math.max(1, qty || 1);
-  const found = comp.find(i => i.set === setCode && i.key === key);
+  // A line rolled out of a sealed product is never merged into by the add bar — adding a
+  // Play Booster Pack must not silently join the packs opened from someone's box.
+  const found = comp.find(i => i.set === setCode && i.key === key && !i.of);
   if (found) found.qty = Math.min(found.qty + n, 99);
   else comp.push({ set: setCode, key, qty: Math.min(n, 99), ub: false, basis: "", paid: null });
   closeSheet();
@@ -1190,13 +1306,47 @@ function renderComp() {
   $("breakLine").textContent = comp.map(i => `${i.qty}× ${(productOf(i) || {}).label || i.key}`).join(", ")
     + (packs ? ` · ${packs} packs` : "");
   $("run").disabled = false;
-  list.innerHTML = comp.map((i, idx) => {
+  // Lines rolled out of one sealed product stay together under it, so the checkbox that
+  // opened it is still there — unchecked — to put it back.
+  const groups = [];
+  comp.forEach((i, idx) => {
+    const gid = i.of ? `${i.set}|${i.of}|${i.ofQty}` : null;
+    const g = gid ? groups.find(x => x.gid === gid) : null;
+    if (g) g.rows.push({ i, idx });
+    else groups.push({ gid, of: i.of, ofQty: i.ofQty, set: i.set, rows: [{ i, idx }] });
+  });
+  list.innerHTML = groups.map(g => {
+    if (!g.gid) return citemHtml(g.rows[0].i, g.rows[0].idx);
+    const origin = productsForSet(g.set).find(p => p.key === g.of);
+    const label = origin ? origin.label : g.of;
+    return `<div class="cgroup">
+      <div class="cghead">
+        <label class="cwhole"><input type="checkbox" data-act="whole" data-gid="${esc(g.gid)}">
+          <span>Complete ${esc(label)}</span></label>
+        <span class="cs">${g.ofQty}× · ${esc(g.set)} · contents priced separately</span>
+      </div>
+      ${g.rows.map(r => citemHtml(r.i, r.idx, true)).join("")}
+    </div>`;
+  }).join("");
+}
+
+// One line item. `child` rows sit inside a rolled-out group, so they name what they came
+// out of rather than repeating the set on every row.
+function citemHtml(i, idx, child) {
+  {
     const p = productOf(i);
     const label = p ? p.label : i.key;
-    const isPlay = p && p.packType === "play";
-    return `<div class="citem${i.open ? " open" : ""}" data-idx="${idx}">
+    const isPlay = p && p.packType === "play" && !p.content;
+    const kind = itemKind(i.key);
+    const canOpen = !!(p && p.contains && p.contains.length);
+    const prose = kind === "other" || kind === "deck" && !i.fixed;
+    const sub = child
+      ? (prose ? "prose in the collation data · not priced" : `${i.qty === 0 ? "excluded · " : ""}from the sealed product`)
+      : `${esc(setDisplayName(i.set))} · ${esc(i.set)}`;
+    return `<div class="citem${i.open ? " open" : ""}${child ? " cchild" : ""}${i.qty === 0 ? " czero" : ""}" data-idx="${idx}">
       <div class="citem-top">
-        <span class="citem-name">${esc(label)}<span class="cs">${esc(setDisplayName(i.set))} · ${esc(i.set)}</span></span>
+        ${canOpen ? `<label class="cwhole"><input type="checkbox" data-act="whole" checked aria-label="Complete ${esc(label)} — uncheck to price its contents separately"></label>` : ""}
+        <span class="citem-name">${canOpen ? "Complete " : ""}${esc(label)}<span class="cs">${sub}</span></span>
         <span class="stepper">
           <button type="button" data-act="dec" aria-label="One fewer">&minus;</button>
           <span class="qv">${i.qty}</span>
@@ -1207,18 +1357,19 @@ function renderComp() {
       <div class="citem-detail">
         <div class="row">
           ${isPlay ? `<label class="f" style="max-width:220px; flex-direction:row; align-items:center; gap:8px; min-height:44px"><input type="checkbox" data-act="ub" style="width:20px; min-height:20px"${i.ub ? " checked" : ""}> <span style="margin:0; text-transform:none; letter-spacing:0; font-family:'IBM Plex Sans',sans-serif; font-size:13px; color:var(--text)">UB set, no wildcard slot</span></label>` : ""}
+          ${child ? `<p class="note" style="margin:0; flex:1; min-width:180px">Cost stays on the sealed product this came out of — packs opened from a box are not repriced as loose packs.</p>` : `
           <label class="f" style="max-width:170px"><span>Cost basis</span>
             <select data-act="basis">
               <option value=""${!i.basis ? " selected" : ""}>Auto</option>
               <option value="sealed"${i.basis === "sealed" ? " selected" : ""}>Sealed fraction</option>
               <option value="packs"${i.basis === "packs" ? " selected" : ""}>Loose packs</option>
             </select></label>
-          <label class="f" style="max-width:170px"><span>Paid $ (this line)</span><input type="number" data-act="paid" step="0.01" min="0" placeholder="market" value="${i.paid != null ? i.paid : ""}" inputmode="decimal"></label>
+          <label class="f" style="max-width:170px"><span>Paid $ (this line)</span><input type="number" data-act="paid" step="0.01" min="0" placeholder="market" value="${i.paid != null ? i.paid : ""}" inputmode="decimal"></label>`}
           <button type="button" class="ghost" data-act="rm" style="min-height:44px">Remove</button>
         </div>
       </div>
     </div>`;
-  }).join("");
+  }
 }
 
 // ===== board =====
@@ -1703,6 +1854,13 @@ function modelFor(item, prod) {
   const key = prod.packType === "play" && item.ub ? "playUB" : prod.packType;
   return MODELS[key] || MODELS.play;
 }
+// Several line items can each have something to say about the same break, so warnings
+// stack into the one banner rather than overwrite each other. run() clears it each pass.
+function warn(msg) {
+  const el = $("warn");
+  el.textContent = el.style.display === "block" ? el.textContent + " " + msg : msg;
+  el.style.display = "block";
+}
 async function run(opts) {
   const bg = !!(opts && opts.background);
   const fresh = !!(opts && opts.fresh);   // Re-run and revalidate go to the wire (F8)
@@ -1738,10 +1896,22 @@ async function run(opts) {
     let unmatched = 0, unpriced = 0, sheetPriced = 0;
     const extras = new Set();
     for (const item of comp) {
+      // Collation first: productOf() reads the sealed catalog, so a break restored from a
+      // link would otherwise price its first pass against the era-template fallback.
+      const sealedDoc = await ensureSealed(item.set);
       const prod = productOf(item);
       if (!prod) throw new Error(`Unknown product "${item.key}" for ${item.set} — remove the line item and re-add it.`);
-      const sealedDoc = await ensureSealed(item.set);
-      const sealedProd = sealedDoc && prod.sealed ? sealedDoc.products.find(p => p.key === prod.sealed) : null;
+      // Zero is a deliberate exclusion (the promo was pulled out of the bundle), so the
+      // line stays in the break and contributes nothing.
+      if (item.qty === 0) continue;
+      // MTGJSON's own contents can be short of what the product's name says it holds.
+      // The EV is then understated by a known amount, and says so.
+      if (prod.suspect) warn(`${prod.label}: ${prod.suspect}`);
+      // A rolled-out line prices the one pack or card it stands for; a whole product
+      // prices its full contents.
+      const sealedProd = sealedDoc && (prod.content
+        ? drawSpecOf(item, null, deckCardsFor(item, sealedDoc))
+        : (prod.sealed ? sealedDoc.products.find(p => p.key === prod.sealed) : null));
       let per, scale;
       if (sealedProd) {
         // Exact contents: every booster in the product, its real sheet weights, and any
@@ -1770,6 +1940,9 @@ async function run(opts) {
         // Some contents are only ever prose in MTGJSON ("20 Foil basic lands"), with no
         // card list to price. Name them rather than let them vanish from the total.
         for (const o of sealedProd.other || []) if (/card|land/i.test(o)) extras.add(`${prod.label}: ${o}`);
+        // Rolled out, that prose is its own line: it says so itself rather than through
+        // the product it came out of.
+        if (itemKind(item.key) === "other" && /card|land/i.test(prod.label)) extras.add(prod.label);
       } else {
         const mode = prod.packType === "collector" ? "all" : "flag";
         const pool = await getPool(item.set, mode, show, !fresh);
@@ -1842,9 +2015,20 @@ async function run(opts) {
 // loose-pack fallback, manual Paid $ override always winning.
 async function refreshCosts() {
   const out = [];
+  // Opening a box does not change what it cost. Every line rolled out of one sealed
+  // product is priced once, as that product at the quantity actually bought — never as
+  // loose packs, which sell at a premium no breaker paid. A case is the same rule one
+  // level up: the case price is the basis for every box inside it.
+  const rolled = new Map();
   for (const item of comp) {
+    if (!item.of) continue;
+    const gid = `${item.set}|${item.of}|${item.ofQty}`;
+    if (!rolled.has(gid)) rolled.set(gid, { set: item.set, key: item.of, qty: item.ofQty, ub: false, basis: item.basis || "", paid: item.paid, origin: true });
+  }
+  for (const item of [...comp.filter(i => !i.of), ...rolled.values()]) {
     let prod = productOf(item);
-    const label = `${item.qty}× ${item.set} ${prod ? prod.label : item.key}`;
+    const label = `${item.qty}× ${item.set} ${prod ? prod.label : item.key}`
+      + (item.origin ? " — sealed price, basis for everything rolled out of it" : "");
     if (item.paid != null && item.paid !== "") { out.push({ label, cost: num(item.paid), basis: "manual", forced: false, manual: true }); continue; }
     let sealed = null, loose = null;
     try {
@@ -1977,7 +2161,12 @@ function init() {
     const item = comp[idx];
     const act = btn.dataset.act;
     if (act === "inc") item.qty = Math.min(item.qty + 1, 99);
-    else if (act === "dec") { item.qty -= 1; if (item.qty < 1) comp.splice(idx, 1); }
+    // A rolled-out line stops at zero instead of vanishing: a bundle whose promo the
+    // seller pulled out still has to show the promo as the thing that is not in the break.
+    else if (act === "dec") {
+      item.qty -= 1;
+      if (item.qty < (item.of ? 0 : 1)) comp.splice(idx, 1);
+    }
     else if (act === "rm") comp.splice(idx, 1);
     else if (act === "more") { item.open = !item.open; renderComp(); return; }
     else return;
@@ -1986,9 +2175,28 @@ function init() {
   $("compList").addEventListener("change", e => {
     const btn = e.target.closest("[data-act]");
     if (!btn) return;
+    // The group checkbox belongs to no single line — it re-collapses every line rolled
+    // out of one sealed product back into that product.
+    if (btn.dataset.act === "whole" && btn.dataset.gid) {
+      const [set, of, ofQty] = btn.dataset.gid.split("|");
+      const at = comp.findIndex(i => i.of === of && i.set === set && String(i.ofQty) === ofQty);
+      const kept = comp.filter(i => !(i.of === of && i.set === set && String(i.ofQty) === ofQty));
+      kept.splice(Math.max(0, at), 0, { set, key: of, qty: Math.max(1, parseInt(ofQty, 10) || 1), ub: false, basis: "", paid: null });
+      comp.length = 0; comp.push(...kept);
+      renderComp(); saveState(); run();
+      return;
+    }
     const idx = parseInt(e.target.closest(".citem").dataset.idx, 10);
     const item = comp[idx];
     const act = btn.dataset.act;
+    if (act === "whole") {
+      const prod = productOf(item);
+      const rows = rollOut(item, prod || {});
+      if (!rows.length) { renderComp(); return; }
+      comp.splice(idx, 1, ...rows);
+      renderComp(); saveState(); run();
+      return;
+    }
     if (act === "ub") { item.ub = e.target.checked; saveState(); run(); }
     else if (act === "basis") { item.basis = e.target.value; saveState(); refreshCosts(); }
     else if (act === "paid") { item.paid = e.target.value === "" ? null : num(e.target.value); saveState(); refreshCosts(); }

@@ -61,7 +61,7 @@ function tcgPath(reqUrl) {
 // opts: { latency (ms, ALL hosts incl. document — G4), relays: 'all'|'none'|[hosts],
 //         bluePrice, marketPrice, onRequest(url) }
 export async function routeAll(context, opts = {}) {
-  const { latency = 0, scryfallDelay = 0, relays = "all", bluePrice = 12, marketPrice = 123.45, onRequest, sets = [] } = opts;
+  const { latency = 0, scryfallDelay = 0, relays = "all", bluePrice = 12, marketPrice = 123.45, onRequest, sets = [], sealed = null } = opts;
   const cards = synthCards({ bluePrice });
   await context.route("**/*", async (route) => {
     const url = route.request().url();
@@ -72,6 +72,16 @@ export async function routeAll(context, opts = {}) {
 
     if (url.startsWith(ORIGIN)) {
       const path = new URL(url).pathname;
+      // Sealed contents are static JSON the page fetches; a scenario that needs a product
+      // with real contents (a bundle to roll out) passes its own, and everything else
+      // keeps the catalog-free 404 path.
+      if (sealed) {
+        if (path === "/data/sealed/index.json") return route.fulfill({ json: { sets: Object.keys(sealed) } });
+        const m = /^\/data\/sealed\/([A-Za-z0-9]+)\.json$/.exec(path);
+        if (m) return sealed[m[1].toUpperCase()]
+          ? route.fulfill({ json: sealed[m[1].toUpperCase()] })
+          : route.fulfill({ status: 404, body: "not found" });
+      }
       if (path.startsWith("/data/")) return route.fulfill({ status: 404, body: "not found" });
       return route.fulfill({ status: 200, contentType: "text/html; charset=utf-8", body: INDEX });
     }
