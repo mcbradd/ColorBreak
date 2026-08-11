@@ -25,6 +25,7 @@ import {
   ShieldAlert,
   Sparkles,
   Store,
+  Trash2,
   Unlock,
   X,
 } from "lucide-react";
@@ -569,7 +570,7 @@ function EmptyBreak({ add }: { add: () => void }) {
   );
 }
 
-function Composition({
+export function Composition({
   lines,
   add,
   update,
@@ -600,21 +601,32 @@ function Composition({
             <strong>{line.productLabel}</strong>
             <small>{line.set}</small>
           </span>
-          <div className="stepper">
+          <div className="line-controls">
+            <div className="stepper" aria-label={`${line.productLabel} quantity`}>
+              <button
+                disabled={line.quantity <= 1}
+                aria-label={`Decrease ${line.productLabel} quantity`}
+                onClick={() =>
+                  update(line.id, { quantity: Math.max(1, line.quantity - 1) })
+                }
+              >
+                −
+              </button>
+              <b>{line.quantity}</b>
+              <button
+                aria-label={`Increase ${line.productLabel} quantity`}
+                onClick={() => update(line.id, { quantity: line.quantity + 1 })}
+              >
+                +
+              </button>
+            </div>
             <button
-              onClick={() =>
-                line.quantity <= 1
-                  ? remove(line.id)
-                  : update(line.id, { quantity: line.quantity - 1 })
-              }
+              className="remove-line"
+              aria-label={`Remove ${line.productLabel} from break`}
+              title="Remove from break"
+              onClick={() => remove(line.id)}
             >
-              −
-            </button>
-            <b>{line.quantity}</b>
-            <button
-              onClick={() => update(line.id, { quantity: line.quantity + 1 })}
-            >
-              +
+              <Trash2 />
             </button>
           </div>
         </div>
@@ -633,7 +645,7 @@ export function ValueSummary({ result }: { result: ValuationResult }) {
     <section className="value-summary panel">
       <header>
         <div>
-          <p className="section-label">COUNTED BREAK EV</p>
+          <p className="section-label">BREAK EV AFTER BULK FILTER</p>
           <h2>{fmt(result.sellableEV)}</h2>
         </div>
         <Status result={result} />
@@ -641,10 +653,10 @@ export function ValueSummary({ result }: { result: ValuationResult }) {
       <div className="metric-row">
         <div>
           <span>
-            Counted EV
-            <Tip text={`Expected value from cards whose current market price is ${fmt(result.threshold)} or more. This is the value used throughout ColorBreak.`} />
+            Raw modeled EV
+            <Tip text={`Expected value from every priced card before applying the ${fmt(result.threshold)} bulk filter. This number is shown for reconciliation only; ColorBreak uses the ${fmt(result.sellableEV)} counted EV for decisions.`} />
           </span>
-          <b>{fmt(result.sellableEV)}</b>
+          <b>{fmt(result.marketEV)}</b>
         </div>
         <div>
           <span>
@@ -661,6 +673,13 @@ export function ValueSummary({ result }: { result: ValuationResult }) {
           <b>{countedCards}</b>
         </div>
       </div>
+      <p className="value-equation">
+        <span>{fmt(result.marketEV)} raw</span>
+        <b>−</b>
+        <span>{fmt(ignoredEV)} bulk</span>
+        <b>=</b>
+        <strong>{fmt(result.sellableEV)} counted</strong>
+      </p>
       {result.omissions.length > 0 && (
         <details className="notice">
           <summary>
@@ -989,7 +1008,6 @@ function BuyerView({ result }: { result: ValuationResult }) {
                     </small>
                   </span>
                   <span className="ev-contribution">
-                    <small>EV contribution</small>
                     <b>{fmt(row.sellableValue)}</b>
                   </span>
                 </article>
