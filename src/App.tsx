@@ -7,6 +7,7 @@ import {
   useRef,
   useState,
 } from "react";
+import type { CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "motion/react";
 import {
@@ -30,8 +31,13 @@ import {
   X,
 } from "lucide-react";
 import { catalogSets, productsForSet } from "./data/catalog";
-import { evaluateBreak } from "./data/evaluate";
-import { loadSealedMarketPrice } from "./data/sealedPrices";
+import { evaluateBreakAnalysis } from "./data/evaluate";
+import type { BreakAnalysis } from "./data/evaluate";
+import { assignSlot, createAuction, undoAssignment } from "./domain/auction";
+import type { AuctionState } from "./domain/auction";
+import { canExportScenario, WHATNOT_ENTICEMENTS } from "./domain/compliance";
+import type { EnticementScenario } from "./domain/compliance";
+import { scenarioEconomics } from "./domain/enticement";
 import { decodeLegacySearch, encodeComposition } from "./domain/legacy";
 import {
   calculateProfit,
@@ -39,17 +45,21 @@ import {
   WHATNOT_US,
 } from "./domain/marketplace";
 import { buyerVerdict } from "./domain/valuation";
+import { simulateOutcomesAsync } from "./domain/simulation-client";
+import type { DistributionSummary, SimulationResult } from "./domain/simulation";
 import type {
   BreakLine,
   Contributor,
   ProductChoice,
   SetChoice,
   SlotId,
+  SlotValuation,
   Transaction,
   ValuationResult,
 } from "./domain/types";
 import { SLOT_IDS, SLOT_NAMES } from "./domain/types";
 import { useMobileInputViewport } from "./mobile-input-viewport";
+import { track } from "./analytics";
 
 type Mode = "home" | "buyer" | "seller";
 const money = new Intl.NumberFormat("en-US", {
@@ -305,6 +315,7 @@ function Status({ result }: { result: ValuationResult }) {
 }
 
 function Home({ choose }: { choose: (mode: Mode) => void }) {
+  const supportUrl = import.meta.env.VITE_SUPPORT_URL as string | undefined;
   return (
     <main className="home page">
       <div className="brand">
@@ -357,6 +368,18 @@ function Home({ choose }: { choose: (mode: Mode) => void }) {
       </section>
       <p className="source-note">
         Prices by Scryfall · Product data by MTGJSON · No login required
+      </p>
+      <p className="source-note source-links">
+        <a href="/methodology.html">Methodology</a> ·{" "}
+        <a href="/privacy.html">Privacy</a>
+        {supportUrl && (
+          <>
+            {" "}·{" "}
+            <a href={supportUrl} rel="noreferrer" target="_blank">
+              Support ColorBreak
+            </a>
+          </>
+        )}
       </p>
     </main>
   );
@@ -775,6 +798,12 @@ export function CardInspector({
     };
   }, [row, onClose]);
 
+  const affiliateTemplate = import.meta.env.VITE_TCGPLAYER_AFFILIATE_URL as
+    | string
+    | undefined;
+  const affiliateUrl = row
+    ? affiliateTemplate?.replace("{card}", encodeURIComponent(row.card.name))
+    : undefined;
   const odds = row?.sellablePullProbability ?? 0;
   return (
     <AnimatePresence>
@@ -856,6 +885,17 @@ export function CardInspector({
                 {row.card.oracleText && (
                   <p className="oracle-text">{row.card.oracleText}</p>
                 )}
+                {affiliateUrl && (
+                  <div className="affiliate-action">
+                    <a href={affiliateUrl} rel="sponsored noreferrer" target="_blank">
+                      Find this card on TCGplayer
+                    </a>
+                    <small>
+                      Affiliate link. ColorBreak may earn a commission; it never
+                      changes prices, odds, rankings, or analysis.
+                    </small>
+                  </div>
+                )}
               </div>
             </div>
           </motion.section>
@@ -865,8 +905,241 @@ export function CardInspector({
   );
 }
 
-function BuyerView({ result }: { result: ValuationResult }) {
+function useOutcomeSimulation(
+  analysis: BreakAnalysis,
+  remaining: SlotId[],
+  landedCost: number | undefined,
+): { result?: SimulationResult; error?: string; busy: boolean } {
+  const [state, setState] = useState<{ result?: SimulationResult; error?: string; busy: boolean }>({ busy: false });
+  const key = `${analysis.valuation.dataVersion}|${analysis.valuation.threshold}|${remaining.join("")}|${landedCost ?? "none"}`;
+  useEffect(() => {
+    let current = true;
+    let refinementId: number | undefined;
+    if (analysis.outcomeModel.complete === false || analysis.valuation.status === "incomplete") {
+      setState({ busy: false, error: "Outcome distribution withheld because material model inputs are unresolved." });
+      return () => { current = false; };
+    }
+    setState((previous) => ({ ...previous, busy: true, error: undefined }));
+    const options = {
+      seed: key,
+      sampleCount: 10_000,
+      remaining,
+      landedCost,
+    };
+    simulateOutcomesAsync(analysis.outcomeModel, options).then((result) => {
+      if (!current) return;
+      setState({ result, busy: false });
+      const refine = () => simulateOutcomesAsync(analysis.outcomeModel, { ...options, sampleCount: 50_000 })
+        .then((refined) => { if (current) setState({ result: refined, busy: false }); })
+        .catch(() => { /* keep the valid interactive result */ });
+      const idleWindow = window as Window & {
+        requestIdleCallback?: (callback: () => void, options?: { timeout: number }) => number;
+        cancelIdleCallback?: (id: number) => void;
+      };
+      if (idleWindow.requestIdleCallback) {
+        refinementId = idleWindow.requestIdleCallback(refine, { timeout: 4000 });
+      } else {
+        refinementId = setTimeout(refine, 750);
+      }
+    }).catch((error) => {
+      if (current) setState({ busy: false, error: error instanceof Error ? error.message : String(error) });
+    });
+    return () => {
+      current = false;
+      if (refinementId != null) {
+        const idleWindow = window as Window & { cancelIdleCallback?: (id: number) => void };
+        if (idleWindow.cancelIdleCallback) idleWindow.cancelIdleCallback(refinementId);
+        else clearTimeout(refinementId);
+      }
+    };
+  }, [analysis, key, landedCost, remaining]);
+  return state;
+}
+
+function OutcomeFingerprint({ summary, landed }: { summary?: DistributionSummary; landed?: number }) {
+  if (!summary) return <div className="distribution-empty">Distribution unavailable until every material input is resolved.</div>;
+  const clears = landed == null ? undefined : summary.fingerprint.filter((value) => value >= landed).length;
+  return (
+    <div className="fingerprint" aria-label="Twenty equal-probability modeled outcome bands">
+      <div className="fingerprint-dots">
+        {summary.fingerprint.map((value, index) => (
+          <span
+            key={index}
+            className={landed != null && value >= landed ? "clears" : ""}
+            title={`${Math.round((index + .5) * 5)}th percentile: ${fmt(value)}`}
+          />
+        ))}
+      </div>
+      <div className="fingerprint-scale">
+        <span>P10 {fmt(summary.p10)}</span>
+        <strong>Typical {fmt(summary.median)}</strong>
+        <span>P90 {fmt(summary.p90)}</span>
+      </div>
+      {clears != null && (
+        <p><b>{clears} of 20</b> modeled outcome bands clear {fmt(landed)}.</p>
+      )}
+      <small>Modeled possibilities—not a prediction of the next opening.</small>
+    </div>
+  );
+}
+
+function BreakBalance({
+  result, simulation, remaining,
+}: {
+  result: ValuationResult;
+  simulation?: SimulationResult;
+  remaining: SlotId[];
+}) {
+  const rows = result.slots.filter((slot) => remaining.includes(slot.id));
+  const equalShare = rows.length ? rows.reduce((sum, slot) => sum + slot.sellableEV, 0) / rows.length : 0;
+  const max = Math.max(equalShare, ...rows.map((slot) => simulation?.slotDistributions[slot.id].p90 ?? slot.sellableEV), 1);
+  const weakest = Math.min(...rows.map((slot) => slot.sellableEV));
+  const strongest = Math.max(...rows.map((slot) => slot.sellableEV), 0);
+  return (
+    <section className="panel balance-panel">
+      <header>
+        <div>
+          <p className="section-label">BREAK BALANCE</p>
+          <h2>Equal chance, unequal pools</h2>
+        </div>
+        <b>{strongest ? `${Math.round(weakest / strongest * 100)}%` : "—"}</b>
+      </header>
+      <p className="balance-note">Each remaining slot is equally likely. The card value assigned to each slot is not equal.</p>
+      <div className="balance-chart" style={{ "--equal": `${equalShare / max * 100}%` } as CSSProperties}>
+        {rows.map((slot) => {
+          const distribution = simulation?.slotDistributions[slot.id];
+          const value = distribution?.median ?? slot.sellableEV;
+          return (
+            <div className={`balance-column slot-${slot.id}`} key={slot.id}>
+              <span className="balance-whisker" style={{ height: `${((distribution?.p90 ?? value) / max) * 100}%` }} />
+              <span className="balance-bar" style={{ height: `${(value / max) * 100}%` }} />
+              <b>{slot.id}</b>
+              <small>{fmt(value)}</small>
+            </div>
+          );
+        })}
+      </div>
+      <p className="balance-caption">Dashed line: equal share {fmt(equalShare)} · Bars: {simulation ? "typical modeled value" : "mean EV"}</p>
+    </section>
+  );
+}
+
+function EvidenceLens({ analysis }: { analysis: BreakAnalysis }) {
+  const { valuation } = analysis;
+  const priced = Date.parse(valuation.pricedAt);
+  const ageHours = Number.isFinite(priced) ? Math.max(0, (Date.now() - priced) / 36e5) : undefined;
+  const labels = [
+    ["Identity", valuation.evidence.productIdentity],
+    ["Contents", valuation.evidence.contents],
+    ["Collation", valuation.evidence.collation],
+    ["Finish", valuation.evidence.finish],
+    ["Break rules", valuation.evidence.breakRules],
+  ];
+  return (
+    <details className="panel evidence-lens">
+      <summary>
+        <span><ShieldAlert /><b>Evidence lens</b><small>{analysis.outcomeModel.complete === false ? "Outcome chart blocked by known gaps" : "Inputs eligible for modeled outcomes"}</small></span>
+        <span>{ageHours == null ? "Price time unknown" : `Prices ${ageHours < 1 ? "<1" : Math.round(ageHours)}h old`}</span>
+      </summary>
+      <div className="evidence-grid">
+        {labels.map(([label, value]) => <div key={label}><span>{label}</span><b>{value}</b></div>)}
+      </div>
+      {analysis.outcomeOmissions.length > 0 && (
+        <ul>{analysis.outcomeOmissions.slice(0, 8).map((omission, index) => <li key={`${omission.code}-${index}`}>{omission.message}</li>)}</ul>
+      )}
+    </details>
+  );
+}
+
+function ChaseConstellation({
+  slot,
+  onInspect,
+}: {
+  slot: SlotValuation;
+  onInspect: (row: Contributor) => void;
+}) {
+  const rows = slot.contributors.slice(0, 12);
+  const maxPrice = Math.max(1, ...rows.map((row) => row.marketValue / Math.max(row.copies, .0001)));
+  const maxContribution = Math.max(1, ...rows.map((row) => row.sellableValue));
+  return (
+    <details className="panel supporting-view">
+      <summary><span><b>Chase Constellation</b><small>Pull chance × market price; bubble size is EV contribution</small></span><span>{SLOT_NAMES[slot.id]}</span></summary>
+      {!rows.length ? <p className="supporting-empty">No cards meet the current bulk boundary.</p> : (
+        <div className="constellation" aria-label={`${SLOT_NAMES[slot.id]} pull chance by market price`}>
+          <span className="constellation-y">Higher price ↑</span>
+          <span className="constellation-x">More frequent →</span>
+          {rows.map((row) => {
+            const price = row.marketValue / Math.max(row.copies, .0001);
+            const size = 14 + Math.sqrt(row.sellableValue / maxContribution) * 24;
+            return (
+              <button
+                key={row.card.id}
+                style={{
+                  left: `${Math.min(96, 4 + row.sellablePullProbability * 92)}%`,
+                  bottom: `${Math.min(90, 8 + price / maxPrice * 78)}%`,
+                  width: size,
+                  height: size,
+                }}
+                onClick={() => onInspect(row)}
+                aria-label={`${row.card.name}: ${oddsLabel(row.sellablePullProbability)} pull chance, ${fmt(price)} market price, ${fmt(row.sellableValue)} EV contribution`}
+                title={row.card.name}
+              >{row.card.name.slice(0, 1)}</button>
+            );
+          })}
+        </div>
+      )}
+      <p className="supporting-warning">High and far right means valuable and frequent—not “due” in the next opening. Tap a bubble for the card.</p>
+    </details>
+  );
+}
+
+function BulkBoundary({ result }: { result: ValuationResult }) {
+  const ignored = Math.max(0, result.marketEV - result.sellableEV);
+  const retained = result.marketEV > 0 ? result.sellableEV / result.marketEV : 0;
+  return (
+    <details className="panel supporting-view">
+      <summary><span><b>Bulk Boundary</b><small>How “Ignore bulk under {fmt(result.threshold)}” changes modeled value</small></span><span>{Math.round(retained * 100)}% retained</span></summary>
+      <div className="bulk-boundary">
+        <div><span>All resolved card value</span><b>{fmt(result.marketEV)}</b></div>
+        <div className="boundary-track" aria-label={`${Math.round(retained * 100)} percent of raw modeled value remains counted`}><span style={{ width: `${retained * 100}%` }} /></div>
+        <div><span>Counted at {fmt(result.threshold)}+</span><b>{fmt(result.sellableEV)}</b></div>
+        <p>{fmt(ignored)} is below the current per-card boundary. This is not a liquidity, condition, or net-resale estimate.</p>
+      </div>
+    </details>
+  );
+}
+
+function EVRiver({ result }: { result: ValuationResult }) {
+  const total = Math.max(result.marketEV, 1);
+  return (
+    <details className="panel supporting-view">
+      <summary><span><b>EV River</b><small>Resolved product contents → color slots → counted value</small></span><span>{fmt(result.sellableEV)}</span></summary>
+      <div className="ev-river" aria-label="Expected value flow by color slot">
+        <div className="river-source"><b>{fmt(result.marketEV)}</b><span>resolved card value</span></div>
+        <div className="river-slots">
+          {result.slots.filter((row) => row.marketEV > 0).map((row) => (
+            <span key={row.id} className={`slot-${row.id}`} style={{ flexGrow: row.marketEV / total }} title={`${row.name}: ${fmt(row.marketEV)}`}><b>{row.id}</b></span>
+          ))}
+        </div>
+        <div className="river-outcomes"><span><b>{fmt(result.sellableEV)}</b> counted</span><span><b>{fmt(Math.max(0, result.marketEV - result.sellableEV))}</b> below boundary</span></div>
+      </div>
+      <p className="supporting-warning">Widths show expected-value share, not pull probability. Open a slot for printing-level contributors.</p>
+    </details>
+  );
+}
+
+export function BuyerView({
+  analysis,
+  auction,
+  setAuction,
+}: {
+  analysis: BreakAnalysis;
+  auction: AuctionState;
+  setAuction: (state: AuctionState) => void;
+}) {
+  const result = analysis.valuation;
   const [selected, setSelected] = useState<SlotId>("W");
+  const [assignmentMode, setAssignmentMode] = useState<"random" | "pick">("random");
   const [bid, setBid] = useState<number>();
   const [shipping, setShipping] = useState<number>();
   const [inspectedCard, setInspectedCard] = useState<Contributor | null>(null);
@@ -879,23 +1152,39 @@ function BuyerView({ result }: { result: ValuationResult }) {
         ? "MIXED"
         : "DIVERSIFIED";
   const landed = (bid ?? 0) + (shipping ?? 0);
-  const verdict =
-    bid == null ? "READY" : buyerVerdict(slot, landed, result.status);
+  const simulation = useOutcomeSimulation(analysis, auction.remaining, bid == null ? undefined : landed);
+  const distribution = assignmentMode === "random"
+    ? simulation.result?.remainingPool
+    : simulation.result?.slotDistributions[selected];
+  const fallbackMean = assignmentMode === "random"
+    ? result.slots.filter((row) => auction.remaining.includes(row.id)).reduce((sum, row) => sum + row.sellableEV, 0) / Math.max(1, auction.remaining.length)
+    : slot.sellableEV;
+  const decision = bid == null ? "READY"
+    : result.status === "incomplete" ? "NO VERDICT"
+      : distribution?.chanceToClearCost == null
+        ? buyerVerdict(slot, landed, result.status)
+        : distribution.chanceToClearCost >= .6 ? "MORE CONSERVATIVE"
+          : distribution.chanceToClearCost >= .4 ? "HIGHER RISK" : "CHASE-ORIENTED";
   return (
     <>
       <section
-        className={`verdict panel verdict-${verdict.replace(/[^A-Z]/g, "").toLowerCase()}`}
+        className={`verdict panel verdict-${decision.replace(/[^A-Z]/g, "").toLowerCase()}`}
       >
+        <div className="assignment-toggle" role="group" aria-label="Break assignment mode">
+          <button className={assignmentMode === "random" ? "active" : ""} onClick={() => setAssignmentMode("random")}>Random remaining slot</button>
+          <button className={assignmentMode === "pick" ? "active" : ""} onClick={() => setAssignmentMode("pick")}>I pick my color</button>
+        </div>
         <div className="verdict-head">
           <div>
             <p className="section-label">
-              {SLOT_NAMES[selected].toUpperCase()} SLOT
+              {assignmentMode === "random" ? `${auction.remaining.length} RANDOM SLOTS REMAIN` : `${SLOT_NAMES[selected].toUpperCase()} SLOT`}
             </p>
-            <h2>{verdict}</h2>
+            <h2>{decision}</h2>
           </div>
           <div className="ev-orb">
-            <small>COUNTED EV</small>
-            <strong>{fmt(slot.sellableEV)}</strong>
+            <small>TYPICAL MODELED VALUE</small>
+            <strong>{fmt(distribution?.median ?? fallbackMean)}</strong>
+            <span>Mean {fmt(distribution?.mean ?? fallbackMean)}</span>
           </div>
         </div>
         <div className="bid-inputs">
@@ -913,17 +1202,49 @@ function BuyerView({ result }: { result: ValuationResult }) {
               Landed cost <b>{fmt(landed)}</b>
             </span>
             <span>
-              Value gap <b>{fmt(slot.sellableEV - landed)}</b>
+              Mean gap <b>{fmt((distribution?.mean ?? fallbackMean) - landed)}</b>
             </span>
           </div>
         )}
+        <OutcomeFingerprint summary={distribution} landed={bid == null ? undefined : landed} />
+        {simulation.busy && <p className="simulation-state">Refining 10,000 modeled openings…</p>}
+        {simulation.error && <p className="blocked"><ShieldAlert />{simulation.error}</p>}
         {result.status === "incomplete" && (
           <p className="blocked">
             <ShieldAlert /> Verdict withheld because product data is incomplete.
           </p>
         )}
       </section>
+      {assignmentMode === "random" && (
+        <section className="panel assignment-panel">
+          <header>
+            <div><p className="section-label">AFTER EACH AUCTION</p><h2>Tap the assigned slot</h2></div>
+            <button className="quiet" disabled={!auction.assignments.length} onClick={() => setAuction(undoAssignment(auction))}>Undo</button>
+          </header>
+          <div className="assignment-slots">
+            {SLOT_IDS.map((id) => (
+              <button
+                key={id}
+                className={`slot-${id}`}
+                disabled={!auction.remaining.includes(id) || auction.remaining.length === 1}
+                onClick={() => {
+                  const next = assignSlot(auction, id);
+                  setAuction(next);
+                  track("slot_assigned", { remainingCount: next.remaining.length });
+                }}
+                aria-label={`Mark ${SLOT_NAMES[id]} assigned`}
+              ><span>{id}</span><small>{SLOT_NAMES[id]}</small></button>
+            ))}
+          </div>
+          {auction.remaining.length === 1 && <p className="last-slot">Final slot: {SLOT_NAMES[auction.remaining[0]]}. No assignment tap needed.</p>}
+        </section>
+      )}
+      <BreakBalance result={result} simulation={simulation.result} remaining={assignmentMode === "random" ? auction.remaining : [selected]} />
+      <EvidenceLens analysis={analysis} />
       <SlotRail result={result} selected={selected} setSelected={setSelected} />
+      <ChaseConstellation slot={slot} onInspect={setInspectedCard} />
+      <BulkBoundary result={result} />
+      <EVRiver result={result} />
       <section className="panel slot-detail">
         <header>
           <div>
@@ -1056,6 +1377,78 @@ function allocate(
   return output;
 }
 
+function EnticementLab() {
+  type ScenarioKey = keyof typeof WHATNOT_ENTICEMENTS;
+  const [selected, setSelected] = useState<ScenarioKey>("fixedCollectorBooster");
+  const [cost, setCost] = useState(25);
+  const [buyerValue, setBuyerValue] = useState(18);
+  const [probability, setProbability] = useState(40);
+  const [approvalEvidence, setApprovalEvidence] = useState("");
+  const scenario: EnticementScenario = selected === "thresholdPack"
+      ? { ...WHATNOT_ENTICEMENTS.thresholdPack, approvalEvidence }
+      : WHATNOT_ENTICEMENTS[selected];
+  const conditional = selected === "thresholdPack" || selected === "whiffInsurance";
+  const economics = scenarioEconomics({
+    kind: selected === "thresholdPack" ? "threshold-product" : selected === "whiffInsurance" ? "whiff-insurance" : "fixed-product",
+    cost,
+    buyerValue,
+    probability: probability / 100,
+  });
+  const exportState = canExportScenario(scenario);
+  const complianceLabel = scenario.compliance === "permitted" ? "Whatnot permitted"
+    : scenario.compliance === "prohibited" ? "Prohibited on Whatnot" : "Written approval required";
+  const exportRule = async () => {
+    if (!exportState.allowed) return;
+    await navigator.clipboard.writeText(
+      `${scenario.name}: disclosed before the first sale. Estimated seller cost ${fmt(economics.expectedSellerCost)}. All cards route through the published color-slot rules.`,
+    );
+  };
+  return (
+    <section className="panel enticement-lab">
+      <header>
+        <div><p className="section-label">ENTICEMENT FRONTIER</p><h2>Design a disclosed break</h2></div>
+        <span className={`compliance-badge compliance-${scenario.compliance}`}>{complianceLabel}</span>
+      </header>
+      <p className="enticement-intro">Compare expected buyer value delivered per seller dollar. Inputs are planning assumptions until the product is added to the break above.</p>
+      <div className="scenario-tabs" role="tablist" aria-label="Enticement scenario">
+        {(Object.entries(WHATNOT_ENTICEMENTS) as Array<[ScenarioKey, EnticementScenario]>).map(([key, option]) => (
+          <button key={key} className={selected === key ? "active" : ""} onClick={() => setSelected(key)}>{option.name}</button>
+        ))}
+      </div>
+      <div className="frontier-plot" aria-label="Enticement cost versus expected buyer value">
+        <span className="axis-y">Buyer value</span>
+        <span className="axis-x">Seller cost</span>
+        <i className="frontier-baseline" style={{ left: "8%", bottom: "12%" }}>Baseline</i>
+        <i
+          className={`frontier-point compliance-${scenario.compliance}`}
+          style={{
+            left: `${Math.min(88, 15 + economics.expectedSellerCost / Math.max(1, cost) * 65)}%`,
+            bottom: `${Math.min(82, 15 + economics.expectedBuyerValue / Math.max(1, buyerValue) * 60)}%`,
+          }}
+        >{scenario.name}</i>
+      </div>
+      <div className="enticement-inputs">
+        <NumberField label="Seller cost if activated" value={cost} onChange={(value) => setCost(value ?? 0)} />
+        <NumberField label="Buyer value if activated" value={buyerValue} onChange={(value) => setBuyerValue(value ?? 0)} />
+        {conditional && <NumberField label={selected === "whiffInsurance" ? "Modeled whiff chance" : "Modeled trigger chance"} value={probability} onChange={(value) => setProbability(value ?? 0)} prefix="%" />}
+      </div>
+      <div className="enticement-result">
+        <div><span>Expected seller cost</span><b>{fmt(economics.expectedSellerCost)}</b></div>
+        <div><span>Expected buyer value</span><b>{fmt(economics.expectedBuyerValue)}</b></div>
+        <div><span>Value per $1 cost</span><b>{economics.expectedSellerCost ? (economics.expectedBuyerValue / economics.expectedSellerCost).toFixed(2) : "—"}</b></div>
+      </div>
+      {scenario.compliance === "written-approval-required" && (
+        <label className="approval-evidence"><span>Written approval reference</span><input value={approvalEvidence} onChange={(event) => setApprovalEvidence(event.target.value)} placeholder="Required before export" /></label>
+      )}
+      {!exportState.allowed && <p className="compliance-warning"><ShieldAlert />{exportState.reason}</p>}
+      <div className="enticement-actions">
+        <a href={scenario.evidenceUrls[0]} target="_blank" rel="noreferrer">Policy source · checked {scenario.policyCheckedAt}</a>
+        <button className="quiet" disabled={!exportState.allowed} onClick={exportRule}><Copy />Copy show-note rule</button>
+      </div>
+    </section>
+  );
+}
+
 function SellerView({
   result,
   lines,
@@ -1133,6 +1526,7 @@ function SellerView({
       : undefined;
   return (
     <>
+      <EnticementLab />
       <section className="panel seller-plan">
         <header>
           <div>
@@ -1338,11 +1732,18 @@ function Workspace({
   exit: () => void;
 }) {
   const legacy = useMemo(() => decodeLegacySearch(location.search), []);
+  const firstResultTracked = useRef(false);
+  const calculationStarted = useRef(Date.now());
   const [lines, setLines] = useState<BreakLine[]>(() =>
       storedLines(mode, legacy),
     ),
     [builder, setBuilder] = useState(false),
-    [result, setResult] = useState<ValuationResult>(),
+    [analysis, setAnalysis] = useState<BreakAnalysis>(),
+    [auction, setAuction] = useState<AuctionState>(() => {
+      const shared = new URLSearchParams(location.search).get("r");
+      const remaining = shared?.split("").filter((slot): slot is SlotId => SLOT_IDS.includes(slot as SlotId));
+      return remaining?.length ? createAuction(remaining) : createAuction();
+    }),
     [error, setError] = useState<string>(),
     [threshold, setThreshold] = useState(2),
     [busy, setBusy] = useState(false);
@@ -1354,39 +1755,44 @@ function Workspace({
     }
   }, [lines, mode]);
   useEffect(() => {
-    for (const line of lines)
-      if (line.tcgId && line.marketCost == null)
-        loadSealedMarketPrice(line.set, line.tcgId)
-          .then((price) => {
-            if (price != null)
-              setLines((rows) =>
-                rows.map((row) =>
-                  row.id === line.id
-                    ? { ...row, marketCost: price, myCost: row.myCost ?? price }
-                    : row,
-                ),
-              );
-          })
-          .catch(() => {});
-  }, [lines]);
+    try { localStorage.setItem("colorbreak:buyer:auction", JSON.stringify(auction)); } catch { /* optional */ }
+  }, [auction]);
   useEffect(() => {
     if (!lines.length) {
-      setResult(undefined);
+      setAnalysis(undefined);
       return;
     }
     setBusy(true);
+    calculationStarted.current = Date.now();
     setError(undefined);
-    evaluateBreak(lines, threshold)
-      .then(setResult)
-      .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+    evaluateBreakAnalysis(lines, threshold)
+      .then((next) => {
+        setAnalysis(next);
+        if (!firstResultTracked.current) {
+          const elapsed = Date.now() - calculationStarted.current;
+          track("first_result", {
+            mode,
+            productCount: lines.length,
+            durationBucket: elapsed < 10_000 ? "under-10s" : "10s-plus",
+            status: next.valuation.status,
+          });
+          firstResultTracked.current = true;
+        }
+      })
+      .catch((e) => {
+        setError(e instanceof Error ? e.message : String(e));
+        track("calculation_error", { mode, stage: "evaluate", code: "evaluation-failed" });
+      })
       .finally(() => setBusy(false));
   }, [lines, threshold]);
   const update = (id: string, patch: Partial<BreakLine>) =>
     setLines((rows) => rows.map((r) => (r.id === id ? { ...r, ...patch } : r)));
   const share = async () => {
     const url = new URL(location.href);
-    url.search = `?b=${encodeURIComponent(encodeComposition(lines))}`;
+    url.searchParams.set("b", encodeComposition(lines));
+    if (mode === "buyer") url.searchParams.set("r", auction.remaining.join(""));
     await navigator.clipboard.writeText(url.toString());
+    track("break_shared", { mode, productCount: lines.length, remainingCount: auction.remaining.length });
   };
   return (
     <>
@@ -1464,13 +1870,13 @@ function Workspace({
                   {error}
                 </div>
               )}
-              {result && !busy && (
+              {analysis && !busy && (
                 <>
-                  <ValueSummary result={result} />
+                  <ValueSummary result={analysis.valuation} />
                   {mode === "buyer" ? (
-                    <BuyerView result={result} />
+                    <BuyerView analysis={analysis} auction={auction} setAuction={setAuction} />
                   ) : (
-                    <SellerView result={result} lines={lines} update={update} />
+                    <SellerView result={analysis.valuation} lines={lines} update={update} />
                   )}
                 </>
               )}
@@ -1481,7 +1887,10 @@ function Workspace({
       <Builder
         open={builder}
         onClose={() => setBuilder(false)}
-        onAdd={(line) => setLines((rows) => [...rows, line])}
+        onAdd={(line) => {
+          setLines((rows) => [...rows, line]);
+          track("break_created", { mode, productCount: lines.length + 1 });
+        }}
       />
     </>
   );

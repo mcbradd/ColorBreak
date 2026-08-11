@@ -2,7 +2,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { expectedDraws, type SealedDocument } from "./sealed";
+import { expectedDraws, releaseStatus, type SealedDocument } from "./sealed";
 
 const dataDir = fileURLToPath(new URL("../../data/", import.meta.url));
 const documents: Record<string, SealedDocument> = {};
@@ -25,6 +25,20 @@ beforeAll(() => {
 afterAll(() => vi.unstubAllGlobals());
 
 describe("committed sealed corpus", () => {
+  it("retains weighted booster variants for outcome simulation", () => {
+    for (const document of Object.values(documents)) {
+      expect(document.v).toBe(2);
+      for (const booster of Object.values(document.boosters)) {
+        expect(booster.variants.length).toBeGreaterThan(0);
+        expect(booster.variants.every((variant) => variant.weight > 0)).toBe(true);
+        expect(booster.variants.every((variant) =>
+          Object.values(variant.picks).every((picks) => Number.isInteger(picks) && picks >= 0),
+        )).toBe(true);
+        expect(Object.values(booster.sheets).every((sheet) => Boolean(sheet.finish))).toBe(true);
+      }
+    }
+  });
+
   it("expands every card-bearing product or reports why it cannot", async () => {
     let count = 0;
     for (const document of Object.values(documents)) {
@@ -42,7 +56,7 @@ describe("committed sealed corpus", () => {
   it("applies the sourced Hobbit box toppers", async () => {
     for (const key of ["play-booster-box", "collector-booster-box"]) {
       const result = await expectedDraws(documents.HOB, key, 1, documents);
-      expect(result.status).toBe("verified");
+      expect(result.status).toBe(releaseStatus(documents.HOB.released));
       expect(result.draws.some((draw) => draw.source.includes("box-topper"))).toBe(true);
       expect(result.sources.some((source) => source.includes("magic.wizards.com"))).toBe(true);
     }
@@ -52,7 +66,15 @@ describe("committed sealed corpus", () => {
     for (const key of ["bundle", "gift-bundle", "bundle-case", "gift-bundle-case"]) {
       const result = await expectedDraws(documents.HOB, key, 1, documents);
       expect(result.omissions.some((item) => item.message.includes("bundle-promo"))).toBe(false);
-      expect(result.status).toBe("verified");
+      expect(result.status).toBe(releaseStatus(documents.HOB.released));
+    }
+  });
+
+  it("does not double-count the Hobbit prerelease pseudo-pack", async () => {
+    for (const key of ["prerelease-pack", "prerelease-case"]) {
+      const result = await expectedDraws(documents.HOB, key, 1, documents);
+      expect(result.omissions.some((item) => item.code === "missing-booster")).toBe(false);
+      expect(result.status).toBe(releaseStatus(documents.HOB.released));
     }
   });
 });

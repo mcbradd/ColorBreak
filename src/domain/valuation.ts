@@ -1,6 +1,6 @@
 import { SLOT_IDS, SLOT_NAMES } from "./types";
 import type {
-  CardPrice, Contributor, DataStatus, ExpectedDraw, Omission, SlotId, SlotValuation, ValuationResult,
+  CardPrice, Contributor, DataStatus, EvidenceState, ExpectedDraw, Finish, Omission, SlotId, SlotValuation, ValuationResult,
 } from "./types";
 
 export interface ValuationInput {
@@ -11,6 +11,7 @@ export interface ValuationInput {
   sourceStatus?: DataStatus;
   pricedAt?: string;
   dataVersion?: string;
+  evidence?: EvidenceState;
 }
 
 const STATUS_RANK: Record<DataStatus, number> = { verified: 0, estimated: 1, incomplete: 2 };
@@ -36,11 +37,13 @@ export function calculateBreak(input: ValuationInput): ValuationResult {
       });
       continue;
     }
-    const price = draw.foil ? card.foil : card.nonfoil;
+    const finish: Finish = draw.finish ?? (draw.foil ? "foil" : "nonfoil");
+    const price = card.prices?.[finish]
+      ?? (finish === "foil" ? card.foil : finish === "nonfoil" ? card.nonfoil : null);
     if (price == null) {
       omissions.push({
-        code: draw.foil ? "missing-foil-price" : "missing-price",
-        message: `${card.name} has no ${draw.foil ? "foil" : "nonfoil"} price; no proxy was substituted.`,
+        code: finish === "nonfoil" ? "missing-price" : `missing-${finish}-price`,
+        message: `${card.name} has no ${finish} price; no proxy was substituted.`,
         expectedCards: draw.copies,
         material: draw.copies >= 0.01,
       });
@@ -53,7 +56,7 @@ export function calculateBreak(input: ValuationInput): ValuationResult {
     };
     existing.copies += draw.copies;
     existing.marketValue += draw.copies * price;
-    if (draw.foil) existing.foilCopies += draw.copies;
+    if (finish !== "nonfoil") existing.foilCopies += draw.copies;
     const sourceProbability = Math.max(
       0,
       Math.min(1, draw.pullProbability ?? 1 - Math.exp(-draw.copies)),
@@ -63,7 +66,7 @@ export function calculateBreak(input: ValuationInput): ValuationResult {
     if (price >= threshold) {
       existing.sellableValue += draw.copies * price;
       existing.sellableCopies += draw.copies;
-      if (draw.foil) existing.sellableFoilCopies += draw.copies;
+      if (finish !== "nonfoil") existing.sellableFoilCopies += draw.copies;
       existing.sellablePullProbability =
         1 - (1 - existing.sellablePullProbability) * (1 - sourceProbability);
     }
@@ -93,6 +96,13 @@ export function calculateBreak(input: ValuationInput): ValuationResult {
   const materialOmission = omissions.some((item) => item.material);
   const sourceStatus = input.sourceStatus ?? "verified";
   const status = worstStatus(sourceStatus, materialOmission ? "incomplete" : "verified");
+  const evidence: EvidenceState = input.evidence ?? {
+    productIdentity: status === "incomplete" ? "ambiguous" : "aggregate-identified",
+    contents: status === "incomplete" ? "unresolved" : "mtgjson-structured",
+    collation: status === "incomplete" ? "unresolved" : status === "estimated" ? "unvalidated" : "weighted-upstream",
+    finish: materialOmission && omissions.some((item) => item.code.includes("price")) ? "unresolved" : "exact",
+    breakRules: "preset",
+  };
   return {
     marketEV: slots.reduce((sum, slot) => sum + slot.marketEV, 0),
     sellableEV: slots.reduce((sum, slot) => sum + slot.sellableEV, 0),
@@ -108,6 +118,7 @@ export function calculateBreak(input: ValuationInput): ValuationResult {
     omissions,
     pricedAt: input.pricedAt ?? new Date().toISOString(),
     dataVersion: input.dataVersion ?? "unknown",
+    evidence,
   };
 }
 

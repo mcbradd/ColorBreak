@@ -9,7 +9,10 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "check": "npm run test && npm run build"
+    "data:coverage": "node tools/report-coverage.mjs",
+    "data:diff": "node tools/source-diff.mjs",
+    "check:data": "node tools/report-coverage.mjs --check",
+    "check": "npm run test && npm run check:data && npm run build"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",

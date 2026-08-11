@@ -54,6 +54,26 @@ describe("calculateBreak", () => {
     expect(result.omissions[0].code).toBe("missing-foil-price");
   });
 
+  it("uses the exact requested finish and never substitutes a different premium finish", () => {
+    const exactPrices: CardPrice[] = [{
+      ...prices[0],
+      prices: { nonfoil: 20, foil: 40, etched: 17 },
+    }];
+    const etched = calculateBreak({
+      prices: exactPrices,
+      draws: [{ set: "TST", collectorNumber: "1", copies: 1, finish: "etched", foil: false, source: "etched-slot" }],
+    });
+    expect(etched.marketEV).toBe(17);
+
+    const missing = calculateBreak({
+      prices: exactPrices,
+      draws: [{ set: "TST", collectorNumber: "1", copies: 1, finish: "surge", foil: true, source: "surge-slot" }],
+    });
+    expect(missing.marketEV).toBe(0);
+    expect(missing.status).toBe("incomplete");
+    expect(missing.omissions[0].code).toBe("missing-surge-price");
+  });
+
   it("combines pull odds across every source in the current break", () => {
     const result = calculateBreak({
       prices,

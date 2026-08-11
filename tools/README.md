@@ -1,5 +1,11 @@
 # tools/ — collation format v2 builder (S3a)
 
+Current production data gates:
+
+- `node tools/report-coverage.mjs` regenerates `data/coverage.json`; `--check` compares eligibility with `data/coverage-baseline.json` and blocks regressions.
+- `node tools/source-diff.mjs` compares rebuilt sealed documents with `HEAD` and reports product additions/removals, content changes, booster branches, and sheet weights/identifiers. `.github/workflows/data-audit.yml` runs this review daily and blocks unreviewed upstream changes.
+- Production outcome analysis consumes the weighted variants in `data/sealed/{SET}.json`; the older standalone `data/collation` experiment remains disconnected.
+
 Maintainer-only, experimental pipeline. The v4 application does **not** consume this format;
 production valuation reads normalized `data/sealed/{set}.json`. Keep these frozen contracts
 intact while the builder is evaluated as a future sealed-data source. Node stdlib only, no

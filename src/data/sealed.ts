@@ -1,6 +1,6 @@
 import type { DataStatus, ExpectedDraw, Omission, ProductChoice } from "../domain/types";
 
-interface SealedProduct {
+export interface SealedProduct {
   key: string;
   label: string;
   name: string;
@@ -12,15 +12,19 @@ interface SealedProduct {
   suspect?: string;
 }
 
-interface BoosterSheet {
+export interface BoosterSheet {
   foil: boolean;
+  finish?: import("../domain/types").Finish;
   total: number;
   missing?: number;
+  allowDuplicates?: boolean;
+  balanceColors?: boolean;
   cards: Array<[string, number] | [string, string, number]>;
 }
 
-interface Booster {
+export interface Booster {
   picks: Record<string, number>;
+  variants: Array<{ weight: number; picks: Record<string, number> }>;
   sheets: Record<string, BoosterSheet>;
 }
 
@@ -34,7 +38,7 @@ export interface SealedDocument {
   boosters: Record<string, Booster>;
 }
 
-interface Correction {
+export interface Correction {
   addPacks?: Record<string, number>;
   removePacks?: string[];
   contentsMultiplier?: number;
@@ -42,7 +46,7 @@ interface Correction {
   reason: string;
 }
 
-interface CorrectionsFile {
+export interface CorrectionsFile {
   version: number;
   verifiedAt: string;
   products: Record<string, Correction>;
@@ -50,6 +54,10 @@ interface CorrectionsFile {
 
 let correctionsPromise: Promise<CorrectionsFile> | null = null;
 const sealedCache = new Map<string, Promise<SealedDocument | null>>();
+
+export function releaseStatus(released: string, asOf = new Date().toISOString().slice(0, 10)): DataStatus {
+  return released > asOf ? "estimated" : "verified";
+}
 
 async function json<T>(url: string): Promise<T> {
   const response = await fetch(url);
@@ -93,7 +101,7 @@ export function choicesFromSealed(document: SealedDocument): ProductChoice[] {
     packCount: Object.values(product.packs).reduce((sum, count) => sum + count, 0),
     tcgId: product.tcgId,
     sealedKey: product.key,
-    status: (product.suspect ? "incomplete" : "verified") as DataStatus,
+    status: (product.suspect ? "incomplete" : releaseStatus(document.released)) as DataStatus,
   })).sort((a, b) => {
     const rank = { common: 0, box: 1, pack: 2, bundle: 3, prerelease: 4, specialty: 5, case: 6 };
     return rank[a.category] - rank[b.category] || a.label.localeCompare(b.label);
@@ -164,6 +172,7 @@ export async function expectedDraws(
             unitCount * multiplier * picks,
           ),
           foil: sheet.foil,
+          finish: sheet.finish ?? (sheet.foil ? "foil" : "nonfoil"),
           source: `${product.key}/${packCode}/${sheetName}`,
         });
       }
@@ -192,7 +201,7 @@ export async function expectedDraws(
   return {
     draws,
     omissions,
-    status: omissions.some((item) => item.material) ? "incomplete" : "verified",
+    status: omissions.some((item) => item.material) ? "incomplete" : releaseStatus(document.released),
     sources: [
       `MTGJSON ${document.src.mtgjson} (${document.src.mtgjsonDate})`,
       ...(correction ? [correction.source] : []),

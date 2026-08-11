@@ -8,6 +8,34 @@ export const SLOT_NAMES: Record<SlotId, string> = {
 
 export type DataStatus = "verified" | "estimated" | "incomplete";
 
+export type Finish =
+  | "nonfoil"
+  | "foil"
+  | "etched"
+  | "surge"
+  | "textured"
+  | "gilded"
+  | "serialized"
+  | "other";
+
+export interface EvidenceState {
+  productIdentity: "official-verified" | "aggregate-identified" | "ambiguous";
+  contents: "official-verified" | "mtgjson-structured" | "prose-only" | "unresolved";
+  collation: "published-rate-checked" | "weighted-upstream" | "unvalidated" | "unresolved";
+  finish: "exact" | "class-only" | "unresolved";
+  breakRules: "seller-confirmed" | "preset" | "user-entered" | "unknown";
+}
+
+export interface PriceQuote {
+  provider: string;
+  currency: "USD";
+  finish: Finish;
+  observedAt: string;
+  fetchedAt: string;
+  amount: number;
+  rightsStatus: "approved" | "public-value-add" | "user-entered";
+}
+
 export interface BreakLine {
   id: string;
   set: string;
@@ -29,6 +57,10 @@ export interface CardPrice {
   slot: SlotId;
   nonfoil: number | null;
   foil: number | null;
+  prices?: Partial<Record<Finish, number | null>>;
+  quotes?: PriceQuote[];
+  priceObservedAt?: string;
+  priceFetchedAt?: string;
   image?: string;
   oracleText?: string;
 }
@@ -39,6 +71,7 @@ export interface ExpectedDraw {
   copies: number;
   pullProbability?: number;
   foil: boolean;
+  finish?: Finish;
   source: string;
 }
 
@@ -84,6 +117,7 @@ export interface ValuationResult {
   omissions: Omission[];
   pricedAt: string;
   dataVersion: string;
+  evidence: EvidenceState;
 }
 
 export interface Transaction {

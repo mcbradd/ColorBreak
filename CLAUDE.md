@@ -22,10 +22,10 @@ The deployable output is `dist/`. GitHub Pages must receive the built assets plu
 
 ## Experience constraints
 
-Mobile touch is the primary input. Preserve the buyer’s fast path: choose product, choose slot, enter bid and incremental shipping. Calculation starts on product selection. Keep dense evidence behind progressive disclosure. Incomplete data suppresses verdicts.
+Mobile touch is the primary input. Preserve the buyer’s fast path: choose product, enter bid and incremental shipping, then tap each assigned random remaining slot. Pick My Color is alternate mode. Calculation starts on product selection. Keep dense evidence behind progressive disclosure. Materially incomplete data suppresses verdicts and probability views.
 
 Maintain keyboard operation, visible focus, reduced-motion behavior, and a usable 320px layout. Slot meaning cannot rely on color alone.
 
 ## Data tooling
 
-`tools/README.md` defines the frozen collation builder contracts. Builder failures must stay loud and named. Run relevant legacy data-pipeline tests when changing `tools/` or `data/sealed/`; the React application tests live under `src/`.
+`tools/README.md` defines the frozen collation builder contracts. Builder failures must stay loud and named. Run `npm run check:data` after changing `tools/` or `data/sealed/`; `npm run data:diff` produces the semantic upstream review artifact. The React application tests live under `src/`.
