@@ -1,8 +1,8 @@
 {
   "sets": 72,
-  "products": 1107,
-  "complete": 1023,
-  "incomplete": 84,
+  "products": 1119,
+  "complete": 1089,
+  "incomplete": 30,
   "capturedAt": "2026-08-11",
-  "note": "Regression floor after sealed schema v2 and the 2018+ expansion. Incomplete products must be resolved or explicitly rebaselined with evidence."
+  "note": "Regression floor after AFR-forward sourceSetCodes repair and reviewed sealed-content overlays. Twelve AFR-forward products intentionally retain printing-level omissions."
 }

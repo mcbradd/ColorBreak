@@ -2,13 +2,14 @@
   "schemaVersion": 1,
   "source": "Committed MTGJSON sealed corpus after reviewed corrections",
   "sets": 72,
-  "products": 1107,
-  "complete": 1023,
-  "incomplete": 84,
+  "products": 1119,
+  "complete": 1089,
+  "incomplete": 30,
   "reasons": {
-    "prose-only-contents": 33,
-    "missing-sheet-weight": 43,
-    "missing-booster": 8
+    "unresolved-fixed-printing": 12,
+    "missing-booster": 8,
+    "prose-only-contents": 7,
+    "missing-sheet-weight": 3
   },
   "documents": [
     {
@@ -21,7 +22,7 @@
       "mtgjson": "5.3.0+20260810",
       "mtgjsonDate": "2026-08-10",
       "schemaVersion": 2,
-      "sha256": "896531d9dad71cde6915310fae68356f52187d63ba5ffeb2953f9359ed135b15"
+      "sha256": "02d498e9c5d9f11a15410f53efb5b288f560d355355f7e51ba28910e99ecf28c"
     },
     {
       "code": "2XM",
@@ -57,19 +58,19 @@
       "mtgjson": "5.3.0+20260810",
       "mtgjsonDate": "2026-08-10",
       "schemaVersion": 2,
-      "sha256": "e572ca11ffe4a55f18702a5997747beac2461c01e7997cc8da561cc79d998a9f"
+      "sha256": "6fb78f6eab78c30ad6f1856c7471d0e59092fff8c1692d28e426b2b5bf156607"
     },
     {
       "code": "AFR",
       "name": "Adventures in the Forgotten Realms",
       "released": "2021-07-23",
       "products": 27,
-      "complete": 25,
-      "incomplete": 2,
+      "complete": 27,
+      "incomplete": 0,
       "mtgjson": "5.3.0+20260810",
       "mtgjsonDate": "2026-08-10",
       "schemaVersion": 2,
-      "sha256": "1860afda5aceac9043bee50d6c7cb4fc0360a51105c4b3beea97d2578b7e36c4"
+      "sha256": "d92f5fea5b00ccb94b0cf0a66adcc5fa3571b1521600f5335ef4bf91d3300da2"
     },
     {
       "code": "BBD",
@@ -93,19 +94,19 @@
       "mtgjson": "5.3.0+20260810",
       "mtgjsonDate": "2026-08-10",
       "schemaVersion": 2,
-      "sha256": "e26d1684660a106c860fdc665db9ec9e43f47db605da0d8fadf14b747d82a955"
+      "sha256": "928ee7a22d4acad5f4895076768d07eb1dda550f24ba52c1824581e30cece5df"
     },
     {
       "code": "BRO",
       "name": "The Brothers' War",
       "released": "2022-11-18",
       "products": 20,
-      "complete": 13,
-      "incomplete": 7,
+      "complete": 20,
+      "incomplete": 0,
       "mtgjson": "5.3.0+20260810",
       "mtgjsonDate": "2026-08-10",
       "schemaVersion": 2,
-      "sha256": "69665d13d9ac4000485769ddda1c1b894cc00b617a03218874d1525c92754b69"
+      "sha256": "53965bb712ade5d3060eb870838fb19ab4d62d4de57e7f650130615dbe3320ed"
     },
     {
       "code": "C18",
@@ -153,7 +154,7 @@
       "mtgjson": "5.3.0+20260810",
       "mtgjsonDate": "2026-08-10",
       "schemaVersion": 2,
-      "sha256": "cc9e0582a2760cfd41cd159d5537bf01ee21fc63faea6ff46770c8e848ecc610"
+      "sha256": "c64ac5f443f05d23e7e23c8b6ce26f718329d249ab11e1cd00bf0a7004005b1e"
     },
     {
       "code": "CMM",
@@ -165,7 +166,7 @@
       "mtgjson": "5.3.0+20260810",
       "mtgjsonDate": "2026-08-10",
       "schemaVersion": 2,
-      "sha256": "bd23b7ccf6d70b719d2db22b7b0adf1b1155dd8ec65fa1b7a5c63511364526b2"
+      "sha256": "73ff441384b6d24209c4cb87eeba4f27db72c325baa57da3cf78a1e813b95752"
     },
     {
       "code": "CMR",
@@ -189,7 +190,7 @@
       "mtgjson": "5.3.0+20260810",
       "mtgjsonDate": "2026-08-10",
       "schemaVersion": 2,
-      "sha256": "fb8403141f9045d82ba403f23ce11734682e12b73f84823ac1904060d23c4950"
+      "sha256": "dc57d7b0cb60f0b63e3c6fd18f5a4841e3054fa195b3af71350a7fe7b65e91d3"
     },
     {
       "code": "DFT",
@@ -201,7 +202,7 @@
       "mtgjson": "5.3.0+20260810",
       "mtgjsonDate": "2026-08-10",
       "schemaVersion": 2,
-      "sha256": "45134336ffea7a62b4705e6ca04d7ff16a1143296325ee547465f2b16ffca349"
+      "sha256": "a7acf8e57a18a92273ffd0a81613dd2d75cedee4442fb2feead9c964caee6126"
     },
     {
       "code": "DMR",
@@ -213,19 +214,19 @@
       "mtgjson": "5.3.0+20260810",
       "mtgjsonDate": "2026-08-10",
       "schemaVersion": 2,
-      "sha256": "584bc654604cb66bb4178a1d8f656ed446e321501b759f70169f436cee6603e4"
+      "sha256": "36cad5557a19cdd8a45650dc6d87b9472c558c881a7043fb15bf70d24cde7c9a"
     },
     {
       "code": "DMU",
       "name": "Dominaria United",
       "released": "2022-09-09",
       "products": 18,
-      "complete": 10,
-      "incomplete": 8,
+      "complete": 18,
+      "incomplete": 0,
       "mtgjson": "5.3.0+20260810",
       "mtgjsonDate": "2026-08-10",
       "schemaVersion": 2,
-      "sha256": "c0a52bbc25df68086990188c00702b02aa6754bc7eb9fac8b00a5a0f64a1f13f"
+      "sha256": "11ab0e63e7c58bb6a62411081a89777022b83687fb7723d97322ffb324fbdeba"
     },
     {
       "code": "DOM",
@@ -244,12 +245,12 @@
       "name": "Duskmourn: House of Horror",
       "released": "2024-09-27",
       "products": 19,
-      "complete": 17,
-      "incomplete": 2,
+      "complete": 19,
+      "incomplete": 0,
       "mtgjson": "5.3.0+20260810",
       "mtgjsonDate": "2026-08-10",
       "schemaVersion": 2,
-      "sha256": "20cb6006290c7c508ddf24e78cd5be9c79d81c64c5c3aa462b98200b2beffb15"
+      "sha256": "2cbd1394ad80f7617d90a624faf7a30362907408e0510654f224ed15025fe069"
     },
     {
       "code": "ECL",
@@ -261,7 +262,7 @@
       "mtgjson": "5.3.0+20260810",
       "mtgjsonDate": "2026-08-10",
       "schemaVersion": 2,
-      "sha256": "4953d5f5c41ab106f85eceb2ee4330e2bc88913410d5621fd0ae1bdbed84217c"
+      "sha256": "fa88b7fbb45b6ebba9ffb0d8e4b09d8a7a6346512fb66743aaf216d5fb092f15"
     },
     {
       "code": "ELD",
@@ -285,7 +286,7 @@
       "mtgjson": "5.3.0+20260810",
       "mtgjsonDate": "2026-08-10",
       "schemaVersion": 2,
-      "sha256": "93c508f25acdb2792960c546dd346d84d1b92399f6127e52ac8ceb16aa01f6bd"
+      "sha256": "cbf7b2115a63d1f119c36883a931f2e12e72753d67f29d7a10353f5412e47204"
     },
     {
       "code": "FDN",
@@ -297,7 +298,7 @@
       "mtgjson": "5.3.0+20260810",
       "mtgjsonDate": "2026-08-10",
       "schemaVersion": 2,
-      "sha256": "9a28db443bd03c9da2fb86cf2dd5fc2f45985f58ac6d61c99509b109fcd4e161"
+      "sha256": "c1d2b001c6e07a6f3b1ec41e4878280ffb0c42e53ca39d60c623f0b1e69f60bb"
     },
     {
       "code": "FIN",
@@ -309,7 +310,7 @@
       "mtgjson": "5.3.0+20260810",
       "mtgjsonDate": "2026-08-10",
       "schemaVersion": 2,
-      "sha256": "07f63a55442cffa7c2e756c8f5ed7eaae028506adccbdd367b3e549f3e51aec2"
+      "sha256": "c2e1cdb4106898a5cb17e4cf4eda4a0795da7e5fd2e492767621a9de405ee48d"
     },
     {
       "code": "GK1",
@@ -364,12 +365,12 @@
       "name": "The Hobbit",
       "released": "2026-08-14",
       "products": 25,
-      "complete": 19,
-      "incomplete": 6,
+      "complete": 23,
+      "incomplete": 2,
       "mtgjson": "5.3.0+20260810",
       "mtgjsonDate": "2026-08-10",
       "schemaVersion": 2,
-      "sha256": "23cfd20a640d6e67675c3f806b2a797a4791338b575b12d001aa9cb5f3c1db5e"
+      "sha256": "0f2948ad201f5f75d8a6c34ac3c02eb7b233b7a0ca89698543ee94cd2413828e"
     },
     {
       "code": "IKO",
@@ -393,7 +394,7 @@
       "mtgjson": "5.3.0+20260810",
       "mtgjsonDate": "2026-08-10",
       "schemaVersion": 2,
-      "sha256": "4d09c58e204069cc1f01f20505f208164c0c1062a59e163388cca7cf5b00e61b"
+      "sha256": "209aad5c7000d00ad9f24f5de8ee44926fbb97c966db138b9adec256f56fadfd"
     },
     {
       "code": "JMP",
@@ -429,7 +430,7 @@
       "mtgjson": "5.3.0+20260810",
       "mtgjsonDate": "2026-08-10",
       "schemaVersion": 2,
-      "sha256": "90cbaf615bf244a1e4601b795a6b01aa23586d9e20559165a95f885cbe125644"
+      "sha256": "8640317bd35efe8bffbfba20c4850cca0fe8627f33893854dfe212a3ac62e36e"
     },
     {
       "code": "LTR",
@@ -441,7 +442,7 @@
       "mtgjson": "5.3.0+20260810",
       "mtgjsonDate": "2026-08-10",
       "schemaVersion": 2,
-      "sha256": "4b3ab6c0be9cd36af4e18a1206f61c7c52777e842325f7e7f9fc3b341af8dc52"
+      "sha256": "b5327623e0f3cff2db2823a489d0f5b79007ca6c07589d021298af77fc7220fd"
     },
     {
       "code": "M19",
@@ -472,8 +473,8 @@
       "name": "Core Set 2021",
       "released": "2020-07-03",
       "products": 18,
-      "complete": 16,
-      "incomplete": 2,
+      "complete": 18,
+      "incomplete": 0,
       "mtgjson": "5.3.0+20260811",
       "mtgjsonDate": "2026-08-11",
       "schemaVersion": 2,
@@ -489,7 +490,7 @@
       "mtgjson": "5.3.0+20260810",
       "mtgjsonDate": "2026-08-10",
       "schemaVersion": 2,
-      "sha256": "b2abd671b26582227ffe1c5c0804fb9485c719ead65c897b1121a51727187146"
+      "sha256": "2db1d31711cda07eb669fbf075c98f92b33518bc556db6c63261e7dba00932c3"
     },
     {
       "code": "MB1",
@@ -537,7 +538,7 @@
       "mtgjson": "5.3.0+20260810",
       "mtgjsonDate": "2026-08-10",
       "schemaVersion": 2,
-      "sha256": "d2becffda637dbb3200dc34e76dfe227809b51be3387e4ee4ff0d5aff00b6bf0"
+      "sha256": "a5439c7b21f400a73e779583588bdccb816640b9f50f177e2f570f7e0c0b3db9"
     },
     {
       "code": "MID",
@@ -549,7 +550,7 @@
       "mtgjson": "5.3.0+20260810",
       "mtgjsonDate": "2026-08-10",
       "schemaVersion": 2,
-      "sha256": "e011f8ec1d2ec910de7e97af9d7ebdf5c349dd13683150cadb5612b75d45f314"
+      "sha256": "597ced8290bb818c6cd5cc9dbd93e38555398b24a3b5e2c5f5de39a6e7199eca"
     },
     {
       "code": "MKM",
@@ -561,19 +562,19 @@
       "mtgjson": "5.3.0+20260810",
       "mtgjsonDate": "2026-08-10",
       "schemaVersion": 2,
-      "sha256": "d2370d34f0bd188aa01bb32b3bb3356a56fcd207a2980d44a43866c2ec45a365"
+      "sha256": "791c197d1a3474b85819f7915a2a4d53d7e6029f1ac2f67f9b38bbb39051af5e"
     },
     {
       "code": "MOM",
       "name": "March of the Machine",
       "released": "2023-04-21",
-      "products": 17,
-      "complete": 17,
+      "products": 18,
+      "complete": 18,
       "incomplete": 0,
       "mtgjson": "5.3.0+20260810",
       "mtgjsonDate": "2026-08-10",
       "schemaVersion": 2,
-      "sha256": "0717ce81aae409a5f4ca0b75df83e8cbe314bbc22a4c764cc4659fddb85a39aa"
+      "sha256": "50ab44cb7a8dcb7355dea424bf3101c9e42f78a3bf9a623786436c2bd5ad6d67"
     },
     {
       "code": "MSH",
@@ -585,7 +586,7 @@
       "mtgjson": "5.3.0+20260810",
       "mtgjsonDate": "2026-08-10",
       "schemaVersion": 2,
-      "sha256": "6c27d7aa995c11ea20d064eb9bbf2bfc15657becbca4961aa645f1a22a63d417"
+      "sha256": "8ee5bcf4fc085ba8e1403f3f51f44f9e01b6d21f2bbdec876f95acd8bf1bfb8b"
     },
     {
       "code": "NEO",
@@ -597,19 +598,19 @@
       "mtgjson": "5.3.0+20260810",
       "mtgjsonDate": "2026-08-10",
       "schemaVersion": 2,
-      "sha256": "ea89c6b9d68160fa1a89dc859102b5dae3af4e8aa1f221235f808e16e4c75c63"
+      "sha256": "fca6f93d16f33de9c6783101af1864d2a70087645f83e44964ce634fba525252"
     },
     {
       "code": "ONE",
       "name": "Phyrexia: All Will Be One",
       "released": "2023-02-10",
       "products": 20,
-      "complete": 5,
-      "incomplete": 15,
+      "complete": 20,
+      "incomplete": 0,
       "mtgjson": "5.3.0+20260810",
       "mtgjsonDate": "2026-08-10",
       "schemaVersion": 2,
-      "sha256": "8632671475045f30dd1cd8467f652ace034d2686ea0fe515e0846b12ce8677eb"
+      "sha256": "55c39bb42a18b2e8d0ea21df8e02fedbf2066b488fe56232b2fc39fa223b86e1"
     },
     {
       "code": "OTJ",
@@ -621,7 +622,7 @@
       "mtgjson": "5.3.0+20260810",
       "mtgjsonDate": "2026-08-10",
       "schemaVersion": 2,
-      "sha256": "ed5500f5cbc9f2e4ee8e8e6f3baf92ccb00529fc82e42b191d24d6bff82d1737"
+      "sha256": "443586ddaf2288f1618d9e63b0c6fd7d55fb688af2eba56d69b7d1fb81cef013"
     },
     {
       "code": "PIP",
@@ -633,7 +634,7 @@
       "mtgjson": "5.3.0+20260810",
       "mtgjsonDate": "2026-08-10",
       "schemaVersion": 2,
-      "sha256": "74fa5fdc2db52ba0576e23d248e7d4836d5b73c08a796c68aa78308e6dee72d1"
+      "sha256": "f8823e58501dfa4e7f29379fc4092dd3cfd3750a1c9d2eae32c9f434298c8db5"
     },
     {
       "code": "RIX",
@@ -669,43 +670,43 @@
       "mtgjson": "5.3.0+20260810",
       "mtgjsonDate": "2026-08-10",
       "schemaVersion": 2,
-      "sha256": "04bc20c39e3df719a978592dda1ca01b1110674bd507102acb012462b5ed922b"
+      "sha256": "ef97cb63f70e4390ea0fae459ec87f543c9dc8f0e2a7d177e95f2f0299c7cc20"
     },
     {
       "code": "SNC",
       "name": "Streets of New Capenna",
       "released": "2022-04-29",
       "products": 31,
-      "complete": 24,
-      "incomplete": 7,
+      "complete": 31,
+      "incomplete": 0,
       "mtgjson": "5.3.0+20260810",
       "mtgjsonDate": "2026-08-10",
       "schemaVersion": 2,
-      "sha256": "24dbe9e2af2947477a89492d3b51f4602a42f45fdcd24f70783b5f0ff49e23c6"
+      "sha256": "1f6fe5b5b0a5e82170652dbc3ab837568df519669acc94761d8b0b1cfddf755f"
     },
     {
       "code": "SOS",
       "name": "Secrets of Strixhaven",
       "released": "2026-04-24",
-      "products": 24,
-      "complete": 20,
+      "products": 35,
+      "complete": 31,
       "incomplete": 4,
       "mtgjson": "5.3.0+20260810",
       "mtgjsonDate": "2026-08-10",
       "schemaVersion": 2,
-      "sha256": "2059fd96fbe0d444297faff9084a47d1363342b6449aca3e81b6397aef551c89"
+      "sha256": "edfe93b0590367bbfcfebb706419707871355212fe0b557266260f075c3a4a42"
     },
     {
       "code": "SPM",
       "name": "Marvel's Spider-Man",
       "released": "2025-09-26",
       "products": 25,
-      "complete": 23,
-      "incomplete": 2,
+      "complete": 25,
+      "incomplete": 0,
       "mtgjson": "5.3.0+20260810",
       "mtgjsonDate": "2026-08-10",
       "schemaVersion": 2,
-      "sha256": "5b00a55c7d144b76680874868f198db101b97708d14a7698ac0398fddf72b16a"
+      "sha256": "1a430179d96e69259959a8c8e134b518a51be7ee5dadb486ae9f1b27969d69d5"
     },
     {
       "code": "STX",
@@ -729,7 +730,7 @@
       "mtgjson": "5.3.0+20260810",
       "mtgjsonDate": "2026-08-10",
       "schemaVersion": 2,
-      "sha256": "c0fa296c59c7fddd34368ef624865b39bdc2074cc4d21b72bf9d5b85bd59cf11"
+      "sha256": "7a285d0650280cc067135083bfb5c2157385a5e3cfab9c2afcbc154f45058bd5"
     },
     {
       "code": "THB",
@@ -753,7 +754,7 @@
       "mtgjson": "5.3.0+20260810",
       "mtgjsonDate": "2026-08-10",
       "schemaVersion": 2,
-      "sha256": "0cf8c59c3000dc42d8a2aa5edb70542ec6f1affe9f9ef064de09cdc89e85fd80"
+      "sha256": "1c1f14df39da0580bc63af39582decffd9397387908bdcc8cbbc613ea5fa905e"
     },
     {
       "code": "TMT",
@@ -765,7 +766,7 @@
       "mtgjson": "5.3.0+20260810",
       "mtgjsonDate": "2026-08-10",
       "schemaVersion": 2,
-      "sha256": "e64e4583e6d1ea2ead99a4b6102bf805d5d651db98d9e87e9f39725dbd9c167b"
+      "sha256": "86307e2cc525e9022a6987ed19957ec293036f998c30abe80af3892c2de3f540"
     },
     {
       "code": "TSR",
@@ -801,7 +802,7 @@
       "mtgjson": "5.3.0+20260810",
       "mtgjsonDate": "2026-08-10",
       "schemaVersion": 2,
-      "sha256": "e6905d976231a3dec66422c42f49714754e37e3a6ec7ce035ebea59dbede738d"
+      "sha256": "32e65086c8f2304acef29b87d745d6ec5148b42a26dfecb94b636a7e97f5996c"
     },
     {
       "code": "VOW",
@@ -813,7 +814,7 @@
       "mtgjson": "5.3.0+20260810",
       "mtgjsonDate": "2026-08-10",
       "schemaVersion": 2,
-      "sha256": "0f5d54ae615876fe00ba3cea7ef2b0cf7b031c98699395426b517ac7599a1a5e"
+      "sha256": "b0501520955db471f873fe47ed19ce1a3a3addc73e938482c11e1cd27510a40f"
     },
     {
       "code": "WAR",
@@ -837,19 +838,19 @@
       "mtgjson": "5.3.0+20260810",
       "mtgjsonDate": "2026-08-10",
       "schemaVersion": 2,
-      "sha256": "05cc56f216c1a882e84a09b69c1fae8d551795c1cfc801c4fcae3d90ad75cfaf"
+      "sha256": "1816b6870f5486e5e4a5629c4a1c861e554976f0a1707fce94416229c352acda"
     },
     {
       "code": "WOE",
       "name": "Wilds of Eldraine",
       "released": "2023-09-08",
       "products": 14,
-      "complete": 9,
-      "incomplete": 5,
+      "complete": 14,
+      "incomplete": 0,
       "mtgjson": "5.3.0+20260810",
       "mtgjsonDate": "2026-08-10",
       "schemaVersion": 2,
-      "sha256": "becfdb35c2005a5170923d8070cfeab9ab351a5fa2d3eeefcd974aa74042086f"
+      "sha256": "1c8d5a926001bd25b1cd6ca54507139236372f529165930d0d37b42c379d5074"
     },
     {
       "code": "ZNC",

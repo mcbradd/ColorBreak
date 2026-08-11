@@ -5,6 +5,8 @@ Current production data gates:
 - `node tools/report-coverage.mjs` regenerates `data/coverage.json`; `--check` compares eligibility with `data/coverage-baseline.json` and blocks regressions.
 - `node tools/source-diff.mjs` compares rebuilt sealed documents with `HEAD` and reports product additions/removals, content changes, booster branches, and sheet weights/identifiers. `.github/workflows/data-audit.yml` runs this review daily and blocks unreviewed upstream changes.
 - Production outcome analysis consumes the weighted variants in `data/sealed/{SET}.json`; the older standalone `data/collation` experiment remains disconnected.
+- `node tools/build-deck-card-index.mjs --source-dir <AllSetFiles>` regenerates the compact
+  exact-printing lookup for deck UUIDs that individual set exports reference but omit.
 
 Maintainer-only, experimental pipeline. The v4 application does **not** consume this format;
 production valuation reads normalized `data/sealed/{set}.json`. Keep these frozen contracts
@@ -172,18 +174,45 @@ node tools/build-sealed.mjs SOS TLA FIN        # writes data/sealed/{SET}.json +
 
 - Output per product: `packs` (booster code -> count per unit), `fixed` (guaranteed
   cards, e.g. TLA's 3 borderless Commander staples, ONE's Compleat Bundle foils), and
-  `other` (contents MTGJSON records only as prose, surfaced in the UI as unpriced).
+  `other` (non-card contents MTGJSON records only as prose). The source block pins the
+  MTGJSON version, date and SHA-256 for the requested set and every fetched dependency.
 - Expected copies of a card = `packCount × picks × weight / sheetTotalWeight`. Picks come
   from `expectedPicks()`, the weight-averaged mean over MTGJSON's pack variants — exact
   for EV by linearity, even though a real pack draws without replacement.
-- Unresolved references are named failures, never silent skips, and are retried by
-  fetching sibling sets: card uuids (SPG/PLST bonus sheets), deck names (MAT's bundle
+- Unresolved references are named failures, never silent skips. Booster cards first use
+  the configuration's MTGJSON `sourceSetCodes` declaration, then retry by fetching
+  likely sibling sets: card uuids (SPG/PLST bonus sheets), deck names (MAT's bundle
   land pack lives in MOM; matched as slugs, since contents drop apostrophes), and sealed
   products from another set (BLB's tins hold FDN/OTJ/MKM packs — the reference names its
   own set, which is tried first). Only after every candidate is exhausted does the build
   fall back to recording the weight as unpriced, with a WARNING.
-- Foreign packs keep a `SET:code` key; `productDraws()` in `index.html` resolves them
-  from that set's own file, and leaves them unpriced if it isn't built.
+- Foreign packs keep a `SET:code` key; `expectedDraws()` in `src/data/sealed.ts` resolves
+  them from that set's own file, and leaves them unpriced if it isn't built.
+
+### Reviewed sealed-content supplements
+
+`data/sealed-content-overrides.json` is the versioned research layer applied after the
+pristine MTGJSON normalization. It is only for facts MTGJSON leaves as prose or omits;
+source-set resolution belongs in the importer and must never become a product override.
+
+Each reusable claim carries retrieval date, evidence level, source URLs and a note.
+Products reference claims with an explicit multiplier, so a case cannot accidentally
+inherit one bundle's quantities. Exact supported printings become `fixed` entries.
+Known quantities whose collector-number distribution is not supportable become
+`unresolvedContents`; they remain material omissions and preserve `NO VERDICT` rather
+than guessing a convenient basic-land art. The normalized product retains its applied
+claim evidence, and the document source records the overlay version and claim IDs.
+
+Current examples include exact DSK Nightmare Bundle manor lands and HOB Scene Box
+cards. DFT Finish Line, Draft Night land stations and SOS Codex lands retain structured
+printing-level omissions until first-party manifests or unambiguous physical openings
+establish their exact distribution.
+
+`data/deck-card-index.json` is generated data, not a hand-authored correction. It stores
+only deck UUID → set/collector-number/name mappings needed by the supported corpus and
+the MTGJSON version/date/SHA-256 of every source set document. Rebuild it from an
+extracted MTGJSON `AllSetFiles` directory (or a complete local per-set cache) whenever
+deck references change. Each normalized sealed document pins the compact index checksum.
 
 ## Scope note (S3a vs S3c)
 
