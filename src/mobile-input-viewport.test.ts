@@ -86,4 +86,33 @@ describe("mobile input viewport", () => {
       top: 480,
     });
   });
+
+  it("does not snap back to a still-focused field during ordinary page scrolling", () => {
+    const input = document.createElement("input");
+    const reveal = vi.fn();
+    let top = 120;
+    input.scrollIntoView = reveal;
+    input.getBoundingClientRect = () => ({
+      top,
+      bottom: top + 40,
+      left: 0,
+      right: 200,
+      width: 200,
+      height: 40,
+      x: 0,
+      y: top,
+      toJSON: () => ({}),
+    });
+    document.body.append(input);
+
+    input.focus();
+    vi.runAllTimers();
+    reveal.mockClear();
+
+    top = -300;
+    viewport.dispatchEvent(new Event("scroll"));
+    vi.runAllTimers();
+
+    expect(reveal).not.toHaveBeenCalled();
+  });
 });

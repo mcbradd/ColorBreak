@@ -41,6 +41,7 @@ export function installMobileInputViewport() {
   let session: FocusSession | null = null;
   let revealTimer: number | undefined;
   let restoreTimer: number | undefined;
+  let previousViewportHeight = viewport?.height ?? window.innerHeight;
 
   const viewportHeight = () => viewport?.height ?? window.innerHeight;
   const viewportTop = () => viewport?.offsetTop ?? 0;
@@ -112,27 +113,43 @@ export function installMobileInputViewport() {
   };
 
   const onFocusOut = () => requestRestore();
-  const onViewportChange = () => {
+  const onViewportResize = () => {
+    const nextHeight = viewportHeight();
+    const keyboardOpened = nextHeight < previousViewportHeight - 48;
+    const keyboardClosed = nextHeight > previousViewportHeight + 48;
+    previousViewportHeight = nextHeight;
+    syncViewport();
+    if (keyboardOpened && session && document.activeElement === session.element) {
+      revealFocused();
+    } else if (keyboardClosed && session && !editableTarget(document.activeElement)) {
+      requestRestore();
+    }
+  };
+  const onViewportScroll = () => {
+    window.clearTimeout(revealTimer);
+    syncViewport();
+  };
+  const onOrientationChange = () => {
+    previousViewportHeight = viewportHeight();
     syncViewport();
     if (session && document.activeElement === session.element) revealFocused();
-    else if (session && keyboardIsClosed()) requestRestore();
   };
 
   syncViewport();
   document.addEventListener("focusin", onFocusIn);
   document.addEventListener("focusout", onFocusOut);
-  viewport?.addEventListener("resize", onViewportChange);
-  viewport?.addEventListener("scroll", onViewportChange);
-  window.addEventListener("orientationchange", onViewportChange);
+  viewport?.addEventListener("resize", onViewportResize);
+  viewport?.addEventListener("scroll", onViewportScroll);
+  window.addEventListener("orientationchange", onOrientationChange);
 
   return () => {
     window.clearTimeout(revealTimer);
     window.clearTimeout(restoreTimer);
     document.removeEventListener("focusin", onFocusIn);
     document.removeEventListener("focusout", onFocusOut);
-    viewport?.removeEventListener("resize", onViewportChange);
-    viewport?.removeEventListener("scroll", onViewportChange);
-    window.removeEventListener("orientationchange", onViewportChange);
+    viewport?.removeEventListener("resize", onViewportResize);
+    viewport?.removeEventListener("scroll", onViewportScroll);
+    window.removeEventListener("orientationchange", onOrientationChange);
     root.classList.remove("input-focus-active");
     root.style.removeProperty("--visual-viewport-height");
     root.style.removeProperty("--visual-viewport-top");
