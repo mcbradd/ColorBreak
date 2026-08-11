@@ -1132,8 +1132,12 @@ function renderPicker() {
     sel.disabled = true;
   } else {
     const prods = productsForSet(pickerSet);
+    // Rebuilding the options resets the selection to the first one, and this runs on the
+    // select's own change event — so the chosen product is carried across the rebuild.
+    const chosen = sel.value;
     sel.innerHTML = prods.map(p =>
       `<option value="${esc(p.key)}">${esc(p.label)} · ${p.packs} pack${p.packs > 1 ? "s" : ""}</option>`).join("");
+    if (chosen && prods.some(p => p.key === chosen)) sel.value = chosen;
     sel.disabled = !prods.length;
     $("pickNote").textContent = catalog && catalog[pickerSet]
       ? "Catalog: TCGplayer sealed listings via tcgcsv."

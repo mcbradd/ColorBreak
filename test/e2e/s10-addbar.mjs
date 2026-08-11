@@ -61,4 +61,27 @@ export async function returningBreakKeepsItsSet() {
   await browser.close();
 }
 
-export const scenarios = { pickSetProductQuantity, returningBreakKeepsItsSet };
+// Choosing a product re-renders the add bar, which rebuilds the option list. The choice
+// has to survive that, or every product but the first is unselectable.
+export async function productChoiceSticks() {
+  const { browser, page } = await launch({ sets: SETS });
+  await page.goto(ORIGIN + "/");
+  await page.tap("#pickSet");
+  await page.waitForSelector('#setRows [data-set="tst"]');
+  await page.tap('#setRows [data-set="tst"]');
+  await page.waitForFunction(() => !document.getElementById("pickProd").disabled);
+
+  const options = await page.evaluate(() => [...document.querySelectorAll("#pickProd option")].map(o => o.value));
+  assert.ok(options.length > 1, `need a second product to select, got ${options.join(", ")}`);
+  const last = options[options.length - 1];
+  await page.selectOption("#pickProd", last);
+  assert.equal(await page.evaluate(() => document.getElementById("pickProd").value), last,
+    "the selected product stays selected after the add bar re-renders");
+
+  await page.tap("#addToBreak");
+  await waitForBoard(page);
+  assert.equal(await page.evaluate(() => comp[0].key), last, "the line item is the product that was chosen");
+  await browser.close();
+}
+
+export const scenarios = { pickSetProductQuantity, returningBreakKeepsItsSet, productChoiceSticks };
