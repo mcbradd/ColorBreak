@@ -105,7 +105,7 @@ export async function outcomeModelForProduct(
   const prices = new Map(cardPrices.map((card) => [`${card.set}|${card.collectorNumber}`, card]));
   const fixed: OutcomeCard[] = [];
   for (const item of product.fixed ?? []) {
-    const finish: Finish = item.foil ? "foil" : "nonfoil";
+    const finish: Finish = item.finish ?? (item.foil ? "foil" : "nonfoil");
     const card = pricedCard(item.set.toUpperCase(), String(item.cn), finish, prices, threshold, 1, omissions);
     if (card) fixed.push({ ...card, count: item.n * multiplier });
   }
@@ -139,9 +139,17 @@ export async function outcomeModelForProduct(
   }
 
   for (const prose of product.other ?? []) {
-    if (/\b(cards?|lands?)\b/i.test(prose) && !/storage|\bbox\b|sleeve|display|reference|arena code/i.test(prose)) {
+    if (/\b(cards?|lands?)\b/i.test(prose) && !/storage|\bbox\b|sleeve|display|walk[ -]?through|reference|arena code|helper|art[ -]?only|dungeon/i.test(prose)) {
       omissions.push({ code: "prose-only-contents", message: `${prose} has no exact card list.`, material: true });
     }
+  }
+  for (const unresolved of product.unresolvedContents ?? []) {
+    omissions.push({
+      code: "unresolved-fixed-printing",
+      message: `${unresolved.n}× ${unresolved.label} (${unresolved.finish}) has no verified collector-number distribution: ${unresolved.reason}`,
+      expectedCards: unresolved.n * multiplier,
+      material: true,
+    });
   }
   if (product.suspect && !correction?.contentsMultiplier) {
     omissions.push({ code: "suspect-contents", message: product.suspect, material: true });

@@ -1,0 +1,141 @@
+{
+  "version": 1,
+  "verifiedAt": "2026-08-11",
+  "claims": {
+    "dsk-nightmare-full-art-lands": {
+      "evidenceLevel": "official-verified",
+      "retrievedAt": "2026-08-11",
+      "sources": ["https://magic.wizards.com/en/news/feature/collecting-duskmourn"],
+      "note": "Wizards specifies 20 traditional-foil full-art manor lands, four of each basic type; DSK 272-276 are that five-card printing cycle.",
+      "removeOther": ["20 foil full-art lands"],
+      "fixed": [
+        { "set": "DSK", "cn": "272", "n": 4, "foil": true, "finish": "foil" },
+        { "set": "DSK", "cn": "273", "n": 4, "foil": true, "finish": "foil" },
+        { "set": "DSK", "cn": "274", "n": 4, "foil": true, "finish": "foil" },
+        { "set": "DSK", "cn": "275", "n": 4, "foil": true, "finish": "foil" },
+        { "set": "DSK", "cn": "276", "n": 4, "foil": true, "finish": "foil" }
+      ]
+    },
+    "dft-finish-line-lands": {
+      "evidenceLevel": "official-plus-aggregate",
+      "retrievedAt": "2026-08-11",
+      "sources": [
+        "https://magic.wizards.com/en/news/feature/collecting-aetherdrift",
+        "https://www.cardkingdom.com/mtg/aetherdrift/aetherdrift-finish-line-bundle",
+        "https://media.wizards.com/2025/downloads/card-sets/DFT_Cardlist_03022025.pdf"
+      ],
+      "note": "Wizards verifies 15 traditional-foil basics and five first-place basics. Card Kingdom identifies the latter as the Driver's Seat cycle; the other 15 lack a verified per-printing distribution.",
+      "removeOther": ["15 Foil Basic Lands Bundle", "5 First-Place Foil Basic Lands Bundle"],
+      "unresolved": [
+        { "label": "traditional-foil basic lands", "n": 15, "finish": "foil", "reason": "Official and retailer manifests do not establish the collector-number multiplicities." }
+      ],
+      "fixed": [
+        { "set": "DFT", "cn": "507", "n": 1, "foil": true, "finish": "foil" },
+        { "set": "DFT", "cn": "508", "n": 1, "foil": true, "finish": "foil" },
+        { "set": "DFT", "cn": "509", "n": 1, "foil": true, "finish": "foil" },
+        { "set": "DFT", "cn": "510", "n": 1, "foil": true, "finish": "foil" },
+        { "set": "DFT", "cn": "511", "n": 1, "foil": true, "finish": "foil" }
+      ]
+    },
+    "ecl-draft-night-lands": {
+      "evidenceLevel": "official-plus-aggregate",
+      "retrievedAt": "2026-08-11",
+      "sources": ["https://magic.wizards.com/en/news/feature/collecting-lorwyn-eclipsed", "https://www.igraj.si/en/products/magic-the-gathering-lorwyn-eclipsed-draft-night"],
+      "note": "Wizards verifies 90 nonfoil basics and retail detail verifies 18 of each type; no reviewed source establishes the collector-number or art distribution.",
+      "removeOther": ["90 Non-foil basic lands"],
+      "unresolved": [
+        { "label": "nonfoil basic lands (18 of each type)", "n": 90, "finish": "nonfoil", "reason": "The collector-number/art distribution is not published." }
+      ]
+    },
+    "tmt-draft-night-lands": {
+      "evidenceLevel": "official-plus-aggregate",
+      "retrievedAt": "2026-08-11",
+      "sources": ["https://magic.wizards.com/en/news/feature/collecting-teenage-mutant-ninja-turtles", "https://starcitygames.com/teenage-mutant-ninja-turtles-draft-night-sld-mtg-bun-tmtdraft-en/"],
+      "note": "Wizards verifies 90 nonfoil basics and retail detail verifies 18 of each type; no reviewed source establishes the collector-number or art distribution.",
+      "removeOther": ["90 Non-foil basic lands"],
+      "unresolved": [
+        { "label": "nonfoil basic lands (18 of each type)", "n": 90, "finish": "nonfoil", "reason": "The collector-number/art distribution is not published." }
+      ]
+    },
+    "sos-standard-land-station": {
+      "evidenceLevel": "official-plus-aggregate",
+      "retrievedAt": "2026-08-11",
+      "sources": ["https://magic.wizards.com/en/news/feature/collecting-secrets-of-strixhaven", "https://www.igraj.si/en/products/magic-the-gathering-secrets-of-strixhaven-draft-night"],
+      "note": "Wizards verifies 90 nonfoil basics and retail detail verifies 18 of each type; no reviewed source establishes the collector-number or art distribution.",
+      "removeOther": ["90 Non-foil basic lands"],
+      "unresolved": [
+        { "label": "nonfoil basic lands (18 of each type)", "n": 90, "finish": "nonfoil", "reason": "The collector-number/art distribution is not published." }
+      ]
+    },
+    "sos-codex-foil-lands": {
+      "evidenceLevel": "official-quantity-only",
+      "retrievedAt": "2026-08-11",
+      "sources": ["https://magic.wizards.com/en/news/feature/collecting-secrets-of-strixhaven", "https://theexpectedvalue.com/bundle-ev/sos-codex"],
+      "note": "Wizards verifies 20 traditional-foil basics. Secondary descriptions conflict or do not independently establish the exact printing distribution.",
+      "removeOther": ["20 Foil basic lands"],
+      "unresolved": [
+        { "label": "traditional-foil basic lands", "n": 20, "finish": "foil", "reason": "The collector-number/art distribution is not published and secondary descriptions conflict." }
+      ]
+    },
+    "hob-draft-night-lands": {
+      "evidenceLevel": "official-plus-aggregate",
+      "retrievedAt": "2026-08-11",
+      "sources": ["https://magic.wizards.com/en/news/feature/collecting-the-hobbit"],
+      "note": "Wizards verifies 90 nonfoil basics; no reviewed source establishes the collector-number or art distribution.",
+      "removeOther": ["90 Non-foil basic lands"],
+      "unresolved": [
+        { "label": "nonfoil basic lands", "n": 90, "finish": "nonfoil", "reason": "The collector-number/art distribution is not published." }
+      ]
+    },
+    "hob-scene-crack-the-plates": {
+      "evidenceLevel": "official-plus-aggregate",
+      "retrievedAt": "2026-08-11",
+      "sources": ["https://magic.wizards.com/en/news/feature/collecting-the-hobbit", "https://gamedaily.com/games/mtg-the-hobbit-scene-boxes"],
+      "note": "Wizards verifies six traditional-foil new-to-Magic scene cards. The revealed card names and contiguous HOC numbering identify Crack the Plates as HOC 1-6.",
+      "removeOther": ["6 borderless scene cards"],
+      "fixed": [
+        { "set": "HOC", "cn": "1", "n": 1, "foil": true, "finish": "foil" },
+        { "set": "HOC", "cn": "2", "n": 1, "foil": true, "finish": "foil" },
+        { "set": "HOC", "cn": "3", "n": 1, "foil": true, "finish": "foil" },
+        { "set": "HOC", "cn": "4", "n": 1, "foil": true, "finish": "foil" },
+        { "set": "HOC", "cn": "5", "n": 1, "foil": true, "finish": "foil" },
+        { "set": "HOC", "cn": "6", "n": 1, "foil": true, "finish": "foil" }
+      ]
+    },
+    "hob-scene-treasures-of-smaug": {
+      "evidenceLevel": "official-plus-aggregate",
+      "retrievedAt": "2026-08-11",
+      "sources": ["https://magic.wizards.com/en/news/feature/collecting-the-hobbit", "https://gamedaily.com/games/mtg-the-hobbit-scene-boxes"],
+      "note": "Wizards verifies six traditional-foil new-to-Magic scene cards. The revealed card names and contiguous HOC numbering identify Treasures of Smaug as HOC 7-12.",
+      "removeOther": ["6 borderless scene cards"],
+      "fixed": [
+        { "set": "HOC", "cn": "7", "n": 1, "foil": true, "finish": "foil" },
+        { "set": "HOC", "cn": "8", "n": 1, "foil": true, "finish": "foil" },
+        { "set": "HOC", "cn": "9", "n": 1, "foil": true, "finish": "foil" },
+        { "set": "HOC", "cn": "10", "n": 1, "foil": true, "finish": "foil" },
+        { "set": "HOC", "cn": "11", "n": 1, "foil": true, "finish": "foil" },
+        { "set": "HOC", "cn": "12", "n": 1, "foil": true, "finish": "foil" }
+      ]
+    }
+  },
+  "products": {
+    "DSK/nightmare-bundle": { "claim": "dsk-nightmare-full-art-lands", "multiplier": 1 },
+    "DSK/nightmare-bundle-case": { "claim": "dsk-nightmare-full-art-lands", "multiplier": 6 },
+    "DFT/finish-line-bundle": { "claim": "dft-finish-line-lands", "multiplier": 1 },
+    "DFT/finish-line-bundle-case": { "claim": "dft-finish-line-lands", "multiplier": 6 },
+    "ECL/draft-night": { "claim": "ecl-draft-night-lands", "multiplier": 1 },
+    "ECL/draft-night-case": { "claim": "ecl-draft-night-lands", "multiplier": 6 },
+    "TMT/draft-night": { "claim": "tmt-draft-night-lands", "multiplier": 1 },
+    "TMT/draft-night-case": { "claim": "tmt-draft-night-lands", "multiplier": 6 },
+    "SOS/codex-bundle": { "claim": "sos-codex-foil-lands", "multiplier": 1 },
+    "SOS/codex-bundle-case": { "claim": "sos-codex-foil-lands", "multiplier": 6 },
+    "SOS/draft-night": { "claim": "sos-standard-land-station", "multiplier": 1 },
+    "SOS/draft-night-case": { "claim": "sos-standard-land-station", "multiplier": 6 },
+    "HOB/draft-night": { "claim": "hob-draft-night-lands", "multiplier": 1 },
+    "HOB/draft-night-case": { "claim": "hob-draft-night-lands", "multiplier": 6 },
+    "HOB/scene-box-crack-the-plates": { "claim": "hob-scene-crack-the-plates", "multiplier": 1 },
+    "HOB/scene-box-treasures-of-smaug": { "claim": "hob-scene-treasures-of-smaug", "multiplier": 1 },
+    "HOB/scene-box-set-of-2": { "claims": ["hob-scene-crack-the-plates", "hob-scene-treasures-of-smaug"], "multiplier": 1 },
+    "HOB/scene-box-case": { "claims": ["hob-scene-crack-the-plates", "hob-scene-treasures-of-smaug"], "multiplier": 2 }
+  }
+}

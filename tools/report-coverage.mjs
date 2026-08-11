@@ -10,7 +10,7 @@ const OUT = fileURLToPath(new URL("../data/coverage.json", import.meta.url));
 const BASELINE = fileURLToPath(new URL("../data/coverage-baseline.json", import.meta.url));
 
 const CARDLIKE_PROSE = /\b(cards?|lands?)\b/i;
-const ACCESSORY_PROSE = /storage|\bbox\b|sleeve|display|reference|arena code|helper|art-only|dungeon/i;
+const ACCESSORY_PROSE = /storage|\bbox\b|sleeve|display|walk[ -]?through|reference|arena code|helper|art[ -]?only|dungeon/i;
 
 export function summarizeCoverage(documents, corrections) {
   const reasons = {};
@@ -40,6 +40,7 @@ export function summarizeCoverage(documents, corrections) {
       if ((product.other ?? []).some((text) => CARDLIKE_PROSE.test(text) && !ACCESSORY_PROSE.test(text))) {
         productReasons.add("prose-only-contents");
       }
+      if (product.unresolvedContents?.length) productReasons.add("unresolved-fixed-printing");
       if (product.suspect && !correction?.contentsMultiplier) productReasons.add("suspect-contents");
       if (productReasons.size) {
         incomplete += 1;

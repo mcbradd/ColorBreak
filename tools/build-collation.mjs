@@ -22,14 +22,13 @@
 
 import { readFileSync } from "node:fs";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import PPB from "./ppb.json" with { type: "json" };
 
 const DROPPED_CONFIGS = new Set(["jumpstart", "arena", "box", "sample"]);
 const KNOWN_CONFIGS = new Set(["play", "collector", "draft", "set"]);
 
 // Hand-maintained packs-per-box table (tools/ppb.json), loaded once at module scope so
 // defaultPpb has a real default without every caller having to thread the table through.
-const PPB = JSON.parse(readFileSync(new URL("./ppb.json", import.meta.url), "utf8"));
-
 // Config-name mapping (DES5-05): MTGJSON booster config key -> v2 product key.
 export function mapConfigName(rawKey, releaseDate) {
   if (DROPPED_CONFIGS.has(rawKey)) return null;

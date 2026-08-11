@@ -18,11 +18,18 @@
 // weight-averaged picks used by the fast analytic EV path.
 
 import { writeFileSync, mkdirSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { sourceSetCandidates } from "./sealed-source-resolution.mjs";
+import { applySealedContentOverrides } from "./sealed-content-overrides.mjs";
 
 const OUT_DIR = fileURLToPath(new URL("../data/sealed/", import.meta.url));
+const OVERRIDES = JSON.parse(readFileSync(fileURLToPath(new URL("../data/sealed-content-overrides.json", import.meta.url)), "utf8"));
+const DECK_INDEX_RAW = readFileSync(fileURLToPath(new URL("../data/deck-card-index.json", import.meta.url)), "utf8");
+const DECK_INDEX = JSON.parse(DECK_INDEX_RAW);
+const DECK_INDEX_SHA256 = createHash("sha256").update(DECK_INDEX_RAW).digest("hex");
 const UA = { "user-agent": "colorbreak-sealed/1.0 (+https://mcbradd.github.io/ColorBreak)" };
 
 // Products that are never break inputs: digital-only, and giveaway decks with no packs.
@@ -346,7 +353,12 @@ export function buildSet(data, extraCards = new Map(), allowMissing = false, ext
 
   return {
     v: 2, set, name: data.name, released: data.releaseDate,
-    src: { mtgjson: data.__meta?.version || null, mtgjsonDate: data.__meta?.date || null, builtAt: new Date().toISOString() },
+    src: {
+      mtgjson: data.__meta?.version || null,
+      mtgjsonDate: data.__meta?.date || null,
+      mtgjsonSha256: data.__sourceSha256 || null,
+      builtAt: new Date().toISOString(),
+    },
     products, boosters,
   };
 }
@@ -360,13 +372,17 @@ const CACHE_MS = 24 * 3600e3;
 async function fetchSet(code) {
   const file = join(CACHE_DIR, `${code}.json`);
   try {
-    if (Date.now() - statSync(file).mtimeMs < CACHE_MS) return JSON.parse(readFileSync(file, "utf8"));
+    if (Date.now() - statSync(file).mtimeMs < CACHE_MS) {
+      const raw = readFileSync(file, "utf8");
+      return { ...JSON.parse(raw), __sha256: createHash("sha256").update(raw).digest("hex") };
+    }
   } catch { /* cold cache */ }
   const res = await fetch(`https://mtgjson.com/api/v5/${code}.json`, { headers: UA });
   if (!res.ok) throw new Error(`${code}: HTTP ${res.status}`);
-  const doc = await res.json();
-  try { mkdirSync(CACHE_DIR, { recursive: true }); writeFileSync(file, JSON.stringify(doc)); } catch { /* cache is optional */ }
-  return doc;
+  const raw = await res.text();
+  const doc = JSON.parse(raw);
+  try { mkdirSync(CACHE_DIR, { recursive: true }); writeFileSync(file, raw); } catch { /* cache is optional */ }
+  return { ...doc, __sha256: createHash("sha256").update(raw).digest("hex") };
 }
 
 // Booster sheets routinely quote cards a per-set export does not embed: the SOS Codex
@@ -400,10 +416,11 @@ async function main() {
   for (const code of args.map((a) => a.toUpperCase())) {
     let doc;
     try { doc = await fetchSet(code); } catch (e) { console.error(e.message); process.exitCode = 1; continue; }
-    const data = { ...doc.data, __meta: doc.meta };
-    const extra = new Map();
+    const data = { ...doc.data, __meta: doc.meta, __sourceSha256: doc.__sha256 };
+    const extra = new Map(Object.entries(DECK_INDEX.cards).map(([uuid, card]) => [uuid, { uuid, ...card }]));
     const extraDecks = new Map();
     const extraProducts = new Map();
+    const dependencies = new Map();
     const tried = new Set();
     let out;
     try {
@@ -414,12 +431,14 @@ async function main() {
           // A cross-set sealed reference names its own set, so try that before the
           // release-window heuristics (BLB tins hold MKM packs, six months apart).
           const named = e.sealed.map((s) => s.set).filter(Boolean);
-          const cands = [...new Set([...named, ...mergeCandidates(code, setList)])].filter((c) => !tried.has(c));
+          const declared = sourceSetCandidates(data, e.refs);
+          const cands = [...new Set([...named, ...declared, ...mergeCandidates(code, setList)])].filter((c) => !tried.has(c));
           let grew = false;
           for (const c of cands) {
             tried.add(c);
             let sib;
             try { sib = await fetchSet(c); } catch { continue; }
+            dependencies.set(c, { set: c, sha256: sib.__sha256, mtgjson: sib.meta?.version ?? null, mtgjsonDate: sib.meta?.date ?? null });
             for (const card of sib.data.cards || []) if (!extra.has(card.uuid)) { extra.set(card.uuid, card); grew = true; }
             for (const d of sib.data.decks || []) if (!extraDecks.has(slug(d.name))) { extraDecks.set(slug(d.name), d); grew = true; }
             for (const sp of sib.data.sealedProduct || []) if (!extraProducts.has(sp.uuid)) { extraProducts.set(sp.uuid, { ...sp, __set: sib.data.code.toUpperCase() }); grew = true; }
@@ -437,6 +456,9 @@ async function main() {
       }
     } catch (e) { console.error(e.message); process.exitCode = 1; continue; }
     if (!out.products.length) { console.error(`${code}: no sealed products with packs — skipped`); continue; }
+    out.src.deckCardIndex = { version: DECK_INDEX.version, sha256: DECK_INDEX_SHA256 };
+    if (dependencies.size) out.src.dependencies = [...dependencies.values()].sort((a, b) => a.set.localeCompare(b.set));
+    applySealedContentOverrides(out, OVERRIDES);
     writeFileSync(`${OUT_DIR}${code}.json`, JSON.stringify(out));
     const foreign = new Set();
     for (const p of out.products) for (const k of Object.keys(p.packs)) if (k.includes(":")) foreign.add(k);

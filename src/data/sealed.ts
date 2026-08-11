@@ -7,9 +7,23 @@ export interface SealedProduct {
   category: string;
   tcgId?: number;
   packs: Record<string, number>;
-  fixed?: Array<{ set: string; cn: string; n: number; foil: boolean }>;
+  fixed?: Array<{ set: string; cn: string; n: number; foil: boolean; finish?: import("../domain/types").Finish }>;
   other?: string[];
   suspect?: string;
+  evidence?: Array<{
+    claim: string;
+    evidenceLevel: string;
+    sources: string[];
+    retrievedAt: string;
+    note: string;
+  }>;
+  unresolvedContents?: Array<{
+    label: string;
+    n: number;
+    finish: import("../domain/types").Finish;
+    reason: string;
+    claim: string;
+  }>;
 }
 
 export interface BoosterSheet {
@@ -33,7 +47,15 @@ export interface SealedDocument {
   set: string;
   name: string;
   released: string;
-  src: { mtgjson: string; mtgjsonDate: string; builtAt: string };
+  src: {
+    mtgjson: string;
+    mtgjsonDate: string;
+    mtgjsonSha256?: string;
+    builtAt: string;
+    dependencies?: Array<{ set: string; sha256: string; mtgjson: string | null; mtgjsonDate: string | null }>;
+    deckCardIndex?: { version: number; sha256: string };
+    researchOverlay?: { version: number; verifiedAt: string; claims: string[] };
+  };
   products: SealedProduct[];
   boosters: Record<string, Booster>;
 }
@@ -109,7 +131,7 @@ export function choicesFromSealed(document: SealedDocument): ProductChoice[] {
 }
 
 const CARDLIKE_PROSE = /\b(cards?|lands?)\b/i;
-const ACCESSORY_PROSE = /storage|\bbox\b|sleeve|display|walk-?through|reference|arena code|helper|art-only|dungeon/i;
+const ACCESSORY_PROSE = /storage|\bbox\b|sleeve|display|walk[ -]?through|reference|arena code|helper|art[ -]?only|dungeon/i;
 
 export async function expectedDraws(
   document: SealedDocument,
@@ -138,6 +160,7 @@ export async function expectedDraws(
     draws.push({
       set: fixed.set.toUpperCase(), collectorNumber: String(fixed.cn),
       copies: fixed.n * multiplier, foil: fixed.foil, source: `${product.key}/fixed`,
+      finish: fixed.finish ?? (fixed.foil ? "foil" : "nonfoil"),
       pullProbability: fixed.n * multiplier > 0 ? 1 : 0,
     });
   }
@@ -195,6 +218,14 @@ export async function expectedDraws(
       });
     }
   }
+  for (const unresolved of product.unresolvedContents ?? []) {
+    omissions.push({
+      code: "unresolved-fixed-printing",
+      message: `${unresolved.n}× ${unresolved.label} (${unresolved.finish}) has no verified collector-number distribution: ${unresolved.reason}`,
+      expectedCards: unresolved.n * multiplier,
+      material: true,
+    });
+  }
   if (product.suspect && !correction?.contentsMultiplier) {
     omissions.push({ code: "suspect-contents", message: product.suspect, material: true });
   }
@@ -204,6 +235,7 @@ export async function expectedDraws(
     status: omissions.some((item) => item.material) ? "incomplete" : releaseStatus(document.released),
     sources: [
       `MTGJSON ${document.src.mtgjson} (${document.src.mtgjsonDate})`,
+      ...(product.evidence ?? []).flatMap((entry) => entry.sources),
       ...(correction ? [correction.source] : []),
     ],
   };
