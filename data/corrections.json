@@ -1,0 +1,51 @@
+{
+  "version": 2,
+  "verifiedAt": "2026-08-11",
+  "products": {
+    "HOB/play-booster-box": {
+      "addPacks": { "box-topper": 1 },
+      "source": "https://magic.wizards.com/en/news/feature/collecting-the-hobbit",
+      "reason": "Wizards states that each Play Booster box includes one traditional-foil Box Topper."
+    },
+    "HOB/play-booster-box-case": {
+      "addPacks": { "box-topper": 6 },
+      "source": "https://magic.wizards.com/en/news/feature/collecting-the-hobbit",
+      "reason": "Six boxes per case, each with one traditional-foil Box Topper."
+    },
+    "HOB/collector-booster-box": {
+      "addPacks": { "box-topper": 1 },
+      "source": "https://magic.wizards.com/en/news/feature/collecting-the-hobbit",
+      "reason": "Wizards states that each Collector Booster box includes one traditional-foil Box Topper."
+    },
+    "HOB/collector-booster-box-case": {
+      "addPacks": { "box-topper": 6 },
+      "source": "https://magic.wizards.com/en/news/feature/collecting-the-hobbit",
+      "reason": "Six boxes per case, each with one traditional-foil Box Topper."
+    },
+    "HOB/bundle": {
+      "removePacks": ["bundle-promo"],
+      "source": "https://magic.wizards.com/en/news/feature/collecting-the-hobbit",
+      "reason": "The guaranteed Bundle card and land contents are already expanded in fixed; the MTGJSON bundle-promo child is the same content and must not be counted or flagged twice."
+    },
+    "HOB/bundle-case": {
+      "removePacks": ["bundle-promo"],
+      "source": "https://magic.wizards.com/en/news/feature/collecting-the-hobbit",
+      "reason": "The guaranteed Bundle card and land contents are already expanded in fixed for all six units; the child pseudo-pack is duplicate metadata."
+    },
+    "HOB/gift-bundle": {
+      "removePacks": ["bundle-promo"],
+      "source": "https://magic.wizards.com/en/news/feature/collecting-the-hobbit",
+      "reason": "The guaranteed Gift Bundle card and land contents are already expanded in fixed; the MTGJSON bundle-promo child is duplicate metadata."
+    },
+    "HOB/gift-bundle-case": {
+      "removePacks": ["bundle-promo"],
+      "source": "https://magic.wizards.com/en/news/feature/collecting-the-hobbit",
+      "reason": "The guaranteed Gift Bundle card and land contents are already expanded in fixed for all six units; the child pseudo-pack is duplicate metadata."
+    },
+    "FIN/scene-box-set-of-4": {
+      "contentsMultiplier": 4,
+      "source": "https://magic.wizards.com/en/products/final-fantasy",
+      "reason": "The sealed listing is a set of four scene boxes; MTGJSON currently describes one unit."
+    }
+  }
+}

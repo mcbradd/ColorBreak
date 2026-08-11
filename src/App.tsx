@@ -1,0 +1,1096 @@
+import { useEffect, useMemo, useState } from "react";
+import { AnimatePresence, motion } from "motion/react";
+import {
+  ArrowLeft,
+  BadgeCheck,
+  BarChart3,
+  Boxes,
+  ChevronRight,
+  CircleHelp,
+  Copy,
+  DollarSign,
+  Lock,
+  PackagePlus,
+  Search,
+  Settings2,
+  ShieldAlert,
+  Sparkles,
+  Store,
+  Unlock,
+  X,
+} from "lucide-react";
+import { catalogSets, productsForSet } from "./data/catalog";
+import { evaluateBreak } from "./data/evaluate";
+import { loadSealedMarketPrice } from "./data/sealedPrices";
+import { decodeLegacySearch, encodeComposition } from "./domain/legacy";
+import {
+  calculateProfit,
+  requiredHammer,
+  WHATNOT_US,
+} from "./domain/marketplace";
+import { buyerVerdict } from "./domain/valuation";
+import type {
+  BreakLine,
+  ProductChoice,
+  SetChoice,
+  SlotId,
+  Transaction,
+  ValuationResult,
+} from "./domain/types";
+import { SLOT_IDS, SLOT_NAMES } from "./domain/types";
+
+type Mode = "home" | "buyer" | "seller";
+const money = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "USD",
+  maximumFractionDigits: 2,
+});
+const fmt = (value: number | undefined) =>
+  value == null ? "—" : money.format(value);
+
+function NumberField({
+  label,
+  value,
+  onChange,
+  prefix = "$",
+  hint,
+}: {
+  label: string;
+  value: number | undefined;
+  onChange: (n: number | undefined) => void;
+  prefix?: string;
+  hint?: string;
+}) {
+  return (
+    <label className="number-field">
+      <span>
+        {label}
+        {hint && <Tip text={hint} />}
+      </span>
+      <div>
+        <b>{prefix}</b>
+        <input
+          inputMode="decimal"
+          value={value ?? ""}
+          placeholder="0"
+          onChange={(e) =>
+            onChange(e.target.value === "" ? undefined : Number(e.target.value))
+          }
+        />
+      </div>
+    </label>
+  );
+}
+
+function Tip({ text }: { text: string }) {
+  return (
+    <span className="tip" tabIndex={0} aria-label={text}>
+      <CircleHelp size={14} />
+      <span role="tooltip">{text}</span>
+    </span>
+  );
+}
+
+function Status({ result }: { result: ValuationResult }) {
+  const icon =
+    result.status === "incomplete" ? (
+      <ShieldAlert size={16} />
+    ) : (
+      <BadgeCheck size={16} />
+    );
+  return (
+    <button className={`status ${result.status}`} title={result.statusReason}>
+      {icon}
+      <span>{result.status}</span>
+      <Tip text={result.statusReason} />
+    </button>
+  );
+}
+
+function Home({ choose }: { choose: (mode: Mode) => void }) {
+  return (
+    <main className="home page">
+      <div className="brand">
+        <span className="brand-mark">
+          <Sparkles />
+        </span>
+        <span>COLORBREAK</span>
+      </div>
+      <section className="hero">
+        <p className="eyebrow">MTG COLOR BREAK INTELLIGENCE</p>
+        <h1>
+          Know the break.
+          <br />
+          <em>Make the call.</em>
+        </h1>
+        <p>
+          Accurate product contents, color-slot value, and real marketplace
+          economics—without the spreadsheet.
+        </p>
+      </section>
+      <section className="mode-grid">
+        <button
+          className="mode-card buyer-card"
+          onClick={() => choose("buyer")}
+        >
+          <span className="mode-icon">
+            <DollarSign />
+          </span>
+          <span>
+            <small>LIVE AUCTION</small>
+            <strong>Check a bid</strong>
+            <p>See what a slot is worth before the clock runs out.</p>
+          </span>
+          <ChevronRight />
+        </button>
+        <button
+          className="mode-card seller-card"
+          onClick={() => choose("seller")}
+        >
+          <span className="mode-icon">
+            <Store />
+          </span>
+          <span>
+            <small>BREAK PLANNING</small>
+            <strong>Build & price</strong>
+            <p>Set profitable asks with fees and fulfillment included.</p>
+          </span>
+          <ChevronRight />
+        </button>
+      </section>
+      <p className="source-note">
+        Prices by Scryfall · Product data by MTGJSON · No login required
+      </p>
+    </main>
+  );
+}
+
+function Builder({
+  open,
+  onClose,
+  onAdd,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onAdd: (line: BreakLine) => void;
+}) {
+  const [sets, setSets] = useState<SetChoice[]>([]);
+  const [query, setQuery] = useState("");
+  const [selected, setSelected] = useState<SetChoice>();
+  const [products, setProducts] = useState<ProductChoice[]>([]);
+  const [loading, setLoading] = useState(false);
+  useEffect(() => {
+    if (open)
+      catalogSets().then((rows) =>
+        setSets(rows.sort((a, b) => b.released.localeCompare(a.released))),
+      );
+  }, [open]);
+  useEffect(() => {
+    if (!selected) return;
+    setLoading(true);
+    productsForSet(selected.code)
+      .then(setProducts)
+      .finally(() => setLoading(false));
+  }, [selected]);
+  useEffect(() => {
+    if (!open) {
+      setSelected(undefined);
+      setQuery("");
+    }
+  }, [open]);
+  useEffect(() => {
+    if (!open) return;
+    const previous = document.activeElement as HTMLElement | null;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") return onClose();
+      if (event.key !== "Tab") return;
+      const focusable = [...document.querySelectorAll<HTMLElement>(
+        ".sheet button:not(:disabled), .sheet input:not(:disabled), .sheet [tabindex='0']",
+      )].filter((element) => element.offsetParent !== null);
+      if (!focusable.length) return;
+      const first = focusable[0], last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      previous?.focus();
+    };
+  }, [open, onClose]);
+  const visible = sets
+    .filter((set) =>
+      `${set.name} ${set.code}`.toLowerCase().includes(query.toLowerCase()),
+    )
+    .slice(0, query ? 20 : 8);
+  const add = (product: ProductChoice) => {
+    onAdd({
+      id: crypto.randomUUID(),
+      set: product.set,
+      productKey: product.sealedKey
+        ? `sealed:${product.sealedKey}`
+        : product.key,
+      productLabel: product.label,
+      quantity: 1,
+      packCount: product.packCount,
+      tcgId: product.tcgId,
+    });
+    onClose();
+  };
+  const groupedProducts = products.reduce<Record<string, ProductChoice[]>>(
+    (groups, product) => {
+      (groups[product.category] ??= []).push(product);
+      return groups;
+    },
+    {},
+  );
+  return (
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          className="scrim"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          onMouseDown={onClose}
+        >
+          <motion.section
+            className="sheet"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Add product"
+            initial={{ y: "100%" }}
+            animate={{ y: 0 }}
+            exit={{ y: "100%" }}
+            transition={{ type: "spring", damping: 28, stiffness: 320 }}
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <header>
+              <button
+                className="icon-button"
+                onClick={selected ? () => setSelected(undefined) : onClose}
+                aria-label={selected ? "Back" : "Close"}
+              >
+                {selected ? <ArrowLeft /> : <X />}
+              </button>
+              <div>
+                <small>ADD TO BREAK</small>
+                <h2>{selected ? selected.name : "Choose a set"}</h2>
+              </div>
+            </header>
+            {!selected ? (
+              <>
+                <label className="search">
+                  <Search />
+                  <input
+                    autoFocus
+                    placeholder="Search sets…"
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                  />
+                </label>
+                <p className="section-label">
+                  {query ? "RESULTS" : "RECENT SETS"}
+                </p>
+                <div className="choice-list">
+                  {visible.map((set) => (
+                    <button key={set.code} onClick={() => setSelected(set)}>
+                      <span className="set-glyph">{set.code.slice(0, 3)}</span>
+                      <span>
+                        <strong>{set.name}</strong>
+                        <small>
+                          {set.code} · {set.released}
+                        </small>
+                      </span>
+                      <ChevronRight />
+                    </button>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <>
+                {loading ? (
+                  <div className="loader">
+                    <span />
+                    Resolving exact products…
+                  </div>
+                ) : (
+                  <div className="product-groups">
+                    {Object.entries(groupedProducts).map(([category, rows]) => (
+                      <section key={category}>
+                        <p className="section-label">
+                          {category.toUpperCase()}
+                        </p>
+                        {rows!.map((product) => (
+                          <button
+                            key={product.key}
+                            onClick={() => add(product)}
+                          >
+                            <span className="product-icon">
+                              <Boxes />
+                            </span>
+                            <span>
+                              <strong>{product.label}</strong>
+                              <small>
+                                {product.packCount
+                                  ? `${product.packCount} packs · `
+                                  : ""}
+                                {product.status}
+                              </small>
+                            </span>
+                            <ChevronRight />
+                          </button>
+                        ))}
+                      </section>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+          </motion.section>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
+function EmptyBreak({ add }: { add: () => void }) {
+  return (
+    <section className="empty">
+      <span>
+        <PackagePlus />
+      </span>
+      <h2>What’s being opened?</h2>
+      <p>Pick the sealed products once. ColorBreak calculates automatically.</p>
+      <button className="primary" onClick={add}>
+        <PackagePlus size={18} /> Add a product
+      </button>
+    </section>
+  );
+}
+
+function Composition({
+  lines,
+  add,
+  update,
+  remove,
+}: {
+  lines: BreakLine[];
+  add: () => void;
+  update: (id: string, patch: Partial<BreakLine>) => void;
+  remove: (id: string) => void;
+}) {
+  return (
+    <section className="composition panel">
+      <header>
+        <div>
+          <p className="section-label">BREAK</p>
+          <h2>
+            {lines.length} product{lines.length === 1 ? "" : "s"}
+          </h2>
+        </div>
+        <button className="quiet" onClick={add}>
+          <PackagePlus /> Add
+        </button>
+      </header>
+      {lines.map((line) => (
+        <div className="line" key={line.id}>
+          <span className="set-glyph">{line.set}</span>
+          <span>
+            <strong>{line.productLabel}</strong>
+            <small>{line.set}</small>
+          </span>
+          <div className="stepper">
+            <button
+              onClick={() =>
+                line.quantity <= 1
+                  ? remove(line.id)
+                  : update(line.id, { quantity: line.quantity - 1 })
+              }
+            >
+              −
+            </button>
+            <b>{line.quantity}</b>
+            <button
+              onClick={() => update(line.id, { quantity: line.quantity + 1 })}
+            >
+              +
+            </button>
+          </div>
+        </div>
+      ))}
+    </section>
+  );
+}
+
+function ValueSummary({ result }: { result: ValuationResult }) {
+  return (
+    <section className="value-summary panel">
+      <header>
+        <div>
+          <p className="section-label">BREAK VALUE</p>
+          <h2>{fmt(result.sellableEV)}</h2>
+        </div>
+        <Status result={result} />
+      </header>
+      <div className="metric-row">
+        <div>
+          <span>
+            Market EV
+            <Tip text="Every priced card, including bulk." />
+          </span>
+          <b>{fmt(result.marketEV)}</b>
+        </div>
+        <div>
+          <span>
+            Sellable EV
+            <Tip text={`Cards priced at least ${fmt(result.threshold)}.`} />
+          </span>
+          <b>{fmt(result.sellableEV)}</b>
+        </div>
+        <div>
+          <span>
+            Known EV
+            <Tip text="Conservative priced value after unresolved items are omitted." />
+          </span>
+          <b>{fmt(result.knownEV)}</b>
+        </div>
+      </div>
+      {result.omissions.length > 0 && (
+        <details className="notice">
+          <summary>
+            {result.omissions.length} data note
+            {result.omissions.length === 1 ? "" : "s"}
+          </summary>
+          {result.omissions.slice(0, 8).map((item, i) => (
+            <p key={`${item.code}${i}`}>{item.message}</p>
+          ))}
+        </details>
+      )}
+    </section>
+  );
+}
+
+function SlotRail({
+  result,
+  selected,
+  setSelected,
+}: {
+  result: ValuationResult;
+  selected: SlotId;
+  setSelected: (id: SlotId) => void;
+}) {
+  return (
+    <div className="slot-rail" role="tablist" aria-label="Color slots">
+      {result.slots.map((slot) => (
+        <button
+          role="tab"
+          aria-selected={selected === slot.id}
+          className={`slot slot-${slot.id} ${selected === slot.id ? "active" : ""}`}
+          key={slot.id}
+          onClick={() => setSelected(slot.id)}
+        >
+          <span>{slot.id}</span>
+          <b>{fmt(slot.sellableEV)}</b>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function BuyerView({ result }: { result: ValuationResult }) {
+  const [selected, setSelected] = useState<SlotId>("W");
+  const [bid, setBid] = useState<number>();
+  const [shipping, setShipping] = useState<number>();
+  const slot = result.slots.find((row) => row.id === selected)!;
+  const landed = (bid ?? 0) + (shipping ?? 0);
+  const verdict =
+    bid == null ? "READY" : buyerVerdict(slot, landed, result.status);
+  return (
+    <>
+      <section
+        className={`verdict panel verdict-${verdict.replace(/[^A-Z]/g, "").toLowerCase()}`}
+      >
+        <div className="verdict-head">
+          <div>
+            <p className="section-label">
+              {SLOT_NAMES[selected].toUpperCase()} SLOT
+            </p>
+            <h2>{verdict}</h2>
+          </div>
+          <div className="ev-orb">
+            <small>SELLABLE EV</small>
+            <strong>{fmt(slot.sellableEV)}</strong>
+          </div>
+        </div>
+        <div className="bid-inputs">
+          <NumberField label="Current bid" value={bid} onChange={setBid} />
+          <NumberField
+            label="Your added shipping"
+            value={shipping}
+            onChange={setShipping}
+            hint="Only shipping added by this purchase—not your whole order."
+          />
+        </div>
+        {bid != null && (
+          <div className="delta">
+            <span>
+              Landed cost <b>{fmt(landed)}</b>
+            </span>
+            <span>
+              Value gap <b>{fmt(slot.sellableEV - landed)}</b>
+            </span>
+          </div>
+        )}
+        {result.status === "incomplete" && (
+          <p className="blocked">
+            <ShieldAlert /> Verdict withheld because product data is incomplete.
+          </p>
+        )}
+      </section>
+      <SlotRail result={result} selected={selected} setSelected={setSelected} />
+      <section className="panel slot-detail">
+        <header>
+          <div>
+            <p className="section-label">RISK PROFILE</p>
+            <h2>{SLOT_NAMES[selected]} value</h2>
+          </div>
+          <span className={slot.chaseShare > 0.5 ? "lottery" : "steady"}>
+            {slot.chaseShare > 0.5 ? "LOTTERY" : "STEADY"}
+          </span>
+        </header>
+        <div className="risk-bar">
+          <span style={{ width: `${Math.min(100, slot.chaseShare * 100)}%` }} />
+        </div>
+        <div className="metric-row">
+          <div>
+            <span>Top-card share</span>
+            <b>{Math.round(slot.chaseShare * 100)}%</b>
+          </div>
+          <div>
+            <span>Without chase</span>
+            <b>{fmt(slot.withoutChase)}</b>
+          </div>
+        </div>
+        <details>
+          <summary>Top value contributors</summary>
+          {slot.contributors.slice(0, 8).map((row) => (
+            <article className="card-row" key={row.card.id}>
+              {row.card.image && <img src={row.card.image} alt="" />}
+              <span>
+                <strong>{row.card.name}</strong>
+                <small>
+                  {row.copies.toFixed(2)} expected ·{" "}
+                  {row.foilCopies ? "foil" : "nonfoil"}
+                </small>
+              </span>
+              <b>{fmt(row.marketValue)}</b>
+            </article>
+          ))}
+        </details>
+      </section>
+    </>
+  );
+}
+
+function allocate(
+  result: ValuationResult,
+  total: number,
+  min: number,
+  locked: Partial<Record<SlotId, number>>,
+  unsold: Set<SlotId>,
+) {
+  const output = Object.fromEntries(SLOT_IDS.map((id) => [id, 0])) as Record<
+    SlotId,
+    number
+  >;
+  const active = result.slots.filter(
+    (slot) => slot.sellableEV > 0 && !unsold.has(slot.id),
+  );
+  for (const slot of active) if (locked[slot.id] != null) output[slot.id] = locked[slot.id]!;
+  const unlocked = active.filter((slot) => locked[slot.id] == null);
+  const remaining = Math.max(
+    0,
+    total - active.reduce((sum, slot) => sum + (locked[slot.id] ?? 0), 0),
+  );
+  const effectiveMin = unlocked.length ? Math.min(min, remaining / unlocked.length) : 0;
+  const distributable = Math.max(0, remaining - effectiveMin * unlocked.length);
+  const weight = unlocked.reduce((sum, slot) => sum + slot.sellableEV, 0);
+  for (const slot of unlocked) {
+    output[slot.id] = effectiveMin + (weight ? distributable * slot.sellableEV / weight : 0);
+  }
+  return output;
+}
+
+function SellerView({
+  result,
+  lines,
+  update,
+}: {
+  result: ValuationResult;
+  lines: BreakLine[];
+  update: (id: string, p: Partial<BreakLine>) => void;
+}) {
+  const [margin, setMargin] = useState(20),
+    [buyerShip, setBuyerShip] = useState(5),
+    [packing, setPacking] = useState(2),
+    [covered, setCovered] = useState(0),
+    [shipments, setShipments] = useState(8),
+    [minimum, setMinimum] = useState(1);
+  const [commission, setCommission] = useState(WHATNOT_US.commissionRate * 100);
+  const [processing, setProcessing] = useState(WHATNOT_US.processingRate * 100);
+  const [processingFlat, setProcessingFlat] = useState(WHATNOT_US.processingFlat);
+  const [actual, setActual] = useState<Partial<Record<SlotId, number>>>({});
+  const [locked, setLocked] = useState<Partial<Record<SlotId, number>>>({});
+  const [unsold, setUnsold] = useState<Set<SlotId>>(new Set());
+  const acquisition = lines.reduce(
+    (n, l) => n + (l.myCost ?? l.marketCost ?? 0) * l.quantity,
+    0,
+  );
+  const costsComplete = lines.every(
+    (l) => l.myCost != null || l.marketCost != null,
+  );
+  const targetProfit = (acquisition * margin) / 100;
+  const marketplace = {
+    ...WHATNOT_US,
+    commissionRate: commission / 100,
+    processingRate: processing / 100,
+    processingFlat,
+    name: commission === 8 && processing === 2.9 && processingFlat === 0.3
+      ? "Whatnot US"
+      : "Custom fees",
+  };
+  const soldIds = SLOT_IDS.filter((id) => !unsold.has(id));
+  const shipmentCount = Math.min(soldIds.length, Math.max(1, Math.round(shipments)));
+  const target = requiredHammer(
+    soldIds.length,
+    (packing + covered) * shipmentCount,
+    acquisition,
+    targetProfit,
+    buyerShip,
+    marketplace,
+  );
+  const asks = allocate(result, target, minimum, locked, unsold);
+  const askTotal = soldIds.reduce((sum, id) => sum + asks[id], 0);
+  const transactions = Object.entries(actual)
+    .filter(([slot, v]) => v != null && !unsold.has(slot as SlotId))
+    .map(
+      ([slot, hammer]) =>
+        ({
+          slot: slot as SlotId,
+          hammer: hammer!,
+          buyerShipping: buyerShip,
+          buyerTax: 0,
+        }) as Transaction,
+    );
+  const profit =
+    transactions.length === soldIds.length && soldIds.length > 0
+      ? calculateProfit(
+          transactions,
+          Array.from({ length: shipmentCount }, (_, index) => ({
+            id: `shipment-${index + 1}`,
+            slots: [],
+            packingCost: packing,
+            sellerCoveredShipping: covered,
+          })),
+          acquisition,
+          marketplace,
+        )
+      : undefined;
+  return (
+    <>
+      <section className="panel seller-plan">
+        <header>
+          <div>
+            <p className="section-label">TARGET PLAN</p>
+            <h2>{costsComplete ? fmt(target) : "Add your costs"}</h2>
+          </div>
+          <span className="market-badge">
+            <Store />
+            {marketplace.name}
+          </span>
+        </header>
+        <div className="cost-lines">
+          {lines.map((line) => (
+            <div key={line.id}>
+              <span>
+                <strong>{line.productLabel}</strong>
+                <small>
+                  {line.quantity} × product
+                  {line.marketCost != null && ` · market ${fmt(line.marketCost)}`}
+                </small>
+              </span>
+              <NumberField
+                label="My unit cost"
+                value={line.myCost}
+                onChange={(n) => update(line.id, { myCost: n })}
+              />
+            </div>
+          ))}
+        </div>
+        <div className="settings-grid">
+          <NumberField
+            label="Target margin"
+            value={margin}
+            onChange={(n) => setMargin(n ?? 0)}
+            prefix="%"
+          />
+          <NumberField
+            label="Buyer shipping"
+            value={buyerShip}
+            onChange={(n) => setBuyerShip(n ?? 0)}
+            hint="Used only in processing-fee math; it is not your revenue."
+          />
+          <NumberField
+            label="Packing / shipment"
+            value={packing}
+            onChange={(n) => setPacking(n ?? 0)}
+          />
+          <NumberField
+            label="You cover / shipment"
+            value={covered}
+            onChange={(n) => setCovered(n ?? 0)}
+          />
+          <NumberField
+            label="Shipments"
+            value={shipments}
+            onChange={(n) => setShipments(n ?? 1)}
+            prefix=""
+            hint="Buyer-grouped packages. Fees remain per color-slot purchase."
+          />
+        </div>
+        <details className="fee-settings">
+          <summary>Marketplace fee assumptions</summary>
+          <div className="settings-grid">
+            <NumberField label="Commission" value={commission} onChange={(n) => setCommission(n ?? 0)} prefix="%" />
+            <NumberField label="Processing" value={processing} onChange={(n) => setProcessing(n ?? 0)} prefix="%" />
+            <NumberField label="Fixed / purchase" value={processingFlat} onChange={(n) => setProcessingFlat(n ?? 0)} />
+          </div>
+          <p className="muted">Current Whatnot US default, editable for another marketplace. Fees apply per purchase.</p>
+        </details>
+      </section>
+      {costsComplete && (
+        <section className="panel ask-grid">
+          <header>
+            <div>
+              <p className="section-label">ASKS TO CLEAR</p>
+              <h2>{fmt(askTotal)} total</h2>
+            </div>
+            <button
+              className="quiet"
+              onClick={() =>
+                setActual(
+                  Object.fromEntries(soldIds.map((id) => [id, asks[id]])),
+                )
+              }
+            >
+              <Copy />
+              Use plan
+            </button>
+          </header>
+          <p className="muted">
+            Target {fmt(target)} · allocated by sellable value. Lock a strong
+            slot or remove an unsold slot; the rest redistributes automatically.
+          </p>
+          {result.slots.map((slot) => (
+            <div
+              className={`ask slot-${slot.id} ${unsold.has(slot.id) ? "unsold" : ""}`}
+              key={slot.id}
+            >
+              <span className="slot-letter">{slot.id}</span>
+              <span>
+                <strong>{slot.name}</strong>
+                <small>{fmt(slot.sellableEV)} sellable EV</small>
+              </span>
+              <b>{fmt(asks[slot.id])}</b>
+              <div className="ask-actions">
+                <button
+                  title={locked[slot.id] == null ? "Lock target" : "Unlock target"}
+                  onClick={() =>
+                    setLocked((current) => {
+                      const next = { ...current };
+                      if (next[slot.id] == null) next[slot.id] = asks[slot.id];
+                      else delete next[slot.id];
+                      return next;
+                    })
+                  }
+                >
+                  {locked[slot.id] == null ? <Unlock /> : <Lock />}
+                </button>
+                <button
+                  title={unsold.has(slot.id) ? "Sell this slot" : "Mark unsold"}
+                  onClick={() =>
+                    setUnsold((current) => {
+                      const next = new Set(current);
+                      if (next.has(slot.id)) next.delete(slot.id);
+                      else next.add(slot.id);
+                      return next;
+                    })
+                  }
+                >
+                  {unsold.has(slot.id) ? <DollarSign /> : <X />}
+                </button>
+              </div>
+              <label>
+                <small>Actual</small>
+                <input
+                  inputMode="decimal"
+                  placeholder={unsold.has(slot.id) ? "unsold" : "—"}
+                  disabled={unsold.has(slot.id)}
+                  value={actual[slot.id] ?? ""}
+                  onChange={(e) =>
+                    setActual({
+                      ...actual,
+                      [slot.id]:
+                        e.target.value === ""
+                          ? undefined
+                          : Number(e.target.value),
+                    })
+                  }
+                />
+              </label>
+            </div>
+          ))}
+          <div className="min-row">
+            <NumberField
+              label="Minimum ask"
+              value={minimum}
+              onChange={(n) => setMinimum(n ?? 0)}
+            />
+          </div>
+        </section>
+      )}
+      {profit && (
+        <section
+          className={`panel profit ${profit.profit >= targetProfit ? "positive" : "negative"}`}
+        >
+          <p className="section-label">ACTUAL OUTCOME</p>
+          <h2>{fmt(profit.profit)} profit</h2>
+          <div className="metric-row">
+            <div>
+              <span>Hammer</span>
+              <b>{fmt(profit.hammer)}</b>
+            </div>
+            <div>
+              <span>Fees</span>
+              <b>−{fmt(profit.fees)}</b>
+            </div>
+            <div>
+              <span>Fulfillment</span>
+              <b>−{fmt(profit.shipmentCosts)}</b>
+            </div>
+          </div>
+        </section>
+      )}
+    </>
+  );
+}
+
+function storedLines(
+  mode: "buyer" | "seller",
+  legacy: BreakLine[],
+): BreakLine[] {
+  if (legacy.length) return legacy;
+  try {
+    return JSON.parse(
+      localStorage.getItem(`colorbreak:${mode}:lines`) ?? "[]",
+    ) as BreakLine[];
+  } catch {
+    return [];
+  }
+}
+
+function Workspace({
+  mode,
+  exit,
+}: {
+  mode: "buyer" | "seller";
+  exit: () => void;
+}) {
+  const legacy = useMemo(() => decodeLegacySearch(location.search), []);
+  const [lines, setLines] = useState<BreakLine[]>(() =>
+      storedLines(mode, legacy),
+    ),
+    [builder, setBuilder] = useState(false),
+    [result, setResult] = useState<ValuationResult>(),
+    [error, setError] = useState<string>(),
+    [threshold, setThreshold] = useState(2),
+    [busy, setBusy] = useState(false);
+  useEffect(() => {
+    try {
+      localStorage.setItem(`colorbreak:${mode}:lines`, JSON.stringify(lines));
+    } catch {
+      /* persistence is optional */
+    }
+  }, [lines, mode]);
+  useEffect(() => {
+    for (const line of lines)
+      if (line.tcgId && line.marketCost == null)
+        loadSealedMarketPrice(line.set, line.tcgId)
+          .then((price) => {
+            if (price != null)
+              setLines((rows) =>
+                rows.map((row) =>
+                  row.id === line.id
+                    ? { ...row, marketCost: price, myCost: row.myCost ?? price }
+                    : row,
+                ),
+              );
+          })
+          .catch(() => {});
+  }, [lines]);
+  useEffect(() => {
+    if (!lines.length) {
+      setResult(undefined);
+      return;
+    }
+    setBusy(true);
+    setError(undefined);
+    evaluateBreak(lines, threshold)
+      .then(setResult)
+      .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+      .finally(() => setBusy(false));
+  }, [lines, threshold]);
+  const update = (id: string, patch: Partial<BreakLine>) =>
+    setLines((rows) => rows.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+  const share = async () => {
+    const url = new URL(location.href);
+    url.search = `?b=${encodeURIComponent(encodeComposition(lines))}`;
+    await navigator.clipboard.writeText(url.toString());
+  };
+  return (
+    <>
+      <nav>
+        <button className="wordmark" onClick={exit}>
+          <span className="brand-mark">
+            <Sparkles />
+          </span>
+          COLORBREAK
+        </button>
+        <div className="nav-actions">
+          <button
+            className="icon-button"
+            onClick={share}
+            title="Copy public break link"
+          >
+            <Copy />
+          </button>
+          <button
+            className="icon-button"
+            onClick={() => setBuilder(true)}
+            title="Add product"
+          >
+            <PackagePlus />
+          </button>
+        </div>
+      </nav>
+      <main className="workspace page">
+        <header className="workspace-title">
+          <div>
+            <p className="eyebrow">
+              {mode === "buyer" ? "LIVE AUCTION" : "BREAK PLANNING"}
+            </p>
+            <h1>{mode === "buyer" ? "Check a bid" : "Build & price"}</h1>
+          </div>
+          {lines.length > 0 && (
+            <label className="threshold">
+              <Settings2 />
+              <span>Sellable ≥</span>
+              <input
+                inputMode="decimal"
+                value={threshold}
+                onChange={(e) => setThreshold(Number(e.target.value) || 0)}
+              />
+            </label>
+          )}
+        </header>
+        {!lines.length ? (
+          <EmptyBreak add={() => setBuilder(true)} />
+        ) : (
+          <div className="workspace-grid">
+            <aside>
+              <Composition
+                lines={lines}
+                add={() => setBuilder(true)}
+                update={update}
+                remove={(id) =>
+                  setLines((rows) => rows.filter((r) => r.id !== id))
+                }
+              />
+            </aside>
+            <div className="results">
+              {busy && (
+                <div className="calculating">
+                  <span />
+                  Calculating exact contents and prices…
+                </div>
+              )}
+              {error && (
+                <div className="error">
+                  <ShieldAlert />
+                  {error}
+                </div>
+              )}
+              {result && !busy && (
+                <>
+                  <ValueSummary result={result} />
+                  {mode === "buyer" ? (
+                    <BuyerView result={result} />
+                  ) : (
+                    <SellerView result={result} lines={lines} update={update} />
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        )}
+      </main>
+      <Builder
+        open={builder}
+        onClose={() => setBuilder(false)}
+        onAdd={(line) => setLines((rows) => [...rows, line])}
+      />
+    </>
+  );
+}
+
+export function App() {
+  const hasSharedBreak = decodeLegacySearch(location.search).length > 0;
+  const initial: Mode =
+    location.hash === "#seller"
+      ? "seller"
+      : location.hash === "#buyer" || hasSharedBreak
+        ? "buyer"
+        : "home";
+  const [mode, setMode] = useState<Mode>(initial);
+  const choose = (next: Mode) => {
+    setMode(next);
+    history.replaceState(
+      null,
+      "",
+      next === "home" ? location.pathname : `#${next}`,
+    );
+  };
+  return (
+    <AnimatePresence mode="wait">
+      <motion.div
+        key={mode}
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -8 }}
+        transition={{ duration: 0.18 }}
+      >
+        {mode === "home" ? (
+          <Home choose={choose} />
+        ) : (
+          <Workspace mode={mode} exit={() => choose("home")} />
+        )}
+      </motion.div>
+    </AnimatePresence>
+  );
+}

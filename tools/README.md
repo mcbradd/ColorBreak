@@ -1,8 +1,10 @@
 # tools/ — collation format v2 builder (S3a)
 
-Maintainer-only. Nothing here ships to the page (`index.html` only fetches the JSON these
-tools produce, from `data/collation/{set}.json`). Node stdlib only, no dependencies, no
-network calls — `node tools/build-collation.mjs <normalized-set.json> [slot-map.json] [ppb.json]`.
+Maintainer-only, experimental pipeline. The v4 application does **not** consume this format;
+production valuation reads normalized `data/sealed/{set}.json`. Keep these frozen contracts
+intact while the builder is evaluated as a future sealed-data source. Node stdlib only, no
+dependencies, no network calls — `node tools/build-collation.mjs <normalized-set.json>
+[slot-map.json] [ppb.json]`.
 
 ## Format v2 (frozen)
 

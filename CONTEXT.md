@@ -1,17 +1,29 @@
-# ColorBreak
+# ColorBreak domain context
 
-Price board for MTG Whatnot color breaks. Primary use case: a buyer watching a live auction countdown (often ~10 seconds) needs a fast, glanceable answer to "is this slot worth bidding on" — not a report to review later. Speed and minimal taps beat completeness. Sharing a finished break has little value; the tool is a live-decision aid, not a results page.
+## Purpose
 
-## Language
+ColorBreak supports two time-sensitive jobs: a buyer deciding whether to bid on one color slot, and a seller deciding whether and how to run the break. The buyer path optimizes for a roughly ten-second decision. The seller path can expose more controls, but must begin with a useful plan rather than a blank form.
 
-**Basis**:
-Which of two sealed-product prices a slot's cost uses: the current sealed-box fraction (default) or, if that box isn't available in the market, the loose-pack price as a fallback.
-_Avoid_: using "basis" for the paid-vs-market question below — that's a **cost override**, a different concept.
+## Ubiquitous language
 
-**Cost override**:
-A seller-entered dollar amount that replaces the auto-computed market price for a line item, used when the seller's actual acquisition cost (e.g. inventory bought earlier at a different price) differs from today's market. Defaults to unset (market price applies).
-_Avoid_: "basis" (see above), "paid basis."
+- **Break**: the complete opening, composed of one or more sealed product lines.
+- **Product line**: set, sealed product, quantity, and optional acquisition cost.
+- **Color slot**: W, U, B, R, G, M, C, or L. Classification uses front-face printed color; lands always belong to L.
+- **Market EV**: expected value of every resolved card at its exact-finish market price.
+- **Sellable EV**: expected value from cards at or above the user’s sellable threshold.
+- **Known EV**: priced value that is safe to claim after unresolved contents are omitted. It equals Market EV when the result is complete.
+- **Landed bid**: hammer price plus shipping added by the current purchase. Tax is disclosed but not modeled in the buyer verdict.
+- **Transaction**: one buyer purchase. Commission, percentage processing, and the fixed processing fee apply here.
+- **Shipment**: buyer-grouped fulfillment. Packing and seller-covered shipping apply here; a shipment is not automatically one color slot.
+- **Target plan**: proposed asks needed to achieve a margin. It is not an actual outcome.
+- **Actual asks**: seller-confirmed asks used to calculate projected profit.
+- **Verified / Estimated / Incomplete**: data-confidence states. Incomplete is a lower bound and suppresses a buyer verdict.
+- **Omission**: a named unresolved product, booster, printing, finish, or sheet weight. Material omissions change status to Incomplete.
 
-**Order**:
-One or more slots a single buyer wins and pays for together, sharing one fulfillment cost and one buyer S&H charge. Defaults to one order per slot; a buyer can group any number of their own won slots (not necessarily adjacent) into one order. There is no Whatnot platform feature for combined orders — a seller offering reduced or free S&H on multi-slot orders is a seller-chosen incentive, not a platform mechanic, so both fulfillment cost and buyer S&H must be overridable per order, not just set once globally.
-_Avoid_: "combined order" as a platform term — it's seller-specific, not a Whatnot feature.
+## Source policy
+
+MTGJSON provides sealed products and collation, Scryfall provides exact-printing prices, and tcgcsv provides best-effort sealed market prices. `data/corrections.json` contains reviewed product facts from authoritative sources and takes precedence over upstream sealed metadata. No adapter may silently substitute nonfoil for foil, guess missing box contents, or drop a foreign-set printing.
+
+## Experience laws
+
+Product selection triggers calculation immediately. Buyer and seller are separate task flows over one valuation engine. Mobile touch is primary; desktop adds a persistent composition pane. Advanced details are progressively disclosed. Confidence and omissions appear beside the number they qualify, not in a remote disclaimer.
