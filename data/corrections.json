@@ -42,6 +42,16 @@
       "source": "https://magic.wizards.com/en/news/feature/collecting-the-hobbit",
       "reason": "The guaranteed Gift Bundle card and land contents are already expanded in fixed for all six units; the child pseudo-pack is duplicate metadata."
     },
+    "HOB/prerelease-pack": {
+      "removePacks": ["prerelease"],
+      "source": "https://magic.wizards.com/en/news/feature/collecting-the-hobbit",
+      "reason": "The product already contains its six Play Boosters and fixed prerelease card; the generic prerelease child is duplicate metadata, not a seventh booster."
+    },
+    "HOB/prerelease-case": {
+      "removePacks": ["prerelease"],
+      "source": "https://magic.wizards.com/en/news/feature/collecting-the-hobbit",
+      "reason": "The case already expands to ninety Play Boosters and its fixed prerelease cards; the fifteen generic prerelease children duplicate those units."
+    },
     "FIN/scene-box-set-of-4": {
       "contentsMultiplier": 4,
       "source": "https://magic.wizards.com/en/products/final-fantasy",

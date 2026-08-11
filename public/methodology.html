@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#090b10" />
+    <title>ColorBreak Methodology</title>
+    <style>body{max-width:760px;margin:0 auto;padding:32px 20px 80px;color:#e9edf4;background:#090b10;font:16px/1.65 system-ui,sans-serif}a{color:#aeff5e}h1,h2{line-height:1.15}h2{margin-top:2em}</style>
+  </head>
+  <body>
+    <a href="/">← ColorBreak</a>
+    <h1>Methodology</h1>
+    <p>ColorBreak estimates Magic: The Gathering break outcomes. It is a decision aid, not a prediction of the next opening or a guarantee of value.</p>
+    <h2>Sources and evidence</h2>
+    <p>MTGJSON supplies versioned product identities, contents, and weighted booster sheets. Scryfall supplies exact-printing metadata, images, and current price observations. Narrow corrections cite official Wizards product or collecting guides. Evidence for product identity, contents, collation, finish, break rules, and price freshness is tracked separately.</p>
+    <h2>Expected value and outcomes</h2>
+    <p>Analytic EV sums each possible printing's price times expected copies. Outcome distributions use deterministic, seeded sampling of mutually exclusive variants, sheet choices, fixed cards, nested products, finishes, and duplicate rules. Initial results use 10,000 samples and can refine to 50,000. The same break state and price snapshot reproduce the same result.</p>
+    <p>The Outcome Fingerprint emphasizes median and downside alongside mean EV. A 20-dot display represents modeled frequency in five-percent increments. “Chance to clear” compares modeled counted card value with the entered landed cost.</p>
+    <h2>Ignore bulk under</h2>
+    <p>The bulk threshold excludes individual card finishes priced below the chosen amount from every counted-value calculation and visualization. It is a value filter, not a claim about liquidity, condition, fees, or the ability to sell a card.</p>
+    <h2>Withheld claims</h2>
+    <p>Materially unresolved contents, collation, finishes, or prices suppress probability claims and buyer verdicts. Known value may still appear as a disclosed lower bound. ColorBreak does not silently replace one finish with another or treat generic rarity estimates as exact sealed products.</p>
+    <h2>Compliance</h2>
+    <p>Seller scenarios have a dated platform-policy state. Prohibited Whatnot mechanics cannot generate show notes. Approval-required mechanics cannot export without a recorded approval reference. Policy classifications are informational and should be rechecked before each show.</p>
+  </body>
+</html>

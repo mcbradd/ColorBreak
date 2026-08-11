@@ -14,9 +14,8 @@
 // `chocobo-bundle`/`box-topper`. This file describes *products*, v2 describes *rates
 // under validation*; both quote sheets with the same `[setCode?, cn, weight]` triple.
 //
-// ponytail: booster variants are collapsed to expected picks per sheet. EV is linear in
-// pick counts, so the average is exact for EV; it does not preserve variance, which the
-// board never reports.
+// v2 keeps both the exact weighted variants used by outcome simulation and the
+// weight-averaged picks used by the fast analytic EV path.
 
 import { writeFileSync, mkdirSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -45,6 +44,17 @@ export function expectedPicks(config) {
   // more precision than the weights carry.
   for (const k of Object.keys(picks)) picks[k] = Math.round(picks[k] * 1e6) / 1e6;
   return picks;
+}
+
+export function finishForSheet(name, sheet) {
+  const normalized = name.toLowerCase();
+  if (normalized.includes("etched")) return "etched";
+  if (normalized.includes("surge")) return "surge";
+  if (normalized.includes("textured")) return "textured";
+  if (normalized.includes("gilded")) return "gilded";
+  if (normalized.includes("serialized")) return "serialized";
+  if (/neon|galaxy|confetti|halo|ripple|fracture|raised|step.?and.?compleat/.test(normalized)) return "other";
+  return sheet.foil ? "foil" : "nonfoil";
 }
 // @end-pure
 
@@ -313,14 +323,29 @@ export function buildSet(data, extraCards = new Map(), allowMissing = false, ext
         const own = (card.setCode || set).toUpperCase() === set;
         list.push(own ? [card.number, weight] : [(card.setCode || "").toUpperCase(), card.number, weight]);
       }
-      sheets[name] = { foil: !!sheet.foil, total: sheet.totalWeight, cards: list, ...(missing ? { missing } : {}) };
+      sheets[name] = {
+        foil: !!sheet.foil,
+        finish: finishForSheet(name, sheet),
+        total: sheet.totalWeight,
+        cards: list,
+        ...(sheet.allowDuplicates === false ? { allowDuplicates: false } : {}),
+        ...(sheet.balanceColors ? { balanceColors: true } : {}),
+        ...(missing ? { missing } : {}),
+      };
     }
-    boosters[code] = { picks: expectedPicks(config), sheets };
+    boosters[code] = {
+      picks: expectedPicks(config),
+      variants: config.boosters.map((variant) => ({
+        weight: variant.weight,
+        picks: Object.fromEntries(Object.entries(variant.contents).map(([sheet, count]) => [sheet, Number(count)])),
+      })),
+      sheets,
+    };
   }
   if ((unresolved.length || missingDecks.length || missingSealed.length) && !allowMissing) throw new UnresolvedCards(unresolved, missingDecks, missingSealed);
 
   return {
-    v: 1, set, name: data.name, released: data.releaseDate,
+    v: 2, set, name: data.name, released: data.releaseDate,
     src: { mtgjson: data.__meta?.version || null, mtgjsonDate: data.__meta?.date || null, builtAt: new Date().toISOString() },
     products, boosters,
   };
@@ -419,7 +444,11 @@ async function main() {
   }
   // index.json lets the page know which sets have a reference file without probing 404s.
   const have = readdirSync(OUT_DIR).filter((f) => /^[A-Z0-9]+\.json$/.test(f)).map((f) => f.replace(/\.json$/, ""));
-  writeFileSync(`${OUT_DIR}index.json`, JSON.stringify({ sets: have.sort(), builtAt: new Date().toISOString() }));
+  const documents = have.map((set) => {
+    const stored = JSON.parse(readFileSync(`${OUT_DIR}${set}.json`, "utf8"));
+    return { code: stored.set, name: stored.name, released: stored.released, products: stored.products.length };
+  }).sort((a, b) => a.code.localeCompare(b.code));
+  writeFileSync(`${OUT_DIR}index.json`, JSON.stringify({ sets: have.sort(), documents, builtAt: new Date().toISOString() }));
   console.error(`index.json: ${have.length} sets`);
 }
 

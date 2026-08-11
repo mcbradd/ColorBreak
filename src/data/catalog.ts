@@ -11,6 +11,9 @@ interface CatalogFile {
 }
 
 let catalogPromise: Promise<CatalogFile> | null = null;
+let sealedIndexPromise: Promise<{
+  documents?: Array<{ code: string; name: string; released: string; products: number }>;
+}> | null = null;
 
 export async function loadCatalog(): Promise<CatalogFile> {
   catalogPromise ??= fetch("data/products.json").then((response) => {
@@ -53,8 +56,22 @@ export async function productsForSet(set: string): Promise<ProductChoice[]> {
 }
 
 export async function catalogSets(): Promise<SetChoice[]> {
-  const catalog = await loadCatalog();
-  return Object.entries(catalog.sets).map(([code, set]) => ({
+  const [catalog, sealedIndex] = await Promise.all([
+    loadCatalog(),
+    sealedIndexPromise ??= fetch("data/sealed/index.json").then((response) =>
+      response.ok ? response.json() : { documents: [] },
+    ),
+  ]);
+  const choices = new Map(Object.entries(catalog.sets).map(([code, set]) => [code, ({
     code, name: set.name, released: set.released, type: "catalog",
-  }));
+  } satisfies SetChoice)]));
+  for (const document of sealedIndex.documents ?? []) {
+    choices.set(document.code, {
+      code: document.code,
+      name: document.name,
+      released: document.released,
+      type: "exact-sealed",
+    });
+  }
+  return [...choices.values()];
 }

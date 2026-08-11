@@ -1,0 +1,8 @@
+{
+  "sets": 72,
+  "products": 1107,
+  "complete": 1023,
+  "incomplete": 84,
+  "capturedAt": "2026-08-11",
+  "note": "Regression floor after sealed schema v2 and the 2018+ expansion. Incomplete products must be resolved or explicitly rebaselined with evidence."
+}

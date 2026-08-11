@@ -1,0 +1,3 @@
+# Outcome claims require generative collation
+
+ColorBreak will keep analytic mean EV for fast reconciliation, but medians, percentiles, chance-to-clear, representative openings, and remaining-pool claims must come from a deterministic generative model that preserves mutually exclusive variants, sheet choices, finishes, fixed contents, and named unresolved branches. This adds implementation and compute cost, but deriving risk from averaged expected draws would create plausible-looking distributions that cannot correspond to real packs; material gaps therefore suppress outcome claims instead of being silently estimated.
