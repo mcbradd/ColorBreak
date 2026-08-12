@@ -218,3 +218,123 @@
   .evidence-scrim { place-items: center; padding: 24px; }
   .evidence-dialog { width: min(620px, 100%); max-height: min(760px, 90dvh); border-radius: 24px; }
 }
+
+/* One hierarchy for panel help: label/help row, then title/accessory row. */
+.panel > .panel-heading {
+  display: block;
+  padding: 18px;
+}
+.panel-heading .section-label {
+  margin: 0 0 12px;
+}
+.panel-heading-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+}
+.panel-heading-copy { min-width: 0; }
+.panel-heading-copy h2 { margin: 0; }
+.panel-heading-accessory { display: flex; align-items: center; justify-content: flex-end; min-width: 0; }
+.tip-indicator { min-height: 36px; }
+.status.tip-indicator,
+.risk-label.tip-indicator,
+.compliance-badge.tip-indicator,
+.market-badge.tip-indicator,
+.balance-score.tip-indicator { display: flex; align-items: center; justify-content: center; gap: 6px; }
+.balance-score { max-width: 132px; text-align: center; }
+.balance-score > b,
+.balance-score > span { display: block; }
+.balance-score > span { font-size: 8px; line-height: 1.15; }
+.value-summary .metric-row > div > span { min-height: 32px; line-height: 1.35; }
+
+@media (max-width: 430px) {
+  .panel-heading-main { gap: 10px; }
+  .panel-heading-accessory { max-width: 144px; }
+  .value-summary .panel-heading-copy h2 { font-size: 32px; }
+  .value-summary .metric-row > div { padding-inline: 10px; }
+}
+
+.profit-plan-summary,
+.scenario-economics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+.profit-plan-summary > div,
+.scenario-economics > div { min-width: 0; padding: 12px; border-right: 1px solid var(--line); }
+.profit-plan-summary > div:last-child,
+.scenario-economics > div:nth-child(3n) { border-right: 0; }
+.profit-plan-summary span,.profit-plan-summary b,.profit-plan-summary small,
+.scenario-economics span,.scenario-economics b,.scenario-economics small { display: block; }
+.profit-plan-summary span,.scenario-economics span { color: var(--muted); font-size: 9px; line-height: 1.3; }
+.profit-plan-summary b,.scenario-economics b { margin-top: 5px; font-size: 14px; }
+.profit-plan-summary small { margin-top: 3px; color: var(--muted); font-size: 8px; }
+.scenario-economics small { margin-top: 3px; color: var(--muted); font-size: 8px; }
+.cost-lines > .product-cost-card { display: block; padding: 15px 0; }
+.product-cost-name { display: block; margin-bottom: 11px; }
+.cost-price-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: end; gap: 10px; }
+.market-cost-readout { min-height: 59px; padding: 9px 10px; border: 1px solid var(--line); border-radius: 11px; background: #0e1117; }
+.market-cost-readout span,.market-cost-readout b,.market-cost-readout small { display: block; }
+.market-cost-readout span,.market-cost-readout small { color: var(--muted); font-size: 8px; }
+.market-cost-readout b { margin: 3px 0; font-size: 14px; }
+.cost-basis-note { margin: 9px 0 0; color: var(--muted); font-size: 9px; }
+.cost-basis-note b { color: var(--ink); }
+.scenario-controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(145px, 1fr)); gap: 10px; padding: 0 18px 18px; }
+.scenario-controls > label > span { display: flex; align-items: center; height: 20px; color: var(--muted); font-size: 10px; }
+.scenario-controls select { width: 100%; min-height: 41px; padding: 9px 32px 9px 10px; border: 1px solid var(--line); border-radius: 11px; color: var(--ink); background: #0e1117; }
+.scenario-view-picker { padding: 0 18px 16px; }
+.scenario-view-picker > span { display: block; margin-bottom: 7px; color: var(--muted); font-size: 9px; }
+.scenario-view-picker > div { display: flex; gap: 5px; overflow-x: auto; scrollbar-width: none; }
+.scenario-view-picker button { flex: 0 0 40px; min-height: 40px; padding: 0; border: 1px solid var(--line); border-radius: 10px; color: #aeb6c3; background: #0e1117; font-size: 11px; font-weight: 800; cursor: pointer; }
+.scenario-view-picker button:last-child { flex-basis: 72px; }
+.scenario-view-picker button.active { border-color: var(--accent); color: #10140b; background: var(--accent); }
+.scenario-policy-note { display: flex; align-items: flex-start; gap: 7px; margin: 0; padding: 11px 18px; border-top: 1px solid var(--line); color: #d4bc84; background: #211c13; font-size: 9px; line-height: 1.45; }
+.scenario-policy-note svg { flex: 0 0 15px; width: 15px; }
+.scenario-economics { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.scenario-economics > div:nth-child(n+4) { border-top: 1px solid var(--line); }
+.upside-chart { padding: 18px; }
+.upside-callout { margin-bottom: 16px; padding: 15px; border: 1px solid #3b5230; border-radius: 15px; background: linear-gradient(145deg, rgba(174,255,94,.12), #0d1016); }
+.upside-callout span,.upside-callout b,.upside-callout small { display: block; }
+.upside-callout span { color: #9eb583; font-size: 8px; font-weight: 800; letter-spacing: .1em; }
+.upside-callout b { margin: 4px 0; color: var(--accent); font: 800 30px Manrope; }
+.upside-callout small { color: #b8c0cb; font-size: 10px; }
+.upside-callout small + small { margin-top: 5px; color: #94a087; }
+.scenario-candles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; min-height: 250px; padding: 14px; border: 1px solid var(--line); border-radius: 15px; background: #0d1016; }
+.scenario-candle-column { display: grid; grid-template-rows: 190px auto auto; justify-items: center; min-width: 0; text-align: center; }
+.scenario-candle-column > div { display: flex; align-items: stretch; justify-content: center; width: 100%; height: 190px; border-bottom: 1px solid #333a46; }
+.scenario-candle-column .range-candle { width: 28px; }
+.scenario-candle-column .candle-body { width: 22px; }
+.scenario-candle-column .candle-median { width: 28px; }
+.scenario-candle-column > b { margin-top: 9px; font-size: 11px; }
+.scenario-candle-column > small { margin-top: 3px; color: var(--muted); font-size: 9px; }
+.x-axis-note { margin: 9px 0 18px !important; text-align: center; }
+.upside-chart h3 { margin: 0 0 9px; font: 700 15px Manrope; }
+.upside-legend { display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 12px; color: var(--muted); font-size: 9px; }
+.upside-legend span { display: flex; align-items: center; gap: 5px; }
+.upside-legend i { width: 9px; height: 9px; border-radius: 2px; background: #788394; }
+.upside-legend i.bonus { background: var(--accent); }
+.candle-grid { display: grid; grid-template-columns: repeat(8, minmax(38px, 1fr)); gap: 6px; overflow-x: auto; padding: 8px 2px 4px; scrollbar-width: none; }
+.candle-column { min-width: 38px; padding: 0 2px 5px; border: 1px solid transparent; border-radius: 8px; color: inherit; background: transparent; text-align: center; cursor: pointer; }
+.candle-column.active { border-color: #637247; background: rgba(174,255,94,.06); }
+.candle-pair { display: flex; justify-content: center; gap: 4px; height: 180px; }
+.range-candle { position: relative; display: block; width: 13px; height: 100%; }
+.candle-wick,.candle-body,.candle-median { position: absolute; left: 50%; display: block; transform: translateX(-50%); }
+.candle-wick { width: 2px; min-height: 2px; background: #788394; }
+.candle-body { width: 10px; min-height: 3px; border: 1px solid #aab2bf; border-radius: 2px; background: #4b5564; }
+.candle-median { width: 13px; height: 2px; background: #e2e6ec; }
+.range-candle.bonus .candle-wick { background: #73ac4f; }
+.range-candle.bonus .candle-body { border-color: #caff8f; background: #6a9e49; }
+.range-candle.bonus .candle-median { background: var(--accent); }
+.candle-column > b,.candle-column > small { display: block; }
+.candle-column > b { margin-top: 7px; font-size: 11px; }
+.candle-column > small { margin-top: 2px; color: var(--muted); font-size: 7px; white-space: nowrap; }
+.upside-chart > p { margin: 12px 0 0; color: var(--muted); font-size: 9px; line-height: 1.45; }
+
+@media (max-width: 430px) {
+  .profit-plan-summary,.scenario-economics { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .profit-plan-summary > div,.scenario-economics > div { padding-inline: 9px; }
+  .cost-price-grid,.scenario-controls { grid-template-columns: 1fr; }
+  .candle-pair { height: 160px; }
+}

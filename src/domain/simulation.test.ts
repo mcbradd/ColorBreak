@@ -31,6 +31,8 @@ describe("outcome simulation", () => {
     expect(first.remainingPool.chanceToClearCost).toBeCloseTo(0.5, 1);
     expect(first.slotDistributions.W.mean).toBeCloseTo(5, 0);
     expect(first.slotDistributions.U.mean).toBeCloseTo(10, 0);
+    expect(first.remainingPool.min).toBe(0);
+    expect(first.remainingPool.max).toBe(20);
     expect(first.sampleCount).toBe(10_000);
   });
 

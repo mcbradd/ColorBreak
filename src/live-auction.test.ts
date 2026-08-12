@@ -6,6 +6,7 @@ import { createAuction } from "./domain/auction";
 import { calculateBreak } from "./domain/valuation";
 import type { AuctionState } from "./domain/auction";
 import type { BreakAnalysis } from "./data/evaluate";
+import type { SlotId } from "./domain/types";
 
 const valuation = calculateBreak({
   prices: [
@@ -34,12 +35,14 @@ const analysis: BreakAnalysis = {
 
 function Harness() {
   const [auction, setAuction] = useState<AuctionState>(() => createAuction());
-  return createElement(BuyerView, { analysis, auction, setAuction });
+  const [selected, setSelected] = useState<SlotId>("W");
+  return createElement(BuyerView, { analysis, auction, setAuction, selected, setSelected });
 }
 
 describe("live random-slot buyer workflow", () => {
   it("removes the revealed slot in one tap and restores it with undo", async () => {
     render(createElement(Harness));
+    fireEvent.click(screen.getByRole("button", { name: "Random remaining slot" }));
     expect(screen.getByText("8 RANDOM SLOTS REMAIN")).toBeInTheDocument();
     expect(screen.getByText("ENTER BID")).toBeInTheDocument();
     await waitFor(() => expect(screen.getByLabelText("Possible opening values")).toBeInTheDocument());
@@ -56,5 +59,13 @@ describe("live random-slot buyer workflow", () => {
     fireEvent.click(screen.getByRole("button", { name: "Undo" }));
     expect(screen.getByText("8 RANDOM SLOTS REMAIN")).toBeInTheDocument();
     await waitFor(() => expect(screen.getByLabelText("Possible opening values")).toBeInTheDocument());
+  });
+
+  it("switches every buyer view to the chosen color", async () => {
+    render(createElement(Harness));
+    fireEvent.click(screen.getByRole("tab", { name: "Green slot" }));
+    expect(screen.getByRole("button", { name: "I pick my color" })).toHaveClass("active");
+    expect(screen.getByText("GREEN SLOT")).toBeInTheDocument();
+    expect(screen.getByText("GREEN VALUE DETAILS")).toBeInTheDocument();
   });
 });

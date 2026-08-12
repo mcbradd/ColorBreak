@@ -31,6 +31,8 @@ jobs:
         run: npm ci
       - name: Refresh compact exact-printing price snapshot
         run: npm run data:prices
+      - name: Refresh sealed-product market prices
+        run: npm run data:sealed-prices
       - name: Test and build
         run: npm run check
       - name: Configure Pages

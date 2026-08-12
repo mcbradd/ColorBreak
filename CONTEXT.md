@@ -27,8 +27,8 @@ ColorBreak supports two time-sensitive jobs: a buyer deciding whether to bid on 
 
 ## Source policy
 
-MTGJSON provides versioned sealed products and collation. Scryfall provides exact-printing metadata, images, and current price observations. Product acquisition cost is user-entered until ColorBreak has written rights to a commercial sealed-price source. `data/corrections.json` contains narrow, sourced product facts from authoritative sources and takes precedence over upstream sealed metadata. No adapter may silently substitute finishes, guess missing contents, or drop a foreign-set printing.
+MTGJSON provides versioned sealed products and collation. Scryfall provides exact-printing metadata, images, and current price observations. A daily build-time TCGCSV snapshot provides a sealed-product market reference; the seller can override it with their actual acquisition cost. `data/corrections.json` contains narrow, sourced product facts from authoritative sources and takes precedence over upstream sealed metadata. No adapter may silently substitute finishes, guess missing contents, or drop a foreign-set printing.
 
 ## Experience laws
 
-Product selection triggers calculation immediately. The buyer defaults to sequential random assignment; Pick My Color is alternate mode. Mobile touch is primary; desktop mouse and keyboard are secondary inputs. Advanced details are progressively disclosed. Confidence and omissions appear beside the number they qualify, not in a remote disclaimer. Removing an assigned slot takes one tap and is undoable.
+Product selection triggers calculation immediately. The buyer defaults to a specific color, and that choice stays synchronized across buyer and seller views, charts, contributors, and shared links. Random remaining-slot analysis is an explicit alternate mode. Mobile touch is primary; desktop mouse and keyboard are secondary inputs. Advanced details are progressively disclosed. Confidence and omissions appear beside the number they qualify, not in a remote disclaimer. Removing an assigned slot takes one tap and is undoable.

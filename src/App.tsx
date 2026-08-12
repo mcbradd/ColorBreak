@@ -33,11 +33,9 @@ import {
 import { catalogSets, productsForSet } from "./data/catalog";
 import { evaluateBreakAnalysis } from "./data/evaluate";
 import type { BreakAnalysis } from "./data/evaluate";
+import { sealedMarketPrice } from "./data/sealed-prices";
 import { assignSlot, createAuction, undoAssignment } from "./domain/auction";
 import type { AuctionState } from "./domain/auction";
-import { canExportScenario, WHATNOT_ENTICEMENTS } from "./domain/compliance";
-import type { EnticementScenario } from "./domain/compliance";
-import { scenarioEconomics } from "./domain/enticement";
 import { decodeLegacySearch, encodeComposition } from "./domain/legacy";
 import {
   calculateProfit,
@@ -50,6 +48,7 @@ import type { DistributionSummary, SimulationResult } from "./domain/simulation"
 import type {
   BreakLine,
   Contributor,
+  MarketplacePreset,
   ProductChoice,
   SetChoice,
   SlotId,
@@ -306,7 +305,6 @@ export function Tip({
         onBlur={() => setOpen(false)}
       >
         {children ?? <CircleHelp />}
-        {children && <CircleHelp className="tip-help-icon" aria-hidden="true" />}
       </span>
       {open && createPortal(
         <span
@@ -330,6 +328,33 @@ function SectionLabel({ children, text }: { children: ReactNode; text: string })
       <span>{children}</span>
       <Tip text={text} />
     </p>
+  );
+}
+
+function PanelHeading({
+  label,
+  help,
+  title,
+  accessory,
+  description,
+}: {
+  label: ReactNode;
+  help: string;
+  title: ReactNode;
+  accessory?: ReactNode;
+  description?: ReactNode;
+}) {
+  return (
+    <header className="panel-heading">
+      <SectionLabel text={help}>{label}</SectionLabel>
+      <div className="panel-heading-main">
+        <div className="panel-heading-copy">
+          <h2>{title}</h2>
+          {description}
+        </div>
+        {accessory && <div className="panel-heading-accessory">{accessory}</div>}
+      </div>
+    </header>
   );
 }
 
@@ -649,19 +674,14 @@ export function Composition({
 }) {
   return (
     <section className="composition panel">
-      <header>
-        <div>
-          <SectionLabel text="The sealed products and quantities being opened in this break. Changing any line immediately recalculates card contents, prices, color value, and possible opening values.">
-            BREAK
-          </SectionLabel>
-          <h2>
-            {lines.length} product{lines.length === 1 ? "" : "s"}
-          </h2>
-        </div>
-        <button className="quiet" onClick={add}>
+      <PanelHeading
+        label="BREAK"
+        help="The sealed products and quantities being opened in this break. Changing any line immediately recalculates card contents, prices, color value, and possible opening values."
+        title={<>{lines.length} product{lines.length === 1 ? "" : "s"}</>}
+        accessory={<button className="quiet" onClick={add}>
           <PackagePlus /> Add
-        </button>
-      </header>
+        </button>}
+      />
       {lines.map((line) => (
         <div className="line" key={line.id}>
           <span className="set-glyph">{line.set}</span>
@@ -711,35 +731,23 @@ export function ValueSummary({ result }: { result: ValuationResult }) {
   );
   return (
     <section className="value-summary panel">
-      <header>
-        <div>
-          <SectionLabel text="The average card value left after removing cards below your Ignore bulk under amount. This is an average across many possible openings, not a guaranteed result.">
-            BREAK VALUE AFTER IGNORING BULK
-          </SectionLabel>
-          <h2>{fmt(result.sellableEV)}</h2>
-        </div>
-        <Status result={result} />
-      </header>
+      <PanelHeading
+        label="BREAK VALUE AFTER IGNORING BULK"
+        help="The average card value left after removing cards below your Ignore bulk under amount. This is an average across many possible openings, not a guaranteed result."
+        title={fmt(result.sellableEV)}
+        accessory={<Status result={result} />}
+      />
       <div className="metric-row">
         <div>
-          <span className="metric-label">
-            <span>Before ignoring bulk</span>
-            <Tip text={`Average value of all priced cards before removing cards worth less than ${fmt(result.threshold)}.`} />
-          </span>
+          <span>Before ignoring bulk</span>
           <b>{fmt(result.marketEV)}</b>
         </div>
         <div>
-          <span className="metric-label">
-            <span>Ignored as bulk</span>
-            <Tip text={`Average value coming from cards worth less than ${fmt(result.threshold)} each. ColorBreak leaves this amount out of the buying and selling numbers.`} />
-          </span>
+          <span>Ignored as bulk</span>
           <b>{fmt(ignoredEV)}</b>
         </div>
         <div>
-          <span className="metric-label">
-            <span>Priced cards used</span>
-            <Tip text={`Number of different card versions worth ${fmt(result.threshold)} or more that add value to this break.`} />
-          </span>
+          <span>Priced cards used</span>
           <b>{countedCards}</b>
         </div>
       </div>
@@ -785,6 +793,7 @@ function SlotRail({
           <button
             role="tab"
             aria-selected={selected === slot.id}
+            aria-label={`${slot.name} slot`}
             className={`slot slot-${slot.id} ${selected === slot.id ? "active" : ""}`}
             key={slot.id}
             onClick={() => setSelected(slot.id)}
@@ -1061,26 +1070,26 @@ function BreakBalance({
   const max = Math.max(equalShare, ...rows.map((slot) => simulation?.slotDistributions[slot.id].p90 ?? slot.sellableEV), 1);
   const weakest = Math.min(...rows.map((slot) => slot.sellableEV));
   const strongest = Math.max(...rows.map((slot) => slot.sellableEV), 0);
+  const balanceTip = (
+    <Tip
+      className="balance-score"
+      text={strongest
+        ? `The weakest remaining slot has ${Math.round(weakest / strongest * 100)}% as much average card value after the bulk filter as the strongest remaining slot. 100% would mean equal slot values; a lower percentage means a more uneven break.`
+        : "There is not enough counted value to compare the weakest and strongest remaining slots."}
+      label="Explain the Break Balance percentage"
+    >
+      <b>{strongest ? `${Math.round(weakest / strongest * 100)}%` : "—"}</b>
+      <span>weakest vs strongest</span>
+    </Tip>
+  );
   return (
     <section className="panel balance-panel">
-      <header>
-        <div>
-          <SectionLabel text="Compares the remaining color slots even though each is equally likely to be assigned. Taller bars mean a higher middle result; the thin lines show how high the value can reach in stronger openings.">
-            BREAK BALANCE
-          </SectionLabel>
-          <h2>Equal chance, unequal pools</h2>
-        </div>
-        <Tip
-          className="balance-score"
-          text={strongest
-            ? `The weakest remaining slot has ${Math.round(weakest / strongest * 100)}% as much average card value after the bulk filter as the strongest remaining slot. 100% would mean equal slot values; a lower percentage means a more uneven break.`
-            : "There is not enough counted value to compare the weakest and strongest remaining slots."}
-          label="Explain the Break Balance percentage"
-        >
-          <b>{strongest ? `${Math.round(weakest / strongest * 100)}%` : "—"}</b>
-          <span>weakest vs strongest</span>
-        </Tip>
-      </header>
+      <PanelHeading
+        label="BREAK BALANCE"
+        help="Compares the remaining color slots even though each is equally likely to be assigned. Taller bars mean a higher middle result; the thin lines show how high the value can reach in stronger openings."
+        title="Equal chance, unequal pools"
+        accessory={balanceTip}
+      />
       <p className="balance-note">Each remaining slot is equally likely. The card value assigned to each slot is not equal.</p>
       <div className="balance-chart" style={{ "--equal": `${equalShare / max * 100}%` } as CSSProperties}>
         {rows.map((slot) => {
@@ -1375,32 +1384,32 @@ export function SlotValueDetails({
   className?: string;
 }) {
   const profileLabel = slotProfile(slot);
+  const profileTip = (
+    <Tip
+      className={`risk-label risk-${profileLabel.toLowerCase().replace(/[^a-z]+/g, "-")}`}
+      text={profileLabel === "DIVERSIFIED"
+        ? "The biggest card supplies less than 30% of this color's average value. More cards share the load, but this does not guarantee a minimum return."
+        : profileLabel === "MIXED"
+          ? "The biggest card supplies 30% to 49% of this color's average value. One chase matters, but other cards still add meaningful value."
+          : profileLabel === "CHASE-HEAVY"
+            ? "One card supplies at least half of this color's average value. The average depends heavily on pulling that card."
+            : `No ${slot.name.toLowerCase()} card is worth at least ${fmt(threshold)}.`}
+      label={`Explain ${profileLabel.toLowerCase()} value spread`}
+    >
+      <span>{profileLabel}</span>
+    </Tip>
+  );
   return (
     <section className={`panel slot-detail ${className}`.trim()}>
-      <header>
-        <div>
-          <SectionLabel text="Shows which cards create this color's average value and how much that value depends on one expensive chase card.">
-            {slot.name.toUpperCase()} VALUE DETAILS
-          </SectionLabel>
-          <h2>What makes up {fmt(slot.sellableEV)}?</h2>
-          <p className="risk-explainer">
+      <PanelHeading
+        label={`${slot.name.toUpperCase()} VALUE DETAILS`}
+        help="Shows which cards create this color's average value and how much that value depends on one expensive chase card."
+        title={<>What makes up {fmt(slot.sellableEV)}?</>}
+        accessory={profileTip}
+        description={<p className="risk-explainer">
             {slot.name} cards worth {fmt(threshold)} or more. Cheaper cards are ignored as bulk.
-          </p>
-        </div>
-        <Tip
-          className={`risk-label risk-${profileLabel.toLowerCase().replace(/[^a-z]+/g, "-")}`}
-          text={profileLabel === "DIVERSIFIED"
-            ? "The biggest card supplies less than 30% of this color's average value. More cards share the load, but this does not guarantee a minimum return."
-            : profileLabel === "MIXED"
-              ? "The biggest card supplies 30% to 49% of this color's average value. One chase matters, but other cards still add meaningful value."
-              : profileLabel === "CHASE-HEAVY"
-                ? "One card supplies at least half of this color's average value. The average depends heavily on pulling that card."
-                : `No ${slot.name.toLowerCase()} card is worth at least ${fmt(threshold)}.`}
-          label={`Explain ${profileLabel.toLowerCase()} value spread`}
-        >
-          <span>{profileLabel}</span>
-        </Tip>
-      </header>
+          </p>}
+      />
       <div className="concentration">
         <div className="concentration-labels">
           <span>Value spread across cards</span>
@@ -1432,14 +1441,17 @@ export function BuyerView({
   analysis,
   auction,
   setAuction,
+  selected,
+  setSelected,
 }: {
   analysis: BreakAnalysis;
   auction: AuctionState;
   setAuction: (state: AuctionState) => void;
+  selected: SlotId;
+  setSelected: (slot: SlotId) => void;
 }) {
   const result = analysis.valuation;
-  const [selected, setSelected] = useState<SlotId>("W");
-  const [assignmentMode, setAssignmentMode] = useState<"random" | "pick">("random");
+  const [assignmentMode, setAssignmentMode] = useState<"random" | "pick">("pick");
   const [bid, setBid] = useState<number>();
   const [shipping, setShipping] = useState<number>();
   const [inspectedCard, setInspectedCard] = useState<Contributor | null>(null);
@@ -1513,15 +1525,12 @@ export function BuyerView({
       </section>
       {assignmentMode === "random" && (
         <section className="panel assignment-panel">
-          <header>
-            <div>
-              <SectionLabel text="After Whatnot reveals which color the buyer received, tap that matching circle once. ColorBreak removes it from the random pool and recalculates the next auction. Dimmed circles are already assigned; Undo restores the most recent one.">
-                AFTER EACH AUCTION
-              </SectionLabel>
-              <h2>Tap the assigned slot</h2>
-            </div>
-            <button className="quiet" disabled={!auction.assignments.length} onClick={() => setAuction(undoAssignment(auction))}>Undo</button>
-          </header>
+          <PanelHeading
+            label="AFTER EACH AUCTION"
+            help="After Whatnot reveals which color the buyer received, tap that matching circle once. ColorBreak removes it from the random pool and recalculates the next auction. Dimmed circles are already assigned; Undo restores the most recent one."
+            title="Tap the assigned slot"
+            accessory={<button className="quiet" disabled={!auction.assignments.length} onClick={() => setAuction(undoAssignment(auction))}>Undo</button>}
+          />
           <div className="assignment-slots">
             {SLOT_IDS.map((id) => (
               <button
@@ -1542,7 +1551,7 @@ export function BuyerView({
       )}
       <BreakBalance result={result} simulation={simulation.result} remaining={assignmentMode === "random" ? auction.remaining : [selected]} />
       <EvidenceLens analysis={analysis} />
-      <SlotRail result={result} selected={selected} setSelected={setSelected} />
+        <SlotRail result={result} selected={selected} setSelected={(slotId) => { setSelected(slotId); setAssignmentMode("pick"); }} />
       <ChaseConstellation slot={slot} onInspect={setInspectedCard} />
       <BulkBoundary result={result} />
       <SlotValueDetails
@@ -1589,104 +1598,186 @@ function allocate(
   return output;
 }
 
-function EnticementLab() {
-  type ScenarioKey = keyof typeof WHATNOT_ENTICEMENTS;
-  const [selected, setSelected] = useState<ScenarioKey>("fixedCollectorBooster");
-  const [cost, setCost] = useState(25);
-  const [buyerValue, setBuyerValue] = useState(18);
-  const [probability, setProbability] = useState(40);
-  const [approvalEvidence, setApprovalEvidence] = useState("");
-  const scenario: EnticementScenario = selected === "thresholdPack"
-      ? { ...WHATNOT_ENTICEMENTS.thresholdPack, approvalEvidence }
-      : WHATNOT_ENTICEMENTS[selected];
-  const conditional = selected === "thresholdPack" || selected === "whiffInsurance";
-  const economics = scenarioEconomics({
-    kind: selected === "thresholdPack" ? "threshold-product" : selected === "whiffInsurance" ? "whiff-insurance" : "fixed-product",
-    cost,
-    buyerValue,
-    probability: probability / 100,
-  });
-  const exportState = canExportScenario(scenario);
-  const complianceLabel = scenario.compliance === "permitted" ? "Whatnot permitted"
-    : scenario.compliance === "prohibited" ? "Prohibited on Whatnot" : "Written approval required";
-  const exportRule = async () => {
-    if (!exportState.allowed) return;
-    await navigator.clipboard.writeText(
-      `${scenario.name}: disclosed before the first sale. Estimated seller cost ${fmt(economics.expectedSellerCost)}. All cards route through the published color-slot rules.`,
-    );
-  };
+function RangeCandle({ summary, max, bonus = false }: { summary: DistributionSummary; max: number; bonus?: boolean }) {
+  const pct = (value: number) => `${Math.max(0, Math.min(100, value / Math.max(1, max) * 100))}%`;
   return (
-    <section className="panel enticement-lab">
-      <header>
-        <div>
-          <SectionLabel text="Compares extras you promise before sales by their cost, added buyer value, and current Whatnot US rules.">
-            BREAK EXTRAS
-          </SectionLabel>
-          <h2>Design a disclosed break</h2>
-        </div>
-        <Tip
-          className={`compliance-badge compliance-${scenario.compliance}`}
-          text={scenario.compliance === "permitted"
-            ? "This scenario is currently modeled as permitted under the cited Whatnot US policy when disclosed before sales. Policy can change; review the evidence before running a show."
-            : scenario.compliance === "written-approval-required"
-              ? "Do not export or advertise this scenario for Whatnot unless you have current written platform approval stored with the plan."
-              : scenario.compliance === "prohibited"
-                ? "Current Whatnot US policy prohibits this mechanic. ColorBreak may analyze it for research, but will not export it as a compliant show rule."
-                : "ColorBreak does not have enough current policy evidence to classify this scenario. Treat it as unavailable until verified."}
-          label={`Explain ${complianceLabel.toLowerCase()} compliance status`}
-        >
-          <span>{complianceLabel}</span>
-        </Tip>
-      </header>
-      <p className="enticement-intro">Compare how much average buyer value each option adds for every seller dollar. These are planning estimates until the product is added to the break.</p>
-      <div className="scenario-tabs" role="tablist" aria-label="Enticement scenario">
-        {(Object.entries(WHATNOT_ENTICEMENTS) as Array<[ScenarioKey, EnticementScenario]>).map(([key, option]) => (
-          <button key={key} className={selected === key ? "active" : ""} onClick={() => setSelected(key)}>{option.name}</button>
-        ))}
+    <span className={`range-candle ${bonus ? "bonus" : "base"}`} aria-label={`${bonus ? "With bonus" : "Current"}: ${fmt(summary.min)} lowest, ${fmt(summary.median)} typical, ${fmt(summary.max)} highest modeled`}>
+      <i className="candle-wick" style={{ bottom: pct(summary.min), height: pct(summary.max - summary.min) }} />
+      <i className="candle-body" style={{ bottom: pct(summary.p25), height: pct(Math.max(.01, summary.p75 - summary.p25)) }} />
+      <i className="candle-median" style={{ bottom: pct(summary.median) }} />
+    </span>
+  );
+}
+
+function monotoneBonus(before: DistributionSummary, sampledAfter: DistributionSummary): DistributionSummary {
+  return {
+    ...sampledAfter,
+    min: Math.max(before.min, sampledAfter.min),
+    p10: Math.max(before.p10, sampledAfter.p10),
+    p25: Math.max(before.p25, sampledAfter.p25),
+    median: Math.max(before.median, sampledAfter.median),
+    p75: Math.max(before.p75, sampledAfter.p75),
+    p90: Math.max(before.p90, sampledAfter.p90),
+    max: Math.max(before.max, sampledAfter.max),
+    ...(before.chanceToClearCost == null || sampledAfter.chanceToClearCost == null ? {} : {
+      chanceToClearCost: Math.max(before.chanceToClearCost, sampledAfter.chanceToClearCost),
+    }),
+  };
+}
+
+function UpsideCandles({ base, bonus, bonusLabel, selectedSlot, selectSlot, useRandom, buyerLanded }: { base: BreakAnalysis; bonus: BreakAnalysis; bonusLabel: string; selectedSlot: SlotId; selectSlot: (slot: SlotId) => void; useRandom: boolean; buyerLanded: number }) {
+  const baseSimulation = useOutcomeSimulation(base, [...SLOT_IDS], buyerLanded);
+  const bonusSimulation = useOutcomeSimulation(bonus, [...SLOT_IDS], buyerLanded);
+  if (!baseSimulation.result || !bonusSimulation.result) return <p className="calculating"><span />Building pull ranges…</p>;
+  const selectedBefore = useRandom ? baseSimulation.result.remainingPool : baseSimulation.result.slotDistributions[selectedSlot];
+  const selectedAfter = monotoneBonus(selectedBefore, useRandom ? bonusSimulation.result.remainingPool : bonusSimulation.result.slotDistributions[selectedSlot]);
+  const rows = SLOT_IDS.map((id) => {
+    const before = baseSimulation.result!.slotDistributions[id];
+    const after = monotoneBonus(before, bonusSimulation.result!.slotDistributions[id]);
+    return { id, before, after, lift: after.max - before.max };
+  }).sort((a, b) => b.lift - a.lift);
+  // The two configuration candles answer the selected buyer's question and need
+  // their own scale. A chase-heavy color must not flatten an unrelated selection.
+  const scenarioMaximum = Math.max(1, selectedAfter.max);
+  const colorMaximum = Math.max(1, ...rows.map((row) => row.after.max));
+  return (
+    <div className="upside-chart">
+      <div className="upside-callout">
+        <span>MODELED BUYER CEILING</span>
+        <b>+{fmt(selectedAfter.max - selectedBefore.max)}</b>
+        <small>{useRandom ? "Random slot" : SLOT_NAMES[selectedSlot]} typical result changes {fmt(selectedBefore.median)} → {fmt(selectedAfter.median)}</small>
+        <small>At {fmt(buyerLanded)} landed: {Math.round((selectedBefore.chanceToClearCost ?? 0) * 100)}% → {Math.round((selectedAfter.chanceToClearCost ?? 0) * 100)}% of modeled openings cover buyer cost</small>
       </div>
-      <div className="frontier-plot" aria-label="Extra cost compared with average buyer value">
-        <span className="axis-y">Buyer value</span>
-        <span className="axis-x">Seller cost</span>
-        <i className="frontier-baseline" style={{ left: "8%", bottom: "12%" }}>Baseline</i>
-        <i
-          className={`frontier-point compliance-${scenario.compliance}`}
-          style={{
-            left: `${Math.min(88, 15 + economics.expectedSellerCost / Math.max(1, cost) * 65)}%`,
-            bottom: `${Math.min(82, 15 + economics.expectedBuyerValue / Math.max(1, buyerValue) * 60)}%`,
-          }}
-        >{scenario.name}</i>
+      <div className="scenario-candles" aria-label="Buyer value range by break configuration">
+        <div className="scenario-candle-column"><div><RangeCandle summary={selectedBefore} max={scenarioMaximum} /></div><b>Current break</b><small>Ceiling {fmt(selectedBefore.max)}</small></div>
+        <div className="scenario-candle-column"><div><RangeCandle summary={selectedAfter} max={scenarioMaximum} bonus /></div><b>+ {bonusLabel}</b><small>Ceiling {fmt(selectedAfter.max)}</small></div>
       </div>
-      <div className="enticement-inputs">
-        <NumberField label="Seller cost when used" value={cost} onChange={(value) => setCost(value ?? 0)} />
-        <NumberField label="Buyer value when used" value={buyerValue} onChange={(value) => setBuyerValue(value ?? 0)} />
-        {conditional && <NumberField label={selected === "whiffInsurance" ? "Modeled whiff chance" : "Modeled trigger chance"} value={probability} onChange={(value) => setProbability(value ?? 0)} prefix="%" />}
+      <p className="x-axis-note"><b>X-axis:</b> break configuration · <b>Y-axis:</b> {useRandom ? "card value received by a random slot" : `${SLOT_NAMES[selectedSlot]} card value`}</p>
+      <h3>Which colors gain the most upside?</h3>
+      <div className="upside-legend"><span><i className="base" />Current</span><span><i className="bonus" />With bonus</span></div>
+      <div className="candle-grid">{rows.map(({ id, before, after, lift }) => (
+        <button type="button" className={`candle-column ${!useRandom && selectedSlot === id ? "active" : ""}`} key={id} onClick={() => selectSlot(id)}>
+          <div className="candle-pair"><RangeCandle summary={before} max={colorMaximum} /><RangeCandle summary={after} max={colorMaximum} bonus /></div>
+          <b>{id}</b><small>+{fmt(lift)} ceiling</small>
+        </button>
+      ))}</div>
+      <p>Thin line: lowest to highest modeled pull · solid body: middle half · center mark: typical result. Rare best cases are possible, not promised.</p>
+    </div>
+  );
+}
+
+function SellerScenarioLab({
+  baseAnalysis, lines, acquisition, buyerShipping, packing, coveredShipping, shipmentCount, transactionCount, marketplace, selectedSlot, setSelectedSlot,
+}: {
+  baseAnalysis: BreakAnalysis;
+  lines: BreakLine[];
+  acquisition: number;
+  buyerShipping: number;
+  packing: number;
+  coveredShipping: number;
+  shipmentCount: number;
+  transactionCount: number;
+  marketplace: MarketplacePreset;
+  selectedSlot: SlotId;
+  setSelectedSlot: (slot: SlotId) => void;
+}) {
+  const [products, setProducts] = useState<ProductChoice[]>([]);
+  const [selectedKey, setSelectedKey] = useState("");
+  const [thresholdSales, setThresholdSales] = useState(500);
+  const [bonusAnalysis, setBonusAnalysis] = useState<BreakAnalysis>();
+  const [bonusMarket, setBonusMarket] = useState<number>();
+  const [bonusCostOverride, setBonusCostOverride] = useState<number>();
+  const [useRandom, setUseRandom] = useState(false);
+  const setCodes = [...new Set(lines.map((line) => line.set))];
+  const productRef = (product: ProductChoice) => `${product.set}|${product.sealedKey ?? product.key}`;
+  useEffect(() => {
+    Promise.all(setCodes.map(productsForSet)).then((groups) => {
+      const packs = groups.flat().filter((product) => product.category === "pack");
+      setProducts(packs);
+      setSelectedKey((current) => current || (packs.find((product) => /collector/i.test(product.label)) ? productRef(packs.find((product) => /collector/i.test(product.label))!) : packs[0] ? productRef(packs[0]) : ""));
+    });
+  }, [setCodes.join("|")]);
+  const selected = products.find((product) => productRef(product) === selectedKey);
+  useEffect(() => {
+    if (!selected) return;
+    setBonusCostOverride(undefined);
+    const bonusLine: BreakLine = {
+      id: "seller-bonus-preview",
+      set: selected.set,
+      productKey: selected.sealedKey ? `sealed:${selected.sealedKey}` : selected.key,
+      productLabel: selected.label,
+      quantity: 1,
+      packCount: selected.packCount,
+      tcgId: selected.tcgId,
+    };
+    let cancelled = false;
+    Promise.all([
+      evaluateBreakAnalysis([...lines, bonusLine], baseAnalysis.valuation.threshold),
+      sealedMarketPrice(selected.set, selected.tcgId),
+    ]).then(([next, market]) => {
+      if (!cancelled) { setBonusAnalysis(next); setBonusMarket(market); }
+    });
+    return () => { cancelled = true; };
+  }, [selected?.set, selected?.sealedKey, selected?.key, lines, baseAnalysis.valuation.threshold]);
+  const keep = 1 - marketplace.commissionRate - marketplace.processingRate;
+  const fixedFees = transactionCount * (marketplace.processingFlat + buyerShipping * marketplace.processingRate);
+  const shipmentCosts = (packing + coveredShipping) * shipmentCount;
+  const profitAt = (sales: number, productCost: number) => sales * keep - fixedFees - shipmentCosts - productCost;
+  const bonusCost = bonusCostOverride ?? bonusMarket ?? 0;
+  const afterCost = acquisition + bonusCost;
+  const afterBreakEven = requiredHammer(transactionCount, shipmentCosts, afterCost, 0, buyerShipping, marketplace);
+  const bonusBuyerValue = bonusAnalysis ? bonusAnalysis.valuation.sellableEV - baseAnalysis.valuation.sellableEV : 0;
+  const averageBuyerLanded = thresholdSales / Math.max(1, transactionCount) + buyerShipping;
+  return (
+    <section className="panel seller-scenario-lab">
+      <PanelHeading
+        label="BONUS PACK PLANNER"
+        help="Uses a real pack from the selected sets, its current sealed market price, exact card model, and your fee and shipping settings to compare the current break with the bonus-pack version."
+        title="Does a bonus pack earn its keep?"
+        accessory={<Tip className="compliance-badge compliance-permitted" text="A fixed pack disclosed before sales can be included as break product. A pack added only after a sales threshold requires written Whatnot approval before advertising or export."><span>Policy check</span></Tip>}
+      />
+      <div className="scenario-controls">
+        <label><span>Bonus pack</span><select value={selectedKey} onChange={(event) => setSelectedKey(event.target.value)}>{products.map((product) => <option key={productRef(product)} value={productRef(product)}>{product.set} · {product.label}</option>)}</select></label>
+        <NumberField label="Sales threshold" value={thresholdSales} onChange={(value) => setThresholdSales(value ?? 0)} />
+        <NumberField label="My bonus pack cost" value={bonusCostOverride} onChange={setBonusCostOverride} hint="Optional. Uses current sealed market price until you enter your actual cost." />
       </div>
-      <div className="enticement-result">
-        <div><span>Average seller cost</span><b>{fmt(economics.expectedSellerCost)}</b></div>
-        <div><span>Average buyer value</span><b>{fmt(economics.expectedBuyerValue)}</b></div>
-        <div><span>Value per $1 cost</span><b>{economics.expectedSellerCost ? (economics.expectedBuyerValue / economics.expectedSellerCost).toFixed(2) : "—"}</b></div>
+      <div className="scenario-view-picker">
+        <span>Show buyer upside for</span>
+        <div>{SLOT_IDS.map((slot) => <button key={slot} className={!useRandom && selectedSlot === slot ? `active slot-${slot}` : `slot-${slot}`} onClick={() => { setUseRandom(false); setSelectedSlot(slot); }}>{slot}</button>)}<button className={useRandom ? "active" : ""} onClick={() => setUseRandom(true)}>Random</button></div>
       </div>
-      {scenario.compliance === "written-approval-required" && (
-        <label className="approval-evidence"><span>Written approval reference</span><input value={approvalEvidence} onChange={(event) => setApprovalEvidence(event.target.value)} placeholder="Required before export" /></label>
+      <p className="scenario-policy-note"><ShieldAlert />The economics below can model a sales threshold. Whatnot export remains unavailable unless the seller has written approval; a pack disclosed and included before sales does not need that threshold mechanic.</p>
+      {selected && bonusAnalysis && (
+        <>
+          <div className="scenario-economics">
+            <div><span>Bonus pack cost used</span><b>{bonusMarket == null && bonusCostOverride == null ? "Unavailable" : fmt(bonusCost)}</b><small>{bonusCostOverride == null ? "Current market" : "Your cost"}</small></div>
+            <div><span>Buyer card value added</span><b>+{fmt(bonusBuyerValue)}</b></div>
+            <div><span>New break-even sales</span><b>{fmt(afterBreakEven)}</b></div>
+            <div><span>Buyer landed cost at threshold</span><b>{fmt(averageBuyerLanded)}</b></div>
+            <div><span>Profit at {fmt(thresholdSales)} before</span><b>{fmt(profitAt(thresholdSales, acquisition))}</b></div>
+            <div><span>Profit at {fmt(thresholdSales)} with pack</span><b>{fmt(profitAt(thresholdSales, afterCost))}</b></div>
+            <div><span>Margin with pack</span><b>{thresholdSales ? `${Math.round(profitAt(thresholdSales, afterCost) / thresholdSales * 100)}%` : "—"}</b></div>
+          </div>
+          <UpsideCandles base={baseAnalysis} bonus={bonusAnalysis} bonusLabel={selected.label} selectedSlot={selectedSlot} selectSlot={(slot) => { setUseRandom(false); setSelectedSlot(slot); }} useRandom={useRandom} buyerLanded={averageBuyerLanded} />
+        </>
       )}
-      {!exportState.allowed && <p className="compliance-warning"><ShieldAlert />{exportState.reason}</p>}
-      <div className="enticement-actions">
-        <a href={scenario.evidenceUrls[0]} target="_blank" rel="noreferrer">Policy source · checked {scenario.policyCheckedAt}</a>
-        <button className="quiet" disabled={!exportState.allowed} onClick={exportRule}><Copy />Copy show-note rule</button>
-      </div>
     </section>
   );
 }
 
 export function SellerView({
-  result,
+  analysis,
   lines,
   update,
+  selectedSlot,
+  setSelectedSlot,
 }: {
-  result: ValuationResult;
+  analysis: BreakAnalysis;
   lines: BreakLine[];
   update: (id: string, p: Partial<BreakLine>) => void;
+  selectedSlot: SlotId;
+  setSelectedSlot: (slot: SlotId) => void;
 }) {
+  const result = analysis.valuation;
   const [margin, setMargin] = useState(20),
     [buyerShip, setBuyerShip] = useState(5),
     [packing, setPacking] = useState(2),
@@ -1699,8 +1790,9 @@ export function SellerView({
   const [actual, setActual] = useState<Partial<Record<SlotId, number>>>({});
   const [locked, setLocked] = useState<Partial<Record<SlotId, number>>>({});
   const [unsold, setUnsold] = useState<Set<SlotId>>(new Set());
-  const [openSlot, setOpenSlot] = useState<SlotId | null>(null);
+  const [openSlot, setOpenSlot] = useState<SlotId | null>(selectedSlot);
   const [inspectedCard, setInspectedCard] = useState<Contributor | null>(null);
+  useEffect(() => setOpenSlot(selectedSlot), [selectedSlot]);
   const acquisition = lines.reduce(
     (n, l) => n + (l.myCost ?? l.marketCost ?? 0) * l.quantity,
     0,
@@ -1725,6 +1817,14 @@ export function SellerView({
     (packing + covered) * shipmentCount,
     acquisition,
     targetProfit,
+    buyerShip,
+    marketplace,
+  );
+  const breakEven = requiredHammer(
+    soldIds.length,
+    (packing + covered) * shipmentCount,
+    acquisition,
+    0,
     buyerShip,
     marketplace,
   );
@@ -1757,35 +1857,44 @@ export function SellerView({
       : undefined;
   return (
     <>
-      <EnticementLab />
       <section className="panel seller-plan">
-        <header>
-          <div>
-            <SectionLabel text="Shows how much total sales revenue you need to cover product costs, platform fees, packing, shipping you cover, and your profit goal. It is a target, not a forecast.">
-              TARGET PLAN
-            </SectionLabel>
-            <h2>{costsComplete ? fmt(target) : "Add your costs"}</h2>
-          </div>
-          <Tip className="market-badge" text="The fee settings used for each sale. You can edit them below when another marketplace charges different fees." label={`Explain the ${marketplace.name} marketplace preset`}>
+        <PanelHeading
+          label="PROFIT PLAN"
+          help="Break-even is the total slot revenue needed to repay product cost, platform fees, packing, and shipping you cover. The sales goal adds your chosen profit margin."
+          title={costsComplete ? <>{fmt(breakEven)} break-even</> : "Waiting for a product price"}
+          accessory={<Tip className="market-badge" text="The fee settings used for each sale. You can edit them below when another marketplace charges different fees." label={`Explain the ${marketplace.name} marketplace preset`}>
             <Store />
             {marketplace.name}
-          </Tip>
-        </header>
+          </Tip>}
+        />
+        {costsComplete && (
+          <div className="profit-plan-summary">
+            <div><span>Buyer card value</span><b>{fmt(result.sellableEV)}</b></div>
+            <div><span>Product cost used</span><b>{fmt(acquisition)}</b></div>
+            <div><span>Sales goal</span><b>{fmt(target)}</b><small>{margin}% profit target</small></div>
+          </div>
+        )}
         <div className="cost-lines">
           {lines.map((line) => (
-            <div key={line.id}>
-              <span>
+            <div className="product-cost-card" key={line.id}>
+              <span className="product-cost-name">
                 <strong>{line.productLabel}</strong>
-                <small>
-                  {line.quantity} × product
-                  {line.marketCost != null && ` · market ${fmt(line.marketCost)}`}
-                </small>
+                <small>{line.quantity} × product</small>
               </span>
-              <NumberField
-                label="My unit cost"
-                value={line.myCost}
-                onChange={(n) => update(line.id, { myCost: n })}
-              />
+              <div className="cost-price-grid">
+                <div className="market-cost-readout">
+                  <span>Current sealed market</span>
+                  <b>{line.marketCost == null ? "Unavailable" : fmt(line.marketCost)}</b>
+                  <small>{line.marketCost == null ? "Enter your cost to continue" : "TCGplayer market via TCGCSV"}</small>
+                </div>
+                <NumberField
+                  label="My actual unit cost"
+                  value={line.myCost}
+                  onChange={(n) => update(line.id, { myCost: n })}
+                  hint="Optional. Your real cost replaces the sealed market price in every profit calculation."
+                />
+              </div>
+              <p className="cost-basis-note">Using {line.myCost == null ? "current market price" : "your actual cost"}: <b>{fmt((line.myCost ?? line.marketCost) ?? undefined)}</b> each</p>
             </div>
           ))}
         </div>
@@ -1831,15 +1940,27 @@ export function SellerView({
         </details>
       </section>
       {costsComplete && (
+        <SellerScenarioLab
+          baseAnalysis={analysis}
+          lines={lines}
+          acquisition={acquisition}
+          buyerShipping={buyerShip}
+          packing={packing}
+          coveredShipping={covered}
+          shipmentCount={shipmentCount}
+          transactionCount={soldIds.length}
+          marketplace={marketplace}
+          selectedSlot={selectedSlot}
+          setSelectedSlot={setSelectedSlot}
+        />
+      )}
+      {costsComplete && (
         <section className="panel ask-grid">
-          <header>
-            <div>
-              <SectionLabel text="Splits the total sales target across the color slots based on their average card value. Tap a color to see the cards behind its number.">
-                ASKS TO CLEAR
-              </SectionLabel>
-              <h2>{fmt(askTotal)} total</h2>
-            </div>
-            <button
+          <PanelHeading
+            label="ASKS TO CLEAR"
+            help="Splits the total sales target across the color slots based on their average card value. Tap a color to see the cards behind its number."
+            title={<>{fmt(askTotal)} total</>}
+            accessory={<button
               className="quiet"
               onClick={() =>
                 setActual(
@@ -1849,8 +1970,8 @@ export function SellerView({
             >
               <Copy />
               Use plan
-            </button>
-          </header>
+            </button>}
+          />
           <p className="muted">
             Target {fmt(target)} · split by average card value. Lock a target or mark a color unsold; the other targets update automatically.
           </p>
@@ -1860,7 +1981,10 @@ export function SellerView({
                 <button
                   type="button"
                   className="ask-slot-summary"
-                  onClick={() => setOpenSlot((current) => current === slot.id ? null : slot.id)}
+                  onClick={() => {
+                    setSelectedSlot(slot.id);
+                    setOpenSlot((current) => current === slot.id ? null : slot.id);
+                  }}
                   aria-expanded={openSlot === slot.id}
                   aria-label={`${openSlot === slot.id ? "Hide" : "Show"} ${slot.name} value details`}
                 >
@@ -1997,6 +2121,10 @@ function Workspace({
     }),
     [error, setError] = useState<string>(),
     [threshold, setThreshold] = useState(2),
+    [selectedSlot, setSelectedSlot] = useState<SlotId>(() => {
+      const shared = new URLSearchParams(location.search).get("s") as SlotId | null;
+      return shared && SLOT_IDS.includes(shared) ? shared : "W";
+    }),
     [busy, setBusy] = useState(false);
   useEffect(() => {
     try {
@@ -2038,9 +2166,36 @@ function Workspace({
   }, [lines, threshold]);
   const update = (id: string, patch: Partial<BreakLine>) =>
     setLines((rows) => rows.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all(lines.map(async (line) => {
+      const choices = line.tcgId == null ? await productsForSet(line.set) : [];
+      const key = line.productKey.replace(/^sealed:/, "");
+      const choice = choices.find((product) => product.sealedKey === key || product.key === key);
+      const tcgId = line.tcgId ?? choice?.tcgId;
+      return {
+        id: line.id,
+        choice,
+        price: line.marketCost ?? await sealedMarketPrice(line.set, tcgId),
+      };
+    })).then((priced) => {
+      if (cancelled) return;
+      setLines((current) => current.map((line) => {
+        const row = priced.find((candidate) => candidate.id === line.id);
+        if (!row) return line;
+        return {
+          ...line,
+          ...(row.choice ? { tcgId: row.choice.tcgId, productLabel: row.choice.label, packCount: row.choice.packCount } : {}),
+          ...(line.marketCost == null && row.price != null ? { marketCost: row.price } : {}),
+        };
+      }));
+    });
+    return () => { cancelled = true; };
+  }, [lines.map((line) => `${line.id}:${line.productKey}:${line.tcgId ?? ""}`).join("|")]);
   const share = async () => {
     const url = new URL(location.href);
     url.searchParams.set("b", encodeComposition(lines));
+    url.searchParams.set("s", selectedSlot);
     if (mode === "buyer") url.searchParams.set("r", auction.remaining.join(""));
     await navigator.clipboard.writeText(url.toString());
     track("break_shared", { mode, productCount: lines.length, remainingCount: auction.remaining.length });
@@ -2125,11 +2280,10 @@ function Workspace({
               )}
               {analysis && !busy && (
                 <>
-                  <ValueSummary result={analysis.valuation} />
                   {mode === "buyer" ? (
-                    <BuyerView analysis={analysis} auction={auction} setAuction={setAuction} />
+                    <><ValueSummary result={analysis.valuation} /><BuyerView analysis={analysis} auction={auction} setAuction={setAuction} selected={selectedSlot} setSelected={setSelectedSlot} /></>
                   ) : (
-                    <SellerView result={analysis.valuation} lines={lines} update={update} />
+                    <SellerView analysis={analysis} lines={lines} update={update} selectedSlot={selectedSlot} setSelectedSlot={setSelectedSlot} />
                   )}
                 </>
               )}

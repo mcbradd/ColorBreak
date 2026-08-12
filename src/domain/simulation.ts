@@ -33,12 +33,14 @@ export interface PackOutcomeModel {
 }
 
 export interface DistributionSummary {
+  min: number;
   mean: number;
   p10: number;
   p25: number;
   median: number;
   p75: number;
   p90: number;
+  max: number;
   chanceToClearCost?: number;
   expectedShortfall?: number;
   fingerprint: number[];
@@ -102,12 +104,14 @@ export function summarizeDistribution(values: readonly number[], landedCost?: nu
   const mean = sorted.length ? sorted.reduce((sum, value) => sum + value, 0) / sorted.length : 0;
   const misses = landedCost == null ? [] : sorted.filter((value) => value < landedCost);
   return {
+    min: sorted[0] ?? 0,
     mean,
     p10: quantile(sorted, .1),
     p25: quantile(sorted, .25),
     median: quantile(sorted, .5),
     p75: quantile(sorted, .75),
     p90: quantile(sorted, .9),
+    max: sorted.at(-1) ?? 0,
     fingerprint: Array.from({ length: 20 }, (_, index) => quantile(sorted, (index + .5) / 20)),
     ...(landedCost == null ? {} : {
       chanceToClearCost: sorted.filter((value) => value >= landedCost).length / Math.max(1, sorted.length),
