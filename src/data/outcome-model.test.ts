@@ -42,4 +42,35 @@ describe("sealed product outcome model", () => {
     expect(result.omissions.some((omission) => omission.code === "missing-printing")).toBe(true);
     vi.unstubAllGlobals();
   });
+
+  it("keeps a very rare unpriced finish in the model as a disclosed zero-value lower bound", async () => {
+    vi.stubGlobal("fetch", async () => new Response(JSON.stringify({ version: 1, verifiedAt: "now", products: {} })));
+    const rareFinishDocument = {
+      ...document,
+      products: [{ key: "pack", label: "Pack", name: "Pack", category: "booster_pack", packs: { collector: 1 } }],
+      boosters: {
+        collector: {
+          picks: { showcase: 1 },
+          variants: [{ weight: 1, picks: { showcase: 1 } }],
+          sheets: { showcase: { foil: true, total: 1_000, cards: [["1", 1], ["2", 999]] } },
+        },
+      },
+    } as SealedDocument;
+    const finishPrices: CardPrice[] = [
+      { ...prices[0], foil: null, prices: { nonfoil: 10, foil: null } },
+      { ...prices[1], foil: 20, prices: { nonfoil: 20, foil: 20 } },
+    ];
+
+    const result = await outcomeModelForProduct(rareFinishDocument, "pack", 1, finishPrices, 2);
+
+    expect(result.model.complete).toBe(true);
+    expect(result.model.packs[0].sheets.showcase.cards).toHaveLength(2);
+    expect(result.model.packs[0].sheets.showcase.cards.find((card) => card.id.startsWith("one:"))?.value).toBe(0);
+    expect(result.omissions).toContainEqual(expect.objectContaining({
+      code: "missing-foil-price",
+      material: false,
+      expectedCards: 0.001,
+    }));
+    vi.unstubAllGlobals();
+  });
 });

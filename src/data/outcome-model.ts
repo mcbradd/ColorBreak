@@ -21,6 +21,7 @@ function pricedCard(
   threshold: number,
   weight: number,
   omissions: Omission[],
+  expectedCopies = Number.POSITIVE_INFINITY,
 ): OutcomeCard | null {
   const card = prices.get(`${set}|${collectorNumber}`);
   if (!card) {
@@ -36,9 +37,13 @@ function pricedCard(
     omissions.push({
       code: finish === "nonfoil" ? "missing-price" : `missing-${finish}-price`,
       message: `${card.name} has no ${finish} price; no proxy was substituted.`,
-      material: true,
+      expectedCards: expectedCopies,
+      material: expectedCopies >= 0.01,
     });
-    return null;
+    // Preserve the printing's exact weight and color assignment. Removing it
+    // would redistribute its pull chance across the other cards and overstate
+    // their odds. Zero is an explicit lower bound, never a finish-price proxy.
+    return { id: `${card.id}:${finish}`, slot: card.slot, value: 0, weight };
   }
   return { id: `${card.id}:${finish}`, slot: card.slot, value: value >= threshold ? value : 0, weight };
 }
@@ -50,6 +55,7 @@ function sheetCards(
   prices: Map<string, CardPrice>,
   threshold: number,
   omissions: Omission[],
+  expectedSheetCopies: number,
 ): OutcomeCard[] {
   const finish: Finish = sheet.finish ?? (sheet.foil ? "foil" : "nonfoil");
   const cards: OutcomeCard[] = [];
@@ -57,7 +63,8 @@ function sheetCards(
     const [set, collectorNumber, weight] = tuple.length === 3
       ? tuple
       : [owner, tuple[0], tuple[1]];
-    const card = pricedCard(String(set).toUpperCase(), String(collectorNumber), finish, prices, threshold, Number(weight), omissions);
+    const expectedCopies = sheet.total > 0 ? expectedSheetCopies * Number(weight) / sheet.total : expectedSheetCopies;
+    const card = pricedCard(String(set).toUpperCase(), String(collectorNumber), finish, prices, threshold, Number(weight), omissions, expectedCopies);
     if (card) cards.push(card);
   }
   if (sheet.missing) {
@@ -106,7 +113,7 @@ export async function outcomeModelForProduct(
   const fixed: OutcomeCard[] = [];
   for (const item of product.fixed ?? []) {
     const finish: Finish = item.finish ?? (item.foil ? "foil" : "nonfoil");
-    const card = pricedCard(item.set.toUpperCase(), String(item.cn), finish, prices, threshold, 1, omissions);
+    const card = pricedCard(item.set.toUpperCase(), String(item.cn), finish, prices, threshold, 1, omissions, item.n * multiplier);
     if (card) fixed.push({ ...card, count: item.n * multiplier });
   }
 
@@ -128,7 +135,15 @@ export async function outcomeModelForProduct(
     }
     const sheets = Object.fromEntries(Object.entries(booster.sheets).map(([name, sheet]) => [name, {
       totalWeight: sheet.total,
-      cards: sheetCards(owner, `${packCode}/${name}`, sheet, prices, threshold, omissions),
+      cards: sheetCards(
+        owner,
+        `${packCode}/${name}`,
+        sheet,
+        prices,
+        threshold,
+        omissions,
+        unitCount * multiplier * (booster.picks[name] ?? 0),
+      ),
       allowDuplicates: sheet.allowDuplicates,
     }]));
     outcomePacks.push({

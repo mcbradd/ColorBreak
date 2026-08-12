@@ -1104,22 +1104,26 @@ export function BreakBalance({
           const rangeLow = distribution?.min ?? 0;
           const rangeHigh = distribution?.max ?? slot.sellableEV;
           const median = distribution?.median ?? slot.sellableEV;
+          const middleLow = distribution?.p25 ?? median;
+          const middleHigh = distribution?.p75 ?? median;
           const lowPosition = rangeLow / max * 100;
           const highPosition = rangeHigh / max * 100;
           const medianPosition = median / max * 100;
+          const middleLowPosition = middleLow / max * 100;
+          const middleHighPosition = middleHigh / max * 100;
           return (
             <div className={`balance-column slot-${slot.id}`} key={slot.id}>
               <span className="balance-whisker" style={{ bottom: `${lowPosition}%`, height: `${Math.max(1.5, highPosition - lowPosition)}%` }} />
+              <span className="balance-middle" style={{ bottom: `${middleLowPosition}%`, height: `${Math.max(3, middleHighPosition - middleLowPosition)}%` }} />
               <span className="balance-end balance-best" style={{ bottom: `${highPosition}%` }}>{fmtChart(rangeHigh)}</span>
-              <span className={`balance-median ${Math.abs(medianPosition - lowPosition) < 1 ? "at-low" : ""}`} style={{ bottom: `${medianPosition}%` }}><i /><b>{fmtChart(median)}</b><em>50%</em></span>
+              <span className={`balance-median ${Math.abs(medianPosition - lowPosition) < 1 ? "at-low" : ""}`} style={{ bottom: `${medianPosition}%` }}><b>{fmtChart(median)}</b></span>
               <span className="balance-end balance-worst" style={{ bottom: `${lowPosition}%` }}>{fmtChart(rangeLow)}</span>
               <strong className="balance-slot">{slot.id}</strong>
-              <small className="balance-average">Avg {fmtChart(slot.sellableEV)}</small>
             </div>
           );
         })}
       </div>
-      <p className="balance-caption"><b>Red</b> is the modeled worst case · <strong>white 50%</strong> is the middle result · <em>green</em> is the modeled best case. Average values below each candle match the color inspector. The dashed line shows an even split: {fmt(equalShare)}.</p>
+      <p className="balance-caption"><b>Red</b> is the modeled worst case · the thick <strong>white body</strong> contains the middle half of modeled openings, with the typical value printed on it · <em>green</em> is the modeled best case.</p>
     </section>
   );
 }
@@ -1273,14 +1277,16 @@ function ChaseConstellation({
       {!rows.length ? <p className="supporting-empty">No cards meet the current bulk boundary.</p> : (
         <div className="constellation chase-map" aria-label={`${SLOT_NAMES[slot.id]} card price and pull chance map`}>
           <div className="chase-plot" aria-hidden="true">
-            <span className="plot-y-title">MARKET PRICE</span>
-            <span className="plot-x-title">CHANCE TO PULL</span>
             <span className="plot-price plot-price-high">{fmt(maxPrice)}</span>
             <span className="plot-price plot-price-mid">{fmt(maxPrice / 2)}</span>
             <span className="plot-price plot-price-low">$0</span>
             <span className="plot-odds plot-odds-low">0%</span>
             <span className="plot-odds plot-odds-mid">50%</span>
             <span className="plot-odds plot-odds-high">100%</span>
+          </div>
+          <div className="chase-axis-overlay" aria-hidden="true">
+            <span className="plot-y-title">MARKET PRICE</span>
+            <span className="plot-x-title">CHANCE TO PULL</span>
           </div>
           <svg className="chase-pointers" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
             {layout.map((point) => {
@@ -1704,6 +1710,7 @@ function UpsideCandles({ base, bonus, bonusLabel, selectedSlot, selectSlot, useR
   // their own scale. A chase-heavy color must not flatten an unrelated selection.
   const scenarioMaximum = Math.max(1, selectedAfter.max);
   const colorMaximum = Math.max(1, ...rows.map((row) => row.after.max));
+  const unpricedOutcomes = bonus.outcomeOmissions.filter((item) => !item.material && /missing-.+-price|missing-price/.test(item.code));
   return (
     <div className="upside-chart">
       <div className="upside-callout">
@@ -1725,6 +1732,7 @@ function UpsideCandles({ base, bonus, bonusLabel, selectedSlot, selectSlot, useR
           <b>{id}</b><small>+{fmt(lift)} ceiling</small>
         </button>
       ))}</div>
+      {unpricedOutcomes.length > 0 && <p className="distribution-data-note"><ShieldAlert />{unpricedOutcomes.length} very rare printing{unpricedOutcomes.length === 1 ? " has" : "s have"} no current market price. Its pull chance is preserved and its value is counted as $0, so the shown high end is a conservative known-price floor.</p>}
       <p>Thin line: lowest to highest modeled pull · solid body: middle half · center mark: typical result. Rare best cases are possible, not promised.</p>
     </div>
   );
