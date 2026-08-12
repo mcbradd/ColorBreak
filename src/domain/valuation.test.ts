@@ -74,6 +74,20 @@ describe("calculateBreak", () => {
     expect(missing.omissions[0].code).toBe("missing-surge-price");
   });
 
+  it("excludes serialized collector outliers from decision value without blocking the break", () => {
+    const result = calculateBreak({
+      prices: [{ ...prices[0], prices: { serialized: 50_000 } }],
+      draws: [{ set: "TST", collectorNumber: "1", copies: .0001, finish: "serialized", foil: true, source: "serialized-slot" }],
+    });
+    expect(result.marketEV).toBe(0);
+    expect(result.sellableEV).toBe(0);
+    expect(result.status).toBe("verified");
+    expect(result.omissions).toContainEqual(expect.objectContaining({
+      code: "collector-outlier-excluded",
+      material: false,
+    }));
+  });
+
   it("combines pull odds across every source in the current break", () => {
     const result = calculateBreak({
       prices,

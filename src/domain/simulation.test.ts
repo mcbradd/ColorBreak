@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { possibleSlotBounds, simulateOutcomes } from "./simulation";
+import { possibleSlotBounds, simulateOutcomes, summarizeDistribution } from "./simulation";
 import type { PackOutcomeModel } from "./simulation";
 
 const coinFlipPack: PackOutcomeModel = {
@@ -73,5 +73,31 @@ describe("outcome simulation", () => {
 
     expect(bounds.W).toEqual({ min: 10, max: 36 });
     expect(bounds.U).toEqual({ min: 0, max: 50 });
+  });
+
+  it("defaults uncertain sheet collation to no duplicate printing in one pack", () => {
+    const model: PackOutcomeModel = {
+      fixed: [],
+      packs: [{
+        count: 1,
+        variants: [{ weight: 1, picks: { wildcard: 2 } }],
+        sheets: { wildcard: { totalWeight: 2, cards: [
+          { id: "chase", slot: "G", value: 100, weight: 1 },
+          { id: "other", slot: "G", value: 10, weight: 1 },
+        ] } },
+      }],
+    };
+
+    const result = simulateOutcomes(model, { seed: "no-repeat", sampleCount: 100, remaining: ["G"] });
+    expect(result.slotDistributions.G.min).toBe(110);
+    expect(result.slotDistributions.G.max).toBe(110);
+    expect(possibleSlotBounds(model).G.max).toBe(110);
+  });
+
+  it("publishes one-percent range endpoints instead of sampled jackpots", () => {
+    const values = Array.from({ length: 100 }, (_, index) => index);
+    const summary = summarizeDistribution(values);
+    expect(summary.p01).toBeCloseTo(.99);
+    expect(summary.p99).toBeCloseTo(98.01);
   });
 });

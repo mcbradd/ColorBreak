@@ -2,6 +2,7 @@ import { SLOT_IDS, SLOT_NAMES } from "./types";
 import type {
   CardPrice, Contributor, DataStatus, EvidenceState, ExpectedDraw, Finish, Omission, SlotId, SlotValuation, ValuationResult,
 } from "./types";
+import { isCollectorOutlierFinish } from "./outlier-policy";
 
 export interface ValuationInput {
   draws: ExpectedDraw[];
@@ -38,6 +39,15 @@ export function calculateBreak(input: ValuationInput): ValuationResult {
       continue;
     }
     const finish: Finish = draw.finish ?? (draw.foil ? "foil" : "nonfoil");
+    if (isCollectorOutlierFinish(finish)) {
+      omissions.push({
+        code: "collector-outlier-excluded",
+        message: `${card.name} (${finish}) is excluded from decision value because scarcity-defined collectibles do not represent a repeatable pack outcome.`,
+        expectedCards: draw.copies,
+        material: false,
+      });
+      continue;
+    }
     const price = card.prices?.[finish]
       ?? (finish === "foil" ? card.foil : finish === "nonfoil" ? card.nonfoil : null);
     if (price == null) {

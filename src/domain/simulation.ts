@@ -35,12 +35,14 @@ export interface PackOutcomeModel {
 
 export interface DistributionSummary {
   min: number;
+  p01: number;
   mean: number;
   p10: number;
   p25: number;
   median: number;
   p75: number;
   p90: number;
+  p99: number;
   max: number;
   chanceToClearCost?: number;
   expectedShortfall?: number;
@@ -69,7 +71,10 @@ function sheetSlotBounds(sheet: OutcomeSheet, picks: number, slot: SlotId): { mi
     .filter((card) => (card.weight ?? 1) > 0)
     .map((card) => card.slot === slot ? card.value : 0);
   if (!contributions.length && picks > 0) throw new Error("Outcome model contains an empty weighted choice");
-  if (sheet.allowDuplicates === false) {
+  // MTGJSON's flag is optional. Repeating the same printing is only safe when
+  // the source explicitly says the sheet allows it; otherwise draw distinct
+  // printing identities within this sheet for the current pack.
+  if (sheet.allowDuplicates !== true) {
     if (picks > contributions.length) throw new Error("Outcome model requests more unique cards than a sheet contains");
     const ordered = [...contributions].sort((a, b) => a - b);
     return {
@@ -157,12 +162,14 @@ export function summarizeDistribution(values: readonly number[], landedCost?: nu
   const misses = landedCost == null ? [] : sorted.filter((value) => value < landedCost);
   return {
     min: sorted[0] ?? 0,
+    p01: quantile(sorted, .01),
     mean,
     p10: quantile(sorted, .1),
     p25: quantile(sorted, .25),
     median: quantile(sorted, .5),
     p75: quantile(sorted, .75),
     p90: quantile(sorted, .9),
+    p99: quantile(sorted, .99),
     max: sorted.at(-1) ?? 0,
     fingerprint: Array.from({ length: 20 }, (_, index) => quantile(sorted, (index + .5) / 20)),
     ...(landedCost == null ? {} : {
@@ -198,7 +205,7 @@ export function simulateOutcomes(model: PackOutcomeModel, options: SimulationOpt
           for (let pick = 0; pick < picks; pick += 1) {
             const card = weighted(available, (row) => row.weight ?? 1, random);
             slots[card.slot] += card.value;
-            if (sheet.allowDuplicates === false) available.splice(available.indexOf(card), 1);
+            if (sheet.allowDuplicates !== true) available.splice(available.indexOf(card), 1);
           }
         }
       }

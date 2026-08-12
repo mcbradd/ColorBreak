@@ -73,4 +73,29 @@ describe("sealed product outcome model", () => {
     }));
     vi.unstubAllGlobals();
   });
+
+  it("removes serialized sheets from buyer outcome ranges", async () => {
+    vi.stubGlobal("fetch", async () => new Response(JSON.stringify({ version: 1, verifiedAt: "now", products: {} })));
+    const serializedDocument = {
+      ...document,
+      products: [{ key: "pack", label: "Pack", name: "Pack", category: "booster_pack", packs: { collector: 1 } }],
+      boosters: {
+        collector: {
+          picks: { serialized: 1 },
+          variants: [{ weight: 1, picks: { serialized: 1 } }],
+          sheets: { serialized: { foil: true, finish: "serialized", total: 1, cards: [["1", 1]] } },
+        },
+      },
+    } as SealedDocument;
+    const result = await outcomeModelForProduct(serializedDocument, "pack", 1, [{
+      ...prices[0], prices: { serialized: 50_000 },
+    }], 2);
+    expect(result.model.complete).toBe(true);
+    expect(result.model.packs[0].sheets.serialized.cards[0].value).toBe(0);
+    expect(result.omissions).toContainEqual(expect.objectContaining({
+      code: "collector-outlier-excluded",
+      material: false,
+    }));
+    vi.unstubAllGlobals();
+  });
 });

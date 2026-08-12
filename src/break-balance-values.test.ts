@@ -7,7 +7,7 @@ import { SLOT_IDS } from "./domain/types";
 import type { PackOutcomeModel } from "./domain/simulation";
 
 describe("Break Balance values", () => {
-  it("uses exact possible bounds and an analytic EV plus-or-minus 25% candle body", () => {
+  it("uses simulated one-percent bounds and the interquartile range for the candle body", () => {
     const result = calculateBreak({
       threshold: 2,
       prices: [
@@ -30,19 +30,27 @@ describe("Break Balance values", () => {
         ] } },
       }],
     };
-    const { container } = render(createElement(BreakBalance, { result, model, remaining: [...SLOT_IDS] }));
+    const distribution = {
+      min: 0, p01: 1, p10: 3, p25: 5, median: 9, mean: 10, p75: 14, p90: 18, p99: 19, max: 20, fingerprint: [],
+    };
+    const simulation = {
+      seed: "test", sampleCount: 50_000,
+      slotDistributions: Object.fromEntries(SLOT_IDS.map((id) => [id, distribution])),
+      remainingPool: distribution,
+    };
+    const { container } = render(createElement(BreakBalance, { result, model, remaining: [...SLOT_IDS], simulation }));
     expect(container.querySelectorAll(".balance-average")).toHaveLength(0);
     expect(container.querySelectorAll(".balance-column")).toHaveLength(8);
     expect(container.querySelectorAll(".balance-best")).toHaveLength(8);
     expect(container.querySelectorAll(".balance-worst")).toHaveLength(8);
     expect(container.querySelectorAll(".balance-ev")).toHaveLength(8);
     expect(container.querySelectorAll(".balance-body")).toHaveLength(8);
-    expect(container.querySelector(".slot-W .balance-best")?.textContent).toBe("$20.0");
-    expect(container.querySelector(".slot-W .balance-worst")?.textContent).toBe("$0.0");
+    expect(container.querySelector(".slot-W .balance-best")?.textContent).toBe("$19.0");
+    expect(container.querySelector(".slot-W .balance-worst")?.textContent).toBe("$1.0");
     expect(container.querySelector(".slot-W .balance-ev b")?.textContent).toBe("EV$10.0");
     const onScale = (value: number) => Math.log1p(value) / Math.log1p(20) * 100;
-    expect(container.querySelector(".slot-W .balance-body")?.getAttribute("style")).toContain(`bottom: ${onScale(7.5)}%`);
-    expect(container.querySelector(".slot-W .balance-body")?.getAttribute("style")).toContain(`height: ${onScale(12.5) - onScale(7.5)}%`);
+    expect(container.querySelector(".slot-W .balance-body")?.getAttribute("style")).toContain(`bottom: ${onScale(5)}%`);
+    expect(container.querySelector(".slot-W .balance-body")?.getAttribute("style")).toContain(`height: ${onScale(14) - onScale(5)}%`);
     expect(container.querySelector(".slot-W .balance-ev")?.getAttribute("style")).toContain(`bottom: ${onScale(10)}%`);
   });
 });

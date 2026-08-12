@@ -335,7 +335,7 @@ export function buildSet(data, extraCards = new Map(), allowMissing = false, ext
         finish: finishForSheet(name, sheet),
         total: sheet.totalWeight,
         cards: list,
-        ...(sheet.allowDuplicates === false ? { allowDuplicates: false } : {}),
+        ...(typeof sheet.allowDuplicates === "boolean" ? { allowDuplicates: sheet.allowDuplicates } : {}),
         ...(sheet.balanceColors ? { balanceColors: true } : {}),
         ...(missing ? { missing } : {}),
       };

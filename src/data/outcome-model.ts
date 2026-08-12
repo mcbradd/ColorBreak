@@ -2,6 +2,7 @@ import type { CardPrice, Finish, Omission } from "../domain/types";
 import type { OutcomeCard, OutcomePack, PackOutcomeModel } from "../domain/simulation";
 import { loadCorrections, loadSealed } from "./sealed";
 import type { BoosterSheet, SealedDocument } from "./sealed";
+import { isCollectorOutlierFinish } from "../domain/outlier-policy";
 
 export interface OutcomeModelResult {
   model: PackOutcomeModel;
@@ -31,6 +32,15 @@ function pricedCard(
       material: true,
     });
     return null;
+  }
+  if (isCollectorOutlierFinish(finish)) {
+    omissions.push({
+      code: "collector-outlier-excluded",
+      message: `${card.name} (${finish}) is retained in its pull slot but excluded from buyer decision ranges.`,
+      expectedCards: expectedCopies,
+      material: false,
+    });
+    return { id: `${card.id}:${finish}`, slot: card.slot, value: 0, weight };
   }
   const value = exactValue(card, finish);
   if (value == null) {

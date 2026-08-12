@@ -63,7 +63,7 @@ describe("live random-slot buyer workflow", () => {
 
   it("switches every buyer view to the chosen color", async () => {
     render(createElement(Harness));
-    expect(document.querySelectorAll(".balance-column")).toHaveLength(8);
+    await waitFor(() => expect(document.querySelectorAll(".balance-column")).toHaveLength(8));
     expect(screen.getByLabelText("Explain the Break Balance percentage")).toHaveTextContent("0%");
     fireEvent.click(screen.getByRole("tab", { name: "Green slot" }));
     expect(screen.getByRole("button", { name: "I pick my color" })).toHaveClass("active");

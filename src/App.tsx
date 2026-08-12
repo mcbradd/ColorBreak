@@ -43,7 +43,6 @@ import {
 } from "./domain/marketplace";
 import { buyerVerdict } from "./domain/valuation";
 import { simulateOutcomesAsync } from "./domain/simulation-client";
-import { possibleSlotBounds } from "./domain/simulation";
 import type { DistributionSummary, PackOutcomeModel, SimulationResult } from "./domain/simulation";
 import type {
   BreakLine,
@@ -1067,15 +1066,19 @@ function OutcomeRange({ summary, landed }: { summary?: DistributionSummary; land
 }
 
 export function BreakBalance({
-  result, model, remaining,
+  result, model, remaining, simulation,
 }: {
   result: ValuationResult;
   model: PackOutcomeModel;
   remaining: SlotId[];
+  simulation?: SimulationResult;
 }) {
   const rows = result.slots.filter((slot) => remaining.includes(slot.id));
-  const bounds = model.complete === false ? null : possibleSlotBounds(model);
-  const max = Math.max(...rows.map((slot) => bounds?.[slot.id].max ?? slot.sellableEV), 1);
+  const distributions = model.complete === false ? null : simulation?.slotDistributions;
+  const max = Math.max(...rows.flatMap((slot) => [
+    distributions?.[slot.id].p99 ?? slot.sellableEV,
+    slot.sellableEV,
+  ]), 1);
   const positionOnScale = (value: number) => Math.log1p(Math.max(0, value)) / Math.log1p(max) * 100;
   const weakest = Math.min(...rows.map((slot) => slot.sellableEV));
   const strongest = Math.max(...rows.map((slot) => slot.sellableEV), 0);
@@ -1091,41 +1094,53 @@ export function BreakBalance({
       <span>weakest vs strongest</span>
     </Tip>
   );
-  if (!bounds) return (
+  if (model.complete === false) return (
     <section className="panel balance-panel">
       <PanelHeading
         label="BREAK BALANCE"
-        help="Exact candlesticks require every material product and pull-rate input. ColorBreak does not invent a possible high or low when the model is incomplete."
-        title="Exact ranges unavailable"
+        help="Pull ranges require every material product and pull-rate input. ColorBreak does not invent a range when the model is incomplete."
+        title="Pull ranges unavailable"
         accessory={balanceTip}
       />
       <div className="distribution-unavailable" role="status"><b>Range withheld</b><span>Some material product or pull-rate information is unresolved.</span></div>
+    </section>
+  );
+  if (!distributions) return (
+    <section className="panel balance-panel">
+      <PanelHeading
+        label="BREAK BALANCE"
+        help="ColorBreak is checking thousands of pack openings using the published pull weights and pack-collation rules."
+        title="Building realistic pull ranges"
+        accessory={balanceTip}
+      />
+      <div className="distribution-unavailable" role="status"><b>Calculating ranges</b><span>The rest of the page remains available while this finishes.</span></div>
     </section>
   );
   return (
     <section className="panel balance-panel">
       <PanelHeading
         label="BREAK BALANCE"
-        help="Each wick runs from the exact lowest to highest card value this break model can produce for that color. The white body spans 25% below to 25% above the pull-rate expected value, limited by what is actually possible. EV is calculated directly from card pull rates, not sampled openings. Dollar spacing is compressed so small EV bands remain visible beside jackpot-level best cases; the printed dollar labels are exact."
+        help="Each wick shows the middle 98% of modeled openings, trimming the most extreme 1% at both ends. The white body contains the middle half. The EV marker is the pull-rate average after serialized and one-of-one collector outliers are removed."
         title="Equal chance, unequal pools"
         accessory={balanceTip}
       />
       <p className="balance-note">Each remaining slot is equally likely. The card value assigned to each slot is not equal.</p>
-      <p className="balance-scale-note">Compressed dollar scale · exact labels · $0 to {fmtChart(max)}</p>
-      <div className="balance-chart" aria-label="Exact possible card-value range and pull-rate expected value by color">
+      <p className="balance-scale-note">Compressed dollar scale · practical 1-in-100 range · $0 to {fmtChart(max)}</p>
+      <div className="balance-chart" aria-label="Practical modeled card-value range and pull-rate expected value by color">
         {rows.map((slot) => {
-          const rangeLow = bounds[slot.id].min;
-          const rangeHigh = bounds[slot.id].max;
+          const distribution = distributions[slot.id];
+          const rangeLow = distribution.p01;
+          const rangeHigh = distribution.p99;
           const expectedValue = slot.sellableEV;
-          const bodyLow = Math.min(rangeHigh, Math.max(rangeLow, expectedValue * .75));
-          const bodyHigh = Math.max(bodyLow, Math.min(rangeHigh, Math.max(rangeLow, expectedValue * 1.25)));
+          const bodyLow = Math.min(rangeHigh, Math.max(rangeLow, distribution.p25));
+          const bodyHigh = Math.max(bodyLow, Math.min(rangeHigh, Math.max(rangeLow, distribution.p75)));
           const lowPosition = positionOnScale(rangeLow);
           const highPosition = positionOnScale(rangeHigh);
           const evPosition = positionOnScale(Math.min(rangeHigh, Math.max(rangeLow, expectedValue)));
           const bodyLowPosition = positionOnScale(bodyLow);
           const bodyHighPosition = positionOnScale(bodyHigh);
           return (
-            <div className={`balance-column slot-${slot.id}`} key={slot.id} aria-label={`${slot.name}: exact range ${fmt(rangeLow)} to ${fmt(rangeHigh)}, pull-rate expected value ${fmt(expectedValue)}, comparison band ${fmt(bodyLow)} to ${fmt(bodyHigh)}`}>
+            <div className={`balance-column slot-${slot.id}`} key={slot.id} aria-label={`${slot.name}: practical range ${fmt(rangeLow)} to ${fmt(rangeHigh)}, pull-rate expected value ${fmt(expectedValue)}, middle half ${fmt(bodyLow)} to ${fmt(bodyHigh)}`}>
               <span className="balance-whisker" style={{ bottom: `${lowPosition}%`, height: `${Math.max(0, highPosition - lowPosition)}%` }} />
               <span className="balance-cap balance-cap-high" style={{ bottom: `${highPosition}%` }} />
               <span className="balance-cap balance-cap-low" style={{ bottom: `${lowPosition}%` }} />
@@ -1138,7 +1153,7 @@ export function BreakBalance({
           );
         })}
       </div>
-      <p className="balance-caption"><b>Bottom</b> exact worst possible · <strong>white body</strong> 25% below to 25% above pull-rate EV · <span>EV marker</span> statistical expected value · <em>top</em> exact best possible. Vertical dollar spacing is compressed so small values stay readable beside jackpot ceilings; printed values are exact. The white band is not a claim that half of openings land inside it.</p>
+      <p className="balance-caption"><b>Bottom</b> rare low result · <strong>white body</strong> middle half of modeled openings · <span>EV marker</span> pull-rate average · <em>top</em> rare high result. About 1 in 100 modeled openings falls beyond either end. Serialized and one-of-one collector outliers are excluded.</p>
     </section>
   );
 }
@@ -1628,7 +1643,7 @@ export function BuyerView({
           {auction.remaining.length === 1 && <p className="last-slot">Final slot: {SLOT_NAMES[auction.remaining[0]]}. No assignment tap needed.</p>}
         </section>
       )}
-      <BreakBalance result={result} model={analysis.outcomeModel} remaining={auction.remaining} />
+      <BreakBalance result={result} model={analysis.outcomeModel} remaining={auction.remaining} simulation={simulation.result} />
       <EvidenceLens analysis={analysis} />
         <SlotRail result={result} selected={selected} setSelected={(slotId) => { setSelected(slotId); setAssignmentMode("pick"); }} />
       <ChaseConstellation slot={slot} onInspect={setInspectedCard} />
@@ -1679,8 +1694,8 @@ function allocate(
 function RangeCandle({ summary, max, bonus = false }: { summary: DistributionSummary; max: number; bonus?: boolean }) {
   const pct = (value: number) => `${Math.max(0, Math.min(100, value / Math.max(1, max) * 100))}%`;
   return (
-    <span className={`range-candle ${bonus ? "bonus" : "base"}`} aria-label={`${bonus ? "With bonus" : "Current"}: ${fmt(summary.min)} lowest, ${fmt(summary.median)} typical, ${fmt(summary.max)} highest modeled`}>
-      <i className="candle-wick" style={{ bottom: pct(summary.min), height: pct(summary.max - summary.min) }} />
+    <span className={`range-candle ${bonus ? "bonus" : "base"}`} aria-label={`${bonus ? "With bonus" : "Current"}: ${fmt(summary.p01)} rare low, ${fmt(summary.median)} typical, ${fmt(summary.p99)} rare high`}>
+      <i className="candle-wick" style={{ bottom: pct(summary.p01), height: pct(summary.p99 - summary.p01) }} />
       <i className="candle-body" style={{ bottom: pct(summary.p25), height: pct(Math.max(.01, summary.p75 - summary.p25)) }} />
       <i className="candle-median" style={{ bottom: pct(summary.median) }} />
     </span>
@@ -1691,11 +1706,13 @@ function monotoneBonus(before: DistributionSummary, sampledAfter: DistributionSu
   return {
     ...sampledAfter,
     min: Math.max(before.min, sampledAfter.min),
+    p01: Math.max(before.p01, sampledAfter.p01),
     p10: Math.max(before.p10, sampledAfter.p10),
     p25: Math.max(before.p25, sampledAfter.p25),
     median: Math.max(before.median, sampledAfter.median),
     p75: Math.max(before.p75, sampledAfter.p75),
     p90: Math.max(before.p90, sampledAfter.p90),
+    p99: Math.max(before.p99, sampledAfter.p99),
     max: Math.max(before.max, sampledAfter.max),
     ...(before.chanceToClearCost == null || sampledAfter.chanceToClearCost == null ? {} : {
       chanceToClearCost: Math.max(before.chanceToClearCost, sampledAfter.chanceToClearCost),
@@ -1719,24 +1736,24 @@ function UpsideCandles({ base, bonus, bonusLabel, selectedSlot, selectSlot, useR
   const rows = SLOT_IDS.map((id) => {
     const before = baseSimulation.result!.slotDistributions[id];
     const after = monotoneBonus(before, bonusSimulation.result!.slotDistributions[id]);
-    return { id, before, after, lift: after.max - before.max };
+    return { id, before, after, lift: after.p99 - before.p99 };
   }).sort((a, b) => b.lift - a.lift);
   // The two configuration candles answer the selected buyer's question and need
   // their own scale. A chase-heavy color must not flatten an unrelated selection.
-  const scenarioMaximum = Math.max(1, selectedAfter.max);
-  const colorMaximum = Math.max(1, ...rows.map((row) => row.after.max));
+  const scenarioMaximum = Math.max(1, selectedAfter.p99);
+  const colorMaximum = Math.max(1, ...rows.map((row) => row.after.p99));
   const unpricedOutcomes = bonus.outcomeOmissions.filter((item) => !item.material && /missing-.+-price|missing-price/.test(item.code));
   return (
     <div className="upside-chart">
       <div className="upside-callout">
-        <span>MODELED BUYER CEILING</span>
-        <b>+{fmt(selectedAfter.max - selectedBefore.max)}</b>
+        <span>RARE HIGH-END GAIN</span>
+        <b>+{fmt(selectedAfter.p99 - selectedBefore.p99)}</b>
         <small>{useRandom ? "Random slot" : SLOT_NAMES[selectedSlot]} typical result changes {fmt(selectedBefore.median)} → {fmt(selectedAfter.median)}</small>
         <small>At {fmt(buyerLanded)} landed: {Math.round((selectedBefore.chanceToClearCost ?? 0) * 100)}% → {Math.round((selectedAfter.chanceToClearCost ?? 0) * 100)}% of modeled openings cover buyer cost</small>
       </div>
       <div className="scenario-candles" aria-label="Buyer value range by break configuration">
-        <div className="scenario-candle-column"><div><RangeCandle summary={selectedBefore} max={scenarioMaximum} /></div><b>Current break</b><small>Ceiling {fmt(selectedBefore.max)}</small></div>
-        <div className="scenario-candle-column"><div><RangeCandle summary={selectedAfter} max={scenarioMaximum} bonus /></div><b>+ {bonusLabel}</b><small>Ceiling {fmt(selectedAfter.max)}</small></div>
+        <div className="scenario-candle-column"><div><RangeCandle summary={selectedBefore} max={scenarioMaximum} /></div><b>Current break</b><small>Rare high {fmt(selectedBefore.p99)}</small></div>
+        <div className="scenario-candle-column"><div><RangeCandle summary={selectedAfter} max={scenarioMaximum} bonus /></div><b>+ {bonusLabel}</b><small>Rare high {fmt(selectedAfter.p99)}</small></div>
       </div>
       <p className="x-axis-note"><b>X-axis:</b> break configuration · <b>Y-axis:</b> {useRandom ? "card value received by a random slot" : `${SLOT_NAMES[selectedSlot]} card value`}</p>
       <h3>Which colors gain the most upside?</h3>
@@ -1744,11 +1761,11 @@ function UpsideCandles({ base, bonus, bonusLabel, selectedSlot, selectSlot, useR
       <div className="candle-grid">{rows.map(({ id, before, after, lift }) => (
         <button type="button" className={`candle-column ${!useRandom && selectedSlot === id ? "active" : ""}`} key={id} onClick={() => selectSlot(id)}>
           <div className="candle-pair"><RangeCandle summary={before} max={colorMaximum} /><RangeCandle summary={after} max={colorMaximum} bonus /></div>
-          <b>{id}</b><small>+{fmt(lift)} ceiling</small>
+          <b>{id}</b><small>+{fmt(lift)} rare high</small>
         </button>
       ))}</div>
       {unpricedOutcomes.length > 0 && <p className="distribution-data-note"><ShieldAlert />{unpricedOutcomes.length} very rare printing{unpricedOutcomes.length === 1 ? " has" : "s have"} no current market price. Its pull chance is preserved and its value is counted as $0, so the shown high end is a conservative known-price floor.</p>}
-      <p>Thin line: lowest to highest modeled pull · solid body: middle half · center mark: typical result. Rare best cases are possible, not promised.</p>
+      <p>Thin line: middle 98% of modeled openings · solid body: middle half · center mark: typical result. Serialized and one-of-one collector outliers are excluded.</p>
     </div>
   );
 }
