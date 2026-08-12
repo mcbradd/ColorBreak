@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { simulateOutcomes } from "./simulation";
+import { possibleSlotBounds, simulateOutcomes } from "./simulation";
 import type { PackOutcomeModel } from "./simulation";
 
 const coinFlipPack: PackOutcomeModel = {
@@ -40,5 +40,38 @@ describe("outcome simulation", () => {
     expect(() => simulateOutcomes({ ...coinFlipPack, complete: false }, {
       seed: "blocked", sampleCount: 100, remaining: ["W"],
     })).toThrow("material omissions");
+  });
+
+  it("derives exact possible slot bounds from variants and replacement rules", () => {
+    const model: PackOutcomeModel = {
+      fixed: [{ id: "fixed", slot: "W", value: 2, count: 1 }],
+      packs: [{
+        count: 2,
+        variants: [{ weight: 1, picks: { noRepeat: 2, repeat: 1 } }],
+        sheets: {
+          noRepeat: {
+            totalWeight: 3,
+            allowDuplicates: false,
+            cards: [
+              { id: "w10", slot: "W", value: 10, weight: 1 },
+              { id: "w4", slot: "W", value: 4, weight: 1 },
+              { id: "u20", slot: "U", value: 20, weight: 1 },
+            ],
+          },
+          repeat: {
+            totalWeight: 2,
+            cards: [
+              { id: "w3", slot: "W", value: 3, weight: 1 },
+              { id: "u5", slot: "U", value: 5, weight: 1 },
+            ],
+          },
+        },
+      }],
+    };
+
+    const bounds = possibleSlotBounds(model);
+
+    expect(bounds.W).toEqual({ min: 10, max: 36 });
+    expect(bounds.U).toEqual({ min: 0, max: 50 });
   });
 });

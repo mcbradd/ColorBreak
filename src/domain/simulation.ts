@@ -61,6 +61,57 @@ export interface SimulationResult {
   remainingPool: DistributionSummary;
 }
 
+export type SlotBounds = Record<SlotId, { min: number; max: number }>;
+
+function sheetSlotBounds(sheet: OutcomeSheet, picks: number, slot: SlotId): { min: number; max: number } {
+  if (!Number.isInteger(picks) || picks < 0) throw new Error("Sheet picks must be a non-negative integer");
+  const contributions = sheet.cards
+    .filter((card) => (card.weight ?? 1) > 0)
+    .map((card) => card.slot === slot ? card.value : 0);
+  if (!contributions.length && picks > 0) throw new Error("Outcome model contains an empty weighted choice");
+  if (sheet.allowDuplicates === false) {
+    if (picks > contributions.length) throw new Error("Outcome model requests more unique cards than a sheet contains");
+    const ordered = [...contributions].sort((a, b) => a - b);
+    return {
+      min: ordered.slice(0, picks).reduce((sum, value) => sum + value, 0),
+      max: ordered.slice(-picks).reduce((sum, value) => sum + value, 0),
+    };
+  }
+  return {
+    min: picks * Math.min(...contributions),
+    max: picks * Math.max(...contributions),
+  };
+}
+
+/** Exact marginal low/high values possible for every color slot. */
+export function possibleSlotBounds(model: PackOutcomeModel): SlotBounds {
+  if (model.complete === false) throw new Error("Cannot derive exact bounds from a model with material omissions");
+  return Object.fromEntries(SLOT_IDS.map((slot) => {
+    const fixed = model.fixed.reduce((sum, card) => sum + (card.slot === slot ? card.value * (card.count ?? 1) : 0), 0);
+    let minimum = fixed;
+    let maximum = fixed;
+    for (const pack of model.packs) {
+      if (!pack.variants.length) throw new Error("Outcome model contains no pack variants");
+      const variants = pack.variants.filter((variant) => variant.weight > 0).map((variant) => {
+        let min = 0;
+        let max = 0;
+        for (const [sheetName, picks] of Object.entries(variant.picks)) {
+          const sheet = pack.sheets[sheetName];
+          if (!sheet) throw new Error(`Outcome model is missing sheet ${sheetName}`);
+          const bounds = sheetSlotBounds(sheet, picks, slot);
+          min += bounds.min;
+          max += bounds.max;
+        }
+        return { min, max };
+      });
+      if (!variants.length) throw new Error("Outcome model contains no possible pack variants");
+      minimum += pack.count * Math.min(...variants.map((variant) => variant.min));
+      maximum += pack.count * Math.max(...variants.map((variant) => variant.max));
+    }
+    return [slot, { min: minimum, max: maximum }];
+  })) as SlotBounds;
+}
+
 function seed32(value: string): number {
   let hash = 2166136261;
   for (let i = 0; i < value.length; i += 1) {

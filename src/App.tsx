@@ -43,7 +43,8 @@ import {
 } from "./domain/marketplace";
 import { buyerVerdict } from "./domain/valuation";
 import { simulateOutcomesAsync } from "./domain/simulation-client";
-import type { DistributionSummary, SimulationResult } from "./domain/simulation";
+import { possibleSlotBounds } from "./domain/simulation";
+import type { DistributionSummary, PackOutcomeModel, SimulationResult } from "./domain/simulation";
 import type {
   BreakLine,
   Contributor,
@@ -1066,15 +1067,16 @@ function OutcomeRange({ summary, landed }: { summary?: DistributionSummary; land
 }
 
 export function BreakBalance({
-  result, simulation, remaining,
+  result, model, remaining,
 }: {
   result: ValuationResult;
-  simulation?: SimulationResult;
+  model: PackOutcomeModel;
   remaining: SlotId[];
 }) {
   const rows = result.slots.filter((slot) => remaining.includes(slot.id));
-  const equalShare = rows.length ? rows.reduce((sum, slot) => sum + slot.sellableEV, 0) / rows.length : 0;
-  const max = Math.max(equalShare, ...rows.map((slot) => simulation?.slotDistributions[slot.id].max ?? slot.sellableEV), 1);
+  const bounds = model.complete === false ? null : possibleSlotBounds(model);
+  const max = Math.max(...rows.map((slot) => bounds?.[slot.id].max ?? slot.sellableEV), 1);
+  const positionOnScale = (value: number) => Math.log1p(Math.max(0, value)) / Math.log1p(max) * 100;
   const weakest = Math.min(...rows.map((slot) => slot.sellableEV));
   const strongest = Math.max(...rows.map((slot) => slot.sellableEV), 0);
   const balanceTip = (
@@ -1089,41 +1091,54 @@ export function BreakBalance({
       <span>weakest vs strongest</span>
     </Tip>
   );
+  if (!bounds) return (
+    <section className="panel balance-panel">
+      <PanelHeading
+        label="BREAK BALANCE"
+        help="Exact candlesticks require every material product and pull-rate input. ColorBreak does not invent a possible high or low when the model is incomplete."
+        title="Exact ranges unavailable"
+        accessory={balanceTip}
+      />
+      <div className="distribution-unavailable" role="status"><b>Range withheld</b><span>Some material product or pull-rate information is unresolved.</span></div>
+    </section>
+  );
   return (
     <section className="panel balance-panel">
       <PanelHeading
         label="BREAK BALANCE"
-        help="Compares the remaining color slots even though each is equally likely to be assigned. Taller bars mean a higher middle result; the thin lines show how high the value can reach in stronger openings."
+        help="Each wick runs from the exact lowest to highest card value this break model can produce for that color. The white body spans 25% below to 25% above the pull-rate expected value, limited by what is actually possible. EV is calculated directly from card pull rates, not sampled openings. Dollar spacing is compressed so small EV bands remain visible beside jackpot-level best cases; the printed dollar labels are exact."
         title="Equal chance, unequal pools"
         accessory={balanceTip}
       />
       <p className="balance-note">Each remaining slot is equally likely. The card value assigned to each slot is not equal.</p>
-      <div className="balance-chart" style={{ "--equal": `${equalShare / max * 100}%` } as CSSProperties}>
+      <p className="balance-scale-note">Compressed dollar scale · exact labels · $0 to {fmtChart(max)}</p>
+      <div className="balance-chart" aria-label="Exact possible card-value range and pull-rate expected value by color">
         {rows.map((slot) => {
-          const distribution = simulation?.slotDistributions[slot.id];
-          const rangeLow = distribution?.min ?? 0;
-          const rangeHigh = distribution?.max ?? slot.sellableEV;
-          const median = distribution?.median ?? slot.sellableEV;
-          const middleLow = distribution?.p25 ?? median;
-          const middleHigh = distribution?.p75 ?? median;
-          const lowPosition = rangeLow / max * 100;
-          const highPosition = rangeHigh / max * 100;
-          const medianPosition = median / max * 100;
-          const middleLowPosition = middleLow / max * 100;
-          const middleHighPosition = middleHigh / max * 100;
+          const rangeLow = bounds[slot.id].min;
+          const rangeHigh = bounds[slot.id].max;
+          const expectedValue = slot.sellableEV;
+          const bodyLow = Math.min(rangeHigh, Math.max(rangeLow, expectedValue * .75));
+          const bodyHigh = Math.max(bodyLow, Math.min(rangeHigh, Math.max(rangeLow, expectedValue * 1.25)));
+          const lowPosition = positionOnScale(rangeLow);
+          const highPosition = positionOnScale(rangeHigh);
+          const evPosition = positionOnScale(Math.min(rangeHigh, Math.max(rangeLow, expectedValue)));
+          const bodyLowPosition = positionOnScale(bodyLow);
+          const bodyHighPosition = positionOnScale(bodyHigh);
           return (
-            <div className={`balance-column slot-${slot.id}`} key={slot.id}>
-              <span className="balance-whisker" style={{ bottom: `${lowPosition}%`, height: `${Math.max(1.5, highPosition - lowPosition)}%` }} />
-              <span className="balance-middle" style={{ bottom: `${middleLowPosition}%`, height: `${Math.max(3, middleHighPosition - middleLowPosition)}%` }} />
+            <div className={`balance-column slot-${slot.id}`} key={slot.id} aria-label={`${slot.name}: exact range ${fmt(rangeLow)} to ${fmt(rangeHigh)}, pull-rate expected value ${fmt(expectedValue)}, comparison band ${fmt(bodyLow)} to ${fmt(bodyHigh)}`}>
+              <span className="balance-whisker" style={{ bottom: `${lowPosition}%`, height: `${Math.max(0, highPosition - lowPosition)}%` }} />
+              <span className="balance-cap balance-cap-high" style={{ bottom: `${highPosition}%` }} />
+              <span className="balance-cap balance-cap-low" style={{ bottom: `${lowPosition}%` }} />
+              <span className="balance-body" style={{ bottom: `${bodyLowPosition}%`, height: `${Math.max(0, bodyHighPosition - bodyLowPosition)}%` }} />
               <span className="balance-end balance-best" style={{ bottom: `${highPosition}%` }}>{fmtChart(rangeHigh)}</span>
-              <span className={`balance-median ${Math.abs(medianPosition - lowPosition) < 1 ? "at-low" : ""}`} style={{ bottom: `${medianPosition}%` }}><b>{fmtChart(median)}</b></span>
+              <span className={`balance-ev ${evPosition < 4 ? "at-low" : ""}`} style={{ bottom: `${evPosition}%` }}><i /><b><small>EV</small>{fmtChart(expectedValue)}</b></span>
               <span className="balance-end balance-worst" style={{ bottom: `${lowPosition}%` }}>{fmtChart(rangeLow)}</span>
               <strong className="balance-slot">{slot.id}</strong>
             </div>
           );
         })}
       </div>
-      <p className="balance-caption"><b>Red</b> is the modeled worst case · the thick <strong>white body</strong> contains the middle half of modeled openings, with the typical value printed on it · <em>green</em> is the modeled best case.</p>
+      <p className="balance-caption"><b>Bottom</b> exact worst possible · <strong>white body</strong> 25% below to 25% above pull-rate EV · <span>EV marker</span> statistical expected value · <em>top</em> exact best possible. Vertical dollar spacing is compressed so small values stay readable beside jackpot ceilings; printed values are exact. The white band is not a claim that half of openings land inside it.</p>
     </section>
   );
 }
@@ -1613,7 +1628,7 @@ export function BuyerView({
           {auction.remaining.length === 1 && <p className="last-slot">Final slot: {SLOT_NAMES[auction.remaining[0]]}. No assignment tap needed.</p>}
         </section>
       )}
-      <BreakBalance result={result} simulation={simulation.result} remaining={auction.remaining} />
+      <BreakBalance result={result} model={analysis.outcomeModel} remaining={auction.remaining} />
       <EvidenceLens analysis={analysis} />
         <SlotRail result={result} selected={selected} setSelected={(slotId) => { setSelected(slotId); setAssignmentMode("pick"); }} />
       <ChaseConstellation slot={slot} onInspect={setInspectedCard} />
