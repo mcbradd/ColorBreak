@@ -60,6 +60,7 @@ import type {
 import { SLOT_IDS, SLOT_NAMES } from "./domain/types";
 import { useMobileInputViewport } from "./mobile-input-viewport";
 import { track } from "./analytics";
+import { layoutChaseTargets } from "./constellation-layout";
 
 type Mode = "home" | "buyer" | "seller";
 const money = new Intl.NumberFormat("en-US", {
@@ -75,6 +76,24 @@ const oddsLabel = (probability: number) =>
     : probability > 0
       ? `${(probability * 100).toFixed(probability < 0.01 ? 2 : 1)}%`
       : "0%";
+
+const plainEvidence = (value: string) => ({
+  "official-verified": "Checked with official product information",
+  "aggregate-identified": "Product matched",
+  ambiguous: "Needs review",
+  "mtgjson-structured": "Exact item list imported",
+  "prose-only": "Only a written description is available",
+  unresolved: "Missing",
+  "published-rate-checked": "Pack odds checked against published information",
+  "weighted-upstream": "Pack odds imported",
+  unvalidated: "Not independently checked",
+  exact: "Exact card version used",
+  "class-only": "Foil or nonfoil group only",
+  "seller-confirmed": "Confirmed by seller",
+  preset: "Using ColorBreak defaults",
+  "user-entered": "Entered by user",
+  unknown: "Not set",
+}[value] ?? value.replaceAll("-", " "));
 
 function countedMarketLabel(row: Contributor): string {
   const labels: string[] = [];
@@ -324,8 +343,12 @@ function Status({ result }: { result: ValuationResult }) {
   return (
     <Tip
       className={`status ${result.status}`}
-      text={result.statusReason}
-      label={`${result.status} data status: ${result.statusReason}`}
+      text={result.status === "verified"
+        ? "Product contents, pack odds, card versions, and prices are ready."
+        : result.status === "estimated"
+          ? "Some product details are estimates, so treat this as a rough answer."
+          : "Some product information is missing. Open Data confidence to see what is affected."}
+      label={`Explain ${result.status} data status`}
     >
       {icon}
       <span>{result.status}</span>
@@ -380,7 +403,7 @@ function Home({ choose }: { choose: (mode: Mode) => void }) {
           <span>
             <small>BREAK PLANNING</small>
             <strong>Build & price</strong>
-            <p>Set profitable asks with fees and fulfillment included.</p>
+            <p>Set profitable asks with fees, packing, and shipping included.</p>
           </span>
           <ChevronRight />
         </button>
@@ -628,7 +651,7 @@ export function Composition({
     <section className="composition panel">
       <header>
         <div>
-          <SectionLabel text="The sealed products and quantities being opened in this break. Changing any line immediately recalculates card contents, prices, color-slot value, and modeled outcomes.">
+          <SectionLabel text="The sealed products and quantities being opened in this break. Changing any line immediately recalculates card contents, prices, color value, and possible opening values.">
             BREAK
           </SectionLabel>
           <h2>
@@ -690,8 +713,8 @@ export function ValueSummary({ result }: { result: ValuationResult }) {
     <section className="value-summary panel">
       <header>
         <div>
-          <SectionLabel text="The break's counted expected value after excluding every card finish priced below your Ignore bulk under threshold. This is an average across modeled openings, not a guaranteed result.">
-            BREAK EV AFTER BULK FILTER
+          <SectionLabel text="The average card value left after removing cards below your Ignore bulk under amount. This is an average across many possible openings, not a guaranteed result.">
+            BREAK VALUE AFTER IGNORING BULK
           </SectionLabel>
           <h2>{fmt(result.sellableEV)}</h2>
         </div>
@@ -699,33 +722,33 @@ export function ValueSummary({ result }: { result: ValuationResult }) {
       </header>
       <div className="metric-row">
         <div>
-          <span>
-            Raw modeled EV
-            <Tip text={`Average value from every priced card before applying the ${fmt(result.threshold)} bulk filter. This number is shown so you can check the math; ColorBreak uses the ${fmt(result.sellableEV)} value left after ignoring bulk for decisions.`} />
+          <span className="metric-label">
+            <span>Before ignoring bulk</span>
+            <Tip text={`Average value of all priced cards before removing cards worth less than ${fmt(result.threshold)}.`} />
           </span>
           <b>{fmt(result.marketEV)}</b>
         </div>
         <div>
-          <span>
-            Bulk excluded
-            <Tip text={`Cards priced below ${fmt(result.threshold)} contribute ${fmt(ignoredEV)} of raw modeled EV, but ColorBreak excludes that amount from decisions. Counted EV (${fmt(result.sellableEV)}) plus bulk excluded (${fmt(ignoredEV)}) equals raw modeled EV (${fmt(result.marketEV)}). This is a reconciliation—not a loss or negative value.`} />
+          <span className="metric-label">
+            <span>Ignored as bulk</span>
+            <Tip text={`Average value coming from cards worth less than ${fmt(result.threshold)} each. ColorBreak leaves this amount out of the buying and selling numbers.`} />
           </span>
           <b>{fmt(ignoredEV)}</b>
         </div>
         <div>
-          <span>
-            Printings counted
-            <Tip text={`Distinct card printings with a qualifying ${fmt(result.threshold)}+ finish in this break.`} />
+          <span className="metric-label">
+            <span>Priced cards used</span>
+            <Tip text={`Number of different card versions worth ${fmt(result.threshold)} or more that add value to this break.`} />
           </span>
           <b>{countedCards}</b>
         </div>
       </div>
       <p className="value-equation">
-        <span>{fmt(result.marketEV)} raw</span>
+        <span>{fmt(result.marketEV)} all cards</span>
         <b>−</b>
-        <span>{fmt(ignoredEV)} bulk</span>
+        <span>{fmt(ignoredEV)} ignored</span>
         <b>=</b>
-        <strong>{fmt(result.sellableEV)} counted</strong>
+        <strong>{fmt(result.sellableEV)} used here</strong>
       </p>
       {result.omissions.length > 0 && (
         <details className="notice">
@@ -901,14 +924,14 @@ export function CardInspector({
                   </div>
                 </div>
                 <div className="card-stat">
-                  <span>Counted expected copies</span>
+                  <span>Average copies per break</span>
                   <strong>
                     {row.sellableCopies.toFixed(3).replace(/0+$/, "").replace(/\.$/, "")}
                   </strong>
                   <small>
                     {status === "verified"
-                      ? `Qualifying finishes worth ${fmt(threshold)} or more in this break.`
-                      : `Known-data estimate for qualifying ${fmt(threshold)}+ finishes; unresolved contents may increase these odds.`}
+                      ? `Card versions worth ${fmt(threshold)} or more are included.`
+                      : "This uses the product information currently available. Missing details could change it."}
                   </small>
                 </div>
                 {row.card.oracleText && (
@@ -1021,7 +1044,7 @@ function OutcomeRange({ summary, landed }: { summary?: DistributionSummary; land
           </div>
         </div>
       )}
-      <p>Modeled possibilities—not a prediction of the next opening.</p>
+      <p>Possible results from simulations—not a prediction of the next opening.</p>
     </div>
   );
 }
@@ -1055,6 +1078,7 @@ function BreakBalance({
           label="Explain the Break Balance percentage"
         >
           <b>{strongest ? `${Math.round(weakest / strongest * 100)}%` : "—"}</b>
+          <span>weakest vs strongest</span>
         </Tip>
       </header>
       <p className="balance-note">Each remaining slot is equally likely. The card value assigned to each slot is not equal.</p>
@@ -1072,12 +1096,61 @@ function BreakBalance({
           );
         })}
       </div>
-      <p className="balance-caption">Dashed line: equal share {fmt(equalShare)} · Bars: {simulation ? "typical card value" : "average card value"}</p>
+      <p className="balance-caption">Bars show each color's {simulation ? "typical" : "average"} card value. The dashed line shows an even split: {fmt(equalShare)}.</p>
     </section>
   );
 }
 
+interface EvidenceExplanation {
+  title: string;
+  status: string;
+  meaning: string;
+  matters: string;
+  action: string;
+}
+
+function EvidenceDialog({ item, onClose }: { item: EvidenceExplanation | null; onClose: () => void }) {
+  const closeRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (!item) return;
+    const previous = document.activeElement as HTMLElement | null;
+    const scrollY = window.scrollY;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    closeRef.current?.focus({ preventScroll: true });
+    const keydown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", keydown);
+    return () => {
+      document.removeEventListener("keydown", keydown);
+      document.body.style.overflow = previousOverflow;
+      previous?.focus({ preventScroll: true });
+      window.scrollTo(0, scrollY);
+    };
+  }, [item, onClose]);
+  if (!item) return null;
+  return createPortal(
+    <div className="scrim evidence-scrim" onPointerDown={onClose}>
+      <section className="evidence-dialog" role="dialog" aria-modal="true" aria-labelledby="evidence-dialog-title" onPointerDown={(event) => event.stopPropagation()}>
+        <header>
+          <div><p className="section-label">WHY THIS MATTERS</p><h2 id="evidence-dialog-title">{item.title}</h2></div>
+          <button ref={closeRef} className="icon-button" onClick={onClose} aria-label="Close explanation"><X /></button>
+        </header>
+        <div className="evidence-explanation">
+          <p className="evidence-current"><span>Current check</span><strong>{item.status}</strong></p>
+          <section><h3>What is it?</h3><p>{item.meaning}</p></section>
+          <section><h3>Why should I care?</h3><p>{item.matters}</p></section>
+          <section><h3>What should I do?</h3><p>{item.action}</p></section>
+        </div>
+      </section>
+    </div>,
+    document.body,
+  );
+}
+
 function EvidenceLens({ analysis }: { analysis: BreakAnalysis }) {
+  const [selected, setSelected] = useState<EvidenceExplanation | null>(null);
   const { valuation } = analysis;
   const priceAvailability = analysis.priceAvailability ?? {
     status: "unavailable" as const,
@@ -1086,27 +1159,68 @@ function EvidenceLens({ analysis }: { analysis: BreakAnalysis }) {
   };
   const priced = Date.parse(valuation.pricedAt);
   const ageHours = Number.isFinite(priced) ? Math.max(0, (Date.now() - priced) / 36e5) : undefined;
-  const labels = [
-    ["Identity", valuation.evidence.productIdentity],
-    ["Contents", valuation.evidence.contents],
-    ["Collation", valuation.evidence.collation],
-    ["Finish", valuation.evidence.finish],
-    ["Prices", `${priceAvailability.status} · ${priceAvailability.source}`],
-    ["Break rules", valuation.evidence.breakRules],
+  const labels: EvidenceExplanation[] = [
+    {
+      title: "Exact product",
+      status: plainEvidence(valuation.evidence.productIdentity),
+      meaning: "This checks that ColorBreak is using the exact box, bundle, or pack in the auction—not a similarly named product.",
+      matters: "Two products from the same set can contain different packs, promos, and card chances. Choosing the wrong one can change every number on this page.",
+      action: "Match the product name and contents to the seller's listing. If this check is uncertain, do not rely on the bid guidance.",
+    },
+    {
+      title: "Items inside",
+      status: plainEvidence(valuation.evidence.contents),
+      meaning: "This checks which packs, promos, box toppers, decks, and fixed cards are actually inside the sealed product.",
+      matters: "An uncounted promo or topper can hide real value. A pack counted by mistake can make the break look better than it is.",
+      action: "Use the result normally when this is ready. When items are missing, treat the shown value as incomplete and read the named data notes.",
+    },
+    {
+      title: "Pack chances",
+      status: plainEvidence(valuation.evidence.collation),
+      meaning: "A pack is not filled by picking every card equally. This check describes how often each kind of card can appear.",
+      matters: "These chances power the pull odds, typical outcome, and high and low ranges. Bad pack chances can make a correct price produce a wrong answer.",
+      action: "When this is uncertain, ColorBreak hides probability-based guidance. Base a decision only on information that remains clearly available.",
+    },
+    {
+      title: "Card versions",
+      status: plainEvidence(valuation.evidence.finish),
+      meaning: "The same card can be nonfoil, foil, etched, textured, or another special version, and each version can have a different price.",
+      matters: "Using a premium version's price for an ordinary copy can badly overstate value. Missing a guaranteed premium version can understate it.",
+      action: "Check the seller's exact product version when this is uncertain. ColorBreak will not silently swap one card version's price for another.",
+    },
+    {
+      title: "Card prices",
+      status: priceAvailability.status === "available" ? "Ready" : plainEvidence(priceAvailability.status),
+      meaning: `These are saved market-price observations${ageHours == null ? "" : ` from about ${ageHours < 1 ? "less than one" : Math.round(ageHours)} hours ago`}—not guaranteed sale prices.`,
+      matters: "Prices move, and a listed market price does not promise that you can sell the card for that amount. Older prices make the bid comparison less dependable.",
+      action: "Give yourself more room below the shown value when prices are old or missing, especially when one expensive card drives most of a color's value.",
+    },
+    {
+      title: "Color assignment rules",
+      status: plainEvidence(valuation.evidence.breakRules),
+      meaning: "This says where multicolor cards, colorless cards, lands, double-faced cards, promos, and toppers go in the break.",
+      matters: "The total break value may stay the same while the value of the color you can win changes a lot. Seller rules can differ from ColorBreak's preset.",
+      action: "Confirm the seller's rules before bidding. If they differ, update the rules or avoid using the per-color guidance.",
+    },
   ];
   return (
     <details className="panel evidence-lens">
       <summary>
-        <span><ShieldAlert /><b>Evidence lens <Tip text="Shows how trustworthy each input is: product identity, exact contents, pack collation, card finishes, prices, and break rules. Known material gaps block outcome claims rather than being silently guessed." /></b><small>{analysis.outcomeModel.complete === false ? "Outcome chart blocked by known gaps" : "Inputs eligible for modeled outcomes"}</small></span>
-        <span>{ageHours == null ? "Price time unknown" : `Prices ${ageHours < 1 ? "<1" : Math.round(ageHours)}h old`}</span>
+        <span><ShieldAlert /><b>Data confidence</b><small>{analysis.outcomeModel.complete === false ? "Some missing data prevents a full answer" : "All key information is ready"}</small></span>
+        <span className="summary-help"><span>{ageHours == null ? "Price time unknown" : `Prices ${ageHours < 1 ? "<1" : Math.round(ageHours)}h old`}</span><Tip text="Shows which product details were checked and which are still missing. ColorBreak hides outcome ranges when missing information could change the answer." /></span>
       </summary>
       <div className="evidence-grid">
-        {labels.map(([label, value]) => <div key={label}><span>{label}</span><b>{value}</b></div>)}
+        {labels.map((item) => (
+          <button key={item.title} type="button" onClick={() => setSelected(item)} aria-label={`Explain ${item.title}: ${item.status}`}>
+            <span>{item.title}</span><b>{item.status}</b><ChevronRight />
+          </button>
+        ))}
       </div>
-      <p className="evidence-price-note">{priceAvailability.message}</p>
+      <p className="evidence-price-note">Price source: {priceAvailability.source === "snapshot" ? "saved Scryfall prices" : plainEvidence(priceAvailability.source)}.</p>
       {analysis.outcomeOmissions.length > 0 && (
         <ul>{analysis.outcomeOmissions.slice(0, 8).map((omission, index) => <li key={`${omission.code}-${index}`}>{omission.message}</li>)}</ul>
       )}
+      <EvidenceDialog item={selected} onClose={() => setSelected(null)} />
     </details>
   );
 }
@@ -1121,34 +1235,51 @@ function ChaseConstellation({
   const rows = slot.contributors.slice(0, 12);
   const maxPrice = Math.max(1, ...rows.map((row) => row.marketValue / Math.max(row.copies, .0001)));
   const maxContribution = Math.max(1, ...rows.map((row) => row.sellableValue));
+  const rowById = new Map(rows.map((row) => [row.card.id, row]));
+  const layout = layoutChaseTargets(rows.map((row) => {
+    const price = row.marketValue / Math.max(row.copies, .0001);
+    return {
+      id: row.card.id,
+      x: Math.min(88, 12 + row.sellablePullProbability * 76),
+      y: Math.max(10, 90 - price / maxPrice * 76),
+    };
+  }));
   return (
     <details className="panel supporting-view">
-      <summary><span><b>Chase Constellation <Tip text="Maps the selected slot's qualifying cards by pull chance and market price. Farther right means more frequent, higher means more expensive, and a larger bubble contributes more expected value." /></b><small>Pull chance × market price; bubble size is EV contribution</small></span><span>{SLOT_NAMES[slot.id]}</span></summary>
+      <summary><span><b>Chase Map</b><small>Higher means pricier · farther right means easier to pull</small></span><span className="summary-help"><span>{SLOT_NAMES[slot.id]}</span><Tip text="Each small dot marks a card by price and pull chance. A line connects that exact spot to a larger button that is easier to tap." /></span></summary>
       {!rows.length ? <p className="supporting-empty">No cards meet the current bulk boundary.</p> : (
-        <div className="constellation" aria-label={`${SLOT_NAMES[slot.id]} pull chance by market price`}>
-          <span className="constellation-y">Higher price ↑</span>
-          <span className="constellation-x">More frequent →</span>
-          {rows.map((row) => {
+        <div className="constellation chase-map" aria-label={`${SLOT_NAMES[slot.id]} card price and pull chance map`}>
+          <span className="constellation-y">Pricier ↑</span>
+          <span className="constellation-x">Easier to pull →</span>
+          <svg className="chase-pointers" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+            {layout.map((point) => {
+              const row = rowById.get(point.id)!;
+              const radius = 1.1 + Math.sqrt(row.sellableValue / maxContribution) * 1.8;
+              return (
+                <g key={point.id}>
+                  <line x1={point.x} y1={point.y} x2={point.targetX} y2={point.targetY} />
+                  <circle cx={point.x} cy={point.y} r={radius} />
+                </g>
+              );
+            })}
+          </svg>
+          {layout.map((point) => {
+            const row = rowById.get(point.id)!;
             const price = row.marketValue / Math.max(row.copies, .0001);
-            const size = 14 + Math.sqrt(row.sellableValue / maxContribution) * 24;
             return (
               <button
+                className="chase-target"
                 key={row.card.id}
-                style={{
-                  left: `${Math.min(96, 4 + row.sellablePullProbability * 92)}%`,
-                  bottom: `${Math.min(90, 8 + price / maxPrice * 78)}%`,
-                  width: size,
-                  height: size,
-                }}
+                style={{ left: `${point.targetX}%`, top: `${point.targetY}%` }}
                 onClick={() => onInspect(row)}
-                aria-label={`${row.card.name}: ${oddsLabel(row.sellablePullProbability)} pull chance, ${fmt(price)} market price, ${fmt(row.sellableValue)} EV contribution`}
+                aria-label={`${row.card.name}: ${oddsLabel(row.sellablePullProbability)} pull chance, ${fmt(price)} market price, adds ${fmt(row.sellableValue)} to the average`}
                 title={row.card.name}
               >{row.card.name.slice(0, 1)}</button>
             );
           })}
         </div>
       )}
-      <p className="supporting-warning">High and far right means valuable and frequent—not “due” in the next opening. Tap a bubble for the card.</p>
+      <p className="supporting-warning">The small dot is the card's exact spot. Follow its line to the larger letter button to open that card.</p>
     </details>
   );
 }
@@ -1158,33 +1289,142 @@ function BulkBoundary({ result }: { result: ValuationResult }) {
   const retained = result.marketEV > 0 ? result.sellableEV / result.marketEV : 0;
   return (
     <details className="panel supporting-view">
-      <summary><span><b>Bulk Boundary <Tip text={`Shows how much modeled card value remains after excluding individual card finishes priced below ${fmt(result.threshold)}. This threshold is a value filter, not a claim that every retained card is easy to sell.`} /></b><small>How “Ignore bulk under {fmt(result.threshold)}” changes modeled value</small></span><span>{Math.round(retained * 100)}% retained</span></summary>
+      <summary><span><b>Bulk Filter</b><small>What changes when you ignore cards under {fmt(result.threshold)}</small></span><span className="summary-help"><span>{Math.round(retained * 100)}% kept</span><Tip text={`Shows how much card value remains after ignoring cards worth less than ${fmt(result.threshold)} each.`} /></span></summary>
       <div className="bulk-boundary">
         <div><span>All resolved card value</span><b>{fmt(result.marketEV)}</b></div>
-        <div className="boundary-track" aria-label={`${Math.round(retained * 100)} percent of raw modeled value remains counted`}><span style={{ width: `${retained * 100}%` }} /></div>
-        <div><span>Counted at {fmt(result.threshold)}+</span><b>{fmt(result.sellableEV)}</b></div>
-        <p>{fmt(ignored)} is below the current per-card boundary. This is not a liquidity, condition, or net-resale estimate.</p>
+        <div className="boundary-track" aria-label={`${Math.round(retained * 100)} percent of all card value remains after ignoring bulk`}><span style={{ width: `${retained * 100}%` }} /></div>
+        <div><span>Value used by ColorBreak</span><b>{fmt(result.sellableEV)}</b></div>
+        <p>{fmt(ignored)} comes from cards below {fmt(result.threshold)} each, so it is left out of the numbers shown elsewhere.</p>
       </div>
     </details>
   );
 }
 
-function EVRiver({ result }: { result: ValuationResult }) {
-  const total = Math.max(result.marketEV, 1);
+function slotProfile(slot: SlotValuation) {
+  if (!slot.contributors.length) return "NO PRICED CARDS";
+  if (slot.chaseShare >= 0.5) return "CHASE-HEAVY";
+  if (slot.chaseShare >= 0.3) return "MIXED";
+  return "DIVERSIFIED";
+}
+
+function CardThumbnail({ row }: { row: Contributor }) {
   return (
-    <details className="panel supporting-view">
-      <summary><span><b>EV River <Tip text="Traces expected value from all resolved card contents into color slots, then separates value retained by the bulk threshold from value below it. Width represents EV share, not pull probability." /></b><small>Resolved product contents → color slots → counted value</small></span><span>{fmt(result.sellableEV)}</span></summary>
-      <div className="ev-river" aria-label="Expected value flow by color slot">
-        <div className="river-source"><b>{fmt(result.marketEV)}</b><span>resolved card value</span></div>
-        <div className="river-slots">
-          {result.slots.filter((row) => row.marketEV > 0).map((row) => (
-            <span key={row.id} className={`slot-${row.id}`} style={{ flexGrow: row.marketEV / total }} title={`${row.name}: ${fmt(row.marketEV)}`}><b>{row.id}</b></span>
-          ))}
-        </div>
-        <div className="river-outcomes"><span><b>{fmt(result.sellableEV)}</b> counted</span><span><b>{fmt(Math.max(0, result.marketEV - result.sellableEV))}</b> below boundary</span></div>
+    <span
+      className="card-thumbnail"
+      style={{ backgroundImage: row.card.image ? `url("${row.card.image}")` : undefined }}
+      aria-hidden="true"
+    >
+      {row.card.name.slice(0, 1)}
+    </span>
+  );
+}
+
+export function ContributorRows({
+  slot,
+  onInspect,
+  limit = 8,
+}: {
+  slot: SlotValuation;
+  onInspect: (row: Contributor) => void;
+  limit?: number;
+}) {
+  if (!slot.contributors.length) {
+    return <p className="no-contributors">No cards in this color are above the current bulk limit.</p>;
+  }
+  return (
+    <>
+      <div className="contributor-columns">
+        <span>Card and market price</span>
+        <span>Pull odds</span>
+        <span>Adds to average</span>
       </div>
-      <p className="supporting-warning">Widths show expected-value share, not pull probability. Open a slot for printing-level contributors.</p>
-    </details>
+      {slot.contributors.slice(0, limit).map((row) => (
+        <button
+          type="button"
+          className="card-row contributor-card"
+          key={row.card.id}
+          onClick={() => onInspect(row)}
+          aria-label={`Open ${row.card.name}: ${oddsLabel(row.sellablePullProbability)} pull odds, ${countedMarketLabel(row)} market price, adds ${fmt(row.sellableValue)} to the average`}
+        >
+          <CardThumbnail row={row} />
+          <span className="card-summary">
+            <strong>{row.card.name}</strong>
+            <small>{countedMarketLabel(row)} market</small>
+          </span>
+          <span className="pull-odds">
+            <b>{oddsLabel(row.sellablePullProbability)}</b>
+          </span>
+          <span className="ev-contribution">
+            <b>{fmt(row.sellableValue)}</b>
+          </span>
+        </button>
+      ))}
+    </>
+  );
+}
+
+export function SlotValueDetails({
+  slot,
+  threshold,
+  onInspect,
+  className = "",
+}: {
+  slot: SlotValuation;
+  threshold: number;
+  onInspect: (row: Contributor) => void;
+  className?: string;
+}) {
+  const profileLabel = slotProfile(slot);
+  return (
+    <section className={`panel slot-detail ${className}`.trim()}>
+      <header>
+        <div>
+          <SectionLabel text="Shows which cards create this color's average value and how much that value depends on one expensive chase card.">
+            {slot.name.toUpperCase()} VALUE DETAILS
+          </SectionLabel>
+          <h2>What makes up {fmt(slot.sellableEV)}?</h2>
+          <p className="risk-explainer">
+            {slot.name} cards worth {fmt(threshold)} or more. Cheaper cards are ignored as bulk.
+          </p>
+        </div>
+        <Tip
+          className={`risk-label risk-${profileLabel.toLowerCase().replace(/[^a-z]+/g, "-")}`}
+          text={profileLabel === "DIVERSIFIED"
+            ? "The biggest card supplies less than 30% of this color's average value. More cards share the load, but this does not guarantee a minimum return."
+            : profileLabel === "MIXED"
+              ? "The biggest card supplies 30% to 49% of this color's average value. One chase matters, but other cards still add meaningful value."
+              : profileLabel === "CHASE-HEAVY"
+                ? "One card supplies at least half of this color's average value. The average depends heavily on pulling that card."
+                : `No ${slot.name.toLowerCase()} card is worth at least ${fmt(threshold)}.`}
+          label={`Explain ${profileLabel.toLowerCase()} value spread`}
+        >
+          <span>{profileLabel}</span>
+        </Tip>
+      </header>
+      <div className="concentration">
+        <div className="concentration-labels">
+          <span>Value spread across cards</span>
+          <span>Value depends on one chase</span>
+        </div>
+        <div className="risk-bar" aria-label={`${Math.round(slot.chaseShare * 100)}% of this color's average value comes from its biggest card`}>
+          <span style={{ width: `${Math.min(100, slot.chaseShare * 100)}%` }} />
+        </div>
+      </div>
+      <div className="metric-row risk-metrics">
+        <div><span>Biggest card's share</span><b>{Math.round(slot.chaseShare * 100)}%</b></div>
+        <div><span>Value without it</span><b>{fmt(slot.withoutChase)}</b></div>
+        <div><span>Priced cards used</span><b>{slot.contributors.length}</b></div>
+      </div>
+      <details open className="contributors">
+        <summary>
+          <span>
+            Cards adding the most value
+            <small>Largest effect on the average first</small>
+          </span>
+        </summary>
+        <ContributorRows slot={slot} onInspect={onInspect} />
+      </details>
+    </section>
   );
 }
 
@@ -1204,13 +1444,6 @@ export function BuyerView({
   const [shipping, setShipping] = useState<number>();
   const [inspectedCard, setInspectedCard] = useState<Contributor | null>(null);
   const slot = result.slots.find((row) => row.id === selected)!;
-  const profileLabel = !slot.contributors.length
-    ? "NO COUNTED VALUE"
-    : slot.chaseShare >= 0.5
-      ? "CHASE-HEAVY"
-      : slot.chaseShare >= 0.3
-        ? "MIXED"
-        : "DIVERSIFIED";
   const landed = (bid ?? 0) + (shipping ?? 0);
   const simulation = useOutcomeSimulation(analysis, auction.remaining, bid == null ? undefined : landed);
   const distribution = assignmentMode === "random"
@@ -1270,7 +1503,7 @@ export function BuyerView({
           </div>
         )}
         <OutcomeRange summary={distribution} landed={bid == null ? undefined : landed} />
-        {simulation.busy && <p className="simulation-state">Refining 10,000 modeled openings…</p>}
+        {simulation.busy && <p className="simulation-state">Checking more possible openings…</p>}
         {simulation.error && <p className="blocked"><ShieldAlert />{simulation.error}</p>}
         {result.status === "incomplete" && (
           <p className="blocked">
@@ -1312,112 +1545,11 @@ export function BuyerView({
       <SlotRail result={result} selected={selected} setSelected={setSelected} />
       <ChaseConstellation slot={slot} onInspect={setInspectedCard} />
       <BulkBoundary result={result} />
-      <EVRiver result={result} />
-      <section className="panel slot-detail">
-        <header>
-          <div>
-            <SectionLabel text="Explains which qualifying card printings create the selected color slot's counted expected value and how concentrated that value is in its biggest chase card.">
-              SLOT VALUE MAKEUP
-            </SectionLabel>
-            <h2>What makes up {fmt(slot.sellableEV)}?</h2>
-            <p className="risk-explainer">
-              {SLOT_NAMES[selected]} cards worth {fmt(result.threshold)} or more.
-              Bulk below the threshold is not included.
-            </p>
-          </div>
-          <Tip
-            className={`risk-label risk-${profileLabel.toLowerCase().replace(/[^a-z]+/g, "-")}`}
-            text={profileLabel === "DIVERSIFIED"
-              ? `Diversified means the top card supplies less than 30% of this slot's value after ignoring bulk. Value is spread across more qualifying cards, but this does not guarantee a minimum return.`
-              : profileLabel === "MIXED"
-                ? `Mixed means the top card supplies 30% to 49% of this slot's value after ignoring bulk. One chase matters, but other cards still add meaningful value.`
-                : profileLabel === "CHASE-HEAVY"
-                  ? `Chase-heavy means one card supplies at least 50% of this slot's value after ignoring bulk. The average depends heavily on pulling that card.`
-                  : `No counted value means no ${SLOT_NAMES[selected].toLowerCase()} card finish meets the current ${fmt(result.threshold)} bulk threshold.`}
-            label={`Explain ${profileLabel.toLowerCase()} risk profile`}
-          >
-            <span>{profileLabel}</span>
-          </Tip>
-        </header>
-        <div className="concentration">
-          <div className="concentration-labels">
-            <span>Value spread across cards</span>
-            <span>Value depends on one chase</span>
-          </div>
-          <div
-            className="risk-bar"
-            aria-label={`${Math.round(slot.chaseShare * 100)}% of the slot's filtered value comes from the top card`}
-          >
-            <span style={{ width: `${Math.min(100, slot.chaseShare * 100)}%` }} />
-          </div>
-        </div>
-        <div className="metric-row risk-metrics">
-          <div>
-            <span>
-              #1 card share
-              <Tip text="The percentage of this slot's value after ignoring bulk that comes from its single biggest card. A higher percentage means more of the value depends on pulling that chase." />
-            </span>
-            <b>{Math.round(slot.chaseShare * 100)}%</b>
-          </div>
-          <div>
-            <span>
-              Value without #1
-              <Tip text="The slot's counted expected value after removing its largest card contributor. This is not a guaranteed floor." />
-            </span>
-            <b>{fmt(slot.withoutChase)}</b>
-          </div>
-          <div>
-            <span>
-              Printings counted
-              <Tip text={`Distinct ${SLOT_NAMES[selected].toLowerCase()} card printings with a market price of ${fmt(result.threshold)} or more.`} />
-            </span>
-            <b>{slot.contributors.length}</b>
-          </div>
-        </div>
-        <details open className="contributors">
-          <summary>
-            <span>
-              Cards driving this EV <Tip text="Lists the selected slot's qualifying printings from largest to smallest EV contribution. EV contribution combines pull chance and market price, so a frequent inexpensive card can rank alongside a rare chase." />
-              <small>Sorted by EV contribution—not pull frequency</small>
-            </span>
-          </summary>
-          {!slot.contributors.length ? (
-            <p className="no-contributors">
-              No {SLOT_NAMES[selected].toLowerCase()} cards meet the {fmt(result.threshold)} threshold.
-            </p>
-          ) : (
-            <>
-              <div className="contributor-columns">
-                <span>Card · pull chance · market price</span>
-                <span>EV contribution</span>
-              </div>
-              {slot.contributors.slice(0, 8).map((row) => (
-                <article className="card-row" key={row.card.id}>
-                  {row.card.image ? (
-                    <img src={row.card.image} alt="" />
-                  ) : (
-                    <span className="card-placeholder" />
-                  )}
-                  <span>
-                    <button
-                      className="card-name"
-                      onClick={() => setInspectedCard(row)}
-                    >
-                      {row.card.name}
-                    </button>
-                    <small>
-                      {oddsLabel(row.sellablePullProbability)} pull chance · {countedMarketLabel(row)} market
-                    </small>
-                  </span>
-                  <span className="ev-contribution">
-                    <b>{fmt(row.sellableValue)}</b>
-                  </span>
-                </article>
-              ))}
-            </>
-          )}
-        </details>
-      </section>
+      <SlotValueDetails
+        slot={slot}
+        threshold={result.threshold}
+        onInspect={setInspectedCard}
+      />
       <CardInspector
         row={inspectedCard}
         status={result.status}
@@ -1487,8 +1619,8 @@ function EnticementLab() {
     <section className="panel enticement-lab">
       <header>
         <div>
-          <SectionLabel text="Compares precommitted seller-funded additions by incremental cost, buyer value, slot balance, margin impact, and current Whatnot US policy state.">
-            ENTICEMENT FRONTIER
+          <SectionLabel text="Compares extras you promise before sales by their cost, added buyer value, and current Whatnot US rules.">
+            BREAK EXTRAS
           </SectionLabel>
           <h2>Design a disclosed break</h2>
         </div>
@@ -1506,13 +1638,13 @@ function EnticementLab() {
           <span>{complianceLabel}</span>
         </Tip>
       </header>
-      <p className="enticement-intro">Compare expected buyer value delivered per seller dollar. Inputs are planning assumptions until the product is added to the break above.</p>
+      <p className="enticement-intro">Compare how much average buyer value each option adds for every seller dollar. These are planning estimates until the product is added to the break.</p>
       <div className="scenario-tabs" role="tablist" aria-label="Enticement scenario">
         {(Object.entries(WHATNOT_ENTICEMENTS) as Array<[ScenarioKey, EnticementScenario]>).map(([key, option]) => (
           <button key={key} className={selected === key ? "active" : ""} onClick={() => setSelected(key)}>{option.name}</button>
         ))}
       </div>
-      <div className="frontier-plot" aria-label="Enticement cost versus expected buyer value">
+      <div className="frontier-plot" aria-label="Extra cost compared with average buyer value">
         <span className="axis-y">Buyer value</span>
         <span className="axis-x">Seller cost</span>
         <i className="frontier-baseline" style={{ left: "8%", bottom: "12%" }}>Baseline</i>
@@ -1525,13 +1657,13 @@ function EnticementLab() {
         >{scenario.name}</i>
       </div>
       <div className="enticement-inputs">
-        <NumberField label="Seller cost if activated" value={cost} onChange={(value) => setCost(value ?? 0)} />
-        <NumberField label="Buyer value if activated" value={buyerValue} onChange={(value) => setBuyerValue(value ?? 0)} />
+        <NumberField label="Seller cost when used" value={cost} onChange={(value) => setCost(value ?? 0)} />
+        <NumberField label="Buyer value when used" value={buyerValue} onChange={(value) => setBuyerValue(value ?? 0)} />
         {conditional && <NumberField label={selected === "whiffInsurance" ? "Modeled whiff chance" : "Modeled trigger chance"} value={probability} onChange={(value) => setProbability(value ?? 0)} prefix="%" />}
       </div>
       <div className="enticement-result">
-        <div><span>Expected seller cost</span><b>{fmt(economics.expectedSellerCost)}</b></div>
-        <div><span>Expected buyer value</span><b>{fmt(economics.expectedBuyerValue)}</b></div>
+        <div><span>Average seller cost</span><b>{fmt(economics.expectedSellerCost)}</b></div>
+        <div><span>Average buyer value</span><b>{fmt(economics.expectedBuyerValue)}</b></div>
         <div><span>Value per $1 cost</span><b>{economics.expectedSellerCost ? (economics.expectedBuyerValue / economics.expectedSellerCost).toFixed(2) : "—"}</b></div>
       </div>
       {scenario.compliance === "written-approval-required" && (
@@ -1546,7 +1678,7 @@ function EnticementLab() {
   );
 }
 
-function SellerView({
+export function SellerView({
   result,
   lines,
   update,
@@ -1567,6 +1699,8 @@ function SellerView({
   const [actual, setActual] = useState<Partial<Record<SlotId, number>>>({});
   const [locked, setLocked] = useState<Partial<Record<SlotId, number>>>({});
   const [unsold, setUnsold] = useState<Set<SlotId>>(new Set());
+  const [openSlot, setOpenSlot] = useState<SlotId | null>(null);
+  const [inspectedCard, setInspectedCard] = useState<Contributor | null>(null);
   const acquisition = lines.reduce(
     (n, l) => n + (l.myCost ?? l.marketCost ?? 0) * l.quantity,
     0,
@@ -1627,12 +1761,12 @@ function SellerView({
       <section className="panel seller-plan">
         <header>
           <div>
-            <SectionLabel text="Calculates the total hammer revenue needed to cover entered product costs, platform fees, fulfillment assumptions, and your target profit. It is a planning target, not a forecast.">
+            <SectionLabel text="Shows how much total sales revenue you need to cover product costs, platform fees, packing, shipping you cover, and your profit goal. It is a target, not a forecast.">
               TARGET PLAN
             </SectionLabel>
             <h2>{costsComplete ? fmt(target) : "Add your costs"}</h2>
           </div>
-          <Tip className="market-badge" text="The active marketplace fee preset. Percentage fees apply to each purchase; fulfillment and seller-covered shipping apply according to the buyer-grouped order settings below." label={`Explain the ${marketplace.name} marketplace preset`}>
+          <Tip className="market-badge" text="The fee settings used for each sale. You can edit them below when another marketplace charges different fees." label={`Explain the ${marketplace.name} marketplace preset`}>
             <Store />
             {marketplace.name}
           </Tip>
@@ -1700,7 +1834,7 @@ function SellerView({
         <section className="panel ask-grid">
           <header>
             <div>
-              <SectionLabel text="Allocates the target hammer total across color slots using their modeled value shares. These are suggested starting points; thin or chase-heavy slots may need manual adjustment.">
+              <SectionLabel text="Splits the total sales target across the color slots based on their average card value. Tap a color to see the cards behind its number.">
                 ASKS TO CLEAR
               </SectionLabel>
               <h2>{fmt(askTotal)} total</h2>
@@ -1718,62 +1852,68 @@ function SellerView({
             </button>
           </header>
           <p className="muted">
-            Target {fmt(target)} · allocated by counted EV. Lock a strong
-            slot or remove an unsold slot; the rest redistributes automatically.
+            Target {fmt(target)} · split by average card value. Lock a target or mark a color unsold; the other targets update automatically.
           </p>
           {result.slots.map((slot) => (
-            <div
-              className={`ask slot-${slot.id} ${unsold.has(slot.id) ? "unsold" : ""}`}
-              key={slot.id}
-            >
-              <span className="slot-letter">{slot.id}</span>
-              <span>
-                <strong>{slot.name}</strong>
-                <small>{fmt(slot.sellableEV)} counted EV</small>
-              </span>
-              <b>{fmt(asks[slot.id])}</b>
-              <div className="ask-actions">
+            <div className="ask-entry" key={slot.id}>
+              <div className={`ask ${unsold.has(slot.id) ? "unsold" : ""}`}>
                 <button
-                  title={locked[slot.id] == null ? "Lock target" : "Unlock target"}
-                  onClick={() =>
-                    setLocked((current) => {
+                  type="button"
+                  className="ask-slot-summary"
+                  onClick={() => setOpenSlot((current) => current === slot.id ? null : slot.id)}
+                  aria-expanded={openSlot === slot.id}
+                  aria-label={`${openSlot === slot.id ? "Hide" : "Show"} ${slot.name} value details`}
+                >
+                  <span className={`slot-letter slot-letter-${slot.id}`}>{slot.id}</span>
+                  <span>
+                    <strong>{slot.name}</strong>
+                    <small>{fmt(slot.sellableEV)} average card value</small>
+                  </span>
+                </button>
+                <b>{fmt(asks[slot.id])}</b>
+                <div className="ask-actions">
+                  <button
+                    title={locked[slot.id] == null ? "Lock target" : "Unlock target"}
+                    onClick={() => setLocked((current) => {
                       const next = { ...current };
                       if (next[slot.id] == null) next[slot.id] = asks[slot.id];
                       else delete next[slot.id];
                       return next;
-                    })
-                  }
-                >
-                  {locked[slot.id] == null ? <Unlock /> : <Lock />}
-                </button>
-                <button
-                  title={unsold.has(slot.id) ? "Sell this slot" : "Mark unsold"}
-                  onClick={() =>
-                    setUnsold((current) => {
+                    })}
+                  >
+                    {locked[slot.id] == null ? <Unlock /> : <Lock />}
+                  </button>
+                  <button
+                    title={unsold.has(slot.id) ? "Sell this slot" : "Mark unsold"}
+                    onClick={() => setUnsold((current) => {
                       const next = new Set(current);
                       if (next.has(slot.id)) next.delete(slot.id);
                       else next.add(slot.id);
                       return next;
-                    })
-                  }
-                >
-                  {unsold.has(slot.id) ? <DollarSign /> : <X />}
-                </button>
+                    })}
+                  >
+                    {unsold.has(slot.id) ? <DollarSign /> : <X />}
+                  </button>
+                </div>
+                <label>
+                  <small>Actual</small>
+                  <NumericInput
+                    ariaLabel={`Actual ${slot.name} sale price`}
+                    placeholder={unsold.has(slot.id) ? "unsold" : "—"}
+                    disabled={unsold.has(slot.id)}
+                    value={actual[slot.id]}
+                    onCommit={(value) => setActual({ ...actual, [slot.id]: value })}
+                  />
+                </label>
               </div>
-              <label>
-                <small>Actual</small>
-                <NumericInput
-                  placeholder={unsold.has(slot.id) ? "unsold" : "—"}
-                  disabled={unsold.has(slot.id)}
-                  value={actual[slot.id]}
-                  onCommit={(value) =>
-                    setActual({
-                      ...actual,
-                      [slot.id]: value,
-                    })
-                  }
+              {openSlot === slot.id && (
+                <SlotValueDetails
+                  className="seller-slot-detail"
+                  slot={slot}
+                  threshold={result.threshold}
+                  onInspect={setInspectedCard}
                 />
-              </label>
+              )}
             </div>
           ))}
           <div className="min-row">
@@ -1789,11 +1929,13 @@ function SellerView({
         <section
           className={`panel profit ${profit.profit >= targetProfit ? "positive" : "negative"}`}
         >
-          <SectionLabel text="Projects seller profit from the asks marked sold after platform fees, product costs, fulfillment, and seller-covered shipping. Unsold slots contribute no revenue.">
-            ACTUAL OUTCOME
-          </SectionLabel>
+          <header className="profit-heading">
+            <SectionLabel text="Shows what you would keep after the entered sale prices, fees, product costs, packing, and shipping you cover.">
+              ACTUAL OUTCOME
+            </SectionLabel>
+          </header>
           <h2>{fmt(profit.profit)} profit</h2>
-          <div className="metric-row">
+          <div className="metric-row profit-metrics">
             <div>
               <span>Hammer</span>
               <b>{fmt(profit.hammer)}</b>
@@ -1803,12 +1945,18 @@ function SellerView({
               <b>−{fmt(profit.fees)}</b>
             </div>
             <div>
-              <span>Fulfillment</span>
+              <span>Packing &amp; shipping</span>
               <b>−{fmt(profit.shipmentCosts)}</b>
             </div>
           </div>
         </section>
       )}
+      <CardInspector
+        row={inspectedCard}
+        status={result.status}
+        threshold={result.threshold}
+        onClose={() => setInspectedCard(null)}
+      />
     </>
   );
 }
@@ -1914,13 +2062,15 @@ function Workspace({
           >
             <Copy />
           </button>
-          <button
-            className="icon-button"
-            onClick={() => setBuilder(true)}
-            title="Add product"
-          >
-            <PackagePlus />
-          </button>
+          {mode === "buyer" && (
+            <button
+              className="icon-button"
+              onClick={() => setBuilder(true)}
+              title="Add product"
+            >
+              <PackagePlus />
+            </button>
+          )}
         </div>
       </nav>
       <main className="workspace page">
@@ -1941,7 +2091,7 @@ function Workspace({
                 onCommit={(value) => setThreshold(value ?? 0)}
               />
               <Tip
-                text={`Cards with a current market price below ${fmt(threshold)} are excluded from every EV total, color-slot value, risk metric, contributor list, buyer verdict, and seller ask. Cards priced at exactly ${fmt(threshold)} are included.`}
+                text={`Cards worth less than ${fmt(threshold)} each are ignored everywhere. A card worth exactly ${fmt(threshold)} is included.`}
               />
             </label>
           )}

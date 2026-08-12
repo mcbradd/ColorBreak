@@ -50,4 +50,16 @@ describe("Break Balance contrast", () => {
     expect(contrast(labelStyle.color, labelStyle.backgroundColor)).toBeGreaterThanOrEqual(4.5);
     expect(contrast(captionStyle.color, "rgb(18, 21, 29)")).toBeGreaterThanOrEqual(4.5);
   });
+
+  it("keeps dynamic informational-pill text visible", () => {
+    document.head.innerHTML = `<style>${stylesheet}</style>`;
+    document.body.innerHTML = `
+      <span class="tip tip-indicator status verified">
+        <span>verified</span>
+      </span>
+    `;
+
+    const label = document.querySelector<HTMLElement>(".tip-indicator > span")!;
+    expect(getComputedStyle(label).display).not.toBe("none");
+  });
 });
