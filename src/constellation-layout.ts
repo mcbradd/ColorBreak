@@ -17,6 +17,22 @@ export interface ChaseLayoutPoint extends ChasePoint {
 const PLOT = { left: 22, right: 78, top: 21, bottom: 79 };
 const EDGES: ChaseEdge[] = ["top", "right", "bottom", "left"];
 
+export interface ChaseDatum { price: number; probability: number }
+
+/** Keeps the visible cards spread across the plot without changing their values. */
+export function chaseMapScale(rows: ChaseDatum[]) {
+  const maxPrice = Math.max(Number.EPSILON, ...rows.map((row) => row.price));
+  const maxProbability = Math.max(Number.EPSILON, ...rows.map((row) => row.probability));
+  return {
+    maxPrice,
+    maxProbability,
+    position: (row: ChaseDatum) => ({
+      x: PLOT.left + row.probability / maxProbability * (PLOT.right - PLOT.left),
+      y: PLOT.bottom - row.price / maxPrice * (PLOT.bottom - PLOT.top),
+    }),
+  };
+}
+
 const distanceToEdge = (point: ChasePoint, edge: ChaseEdge) => ({
   top: point.y - PLOT.top,
   right: PLOT.right - point.x,

@@ -11,6 +11,7 @@ const card = {
   colors: ["W"],
   prices: { usd: "0.12", usd_foil: "0.25", usd_etched: null },
   image_uris: { normal: "https://cards.scryfall.io/normal/test.jpg" },
+  frame_effects: ["showcase"],
 };
 
 afterEach(() => {
@@ -39,7 +40,7 @@ describe("exact-printing price module", () => {
       sets: ["ONE"], printings: [{ set: "ONE", collectorNumber: "1" }],
     });
     expect(result.cards).toHaveLength(1);
-    expect(result.cards[0]).toMatchObject({ set: "ONE", collectorNumber: "1", nonfoil: 0.12, foil: 0.25 });
+    expect(result.cards[0]).toMatchObject({ set: "ONE", collectorNumber: "1", treatment: "Showcase", nonfoil: 0.12, foil: 0.25 });
     expect(result.availability).toMatchObject({ status: "available", source: "snapshot" });
     expect(result.omissions).toEqual([]);
     expect(calls).toEqual(["data/prices/index.json", "data/prices/ONE.json"]);

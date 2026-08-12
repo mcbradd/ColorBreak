@@ -14,6 +14,12 @@ interface ScryfallCard {
   prices?: { usd?: string | null; usd_foil?: string | null; usd_etched?: string | null };
   image_uris?: { normal?: string };
   oracle_text?: string;
+  frame_effects?: string[];
+  promo_types?: string[];
+  full_art?: boolean;
+  textless?: boolean;
+  variation?: boolean;
+  border_color?: string;
 }
 interface ScryfallSet { code: string; name: string; released_at: string; set_type: string; digital: boolean }
 
@@ -133,6 +139,7 @@ function toPrice(card: ScryfallCard, observedAt: string, fetchedAt = observedAt)
     set: card.set.toUpperCase(),
     collectorNumber: card.collector_number,
     name: card.name,
+    treatment: printingTreatment(card),
     rarity: card.rarity,
     slot: slotOfCard({
       typeLine: card.type_line,
@@ -148,6 +155,19 @@ function toPrice(card: ScryfallCard, observedAt: string, fetchedAt = observedAt)
     image: card.image_uris?.normal ?? face?.image_uris?.normal,
     oracleText: card.oracle_text ?? card.card_faces?.map((item) => item.oracle_text ?? "").join("\n—\n"),
   };
+}
+
+function printingTreatment(card: ScryfallCard): string | undefined {
+  const effects = new Set(card.frame_effects ?? []);
+  if (effects.has("extendedart")) return "Extended Art";
+  if (effects.has("showcase")) return "Showcase";
+  if (card.textless) return "Textless";
+  if (card.full_art) return "Full Art";
+  if (effects.has("inverted")) return "Inverted";
+  if (effects.has("colorshifted")) return "Colorshifted";
+  if (card.border_color === "borderless" || card.promo_types?.includes("borderless")) return "Borderless";
+  if (card.variation) return "Alternate Art";
+  return undefined;
 }
 
 function loadSnapshotIndex(): Promise<PriceSnapshotIndex | null> {

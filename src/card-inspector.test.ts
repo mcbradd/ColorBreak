@@ -50,6 +50,7 @@ describe("card inspector", () => {
     fireEvent.click(opener);
 
     const dialog = screen.getByRole("dialog", { name: "Mobile Chase" });
+    expect(dialog.parentElement?.parentElement).toBe(document.body);
     expect(screen.getByText("36.0%")).toBeInTheDocument();
     expect(screen.getByText("$24.50")).toBeInTheDocument();
     expect(screen.getByRole("img", { name: "Mobile Chase card" })).toBeInTheDocument();

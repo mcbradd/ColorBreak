@@ -53,6 +53,8 @@ export interface CardPrice {
   set: string;
   collectorNumber: string;
   name: string;
+  /** Printing treatment only; base printings omit this. */
+  treatment?: string;
   rarity?: string;
   slot: SlotId;
   nonfoil: number | null;
@@ -85,6 +87,8 @@ export interface Omission {
 
 export interface Contributor {
   card: CardPrice;
+  finish?: Finish;
+  marketPrice?: number;
   copies: number;
   sellableCopies: number;
   marketValue: number;

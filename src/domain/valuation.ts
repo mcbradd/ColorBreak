@@ -3,6 +3,7 @@ import type {
   CardPrice, Contributor, DataStatus, EvidenceState, ExpectedDraw, Finish, Omission, SlotId, SlotValuation, ValuationResult,
 } from "./types";
 import { isCollectorOutlierFinish } from "./outlier-policy";
+import { cardDisplayName } from "./card-label";
 
 export interface ValuationInput {
   draws: ExpectedDraw[];
@@ -42,7 +43,7 @@ export function calculateBreak(input: ValuationInput): ValuationResult {
     if (isCollectorOutlierFinish(finish)) {
       omissions.push({
         code: "collector-outlier-excluded",
-        message: `${card.name} (${finish}) is excluded from decision value because scarcity-defined collectibles do not represent a repeatable pack outcome.`,
+        message: `${cardDisplayName(card, finish)} is excluded from decision value because scarcity-defined collectibles do not represent a repeatable pack outcome.`,
         expectedCards: draw.copies,
         material: false,
       });
@@ -53,14 +54,15 @@ export function calculateBreak(input: ValuationInput): ValuationResult {
     if (price == null) {
       omissions.push({
         code: finish === "nonfoil" ? "missing-price" : `missing-${finish}-price`,
-        message: `${card.name} has no ${finish} price; no proxy was substituted.`,
+        message: `${cardDisplayName(card, finish)} has no market price; no proxy was substituted.`,
         expectedCards: draw.copies,
         material: draw.copies >= 0.01,
       });
       continue;
     }
-    const existing = byCard.get(card.id) ?? {
-      card, copies: 0, sellableCopies: 0, marketValue: 0, sellableValue: 0,
+    const contributorKey = `${card.id}|${finish}`;
+    const existing = byCard.get(contributorKey) ?? {
+      card, finish, marketPrice: price, copies: 0, sellableCopies: 0, marketValue: 0, sellableValue: 0,
       foilCopies: 0, sellableFoilCopies: 0, pullProbability: 0,
       sellablePullProbability: 0,
     };
@@ -80,7 +82,7 @@ export function calculateBreak(input: ValuationInput): ValuationResult {
       existing.sellablePullProbability =
         1 - (1 - existing.sellablePullProbability) * (1 - sourceProbability);
     }
-    byCard.set(card.id, existing);
+    byCard.set(contributorKey, existing);
   }
 
   const contributors = [...byCard.values()];

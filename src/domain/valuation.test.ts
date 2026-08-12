@@ -74,6 +74,26 @@ describe("calculateBreak", () => {
     expect(missing.omissions[0].code).toBe("missing-surge-price");
   });
 
+  it("keeps printing finishes separate so each contributor has its own price and pull rate", () => {
+    const result = calculateBreak({
+      prices: [{ ...prices[0], prices: { nonfoil: 8.41, foil: 35.38 } }],
+      draws: [
+        { set: "TST", collectorNumber: "1", copies: .1, pullProbability: .1, finish: "nonfoil", foil: false, source: "regular" },
+        { set: "TST", collectorNumber: "1", copies: .01, pullProbability: .01, finish: "foil", foil: true, source: "foil" },
+      ],
+      threshold: 0,
+    });
+    const rows = result.slots.find((slot) => slot.id === "G")!.contributors;
+
+    expect(rows).toHaveLength(2);
+    expect(rows.map((row) => [row.finish, row.marketPrice])).toEqual([
+      ["nonfoil", 8.41],
+      ["foil", 35.38],
+    ]);
+    expect(rows[0].pullProbability).toBeCloseTo(.1);
+    expect(rows[1].pullProbability).toBeCloseTo(.01);
+  });
+
   it("excludes serialized collector outliers from decision value without blocking the break", () => {
     const result = calculateBreak({
       prices: [{ ...prices[0], prices: { serialized: 50_000 } }],

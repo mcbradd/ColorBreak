@@ -50,8 +50,8 @@
   overflow: hidden;
   border: 1px solid #2e3745;
   border-radius: 18px;
-  background: radial-gradient(circle at 70% 25%, rgba(174,255,94,.08), transparent 35%), linear-gradient(145deg,#0b0f16,#111722);
-  box-shadow: inset 0 0 40px rgba(0,0,0,.34),0 18px 38px rgba(0,0,0,.16);
+  background:#0b0f16;
+  box-shadow:0 18px 38px rgba(0,0,0,.16);
 }
 
 .chase-plot {
@@ -62,27 +62,10 @@
   border-bottom: 1px solid #758195;
   background-image: linear-gradient(rgba(114,128,150,.16) 1px,transparent 1px),linear-gradient(90deg,rgba(114,128,150,.16) 1px,transparent 1px);
   background-size: 25% 25%;
-  box-shadow: inset 0 0 28px rgba(95,125,160,.06),0 0 24px rgba(174,255,94,.035);
+  box-shadow:none;
 }
-
-.chase-plot::after {
-  content:"";
-  position:absolute;
-  inset:-35%;
-  border-radius:50%;
-  background:radial-gradient(circle,rgba(174,255,94,.11),transparent 42%);
-  opacity:.55;
-  animation:chase-grid-drift 9s ease-in-out infinite alternate;
-  will-change:transform,opacity;
-}
-
-@keyframes chase-grid-drift { from { transform:translate3d(-8%,-5%,0) scale(.9); opacity:.32; } to { transform:translate3d(9%,7%,0) scale(1.08); opacity:.62; } }
 
 .plot-price,.plot-odds { position:absolute; z-index:2; color:#788497; font-size:7px; font-style:normal; letter-spacing:.06em; white-space:nowrap; }
-.chase-axis-overlay { position:absolute; z-index:6; inset:0; pointer-events:none; }
-.plot-y-title,.plot-x-title { position:absolute; display:block; padding:4px 7px; border:1px solid rgba(127,143,165,.42); border-radius:7px; color:#e5ebf4; background:rgba(8,12,18,.94); box-shadow:0 3px 12px rgba(0,0,0,.72),0 0 0 2px rgba(8,12,18,.62); font-size:8px; font-style:normal; font-weight:850; letter-spacing:.09em; line-height:1; text-shadow:0 1px 2px #000; white-space:nowrap; }
-.plot-y-title { left:22%; top:50%; transform:translate(-50%,-50%) rotate(-90deg); }
-.plot-x-title { left:50%; top:79%; transform:translate(-50%,-50%); }
 .plot-price { right:calc(100% + 6px); transform:translateY(-50%); }
 .plot-price-high { top:0; }.plot-price-mid { top:50%; }.plot-price-low { top:100%; }
 .plot-odds { top:calc(100% + 7px); transform:translateX(-50%); }
@@ -124,7 +107,6 @@
 .chase-pointers polyline { fill:none; stroke:#7e8ba0; stroke-width:.42; stroke-linecap:round; stroke-linejoin:round; vector-effect:non-scaling-stroke; }
 .chase-pointers circle { fill:var(--accent); stroke:#07100b; stroke-width:.55; filter:drop-shadow(0 0 2px rgba(174,255,94,.8)); vector-effect:non-scaling-stroke; }
 
-@media (prefers-reduced-motion:reduce) { .chase-plot::after { animation:none; } }
 
 .bulk-boundary { padding: 14px 18px; border-top: 1px solid var(--line); }
 .bulk-boundary > div:not(.boundary-track) { display: flex; justify-content: space-between; color: var(--muted); font-size: 10px; }
@@ -240,6 +222,17 @@
 }
 .summary-help > span { min-width: 0; text-align: right; }
 .summary-help .tip-icon { margin: 0; transform:translateX(8px); }
+.summary-actions { display:flex; align-items:center; justify-content:flex-end; gap:8px; min-width:0; }
+.disclosure-summary { display:flex; align-items:center; justify-content:space-between; gap:12px; min-height:48px; list-style:none; cursor:pointer; }
+.disclosure-summary::-webkit-details-marker { display:none; }
+.disclosure-summary::marker { content:""; }
+.disclosure-arrow { flex:0 0 20px; width:20px; height:20px; color:#a8b2c2; transition:transform .16s ease,color .16s ease; }
+details[open] > .disclosure-summary .disclosure-arrow { transform:rotate(90deg); color:var(--accent); }
+.disclosure-summary:focus-visible { outline:2px solid #71809a; outline-offset:-3px; border-radius:12px; }
+.chase-chart-key { display:flex; align-items:center; justify-content:center; flex-wrap:wrap; gap:7px 14px; margin:-2px 18px 12px; padding:9px 10px; border:1px solid #2e3745; border-radius:11px; color:#aeb7c5; background:#0d1118; font-size:8px; line-height:1.3; }
+.chase-chart-key > span { display:flex; align-items:center; gap:5px; white-space:nowrap; }
+.chase-chart-key b { display:grid; place-items:center; width:17px; height:17px; border:1px solid #465267; border-radius:5px; color:#eef1f7; background:#171d27; font-size:8px; }
+.chase-size-legend i { display:block; width:11px; height:11px; border:2px solid #07100b; border-radius:50%; background:var(--accent); box-shadow:0 0 5px rgba(174,255,94,.55); }
 .evidence-scrim { display: grid; place-items: end center; padding: 0; }
 .evidence-dialog { width: 100%; max-height: calc(var(--visual-viewport-height, 100dvh) - 8px); overflow: auto; border: 1px solid #303645; border-radius: 26px 26px 0 0; background: #12151d; box-shadow: 0 -20px 80px #000; }
 .evidence-dialog > header { position: sticky; z-index: 2; top: 0; display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 18px; border-bottom: 1px solid var(--line); background: rgba(18,21,29,.97); backdrop-filter: blur(14px); }

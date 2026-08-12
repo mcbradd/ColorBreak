@@ -42,6 +42,7 @@ import {
   WHATNOT_US,
 } from "./domain/marketplace";
 import { buyerVerdict } from "./domain/valuation";
+import { cardDisplayName } from "./domain/card-label";
 import { simulateOutcomesAsync } from "./domain/simulation-client";
 import type { DistributionSummary, PackOutcomeModel, SimulationResult } from "./domain/simulation";
 import type {
@@ -58,7 +59,7 @@ import type {
 import { SLOT_IDS, SLOT_NAMES } from "./domain/types";
 import { useMobileInputViewport } from "./mobile-input-viewport";
 import { track } from "./analytics";
-import { layoutChaseTargets } from "./constellation-layout";
+import { chaseMapScale, layoutChaseTargets } from "./constellation-layout";
 
 type Mode = "home" | "buyer" | "seller";
 const money = new Intl.NumberFormat("en-US", {
@@ -77,6 +78,10 @@ const oddsLabel = (probability: number) =>
     : probability > 0
       ? `${(probability * 100).toFixed(probability < 0.01 ? 2 : 1)}%`
       : "0%";
+
+function DisclosureArrow() {
+  return <ChevronRight className="disclosure-arrow" aria-hidden="true" />;
+}
 
 const plainEvidence = (value: string) => ({
   "official-verified": "Checked with official product information",
@@ -97,15 +102,9 @@ const plainEvidence = (value: string) => ({
 }[value] ?? value.replaceAll("-", " "));
 
 function countedMarketLabel(row: Contributor): string {
-  const labels: string[] = [];
-  const nonfoilCopies = row.sellableCopies - row.sellableFoilCopies;
-  if (nonfoilCopies > 0 && row.card.nonfoil != null) {
-    labels.push(`${fmt(row.card.nonfoil)} nonfoil`);
-  }
-  if (row.sellableFoilCopies > 0 && row.card.foil != null) {
-    labels.push(`${fmt(row.card.foil)} foil`);
-  }
-  return labels.join(" / ") || "Price unavailable";
+  const finish = row.finish ?? (row.sellableFoilCopies > 0 ? "foil" : "nonfoil");
+  const price = row.marketPrice ?? (finish === "foil" ? row.card.foil : row.card.nonfoil);
+  return price == null ? "Price unavailable" : `${fmt(price)} ${finish}`;
 }
 
 function NumericInput({
@@ -764,9 +763,9 @@ export function ValueSummary({ result }: { result: ValuationResult }) {
       </p>
       {result.omissions.length > 0 && (
         <details className="notice">
-          <summary>
-            {result.omissions.length} data note
-            {result.omissions.length === 1 ? "" : "s"}
+          <summary className="disclosure-summary">
+            <span>{result.omissions.length} data note{result.omissions.length === 1 ? "" : "s"}</span>
+            <DisclosureArrow />
           </summary>
           {result.omissions.slice(0, 8).map((item, i) => (
             <p key={`${item.code}${i}`}>{item.message}</p>
@@ -870,7 +869,7 @@ export function CardInspector({
     ? affiliateTemplate?.replace("{card}", encodeURIComponent(row.card.name))
     : undefined;
   const odds = row?.sellablePullProbability ?? 0;
-  return (
+  return createPortal(
     <AnimatePresence>
       {row && (
         <motion.div
@@ -895,7 +894,7 @@ export function CardInspector({
             <header>
               <div>
                 <p className="section-label">CARD DETAILS</p>
-                <h2 id="card-inspector-title">{row.card.name}</h2>
+                <h2 id="card-inspector-title">{cardDisplayName(row.card, row.finish)}</h2>
               </div>
               <button
                 ref={closeRef}
@@ -909,7 +908,7 @@ export function CardInspector({
             <div className="card-inspector-body">
               <div className="card-art">
                 {row.card.image ? (
-                  <img src={row.card.image} alt={`${row.card.name} card`} />
+                  <img src={row.card.image} alt={`${cardDisplayName(row.card, row.finish)} card`} />
                 ) : (
                   <span>Image unavailable</span>
                 )}
@@ -966,7 +965,8 @@ export function CardInspector({
           </motion.section>
         </motion.div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body,
   );
 }
 
@@ -1262,9 +1262,9 @@ function EvidenceLens({ analysis }: { analysis: BreakAnalysis }) {
   ];
   return (
     <details className="panel evidence-lens">
-      <summary>
+      <summary className="disclosure-summary">
         <span><ShieldAlert /><b>Data confidence</b><small>{analysis.outcomeModel.complete === false ? "Some missing data prevents a full answer" : "All key information is ready"}</small></span>
-        <span className="summary-help"><span>{ageHours == null ? "Price time unknown" : `Prices ${ageHours < 1 ? "<1" : Math.round(ageHours)}h old`}</span><Tip text="Shows which product details were checked and which are still missing. ColorBreak hides outcome ranges when missing information could change the answer." /></span>
+        <span className="summary-actions"><span className="summary-help"><span>{ageHours == null ? "Price time unknown" : `Prices ${ageHours < 1 ? "<1" : Math.round(ageHours)}h old`}</span><Tip text="Shows which product details were checked and which are still missing. ColorBreak hides outcome ranges when missing information could change the answer." /></span><DisclosureArrow /></span>
       </summary>
       <div className="evidence-grid">
         {labels.map((item) => (
@@ -1282,7 +1282,7 @@ function EvidenceLens({ analysis }: { analysis: BreakAnalysis }) {
   );
 }
 
-function ChaseConstellation({
+export function ChaseConstellation({
   slot,
   onInspect,
 }: {
@@ -1290,33 +1290,33 @@ function ChaseConstellation({
   onInspect: (row: Contributor) => void;
 }) {
   const rows = slot.contributors.slice(0, 12);
-  const maxPrice = Math.max(1, ...rows.map((row) => row.marketValue / Math.max(row.copies, .0001)));
+  const datum = (row: Contributor) => ({
+    price: row.marketPrice ?? row.marketValue / Math.max(row.copies, .0001),
+    probability: row.sellablePullProbability,
+  });
+  const scale = chaseMapScale(rows.map(datum));
   const maxContribution = Math.max(1, ...rows.map((row) => row.sellableValue));
-  const rowById = new Map(rows.map((row) => [row.card.id, row]));
+  const contributorId = (row: Contributor) => `${row.card.id}|${row.finish ?? "nonfoil"}`;
+  const rowById = new Map(rows.map((row) => [contributorId(row), row]));
   const layout = layoutChaseTargets(rows.map((row) => {
-    const price = row.marketValue / Math.max(row.copies, .0001);
+    const position = scale.position(datum(row));
     return {
-      id: row.card.id,
-      x: 22 + row.sellablePullProbability * 56,
-      y: 79 - price / maxPrice * 58,
+      id: contributorId(row),
+      ...position,
     };
   }));
   return (
     <details className="panel supporting-view">
-      <summary><span><b>Chase Map</b><small>Card price vs. chance of pulling it</small></span><span className="summary-help"><span>{SLOT_NAMES[slot.id]}</span><Tip text="Each glowing point is a card's exact price and pull chance. Follow its line to the card image around the graph, then tap the image for full details." /></span></summary>
+      <summary className="disclosure-summary"><span><b>Chase Map</b><small>Card price vs. chance of pulling it</small></span><span className="summary-actions"><span className="summary-help"><span>{SLOT_NAMES[slot.id]}</span><Tip text="Each glowing point is a card's exact price and pull chance. Follow its line to the card image around the graph, then tap the image for full details." /></span><DisclosureArrow /></span></summary>
       {!rows.length ? <p className="supporting-empty">No cards meet the current bulk boundary.</p> : (
         <div className="constellation chase-map" aria-label={`${SLOT_NAMES[slot.id]} card price and pull chance map`}>
           <div className="chase-plot" aria-hidden="true">
-            <span className="plot-price plot-price-high">{fmt(maxPrice)}</span>
-            <span className="plot-price plot-price-mid">{fmt(maxPrice / 2)}</span>
+            <span className="plot-price plot-price-high">{fmt(scale.maxPrice)}</span>
+            <span className="plot-price plot-price-mid">{fmt(scale.maxPrice / 2)}</span>
             <span className="plot-price plot-price-low">$0</span>
             <span className="plot-odds plot-odds-low">0%</span>
-            <span className="plot-odds plot-odds-mid">50%</span>
-            <span className="plot-odds plot-odds-high">100%</span>
-          </div>
-          <div className="chase-axis-overlay" aria-hidden="true">
-            <span className="plot-y-title">MARKET PRICE</span>
-            <span className="plot-x-title">CHANCE TO PULL</span>
+            <span className="plot-odds plot-odds-mid">{oddsLabel(scale.maxProbability / 2)}</span>
+            <span className="plot-odds plot-odds-high">{oddsLabel(scale.maxProbability)}</span>
           </div>
           <svg className="chase-pointers" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
             {layout.map((point) => {
@@ -1332,15 +1332,16 @@ function ChaseConstellation({
           </svg>
           {layout.map((point) => {
             const row = rowById.get(point.id)!;
-            const price = row.marketValue / Math.max(row.copies, .0001);
+            const price = datum(row).price;
+            const displayName = cardDisplayName(row.card, row.finish);
             return (
               <button
                 className="chase-target"
-                key={row.card.id}
+                key={contributorId(row)}
                 style={{ left: `${point.targetX}%`, top: `${point.targetY}%` }}
                 onClick={() => onInspect(row)}
-                aria-label={`${row.card.name}: ${oddsLabel(row.sellablePullProbability)} pull chance, ${fmt(price)} market price, adds ${fmt(row.sellableValue)} to the average`}
-                title={row.card.name}
+                aria-label={`${displayName}: ${oddsLabel(row.sellablePullProbability)} pull chance, ${fmt(price)} market price, adds ${fmt(row.sellableValue)} to the average`}
+                title={displayName}
               >
                 {row.card.image ? <img src={row.card.image} alt="" loading="lazy" /> : <span>{row.card.name.slice(0, 1)}</span>}
                 <i>{oddsLabel(row.sellablePullProbability)}</i>
@@ -1349,6 +1350,11 @@ function ChaseConstellation({
           })}
         </div>
       )}
+      {rows.length > 0 && <div className="chase-chart-key" aria-label="Chase Map chart key">
+        <span><b>X</b> Chance to pull</span>
+        <span><b>Y</b> Market price</span>
+        <span className="chase-size-legend"><i />Larger dot adds more to average value</span>
+      </div>}
       <p className="supporting-warning">Top-right cards combine the highest price with the best pull chance. Tap any card image to inspect its price, odds, and printing.</p>
     </details>
   );
@@ -1385,7 +1391,7 @@ export function BulkFilterControl({
         <Tip className="bulk-filter-help" text={explanation} label="Explain the current bulk filter setting" />
       </div>
       <details className="bulk-filter-details">
-        <summary><span>See what the filter changes</span><ChevronRight /></summary>
+        <summary className="disclosure-summary"><span>See what the filter changes</span><DisclosureArrow /></summary>
         {!result ? <p>Product values are still loading.</p> : (
           <div className="bulk-filter-rollout">
             <div><span>All priced card value</span><b>{fmt(result.marketEV)}</b></div>
@@ -1444,13 +1450,13 @@ export function ContributorRows({
         <button
           type="button"
           className="card-row contributor-card"
-          key={row.card.id}
+          key={`${row.card.id}|${row.finish ?? "nonfoil"}`}
           onClick={() => onInspect(row)}
-          aria-label={`Open ${row.card.name}: ${oddsLabel(row.sellablePullProbability)} pull odds, ${countedMarketLabel(row)} market price, adds ${fmt(row.sellableValue)} to the average`}
+          aria-label={`Open ${cardDisplayName(row.card, row.finish)}: ${oddsLabel(row.sellablePullProbability)} pull odds, ${countedMarketLabel(row)} market price, adds ${fmt(row.sellableValue)} to the average`}
         >
           <CardThumbnail row={row} />
           <span className="card-summary">
-            <strong>{row.card.name}</strong>
+            <strong>{cardDisplayName(row.card, row.finish)}</strong>
             <small>{countedMarketLabel(row)} market</small>
           </span>
           <span className="pull-odds">
@@ -1518,11 +1524,12 @@ export function SlotValueDetails({
         <div><span>Priced cards used</span><b>{slot.contributors.length}</b></div>
       </div>
       <details open className="contributors">
-        <summary>
+        <summary className="disclosure-summary">
           <span>
             Cards adding the most value
             <small>Largest effect on the average first</small>
           </span>
+          <DisclosureArrow />
         </summary>
         <ContributorRows slot={slot} onInspect={onInspect} />
       </details>
@@ -2053,7 +2060,7 @@ export function SellerView({
           />
         </div>
         <details className="fee-settings">
-          <summary>Marketplace fee assumptions</summary>
+          <summary className="disclosure-summary"><span>Marketplace fee assumptions</span><DisclosureArrow /></summary>
           <div className="settings-grid">
             <NumberField label="Commission" value={commission} onChange={(n) => setCommission(n ?? 0)} prefix="%" />
             <NumberField label="Processing" value={processing} onChange={(n) => setProcessing(n ?? 0)} prefix="%" />

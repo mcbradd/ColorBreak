@@ -3,6 +3,7 @@ import type { OutcomeCard, OutcomePack, PackOutcomeModel } from "../domain/simul
 import { loadCorrections, loadSealed } from "./sealed";
 import type { BoosterSheet, SealedDocument } from "./sealed";
 import { isCollectorOutlierFinish } from "../domain/outlier-policy";
+import { cardDisplayName } from "../domain/card-label";
 
 export interface OutcomeModelResult {
   model: PackOutcomeModel;
@@ -36,7 +37,7 @@ function pricedCard(
   if (isCollectorOutlierFinish(finish)) {
     omissions.push({
       code: "collector-outlier-excluded",
-      message: `${card.name} (${finish}) is retained in its pull slot but excluded from buyer decision ranges.`,
+      message: `${cardDisplayName(card, finish)} is retained in its pull slot but excluded from buyer decision ranges.`,
       expectedCards: expectedCopies,
       material: false,
     });
@@ -46,7 +47,7 @@ function pricedCard(
   if (value == null) {
     omissions.push({
       code: finish === "nonfoil" ? "missing-price" : `missing-${finish}-price`,
-      message: `${card.name} has no ${finish} price; no proxy was substituted.`,
+      message: `${cardDisplayName(card, finish)} has no market price; no proxy was substituted.`,
       expectedCards: expectedCopies,
       material: expectedCopies >= 0.01,
     });

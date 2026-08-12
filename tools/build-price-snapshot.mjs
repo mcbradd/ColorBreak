@@ -70,6 +70,12 @@ function compactCard(card) {
     },
     ...(card.image_uris?.normal ? { image_uris: { normal: card.image_uris.normal } } : {}),
     ...(card.oracle_text ? { oracle_text: card.oracle_text } : {}),
+    ...(card.frame_effects?.length ? { frame_effects: card.frame_effects } : {}),
+    ...(card.promo_types?.length ? { promo_types: card.promo_types } : {}),
+    ...(card.full_art ? { full_art: true } : {}),
+    ...(card.textless ? { textless: true } : {}),
+    ...(card.variation ? { variation: true } : {}),
+    ...(card.border_color === "borderless" ? { border_color: "borderless" } : {}),
   };
 }
 
