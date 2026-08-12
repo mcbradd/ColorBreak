@@ -284,6 +284,9 @@
 .scenario-controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(145px, 1fr)); gap: 10px; padding: 0 18px 18px; }
 .scenario-controls > label > span { display: flex; align-items: center; height: 20px; color: var(--muted); font-size: 10px; }
 .scenario-controls select { width: 100%; min-height: 41px; padding: 9px 32px 9px 10px; border: 1px solid var(--line); border-radius: 11px; color: var(--ink); background: #0e1117; }
+.bonus-market-reference { min-height: 70px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 11px; background: #0e1117; display: grid; align-content: center; gap: 2px; }
+.bonus-market-reference span,.bonus-market-reference small { color: var(--muted); font-size: 10px; }
+.bonus-market-reference b { color: var(--ink); font-size: 18px; }
 .scenario-view-picker { padding: 0 18px 16px; }
 .scenario-view-picker > span { display: block; margin-bottom: 7px; color: var(--muted); font-size: 9px; }
 .scenario-view-picker > div { display: flex; gap: 5px; overflow-x: auto; scrollbar-width: none; }

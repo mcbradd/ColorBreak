@@ -1686,21 +1686,35 @@ function SellerScenarioLab({
   const [thresholdSales, setThresholdSales] = useState(500);
   const [bonusAnalysis, setBonusAnalysis] = useState<BreakAnalysis>();
   const [bonusMarket, setBonusMarket] = useState<number>();
+  const [bonusPrices, setBonusPrices] = useState<Record<string, number>>({});
+  const [bonusPriceLoading, setBonusPriceLoading] = useState(false);
   const [bonusCostOverride, setBonusCostOverride] = useState<number>();
   const [useRandom, setUseRandom] = useState(false);
   const setCodes = [...new Set(lines.map((line) => line.set))];
   const productRef = (product: ProductChoice) => `${product.set}|${product.sealedKey ?? product.key}`;
   useEffect(() => {
+    let cancelled = false;
     Promise.all(setCodes.map(productsForSet)).then((groups) => {
       const packs = groups.flat().filter((product) => product.category === "pack");
+      if (cancelled) return;
       setProducts(packs);
-      setSelectedKey((current) => current || (packs.find((product) => /collector/i.test(product.label)) ? productRef(packs.find((product) => /collector/i.test(product.label))!) : packs[0] ? productRef(packs[0]) : ""));
+      setSelectedKey((current) => packs.some((product) => productRef(product) === current)
+        ? current
+        : (packs.find((product) => /collector/i.test(product.label)) ? productRef(packs.find((product) => /collector/i.test(product.label))!) : packs[0] ? productRef(packs[0]) : ""));
+      Promise.all(packs.map(async (product) => [productRef(product), await sealedMarketPrice(product.set, product.tcgId)] as const))
+        .then((quotes) => {
+          if (!cancelled) setBonusPrices(Object.fromEntries(quotes.filter((quote): quote is readonly [string, number] => quote[1] != null)));
+        });
     });
+    return () => { cancelled = true; };
   }, [setCodes.join("|")]);
   const selected = products.find((product) => productRef(product) === selectedKey);
   useEffect(() => {
     if (!selected) return;
     setBonusCostOverride(undefined);
+    setBonusMarket(undefined);
+    setBonusAnalysis(undefined);
+    setBonusPriceLoading(true);
     const bonusLine: BreakLine = {
       id: "seller-bonus-preview",
       set: selected.set,
@@ -1715,7 +1729,7 @@ function SellerScenarioLab({
       evaluateBreakAnalysis([...lines, bonusLine], baseAnalysis.valuation.threshold),
       sealedMarketPrice(selected.set, selected.tcgId),
     ]).then(([next, market]) => {
-      if (!cancelled) { setBonusAnalysis(next); setBonusMarket(market); }
+      if (!cancelled) { setBonusAnalysis(next); setBonusMarket(market); setBonusPriceLoading(false); }
     });
     return () => { cancelled = true; };
   }, [selected?.set, selected?.sealedKey, selected?.key, lines, baseAnalysis.valuation.threshold]);
@@ -1723,9 +1737,10 @@ function SellerScenarioLab({
   const fixedFees = transactionCount * (marketplace.processingFlat + buyerShipping * marketplace.processingRate);
   const shipmentCosts = (packing + coveredShipping) * shipmentCount;
   const profitAt = (sales: number, productCost: number) => sales * keep - fixedFees - shipmentCosts - productCost;
-  const bonusCost = bonusCostOverride ?? bonusMarket ?? 0;
-  const afterCost = acquisition + bonusCost;
-  const afterBreakEven = requiredHammer(transactionCount, shipmentCosts, afterCost, 0, buyerShipping, marketplace);
+  const bonusCost = bonusCostOverride ?? bonusMarket;
+  const bonusCostKnown = bonusCost != null;
+  const afterCost = bonusCostKnown ? acquisition + bonusCost : undefined;
+  const afterBreakEven = afterCost == null ? undefined : requiredHammer(transactionCount, shipmentCosts, afterCost, 0, buyerShipping, marketplace);
   const bonusBuyerValue = bonusAnalysis ? bonusAnalysis.valuation.sellableEV - baseAnalysis.valuation.sellableEV : 0;
   const averageBuyerLanded = thresholdSales / Math.max(1, transactionCount) + buyerShipping;
   return (
@@ -1737,9 +1752,13 @@ function SellerScenarioLab({
         accessory={<Tip className="compliance-badge compliance-permitted" text="A fixed pack disclosed before sales can be included as break product. A pack added only after a sales threshold requires written Whatnot approval before advertising or export."><span>Policy check</span></Tip>}
       />
       <div className="scenario-controls">
-        <label><span>Bonus pack</span><select value={selectedKey} onChange={(event) => setSelectedKey(event.target.value)}>{products.map((product) => <option key={productRef(product)} value={productRef(product)}>{product.set} · {product.label}</option>)}</select></label>
+        <label><span>Bonus pack</span><select value={selectedKey} onChange={(event) => setSelectedKey(event.target.value)}>{products.map((product) => {
+          const market = bonusPrices[productRef(product)];
+          return <option key={productRef(product)} value={productRef(product)}>{product.set} · {product.label}{market == null ? "" : ` · ${fmt(market)}`}</option>;
+        })}</select></label>
         <NumberField label="Sales threshold" value={thresholdSales} onChange={(value) => setThresholdSales(value ?? 0)} />
-        <NumberField label="My bonus pack cost" value={bonusCostOverride} onChange={setBonusCostOverride} hint="Optional. Uses current sealed market price until you enter your actual cost." />
+        <div className="bonus-market-reference"><span>Current pack market price</span><b>{bonusPriceLoading ? "Loading…" : fmt(bonusMarket)}</b><small>Daily sealed-product snapshot</small></div>
+        <NumberField label="My cost for this pack" value={bonusCostOverride} onChange={setBonusCostOverride} hint="Optional. Your actual cost replaces market price in all profit calculations. Clear it to use market price again." />
       </div>
       <div className="scenario-view-picker">
         <span>Show buyer upside for</span>
@@ -1749,13 +1768,13 @@ function SellerScenarioLab({
       {selected && bonusAnalysis && (
         <>
           <div className="scenario-economics">
-            <div><span>Bonus pack cost used</span><b>{bonusMarket == null && bonusCostOverride == null ? "Unavailable" : fmt(bonusCost)}</b><small>{bonusCostOverride == null ? "Current market" : "Your cost"}</small></div>
+            <div><span>Cost used in profit math</span><b>{bonusCostKnown ? fmt(bonusCost) : "Add your cost"}</b><small>{bonusCostOverride == null ? "Current market price" : `Your cost · market ${fmt(bonusMarket)}`}</small></div>
             <div><span>Buyer card value added</span><b>+{fmt(bonusBuyerValue)}</b></div>
-            <div><span>New break-even sales</span><b>{fmt(afterBreakEven)}</b></div>
+            <div><span>New break-even sales</span><b>{bonusCostKnown ? fmt(afterBreakEven) : "Needs pack cost"}</b></div>
             <div><span>Buyer landed cost at threshold</span><b>{fmt(averageBuyerLanded)}</b></div>
             <div><span>Profit at {fmt(thresholdSales)} before</span><b>{fmt(profitAt(thresholdSales, acquisition))}</b></div>
-            <div><span>Profit at {fmt(thresholdSales)} with pack</span><b>{fmt(profitAt(thresholdSales, afterCost))}</b></div>
-            <div><span>Margin with pack</span><b>{thresholdSales ? `${Math.round(profitAt(thresholdSales, afterCost) / thresholdSales * 100)}%` : "—"}</b></div>
+            <div><span>Profit at {fmt(thresholdSales)} with pack</span><b>{afterCost == null ? "Needs pack cost" : fmt(profitAt(thresholdSales, afterCost))}</b></div>
+            <div><span>Margin with pack</span><b>{afterCost == null ? "Needs pack cost" : thresholdSales ? `${Math.round(profitAt(thresholdSales, afterCost) / thresholdSales * 100)}%` : "—"}</b></div>
           </div>
           <UpsideCandles base={baseAnalysis} bonus={bonusAnalysis} bonusLabel={selected.label} selectedSlot={selectedSlot} selectSlot={(slot) => { setUseRandom(false); setSelectedSlot(slot); }} useRandom={useRandom} buyerLanded={averageBuyerLanded} />
         </>
