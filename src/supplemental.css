@@ -347,8 +347,33 @@ nav { z-index: 200; isolation: isolate; }
 .bulk-value-field input { width:100%; min-width:0; padding:9px 8px; border:0; outline:0; color:#fff; background:transparent; font-size:16px; font-weight:800; }
 .bulk-filter-help.tip-icon { grid-column:3; justify-self:end; margin:0; }
 .slot-browser-heading { padding-right:18px; }
-.verdict-head { position:relative; }
-.verdict-head > div:first-child .section-label .tip-icon { position:absolute; top:10px; right:10px; }
+.verdict-head { position:relative; display:grid; grid-template-columns:minmax(0,1fr) minmax(128px,auto); align-items:start; gap:12px; padding-right:58px; }
+.verdict-decision,.ev-orb { min-width:0; }
+.verdict-decision .section-label { display:block; width:auto; padding-right:0; }
+.verdict-decision .section-label .tip-icon { position:absolute; top:10px; right:10px; margin:0; }
+.ev-orb small { display:block; padding-right:0; }
+.ev-orb small > span { display:block; }
+.ev-orb small .tip-icon { position:absolute; top:50px; right:10px; margin:0; }
+.ev-orb em { display:block; max-width:150px; margin:3px 0 0 auto; color:#d5b66e; font-size:9px; font-style:normal; line-height:1.25; }
+
+/* Break Balance range candles supersede the legacy average bars. */
+.balance-chart { height:260px; padding:20px 5px 42px; overflow:visible; }
+.balance-column { overflow:visible; }
+.balance-column .balance-bar { display:none; }
+.balance-column .balance-whisker { width:2px; min-height:2px; background:linear-gradient(180deg,#7ce9a9,#8994a5 48%,#ff7188); box-shadow:0 0 8px rgba(160,175,195,.22); }
+.balance-end,.balance-median { position:absolute; z-index:2; left:50%; white-space:nowrap; pointer-events:none; }
+.balance-end { padding:2px 3px; border-radius:5px; background:#0b0e14; font-size:7px; font-weight:800; transform:translate(-50%,50%); }
+.balance-column .balance-best { color:#80efae; background:#0b0e14; box-shadow:0 0 0 1px rgba(128,239,174,.18); }
+.balance-column .balance-worst { color:#ff7188; background:#0b0e14; box-shadow:0 0 0 1px rgba(255,113,136,.16); }
+.balance-median { display:grid; grid-template-columns:18px; justify-items:center; gap:1px; color:#fff; transform:translate(-50%,50%); }
+.balance-median i { display:block; width:18px; height:4px; border:1px solid #f1f4f8; border-radius:3px; background:#9aa4b3; box-shadow:0 0 6px rgba(255,255,255,.35); }
+.balance-median b { position:static; padding:1px 3px; border-radius:4px; color:#fff; background:#0a0d12; font-size:7px; line-height:1; }
+.balance-median em { color:#b6bfcc; font-size:6px; font-style:normal; line-height:1; }
+.balance-column .balance-median { color:#fff; background:transparent; }
+.balance-median.at-low { transform:translate(-50%,-12px); }
+.balance-slot { position:absolute; bottom:-22px; font-size:11px; }
+.balance-column > .balance-average { position:absolute; bottom:-38px; padding:0; border:0; color:#aeb7c5; background:transparent; box-shadow:none; font-size:7px; line-height:1; white-space:nowrap; writing-mode:horizontal-tb; transform:none; }
+.balance-caption b { color:#ff7188; }.balance-caption strong { color:#fff; }.balance-caption em { color:#80efae; font-style:normal; }
 .bulk-filter-details { border-top:1px solid var(--line); }
 .bulk-filter-details > summary { display:flex; align-items:center; justify-content:space-between; min-height:42px; padding:9px 14px; color:#aeb7c5; font-size:10px; font-weight:700; list-style:none; }
 .bulk-filter-details > summary::-webkit-details-marker { display:none; }

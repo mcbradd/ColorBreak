@@ -71,4 +71,13 @@ describe("live random-slot buyer workflow", () => {
     expect(screen.getByText("GREEN VALUE DETAILS")).toBeInTheDocument();
     expect(document.querySelectorAll(".balance-column")).toHaveLength(8);
   });
+
+  it("updates the typical card value from the selected color distribution", async () => {
+    render(createElement(Harness));
+    await waitFor(() => expect(screen.getByLabelText("Typical card value")).toHaveTextContent("$10.00"));
+    fireEvent.click(screen.getByRole("tab", { name: "Blue slot" }));
+    await waitFor(() => expect(screen.getByLabelText("Typical card value")).toHaveTextContent("$20.00"));
+    expect(screen.getByRole("button", { name: /middle result across many simulated openings/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Pick My Color evaluates only/i })).toBeInTheDocument();
+  });
 });

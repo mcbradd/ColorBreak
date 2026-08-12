@@ -26,9 +26,13 @@ describe("Break Balance values", () => {
     const slotDistributions = Object.fromEntries(SLOT_IDS.map((id) => [id, summary(0)])) as SimulationResult["slotDistributions"];
     const simulation: SimulationResult = { seed: "test", sampleCount: 10, slotDistributions, remainingPool: summary(0) };
     const { container } = render(createElement(BreakBalance, { result, simulation, remaining: [...SLOT_IDS] }));
-    const labels = [...container.querySelectorAll(".balance-column > small")].map((node) => node.textContent);
-    expect(labels[0]).toBe("$10.00");
-    expect(labels[1]).toBe("$20.00");
+    const labels = [...container.querySelectorAll(".balance-average")].map((node) => node.textContent);
+    expect(labels[0]).toBe("Avg $10.0");
+    expect(labels[1]).toBe("Avg $20.0");
     expect(container.querySelectorAll(".balance-column")).toHaveLength(8);
+    expect(container.querySelectorAll(".balance-best")).toHaveLength(8);
+    expect(container.querySelectorAll(".balance-worst")).toHaveLength(8);
+    expect(container.querySelectorAll(".balance-median")).toHaveLength(8);
+    expect(container.querySelector(".balance-median")?.getAttribute("style")).toContain("bottom: 0%");
   });
 });

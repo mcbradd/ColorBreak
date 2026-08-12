@@ -68,6 +68,9 @@ const money = new Intl.NumberFormat("en-US", {
 });
 const fmt = (value: number | undefined) =>
   value == null ? "—" : money.format(value);
+const fmtChart = (value: number) => value >= 100
+  ? `$${Math.round(value)}`
+  : value >= 10 ? `$${value.toFixed(1)}` : `$${value.toFixed(value > 0 && value < 1 ? 2 : 1)}`;
 const oddsLabel = (probability: number) =>
   probability >= 0.9995
     ? "100%"
@@ -1071,7 +1074,7 @@ export function BreakBalance({
 }) {
   const rows = result.slots.filter((slot) => remaining.includes(slot.id));
   const equalShare = rows.length ? rows.reduce((sum, slot) => sum + slot.sellableEV, 0) / rows.length : 0;
-  const max = Math.max(equalShare, ...rows.map((slot) => simulation?.slotDistributions[slot.id].p90 ?? slot.sellableEV), 1);
+  const max = Math.max(equalShare, ...rows.map((slot) => simulation?.slotDistributions[slot.id].max ?? slot.sellableEV), 1);
   const weakest = Math.min(...rows.map((slot) => slot.sellableEV));
   const strongest = Math.max(...rows.map((slot) => slot.sellableEV), 0);
   const balanceTip = (
@@ -1098,20 +1101,25 @@ export function BreakBalance({
       <div className="balance-chart" style={{ "--equal": `${equalShare / max * 100}%` } as CSSProperties}>
         {rows.map((slot) => {
           const distribution = simulation?.slotDistributions[slot.id];
-          const value = slot.sellableEV;
-          const rangeLow = distribution?.p10 ?? 0;
-          const rangeHigh = distribution?.p90 ?? value;
+          const rangeLow = distribution?.min ?? 0;
+          const rangeHigh = distribution?.max ?? slot.sellableEV;
+          const median = distribution?.median ?? slot.sellableEV;
+          const lowPosition = rangeLow / max * 100;
+          const highPosition = rangeHigh / max * 100;
+          const medianPosition = median / max * 100;
           return (
             <div className={`balance-column slot-${slot.id}`} key={slot.id}>
-              <span className="balance-whisker" style={{ bottom: `${(rangeLow / max) * 100}%`, height: `${(Math.max(0, rangeHigh - rangeLow) / max) * 100}%` }} />
-              <span className="balance-bar" style={{ height: `${(value / max) * 100}%` }} />
-              <b>{slot.id}</b>
-              <small>{fmt(value)}</small>
+              <span className="balance-whisker" style={{ bottom: `${lowPosition}%`, height: `${Math.max(1.5, highPosition - lowPosition)}%` }} />
+              <span className="balance-end balance-best" style={{ bottom: `${highPosition}%` }}>{fmtChart(rangeHigh)}</span>
+              <span className={`balance-median ${Math.abs(medianPosition - lowPosition) < 1 ? "at-low" : ""}`} style={{ bottom: `${medianPosition}%` }}><i /><b>{fmtChart(median)}</b><em>50%</em></span>
+              <span className="balance-end balance-worst" style={{ bottom: `${lowPosition}%` }}>{fmtChart(rangeLow)}</span>
+              <strong className="balance-slot">{slot.id}</strong>
+              <small className="balance-average">Avg {fmtChart(slot.sellableEV)}</small>
             </div>
           );
         })}
       </div>
-      <p className="balance-caption">Bars match each color's average card value below. Thin lines show the modeled lower-to-higher range. The dashed line shows an even split: {fmt(equalShare)}.</p>
+      <p className="balance-caption"><b>Red</b> is the modeled worst case · <strong>white 50%</strong> is the middle result · <em>green</em> is the modeled best case. Average values below each candle match the color inspector. The dashed line shows an even split: {fmt(equalShare)}.</p>
     </section>
   );
 }
@@ -1529,7 +1537,7 @@ export function BuyerView({
           <button className={assignmentMode === "pick" ? "active" : ""} onClick={() => setAssignmentMode("pick")}>I pick my color</button>
         </div>
         <div className="verdict-head">
-          <div>
+          <div className="verdict-decision">
             <SectionLabel text={assignmentMode === "random"
               ? "The next buyer is assigned one of these remaining color slots at random. Enter the current bid to compare your total cost with all the ways the remaining slots could turn out."
               : "Pick My Color evaluates only the selected color slot instead of averaging across a random assignment from the remaining pool."}
@@ -1539,8 +1547,9 @@ export function BuyerView({
             <h2>{decision}</h2>
           </div>
           <div className="ev-orb">
-            <small>TYPICAL CARD VALUE <Tip text="The middle result across many simulated openings: about half are worth less and half are worth more. The average below it can be pulled upward by rare expensive cards." /></small>
-            <strong>{fmt(distribution?.median ?? fallbackMean)}</strong>
+            <small><span>TYPICAL CARD VALUE</span><Tip text="The middle result across many simulated openings: about half are worth less and half are worth more. A $0 typical result means most modeled openings do not contain a card in this color above your bulk-filter amount; it does not mean the color has no average value." /></small>
+            <strong aria-label="Typical card value" aria-live="polite">{simulation.busy && !distribution ? "Checking…" : fmt(distribution?.median ?? fallbackMean)}</strong>
+            {distribution?.median === 0 && <em>Usually no card above the bulk filter</em>}
             <span>Average {fmt(distribution?.mean ?? fallbackMean)}</span>
           </div>
         </div>
