@@ -97,6 +97,7 @@ export async function evaluateBreakAnalysis(lines: BreakLine[], threshold: numbe
   }));
   const outcomeOmissions = outcomeResults.flatMap((result) => result.omissions);
   const outcomeModel: PackOutcomeModel = {
+    cacheKey: `${valuation.dataVersion}|${threshold}|${lines.map((line) => `${line.set}:${line.productKey}:${line.quantity}`).join("|")}`,
     fixed: outcomeResults.flatMap((result) => result.model.fixed),
     packs: outcomeResults.flatMap((result) => result.model.packs),
     complete: outcomeResults.every((result) => result.model.complete !== false),

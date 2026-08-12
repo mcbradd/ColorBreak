@@ -14,14 +14,15 @@ describe("chase map target layout", () => {
       expect.arrayContaining(points),
     );
 
-    const targetSize = 36;
+    const targetWidth = 38;
+    const targetHeight = 53;
     const chartWidth = 320;
     const chartHeight = 260;
     const boxes = layout.map((point) => ({
-      left: point.targetX / 100 * chartWidth - targetSize / 2,
-      right: point.targetX / 100 * chartWidth + targetSize / 2,
-      top: point.targetY / 100 * chartHeight - targetSize / 2,
-      bottom: point.targetY / 100 * chartHeight + targetSize / 2,
+      left: point.targetX / 100 * chartWidth - targetWidth / 2,
+      right: point.targetX / 100 * chartWidth + targetWidth / 2,
+      top: point.targetY / 100 * chartHeight - targetHeight / 2,
+      bottom: point.targetY / 100 * chartHeight + targetHeight / 2,
     }));
 
     for (let first = 0; first < boxes.length; first += 1) {
@@ -31,6 +32,13 @@ describe("chase map target layout", () => {
         const overlaps = a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
         expect(overlaps).toBe(false);
       }
+    }
+
+    for (const edge of ["top", "right", "bottom", "left"] as const) {
+      const rail = layout.filter((point) => point.edge === edge);
+      expect(rail.length).toBeLessThanOrEqual(3);
+      const graphOrder = rail.map((point) => edge === "top" || edge === "bottom" ? point.x : point.y);
+      expect(graphOrder).toEqual([...graphOrder].sort((a, b) => a - b));
     }
   });
 });

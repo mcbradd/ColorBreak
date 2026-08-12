@@ -22,7 +22,6 @@ import {
   Lock,
   PackagePlus,
   Search,
-  Settings2,
   ShieldAlert,
   Sparkles,
   Store,
@@ -732,18 +731,20 @@ export function ValueSummary({ result }: { result: ValuationResult }) {
   return (
     <section className="value-summary panel">
       <PanelHeading
-        label="BREAK VALUE AFTER IGNORING BULK"
-        help="The average card value left after removing cards below your Ignore bulk under amount. This is an average across many possible openings, not a guaranteed result."
+        label={result.threshold > 0 ? "BREAK VALUE AFTER IGNORING BULK" : "BREAK VALUE · ALL PRICED CARDS"}
+        help={result.threshold > 0
+          ? "The average card value left after removing cards below your bulk-filter amount. This is an average across many possible openings, not a guaranteed result."
+          : "Bulk filtering is off, so this average includes every priced card. It is an average across many possible openings, not a guaranteed result."}
         title={fmt(result.sellableEV)}
         accessory={<Status result={result} />}
       />
       <div className="metric-row">
         <div>
-          <span>Before ignoring bulk</span>
+          <span>{result.threshold > 0 ? "Before ignoring bulk" : "All priced cards"}</span>
           <b>{fmt(result.marketEV)}</b>
         </div>
         <div>
-          <span>Ignored as bulk</span>
+          <span>{result.threshold > 0 ? "Ignored as bulk" : "Filtered out"}</span>
           <b>{fmt(ignoredEV)}</b>
         </div>
         <div>
@@ -754,7 +755,7 @@ export function ValueSummary({ result }: { result: ValuationResult }) {
       <p className="value-equation">
         <span>{fmt(result.marketEV)} all cards</span>
         <b>−</b>
-        <span>{fmt(ignoredEV)} ignored</span>
+        <span>{fmt(ignoredEV)} {result.threshold > 0 ? "ignored" : "filtered out"}</span>
         <b>=</b>
         <strong>{fmt(result.sellableEV)} used here</strong>
       </p>
@@ -966,13 +967,14 @@ export function CardInspector({
   );
 }
 
-function useOutcomeSimulation(
+export function useOutcomeSimulation(
   analysis: BreakAnalysis,
   remaining: SlotId[],
   landedCost: number | undefined,
 ): { result?: SimulationResult; error?: string; busy: boolean } {
   const [state, setState] = useState<{ result?: SimulationResult; error?: string; busy: boolean }>({ busy: false });
-  const key = `${analysis.valuation.dataVersion}|${analysis.valuation.threshold}|${remaining.join("")}|${landedCost ?? "none"}`;
+  const modelKey = analysis.outcomeModel.cacheKey ?? JSON.stringify(analysis.outcomeModel);
+  const key = `${analysis.valuation.dataVersion}|${analysis.valuation.status}|${modelKey}|${analysis.valuation.threshold}|${remaining.join("")}|${landedCost ?? "none"}`;
   useEffect(() => {
     let current = true;
     let refinementId: number | undefined;
@@ -1013,7 +1015,9 @@ function useOutcomeSimulation(
         else clearTimeout(refinementId);
       }
     };
-  }, [analysis, key, landedCost, remaining]);
+  // `remaining` is often assembled inline by chart callers. The request key
+  // captures its values; depending on the array identity creates a render loop.
+  }, [key]);
   return state;
 }
 
@@ -1058,7 +1062,7 @@ function OutcomeRange({ summary, landed }: { summary?: DistributionSummary; land
   );
 }
 
-function BreakBalance({
+export function BreakBalance({
   result, simulation, remaining,
 }: {
   result: ValuationResult;
@@ -1094,10 +1098,12 @@ function BreakBalance({
       <div className="balance-chart" style={{ "--equal": `${equalShare / max * 100}%` } as CSSProperties}>
         {rows.map((slot) => {
           const distribution = simulation?.slotDistributions[slot.id];
-          const value = distribution?.median ?? slot.sellableEV;
+          const value = slot.sellableEV;
+          const rangeLow = distribution?.p10 ?? 0;
+          const rangeHigh = distribution?.p90 ?? value;
           return (
             <div className={`balance-column slot-${slot.id}`} key={slot.id}>
-              <span className="balance-whisker" style={{ height: `${((distribution?.p90 ?? value) / max) * 100}%` }} />
+              <span className="balance-whisker" style={{ bottom: `${(rangeLow / max) * 100}%`, height: `${(Math.max(0, rangeHigh - rangeLow) / max) * 100}%` }} />
               <span className="balance-bar" style={{ height: `${(value / max) * 100}%` }} />
               <b>{slot.id}</b>
               <small>{fmt(value)}</small>
@@ -1105,7 +1111,7 @@ function BreakBalance({
           );
         })}
       </div>
-      <p className="balance-caption">Bars show each color's {simulation ? "typical" : "average"} card value. The dashed line shows an even split: {fmt(equalShare)}.</p>
+      <p className="balance-caption">Bars match each color's average card value below. Thin lines show the modeled lower-to-higher range. The dashed line shows an even split: {fmt(equalShare)}.</p>
     </section>
   );
 }
@@ -1249,24 +1255,32 @@ function ChaseConstellation({
     const price = row.marketValue / Math.max(row.copies, .0001);
     return {
       id: row.card.id,
-      x: Math.min(88, 12 + row.sellablePullProbability * 76),
-      y: Math.max(10, 90 - price / maxPrice * 76),
+      x: 22 + row.sellablePullProbability * 56,
+      y: 79 - price / maxPrice * 58,
     };
   }));
   return (
     <details className="panel supporting-view">
-      <summary><span><b>Chase Map</b><small>Higher means pricier · farther right means easier to pull</small></span><span className="summary-help"><span>{SLOT_NAMES[slot.id]}</span><Tip text="Each small dot marks a card by price and pull chance. A line connects that exact spot to a larger button that is easier to tap." /></span></summary>
+      <summary><span><b>Chase Map</b><small>Card price vs. chance of pulling it</small></span><span className="summary-help"><span>{SLOT_NAMES[slot.id]}</span><Tip text="Each glowing point is a card's exact price and pull chance. Follow its line to the card image around the graph, then tap the image for full details." /></span></summary>
       {!rows.length ? <p className="supporting-empty">No cards meet the current bulk boundary.</p> : (
         <div className="constellation chase-map" aria-label={`${SLOT_NAMES[slot.id]} card price and pull chance map`}>
-          <span className="constellation-y">Pricier ↑</span>
-          <span className="constellation-x">Easier to pull →</span>
+          <div className="chase-plot" aria-hidden="true">
+            <span className="plot-y-title">MARKET PRICE</span>
+            <span className="plot-x-title">CHANCE TO PULL</span>
+            <span className="plot-price plot-price-high">{fmt(maxPrice)}</span>
+            <span className="plot-price plot-price-mid">{fmt(maxPrice / 2)}</span>
+            <span className="plot-price plot-price-low">$0</span>
+            <span className="plot-odds plot-odds-low">0%</span>
+            <span className="plot-odds plot-odds-mid">50%</span>
+            <span className="plot-odds plot-odds-high">100%</span>
+          </div>
           <svg className="chase-pointers" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
             {layout.map((point) => {
               const row = rowById.get(point.id)!;
               const radius = 1.1 + Math.sqrt(row.sellableValue / maxContribution) * 1.8;
               return (
                 <g key={point.id}>
-                  <line x1={point.x} y1={point.y} x2={point.targetX} y2={point.targetY} />
+                  <polyline points={`${point.x},${point.y} ${point.exitX},${point.exitY} ${point.targetX},${point.targetY}`} />
                   <circle cx={point.x} cy={point.y} r={radius} />
                 </g>
               );
@@ -1283,29 +1297,64 @@ function ChaseConstellation({
                 onClick={() => onInspect(row)}
                 aria-label={`${row.card.name}: ${oddsLabel(row.sellablePullProbability)} pull chance, ${fmt(price)} market price, adds ${fmt(row.sellableValue)} to the average`}
                 title={row.card.name}
-              >{row.card.name.slice(0, 1)}</button>
+              >
+                {row.card.image ? <img src={row.card.image} alt="" loading="lazy" /> : <span>{row.card.name.slice(0, 1)}</span>}
+                <i>{oddsLabel(row.sellablePullProbability)}</i>
+              </button>
             );
           })}
         </div>
       )}
-      <p className="supporting-warning">The small dot is the card's exact spot. Follow its line to the larger letter button to open that card.</p>
+      <p className="supporting-warning">Top-right cards combine the highest price with the best pull chance. Tap any card image to inspect its price, odds, and printing.</p>
     </details>
   );
 }
 
-function BulkBoundary({ result }: { result: ValuationResult }) {
-  const ignored = Math.max(0, result.marketEV - result.sellableEV);
-  const retained = result.marketEV > 0 ? result.sellableEV / result.marketEV : 0;
+export function BulkFilterControl({
+  enabled,
+  threshold,
+  result,
+  onToggle,
+  onThreshold,
+}: {
+  enabled: boolean;
+  threshold: number;
+  result?: ValuationResult;
+  onToggle: (enabled: boolean) => void;
+  onThreshold: (threshold: number) => void;
+}) {
+  const ignored = result ? Math.max(0, result.marketEV - result.sellableEV) : 0;
+  const retained = result && result.marketEV > 0 ? result.sellableEV / result.marketEV : 1;
+  const explanation = enabled
+    ? `Cards worth less than ${fmt(threshold)} each are ignored everywhere in ColorBreak. Cards worth exactly ${fmt(threshold)} are still counted.`
+    : `Bulk filtering is off. Every priced card is counted. Turn it on to ignore cards worth less than ${fmt(threshold)} each.`;
   return (
-    <details className="panel supporting-view">
-      <summary><span><b>Bulk Filter</b><small>What changes when you ignore cards under {fmt(result.threshold)}</small></span><span className="summary-help"><span>{Math.round(retained * 100)}% kept</span><Tip text={`Shows how much card value remains after ignoring cards worth less than ${fmt(result.threshold)} each.`} /></span></summary>
-      <div className="bulk-boundary">
-        <div><span>All resolved card value</span><b>{fmt(result.marketEV)}</b></div>
-        <div className="boundary-track" aria-label={`${Math.round(retained * 100)} percent of all card value remains after ignoring bulk`}><span style={{ width: `${retained * 100}%` }} /></div>
-        <div><span>Value used by ColorBreak</span><b>{fmt(result.sellableEV)}</b></div>
-        <p>{fmt(ignored)} comes from cards below {fmt(result.threshold)} each, so it is left out of the numbers shown elsewhere.</p>
+    <section className={`bulk-filter-control ${enabled ? "enabled" : "disabled"}`}>
+      <div className="bulk-filter-main">
+        <button type="button" className="bulk-toggle" role="switch" aria-checked={enabled} onClick={() => onToggle(!enabled)}>
+          <span aria-hidden="true"><i /></span><b>Bulk filter</b><small>{enabled ? "On" : "Off"}</small>
+        </button>
+        <label className="bulk-value-field">
+          <span>Ignore cards under</span>
+          <div><b>$</b><NumericInput value={threshold} onCommit={(value) => onThreshold(value ?? 0)} ariaLabel="Bulk filter dollar amount" /></div>
+        </label>
+        <Tip className="bulk-filter-help" text={explanation} label="Explain the current bulk filter setting" />
       </div>
-    </details>
+      <details className="bulk-filter-details">
+        <summary><span>See what the filter changes</span><ChevronRight /></summary>
+        {!result ? <p>Product values are still loading.</p> : (
+          <div className="bulk-filter-rollout">
+            <div><span>All priced card value</span><b>{fmt(result.marketEV)}</b></div>
+            <div><span>{enabled ? "Ignored as bulk" : "Ignored while filter is off"}</span><b>{fmt(ignored)}</b></div>
+            <div><span>Value used by ColorBreak</span><b>{fmt(result.sellableEV)}</b></div>
+            <div className="boundary-track" aria-label={`${Math.round(retained * 100)} percent of all card value is counted`}><span style={{ width: `${retained * 100}%` }} /></div>
+            <p>{enabled
+              ? `${fmt(result.marketEV)} in all priced cards − ${fmt(ignored)} under ${fmt(threshold)} = ${fmt(result.sellableEV)} used throughout the tool.`
+              : `No priced cards are being removed. Turn the filter on when you do not want low-value bulk included in card value.`}</p>
+          </div>
+        )}
+      </details>
+    </section>
   );
 }
 
@@ -1549,11 +1598,10 @@ export function BuyerView({
           {auction.remaining.length === 1 && <p className="last-slot">Final slot: {SLOT_NAMES[auction.remaining[0]]}. No assignment tap needed.</p>}
         </section>
       )}
-      <BreakBalance result={result} simulation={simulation.result} remaining={assignmentMode === "random" ? auction.remaining : [selected]} />
+      <BreakBalance result={result} simulation={simulation.result} remaining={auction.remaining} />
       <EvidenceLens analysis={analysis} />
         <SlotRail result={result} selected={selected} setSelected={(slotId) => { setSelected(slotId); setAssignmentMode("pick"); }} />
       <ChaseConstellation slot={slot} onInspect={setInspectedCard} />
-      <BulkBoundary result={result} />
       <SlotValueDetails
         slot={slot}
         threshold={result.threshold}
@@ -1628,6 +1676,13 @@ function monotoneBonus(before: DistributionSummary, sampledAfter: DistributionSu
 function UpsideCandles({ base, bonus, bonusLabel, selectedSlot, selectSlot, useRandom, buyerLanded }: { base: BreakAnalysis; bonus: BreakAnalysis; bonusLabel: string; selectedSlot: SlotId; selectSlot: (slot: SlotId) => void; useRandom: boolean; buyerLanded: number }) {
   const baseSimulation = useOutcomeSimulation(base, [...SLOT_IDS], buyerLanded);
   const bonusSimulation = useOutcomeSimulation(bonus, [...SLOT_IDS], buyerLanded);
+  if (baseSimulation.error || bonusSimulation.error) return (
+    <div className="distribution-unavailable" role="status">
+      <b>Pull ranges unavailable</b>
+      <span>{bonusSimulation.error ?? baseSimulation.error}</span>
+      <small>The buyer-value and seller-profit calculations above are still available.</small>
+    </div>
+  );
   if (!baseSimulation.result || !bonusSimulation.result) return <p className="calculating"><span />Building pull ranges…</p>;
   const selectedBefore = useRandom ? baseSimulation.result.remainingPool : baseSimulation.result.slotDistributions[selectedSlot];
   const selectedAfter = monotoneBonus(selectedBefore, useRandom ? bonusSimulation.result.remainingPool : bonusSimulation.result.slotDistributions[selectedSlot]);
@@ -2139,12 +2194,14 @@ function Workspace({
       return remaining?.length ? createAuction(remaining) : createAuction();
     }),
     [error, setError] = useState<string>(),
-    [threshold, setThreshold] = useState(2),
+    [bulkThreshold, setBulkThreshold] = useState(2),
+    [bulkEnabled, setBulkEnabled] = useState(true),
     [selectedSlot, setSelectedSlot] = useState<SlotId>(() => {
       const shared = new URLSearchParams(location.search).get("s") as SlotId | null;
       return shared && SLOT_IDS.includes(shared) ? shared : "W";
     }),
     [busy, setBusy] = useState(false);
+  const threshold = bulkEnabled ? bulkThreshold : 0;
   useEffect(() => {
     try {
       localStorage.setItem(`colorbreak:${mode}:lines`, JSON.stringify(lines));
@@ -2255,21 +2312,16 @@ function Workspace({
             </p>
             <h1>{mode === "buyer" ? "Check a bid" : "Build & price"}</h1>
           </div>
-          {lines.length > 0 && (
-            <label className="threshold">
-              <Settings2 />
-              <span>Ignore bulk under</span>
-              <b>$</b>
-              <NumericInput
-                value={threshold}
-                onCommit={(value) => setThreshold(value ?? 0)}
-              />
-              <Tip
-                text={`Cards worth less than ${fmt(threshold)} each are ignored everywhere. A card worth exactly ${fmt(threshold)} is included.`}
-              />
-            </label>
-          )}
         </header>
+        {lines.length > 0 && (
+          <BulkFilterControl
+            enabled={bulkEnabled}
+            threshold={bulkThreshold}
+            result={analysis?.valuation}
+            onToggle={setBulkEnabled}
+            onThreshold={setBulkThreshold}
+          />
+        )}
         {!lines.length ? (
           <EmptyBreak add={() => setBuilder(true)} />
         ) : (

@@ -1,0 +1,34 @@
+import { createElement } from "react";
+import { render } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
+import { BreakBalance } from "./App";
+import { calculateBreak } from "./domain/valuation";
+import { SLOT_IDS } from "./domain/types";
+import type { DistributionSummary, SimulationResult } from "./domain/simulation";
+
+const summary = (median: number): DistributionSummary => ({
+  min: 0, p10: 0, p25: 0, median, mean: median, p75: median, p90: median + 5, max: median + 10, fingerprint: [],
+});
+
+describe("Break Balance values", () => {
+  it("labels bars with the same average values as the color inspector", () => {
+    const result = calculateBreak({
+      threshold: 2,
+      prices: [
+        { id: "w", set: "TST", collectorNumber: "1", name: "White", slot: "W", nonfoil: 10, foil: null },
+        { id: "u", set: "TST", collectorNumber: "2", name: "Blue", slot: "U", nonfoil: 20, foil: null },
+      ],
+      draws: [
+        { set: "TST", collectorNumber: "1", copies: 1, foil: false, source: "test" },
+        { set: "TST", collectorNumber: "2", copies: 1, foil: false, source: "test" },
+      ],
+    });
+    const slotDistributions = Object.fromEntries(SLOT_IDS.map((id) => [id, summary(0)])) as SimulationResult["slotDistributions"];
+    const simulation: SimulationResult = { seed: "test", sampleCount: 10, slotDistributions, remainingPool: summary(0) };
+    const { container } = render(createElement(BreakBalance, { result, simulation, remaining: [...SLOT_IDS] }));
+    const labels = [...container.querySelectorAll(".balance-column > small")].map((node) => node.textContent);
+    expect(labels[0]).toBe("$10.00");
+    expect(labels[1]).toBe("$20.00");
+    expect(container.querySelectorAll(".balance-column")).toHaveLength(8);
+  });
+});

@@ -3,8 +3,19 @@ import type { PackOutcomeModel, SimulationOptions, SimulationResult } from "./si
 
 let nextId = 1;
 let worker: Worker | null = null;
-const pending = new Map<number, { resolve: (result: SimulationResult) => void; reject: (error: Error) => void }>();
+const WORKER_TIMEOUT_MS = 12_000;
+const pending = new Map<number, { resolve: (result: SimulationResult) => void; reject: (error: Error) => void; timeout: ReturnType<typeof setTimeout> }>();
 const cache = new Map<string, Promise<SimulationResult>>();
+
+function failWorker(error: Error): void {
+  for (const request of pending.values()) {
+    clearTimeout(request.timeout);
+    request.reject(error);
+  }
+  pending.clear();
+  worker?.terminate();
+  worker = null;
+}
 
 function simulationWorker(): Worker | null {
   if (typeof Worker === "undefined") return null;
@@ -14,15 +25,11 @@ function simulationWorker(): Worker | null {
       const request = pending.get(event.data.id);
       if (!request) return;
       pending.delete(event.data.id);
+      clearTimeout(request.timeout);
       if (event.data.result) request.resolve(event.data.result);
       else request.reject(new Error(event.data.error ?? "Simulation failed"));
     };
-    worker.onerror = () => {
-      for (const request of pending.values()) request.reject(new Error("Distribution worker unavailable"));
-      pending.clear();
-      worker?.terminate();
-      worker = null;
-    };
+    worker.onerror = () => failWorker(new Error("Distribution worker unavailable"));
   }
   return worker;
 }
@@ -36,8 +43,13 @@ export function simulateOutcomesAsync(model: PackOutcomeModel, options: Simulati
     if (!active) return Promise.resolve(simulateOutcomes(model, options));
     const id = nextId++;
     return new Promise<SimulationResult>((resolve, reject) => {
-      pending.set(id, { resolve, reject });
-      active.postMessage({ id, model, options });
+      const timeout = setTimeout(() => failWorker(new Error("Pull-range calculation took too long and was stopped.")), WORKER_TIMEOUT_MS);
+      pending.set(id, { resolve, reject, timeout });
+      try {
+        active.postMessage({ id, model, options });
+      } catch (error) {
+        failWorker(error instanceof Error ? error : new Error(String(error)));
+      }
     });
   })();
   cache.set(cacheKey, request);

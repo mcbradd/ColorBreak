@@ -27,6 +27,7 @@ export interface OutcomePack {
 }
 
 export interface PackOutcomeModel {
+  cacheKey?: string;
   fixed: OutcomeCard[];
   packs: OutcomePack[];
   complete?: boolean;
