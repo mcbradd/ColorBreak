@@ -137,15 +137,121 @@ function randomSource(seed: string): () => number {
   };
 }
 
-function weighted<T>(rows: readonly T[], weightOf: (row: T) => number, random: () => number): T {
-  const total = rows.reduce((sum, row) => sum + Math.max(0, weightOf(row)), 0);
-  if (!rows.length || total <= 0) throw new Error("Outcome model contains an empty weighted choice");
-  let cursor = random() * total;
-  for (const row of rows) {
-    cursor -= Math.max(0, weightOf(row));
-    if (cursor < 0) return row;
+interface WeightedTable<T> {
+  rows: T[];
+  weights: number[];
+  cumulativeWeights: number[];
+  totalWeight: number;
+}
+
+function compileWeightedTable<T>(rows: readonly T[], weightOf: (row: T) => number): WeightedTable<T> {
+  const weightedRows = rows
+    .map((row) => ({ row, weight: Math.max(0, weightOf(row)) }))
+    .filter(({ weight }) => weight > 0);
+  if (!weightedRows.length) throw new Error("Outcome model contains an empty weighted choice");
+
+  let totalWeight = 0;
+  const cumulativeWeights = weightedRows.map(({ weight }) => {
+    totalWeight += weight;
+    return totalWeight;
+  });
+  return {
+    rows: weightedRows.map(({ row }) => row),
+    weights: weightedRows.map(({ weight }) => weight),
+    cumulativeWeights,
+    totalWeight,
+  };
+}
+
+function weightedIndex<T>(table: WeightedTable<T>, random: () => number): number {
+  const target = random() * table.totalWeight;
+  let low = 0;
+  let high = table.cumulativeWeights.length - 1;
+  while (low < high) {
+    const middle = (low + high) >>> 1;
+    if (target < table.cumulativeWeights[middle]) high = middle;
+    else low = middle + 1;
   }
-  return rows.at(-1)!;
+  return low;
+}
+
+function distinctWeightedIndex<T>(
+  table: WeightedTable<T>,
+  selected: ReadonlySet<number>,
+  random: () => number,
+): number {
+  // Most collation sheets draw only one or a few cards. Rejection sampling
+  // keeps those common draws O(log n) and is equivalent to drawing from the
+  // remaining weights. Fall back to a direct scan for heavily skewed sheets.
+  for (let attempt = 0; attempt < 16; attempt += 1) {
+    const index = weightedIndex(table, random);
+    if (!selected.has(index)) return index;
+  }
+
+  let remainingWeight = 0;
+  for (let index = 0; index < table.weights.length; index += 1) {
+    if (!selected.has(index)) remainingWeight += table.weights[index];
+  }
+  let cursor = random() * remainingWeight;
+  for (let index = 0; index < table.weights.length; index += 1) {
+    if (selected.has(index)) continue;
+    cursor -= table.weights[index];
+    if (cursor < 0) return index;
+  }
+  throw new Error("Outcome model contains an empty weighted choice");
+}
+
+interface CompiledCard {
+  slotIndex: number;
+  value: number;
+}
+
+interface CompiledSheet {
+  cards: WeightedTable<CompiledCard>;
+  allowDuplicates: boolean;
+}
+
+interface CompiledPick {
+  sheet: CompiledSheet;
+  count: number;
+}
+
+interface CompiledVariant {
+  weight: number;
+  picks: CompiledPick[];
+}
+
+interface CompiledPack {
+  count: number;
+  variants: WeightedTable<CompiledVariant>;
+}
+
+const SLOT_INDEX = new Map<SlotId, number>(SLOT_IDS.map((slot, index) => [slot, index]));
+
+function compilePacks(packs: readonly OutcomePack[]): CompiledPack[] {
+  return packs.map((pack) => {
+    const sheets = new Map(Object.entries(pack.sheets).map(([name, sheet]) => [name, {
+      cards: compileWeightedTable(sheet.cards.map((card) => ({
+        slotIndex: SLOT_INDEX.get(card.slot)!,
+        value: card.value,
+        weight: card.weight ?? 1,
+      })), (card) => card.weight),
+      allowDuplicates: sheet.allowDuplicates === true,
+    }] as const));
+    const variants = pack.variants.map((variant): CompiledVariant => ({
+      weight: variant.weight,
+      picks: Object.entries(variant.picks).map(([sheetName, count]) => {
+        const sheet = sheets.get(sheetName);
+        if (!sheet) throw new Error(`Outcome model is missing sheet ${sheetName}`);
+        if (!Number.isInteger(count) || count < 0) throw new Error("Sheet picks must be a non-negative integer");
+        if (!sheet.allowDuplicates && count > sheet.cards.rows.length) {
+          throw new Error("Outcome model requests more unique cards than a sheet contains");
+        }
+        return { sheet, count };
+      }),
+    }));
+    return { count: pack.count, variants: compileWeightedTable(variants, (variant) => variant.weight) };
+  });
 }
 
 function quantile(sorted: readonly number[], probability: number): number {
@@ -189,37 +295,41 @@ export function simulateOutcomes(model: PackOutcomeModel, options: SimulationOpt
   if (!options.remaining.length) throw new Error("At least one remaining slot is required");
 
   const random = randomSource(options.seed);
-  const values = Object.fromEntries(SLOT_IDS.map((slot) => [slot, [] as number[]])) as Record<SlotId, number[]>;
+  const values = SLOT_IDS.map(() => [] as number[]);
   const remainingValues: number[] = [];
+  const fixedValues = SLOT_IDS.map(() => 0);
+  for (const card of model.fixed) fixedValues[SLOT_INDEX.get(card.slot)!] += card.value * (card.count ?? 1);
+  const packs = compilePacks(model.packs);
+  const remainingIndices = options.remaining.map((slot) => SLOT_INDEX.get(slot)!);
 
   for (let sample = 0; sample < options.sampleCount; sample += 1) {
-    const slots = Object.fromEntries(SLOT_IDS.map((slot) => [slot, 0])) as Record<SlotId, number>;
-    for (const card of model.fixed) slots[card.slot] += card.value * (card.count ?? 1);
-    for (const pack of model.packs) {
+    const slots = [...fixedValues];
+    for (const pack of packs) {
       for (let unit = 0; unit < pack.count; unit += 1) {
-        const variant = weighted(pack.variants, (row) => row.weight, random);
-        for (const [sheetName, picks] of Object.entries(variant.picks)) {
-          const sheet = pack.sheets[sheetName];
-          if (!sheet) throw new Error(`Outcome model is missing sheet ${sheetName}`);
-          const available = [...sheet.cards];
-          for (let pick = 0; pick < picks; pick += 1) {
-            const card = weighted(available, (row) => row.weight ?? 1, random);
-            slots[card.slot] += card.value;
-            if (sheet.allowDuplicates !== true) available.splice(available.indexOf(card), 1);
+        const variant = pack.variants.rows[weightedIndex(pack.variants, random)];
+        for (const { sheet, count } of variant.picks) {
+          const selected = sheet.allowDuplicates ? undefined : new Set<number>();
+          for (let pick = 0; pick < count; pick += 1) {
+            const cardIndex = selected
+              ? distinctWeightedIndex(sheet.cards, selected, random)
+              : weightedIndex(sheet.cards, random);
+            const card = sheet.cards.rows[cardIndex];
+            slots[card.slotIndex] += card.value;
+            selected?.add(cardIndex);
           }
         }
       }
     }
-    for (const slot of SLOT_IDS) values[slot].push(slots[slot]);
-    const assigned = options.remaining[Math.floor(random() * options.remaining.length)];
+    for (let index = 0; index < SLOT_IDS.length; index += 1) values[index].push(slots[index]);
+    const assigned = remainingIndices[Math.floor(random() * remainingIndices.length)];
     remainingValues.push(slots[assigned]);
   }
 
   return {
     seed: options.seed,
     sampleCount: options.sampleCount,
-    slotDistributions: Object.fromEntries(SLOT_IDS.map((slot) => [
-      slot, summarizeDistribution(values[slot], options.landedCost),
+    slotDistributions: Object.fromEntries(SLOT_IDS.map((slot, index) => [
+      slot, summarizeDistribution(values[index], options.landedCost),
     ])) as Record<SlotId, DistributionSummary>,
     remainingPool: summarizeDistribution(remainingValues, options.landedCost),
   };
