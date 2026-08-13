@@ -37,9 +37,11 @@ function Harness() {
   const [auction, setAuction] = useState<AuctionState>(() => createAuction());
   const [selected, setSelected] = useState<SlotId>("W");
   const [assignmentMode, setAssignmentMode] = useState<"pick" | "random">("pick");
+  const [bid, setBid] = useState<number>();
+  const [shipping, setShipping] = useState<number>();
   return createElement(Fragment, null,
     createElement(SlotRail, { result: valuation, auction, setAuction, assignmentMode, setAssignmentMode, selected, setSelected }),
-    createElement(BuyerView, { analysis, auction, assignmentMode, selected }),
+    createElement(BuyerView, { analysis, auction, assignmentMode, selected, bid, setBid, shipping, setShipping }),
   );
 }
 

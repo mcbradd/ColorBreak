@@ -1593,15 +1593,21 @@ export function BuyerView({
   auction,
   assignmentMode,
   selected,
+  bid,
+  setBid,
+  shipping,
+  setShipping,
 }: {
   analysis: BreakAnalysis;
   auction: AuctionState;
   assignmentMode: AssignmentMode;
   selected: SlotId;
+  bid: number | undefined;
+  setBid: (value: number | undefined) => void;
+  shipping: number | undefined;
+  setShipping: (value: number | undefined) => void;
 }) {
   const result = analysis.valuation;
-  const [bid, setBid] = useState<number>();
-  const [shipping, setShipping] = useState<number>();
   const [inspectedCard, setInspectedCard] = useState<Contributor | null>(null);
   const slot = result.slots.find((row) => row.id === selected)!;
   const landed = (bid ?? 0) + (shipping ?? 0);
@@ -2313,7 +2319,7 @@ export function BuyerSetup({
   );
 }
 
-function Workspace({
+export function Workspace({
   mode,
   exit,
 }: {
@@ -2337,6 +2343,8 @@ function Workspace({
     [bulkThreshold, setBulkThreshold] = useState(2),
     [bulkEnabled, setBulkEnabled] = useState(true),
     [assignmentMode, setAssignmentMode] = useState<AssignmentMode>("pick"),
+    [buyerBid, setBuyerBid] = useState<number>(),
+    [buyerShipping, setBuyerShipping] = useState<number>(),
     [selectedSlot, setSelectedSlot] = useState<SlotId>(() => {
       const shared = new URLSearchParams(location.search).get("s") as SlotId | null;
       return shared && SLOT_IDS.includes(shared) ? shared : "W";
@@ -2475,6 +2483,10 @@ function Workspace({
                   auction={auction}
                   assignmentMode={assignmentMode}
                   selected={selectedSlot}
+                  bid={buyerBid}
+                  setBid={setBuyerBid}
+                  shipping={buyerShipping}
+                  setShipping={setBuyerShipping}
                 />
               )}
             </div>
