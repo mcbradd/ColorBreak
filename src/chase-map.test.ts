@@ -21,6 +21,36 @@ const contributor = (id: string, price: number, probability: number, value: numb
 });
 
 describe("Chase Map presentation", () => {
+  it("keeps numbered points readable when cards share the same chart coordinates", () => {
+    const contributors = Array.from({ length: 2 }, (_, index) =>
+      contributor(`cluster-${index + 1}`, 20, .1, 2),
+    );
+    const slot: SlotValuation = {
+      id: "G", name: "Green", marketEV: 24, sellableEV: 24, knownEV: 24,
+      contributors, chaseShare: 1, withoutChase: 0,
+    };
+    const { container } = render(createElement(ChaseConstellation, { slot, onInspect: vi.fn() }));
+    const points = Array.from(container.querySelectorAll<HTMLElement>(".chase-point"))
+      .map((point) => ({
+        x: Number.parseFloat(point.style.left) / 100 * 320,
+        y: Number.parseFloat(point.style.top) / 100 * 300,
+        diameter: Number.parseFloat(point.style.width),
+      }));
+
+    expect(points).toHaveLength(2);
+    for (let first = 0; first < points.length; first += 1) {
+      for (let second = first + 1; second < points.length; second += 1) {
+        const distance = Math.hypot(
+          points[first].x - points[second].x,
+          points[first].y - points[second].y,
+        );
+        expect(distance).toBeGreaterThanOrEqual(
+          (points[first].diameter + points[second].diameter) / 2 + 2,
+        );
+      }
+    }
+  });
+
   it("labels the x-axis with the highest displayed chance and explains dot size", () => {
     const contributors = [
       contributor("one", 8.41, .0083, 1),

@@ -59,7 +59,7 @@ import type {
 import { SLOT_IDS, SLOT_NAMES } from "./domain/types";
 import { useMobileInputViewport } from "./mobile-input-viewport";
 import { track } from "./analytics";
-import { chaseMapScale } from "./constellation-layout";
+import { chaseMapLayout } from "./constellation-layout";
 
 type Mode = "home" | "buyer" | "seller";
 const money = new Intl.NumberFormat("en-US", {
@@ -1318,8 +1318,12 @@ export function ChaseConstellation({
     price: row.marketPrice ?? row.marketValue / Math.max(row.copies, .0001),
     probability: row.sellablePullProbability,
   });
-  const scale = chaseMapScale(rows.map(datum));
   const maxContribution = Math.max(1, ...rows.map((row) => row.sellableValue));
+  const diameters = rows.map((row) => 26 + Math.sqrt(row.sellableValue / maxContribution) * 12);
+  const scale = chaseMapLayout(rows.map((row, index) => ({
+    ...datum(row),
+    diameter: diameters[index],
+  })));
   const contributorId = (row: Contributor) => `${row.card.id}|${row.finish ?? "nonfoil"}`;
   return (
     <details className="rollout supporting-view">
@@ -1336,8 +1340,8 @@ export function ChaseConstellation({
               <span className="plot-odds plot-odds-high">{oddsLabel(scale.maxProbability)}</span>
             </div>
             {rows.map((row, index) => {
-              const point = scale.position(datum(row));
-              const radius = 26 + Math.sqrt(row.sellableValue / maxContribution) * 12;
+              const point = scale.points[index];
+              const diameter = diameters[index];
               const displayName = cardDisplayName(row.card, row.finish);
               return (
                 <button
@@ -1346,8 +1350,8 @@ export function ChaseConstellation({
                   style={{
                     left: `${point.x}%`,
                     top: `${point.y}%`,
-                    width: `${radius}px`,
-                    height: `${radius}px`,
+                    width: `${diameter}px`,
+                    height: `${diameter}px`,
                   }}
                   onClick={() => onInspect(row)}
                   aria-label={`${displayName}: ${oddsLabel(row.sellablePullProbability)} pull chance, ${fmt(datum(row).price)} market price, adds ${fmt(row.sellableValue)} to the average`}
