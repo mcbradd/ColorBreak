@@ -467,6 +467,9 @@ function Builder({
 }) {
   const [sets, setSets] = useState<SetChoice[]>([]);
   const [query, setQuery] = useState("");
+  const [setSort, setSetSort] = useState<"release" | "alphabetical">(
+    "release",
+  );
   const [selected, setSelected] = useState<SetChoice>();
   const [products, setProducts] = useState<ProductChoice[]>([]);
   const [loading, setLoading] = useState(false);
@@ -487,6 +490,7 @@ function Builder({
     if (!open) {
       setSelected(undefined);
       setQuery("");
+      setSetSort("release");
     }
   }, [open]);
   useEffect(() => {
@@ -514,11 +518,18 @@ function Builder({
       previous?.focus({ preventScroll: true });
     };
   }, [open, onClose]);
+  const normalizedQuery = query.trim().toLocaleLowerCase();
   const visible = sets
     .filter((set) =>
-      `${set.name} ${set.code}`.toLowerCase().includes(query.toLowerCase()),
+      !normalizedQuery
+      || set.name.toLocaleLowerCase().includes(normalizedQuery)
+      || set.code.toLocaleLowerCase().includes(normalizedQuery),
     )
-    .slice(0, query ? 20 : 8);
+    .sort((left, right) => setSort === "release"
+      ? right.released.localeCompare(left.released)
+        || left.name.localeCompare(right.name)
+      : left.name.localeCompare(right.name)
+        || left.released.localeCompare(right.released));
   const add = (product: ProductChoice) => {
     onAdd({
       id: crypto.randomUUID(),
@@ -576,17 +587,24 @@ function Builder({
             </header>
             {!selected ? (
               <>
-                <label className="search">
-                  <Search />
-                  <input
-                    autoFocus
-                    placeholder="Search sets…"
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                  />
-                </label>
+                <div className="set-browser-tools">
+                  <div className="set-sort-tabs" role="group" aria-label="Sort sets">
+                    <button aria-pressed={setSort === "release"} onClick={() => setSetSort("release")}>Release date</button>
+                    <button aria-pressed={setSort === "alphabetical"} onClick={() => setSetSort("alphabetical")}>Alphabetical</button>
+                  </div>
+                  <label className="search">
+                    <Search />
+                    <input
+                      autoFocus
+                      aria-label="Search sets by name or code"
+                      placeholder="Search name or set code"
+                      value={query}
+                      onChange={(e) => setQuery(e.target.value)}
+                    />
+                  </label>
+                </div>
                 <p className="section-label">
-                  {query ? "RESULTS" : "RECENT SETS"}
+                  {visible.length} {query ? "MATCHING SETS" : "SETS"}
                 </p>
                 <div className="choice-list">
                   {visible.map((set) => (
