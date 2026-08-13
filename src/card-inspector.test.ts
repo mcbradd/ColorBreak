@@ -1,4 +1,6 @@
 import { createElement, useState } from "react";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { CardInspector } from "./App";
@@ -41,6 +43,16 @@ function Harness() {
 }
 
 describe("card inspector", () => {
+  it("renders above the sticky app header so its title and close control stay visible", () => {
+    const css = readFileSync(join(process.cwd(), "src", "styles.css"), "utf8")
+      + readFileSync(join(process.cwd(), "src", "supplemental.css"), "utf8")
+      + readFileSync(join(process.cwd(), "src", "modern.css"), "utf8");
+    const navLayer = Number(css.match(/nav\s*\{[^}]*z-index:\s*(\d+)/)?.[1]);
+    const inspectorLayer = Number(css.match(/\.card-scrim\s*\{[^}]*z-index:\s*(\d+)/)?.[1]);
+
+    expect(inspectorLayer).toBeGreaterThan(navLayer);
+  });
+
   it("shows live card context and returns to the exact invoking position", async () => {
     Object.defineProperty(window, "scrollY", { configurable: true, value: 240 });
     const scrollTo = vi.spyOn(window, "scrollTo").mockImplementation(() => {});

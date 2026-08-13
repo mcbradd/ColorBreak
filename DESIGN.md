@@ -11,14 +11,14 @@ ColorBreak is a decision instrument, not a dashboard. It should feel fast, calm,
 3. Show the task’s answer: buyer verdict or seller target plan.
 4. Reveal evidence: EV definitions, confidence, risk, contributors, and omissions.
 
-Mobile uses full-width cards and a bottom-sheet picker. Desktop adds a sticky composition column; it does not add a denser information model.
+Mobile uses full-width sections and a bottom-sheet picker. Desktop adds a sticky composition column; it does not add a denser information model.
 
 ## Visual language
 
-- Near-black canvas, subtly elevated graphite surfaces, restrained borders.
+- Near-black canvas, flat graphite sections, restrained rules, and almost no shadow.
 - Acid green is the primary decision/action accent; violet distinguishes seller planning.
 - Manrope carries display and numeric emphasis; DM Sans carries interface copy.
-- Corners are generous and motion is short, spring-like, and functional.
+- Geometry is crisp: square or 2px corners by default. Curves are reserved for data points, toggles, and physical card art. Motion is short and functional.
 - W/U/B/R/G/M/C/L colors live in slot chips and indicators. Every slot also has a letter and name, so color is never the sole signal.
 - Positive and negative states always include text, not only green or red.
 

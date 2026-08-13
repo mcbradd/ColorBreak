@@ -39,11 +39,16 @@ describe("Chase Map presentation", () => {
     expect(container.querySelector(".chase-chart-key")).toHaveTextContent("Y Market price");
     expect(container.querySelector(".chase-axis-overlay")).not.toBeInTheDocument();
     expect(container.querySelector("summary .disclosure-arrow")).toBeInTheDocument();
+    expect(container.firstElementChild).toHaveClass("rollout");
+    expect(container.firstElementChild).not.toHaveClass("panel");
+    expect(container.querySelector(".chase-pointers")).not.toBeInTheDocument();
+    expect(container.querySelectorAll(".chase-point")).toHaveLength(2);
   });
 
   it("uses a stable flat chart background without an animated fading layer", () => {
     const css = readFileSync(join(process.cwd(), "src", "supplemental.css"), "utf8");
     expect(css).not.toContain("chase-grid-drift");
     expect(css).not.toContain(".chase-plot::after");
+    expect(css).not.toContain(".chase-pointers");
   });
 });

@@ -1,0 +1,249 @@
+/*
+ * Flat instrument UI: hierarchy comes from type, spacing, and rules rather
+ * than nested rounded containers. Curves remain only where they communicate
+ * meaning (data points, toggles, and physical card art).
+ */
+:root {
+  --canvas: #0a0c0f;
+  --panel: #101318;
+  --panel-raised: #151920;
+  --line: #2b3038;
+  --line-strong: #3a414c;
+  --ink: #f2f4f7;
+  --muted: #98a1ae;
+}
+
+html,
+body { background: var(--canvas); }
+body { background-image: none; }
+
+/* Major surfaces are crisp sections, not floating capsules. */
+.panel,
+.bulk-filter-control {
+  border-color: var(--line);
+  border-radius: 2px;
+  background: var(--panel);
+  box-shadow: none;
+}
+
+.panel { margin-bottom: 16px; }
+.panel > .panel-heading { padding: 20px; }
+.panel-heading .section-label { margin-bottom: 10px; }
+.panel-heading-copy h2 { letter-spacing: -.025em; }
+
+.mode-card,
+.threshold,
+.assignment-toggle,
+.scenario-tabs,
+.number-field > div,
+.bulk-value-field > div,
+.market-cost-readout,
+.scenario-controls select,
+.bonus-market-reference,
+.distribution-unavailable,
+.distribution-data-note,
+.upside-callout,
+.scenario-candles,
+.outcome-landmarks,
+.search,
+.affiliate-action,
+.no-contributors,
+.evidence-current,
+.evidence-explanation section {
+  border-radius: 2px;
+  box-shadow: none;
+}
+
+.brand-mark,
+.mode-icon,
+.icon-button,
+.primary,
+.quiet,
+.set-glyph,
+.stepper,
+.stepper button,
+.remove-line,
+.ask-actions button,
+.slot,
+.slot span,
+.assignment-slots button,
+.scenario-tabs button,
+.assignment-toggle button,
+.scenario-view-picker button,
+.market-badge,
+.status,
+.risk-label,
+.balance-score,
+.compliance-badge,
+.lottery,
+.steady,
+.tip-popover,
+.sheet,
+.card-inspector,
+.evidence-dialog,
+.bulk-toggle > span,
+.bulk-toggle > span i {
+  border-radius: 2px;
+}
+
+.icon-button,
+.quiet { background: transparent; }
+.icon-button:hover,
+.quiet:hover { background: var(--panel-raised); }
+.primary { border: 1px solid var(--accent); }
+
+/* Segmented controls stay visually grouped, but do not become pills. */
+.assignment-toggle,
+.scenario-tabs { padding: 2px; }
+.assignment-toggle button.active,
+.scenario-tabs button.active { box-shadow: inset 0 -2px 0 currentColor; }
+
+/* Rollouts open directly beneath their headings. */
+.rollout {
+  margin: 2px 0 20px;
+  border: 0;
+  border-top: 1px solid var(--line-strong);
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+}
+
+.rollout > summary {
+  min-height: 58px;
+  padding: 14px 2px;
+}
+
+.rollout > summary:hover { background: rgba(255,255,255,.018); }
+.rollout > summary:focus-visible { outline-offset: 2px; border-radius: 0; }
+.rollout .supporting-empty,
+.rollout .supporting-warning { padding-inline: 2px; }
+
+.evidence-lens > summary { padding-inline: 2px; }
+.evidence-grid { border-top-color: var(--line); }
+.evidence-grid > button { border-radius: 0; background: transparent; }
+
+/* The scatterplot maps numbered points directly to a readable card key. */
+.chase-map { border-top: 1px solid var(--line); }
+.constellation {
+  height: 320px;
+  margin: 0;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.chase-plot {
+  border-color: #66717f;
+  background-image:
+    linear-gradient(rgba(114,128,150,.12) 1px, transparent 1px),
+    linear-gradient(90deg,rgba(114,128,150,.12) 1px, transparent 1px);
+  box-shadow: none;
+}
+
+.chase-point {
+  position: absolute;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  min-width: 30px;
+  min-height: 30px;
+  padding: 0;
+  border: 1px solid #d5ffab;
+  border-radius: 50%;
+  color: #0a0c0f;
+  background: var(--accent);
+  box-shadow: 0 0 0 3px rgba(10,12,15,.78);
+  font: 800 10px Manrope, sans-serif;
+  transform: translate(-50%, -50%);
+  cursor: pointer;
+}
+
+.chase-point:hover,
+.chase-point:focus-visible {
+  z-index: 10;
+  outline: 2px solid #fff;
+  outline-offset: 3px;
+}
+
+.chase-card-key {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border-top: 1px solid var(--line);
+}
+
+.chase-card-key > button {
+  display: grid;
+  grid-template-columns: 24px 34px minmax(0,1fr) auto;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  padding: 10px 2px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  color: inherit;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.chase-card-key > button:nth-child(odd) { padding-right: 14px; }
+.chase-card-key > button:nth-child(even) { padding-left: 14px; border-left: 1px solid var(--line); }
+.chase-card-key > button:hover,
+.chase-card-key > button:focus-visible { background: rgba(255,255,255,.025); outline: 0; }
+.chase-card-key > button > b { color: var(--accent); font: 800 11px Manrope, sans-serif; text-align: center; }
+.chase-card-key > button > span { min-width: 0; }
+.chase-card-key strong,
+.chase-card-key small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chase-card-key strong { font-size: 11px; }
+.chase-card-key small { margin-top: 3px; color: var(--muted); font-size: 9px; }
+.chase-card-key em { color: var(--ink); font-size: 10px; font-style: normal; font-weight: 700; }
+.chase-card-key .card-thumbnail { border-radius: 2px; }
+
+.chase-chart-key {
+  justify-content: flex-start;
+  margin: 0;
+  padding: 12px 2px;
+  border: 0;
+  border-top: 1px solid var(--line);
+  border-radius: 0;
+  background: transparent;
+}
+.chase-chart-key b { border-radius: 1px; }
+
+/* Nested evidence reads as rows within its parent section. */
+.outcome-landmarks,
+.scenario-candles {
+  border-right: 0;
+  border-left: 0;
+}
+.seller-slot-detail {
+  border-right: 0;
+  border-bottom: 0;
+  border-left: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.contributors > summary { border-radius: 0; }
+.contributor-columns span:last-child,
+.contributor-card .ev-contribution { border-radius: 0; }
+
+/* Dialogs are guaranteed to paint over the sticky product header. */
+.card-scrim {
+  z-index: 400;
+  place-items: center;
+  padding: max(8px, env(safe-area-inset-top)) 8px max(8px, env(safe-area-inset-bottom));
+}
+.card-inspector { max-height: 100%; }
+.card-inspector > header { padding: 14px 16px; }
+.card-inspector > header .icon-button { flex: 0 0 40px; background: #1b2028; }
+
+@media (max-width: 719px) {
+  .page { padding-inline: 14px; }
+  .panel > .panel-heading { padding: 18px 16px; }
+  .chase-card-key { grid-template-columns: 1fr; }
+  .chase-card-key > button:nth-child(odd),
+  .chase-card-key > button:nth-child(even) { padding-inline: 2px; border-left: 0; }
+  .constellation { height: 300px; }
+  .card-inspector { border-radius: 2px; }
+}

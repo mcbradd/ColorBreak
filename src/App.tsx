@@ -59,7 +59,7 @@ import type {
 import { SLOT_IDS, SLOT_NAMES } from "./domain/types";
 import { useMobileInputViewport } from "./mobile-input-viewport";
 import { track } from "./analytics";
-import { chaseMapScale, layoutChaseTargets } from "./constellation-layout";
+import { chaseMapScale } from "./constellation-layout";
 
 type Mode = "home" | "buyer" | "seller";
 const money = new Intl.NumberFormat("en-US", {
@@ -776,7 +776,7 @@ export function ValueSummary({ result }: { result: ValuationResult }) {
   );
 }
 
-function SlotRail({
+export function SlotRail({
   result,
   selected,
   setSelected,
@@ -785,8 +785,24 @@ function SlotRail({
   selected: SlotId;
   setSelected: (id: SlotId) => void;
 }) {
+  const railRef = useRef<HTMLElement>(null);
+  const anchorTop = useRef<number | null>(null);
+
+  const rememberPosition = () => {
+    anchorTop.current = railRef.current?.getBoundingClientRect().top ?? null;
+  };
+
+  useLayoutEffect(() => {
+    if (anchorTop.current == null || !railRef.current) return;
+    const delta = railRef.current.getBoundingClientRect().top - anchorTop.current;
+    anchorTop.current = null;
+    if (Math.abs(delta) > 0.5) {
+      window.scrollBy({ behavior: "instant", top: delta });
+    }
+  }, [selected]);
+
   return (
-    <section className="slot-browser">
+    <section ref={railRef} className="slot-browser">
       <div className="slot-browser-heading">
         <span>Inspect a color slot</span>
         <Tip text="Choose a color to update the card-level views below. These buttons inspect a slot; they do not remove it from the remaining random-assignment pool." />
@@ -799,7 +815,15 @@ function SlotRail({
             aria-label={`${slot.name} slot`}
             className={`slot slot-${slot.id} ${selected === slot.id ? "active" : ""}`}
             key={slot.id}
-            onClick={() => setSelected(slot.id)}
+            onPointerDown={rememberPosition}
+            onClick={() => {
+              if (slot.id === selected) {
+                anchorTop.current = null;
+                return;
+              }
+              if (anchorTop.current == null) rememberPosition();
+              setSelected(slot.id);
+            }}
           >
             <span>{slot.id}</span>
             <b>{fmt(slot.sellableEV)}</b>
@@ -1261,7 +1285,7 @@ function EvidenceLens({ analysis }: { analysis: BreakAnalysis }) {
     },
   ];
   return (
-    <details className="panel evidence-lens">
+    <details className="rollout evidence-lens">
       <summary className="disclosure-summary">
         <span><ShieldAlert /><b>Data confidence</b><small>{analysis.outcomeModel.complete === false ? "Some missing data prevents a full answer" : "All key information is ready"}</small></span>
         <span className="summary-actions"><span className="summary-help"><span>{ageHours == null ? "Price time unknown" : `Prices ${ageHours < 1 ? "<1" : Math.round(ageHours)}h old`}</span><Tip text="Shows which product details were checked and which are still missing. ColorBreak hides outcome ranges when missing information could change the answer." /></span><DisclosureArrow /></span>
@@ -1297,57 +1321,53 @@ export function ChaseConstellation({
   const scale = chaseMapScale(rows.map(datum));
   const maxContribution = Math.max(1, ...rows.map((row) => row.sellableValue));
   const contributorId = (row: Contributor) => `${row.card.id}|${row.finish ?? "nonfoil"}`;
-  const rowById = new Map(rows.map((row) => [contributorId(row), row]));
-  const layout = layoutChaseTargets(rows.map((row) => {
-    const position = scale.position(datum(row));
-    return {
-      id: contributorId(row),
-      ...position,
-    };
-  }));
   return (
-    <details className="panel supporting-view">
-      <summary className="disclosure-summary"><span><b>Chase Map</b><small>Card price vs. chance of pulling it</small></span><span className="summary-actions"><span className="summary-help"><span>{SLOT_NAMES[slot.id]}</span><Tip text="Each glowing point is a card's exact price and pull chance. Follow its line to the card image around the graph, then tap the image for full details." /></span><DisclosureArrow /></span></summary>
+    <details className="rollout supporting-view">
+      <summary className="disclosure-summary"><span><b>Chase Map</b><small>Card price vs. chance of pulling it</small></span><span className="summary-actions"><span className="summary-help"><span>{SLOT_NAMES[slot.id]}</span><Tip text="Each numbered point maps directly to the same number in the card key. Position shows price and pull chance; size shows how much the card adds to average value. Tap either place for full details." /></span><DisclosureArrow /></span></summary>
       {!rows.length ? <p className="supporting-empty">No cards meet the current bulk boundary.</p> : (
-        <div className="constellation chase-map" aria-label={`${SLOT_NAMES[slot.id]} card price and pull chance map`}>
-          <div className="chase-plot" aria-hidden="true">
-            <span className="plot-price plot-price-high">{fmt(scale.maxPrice)}</span>
-            <span className="plot-price plot-price-mid">{fmt(scale.maxPrice / 2)}</span>
-            <span className="plot-price plot-price-low">$0</span>
-            <span className="plot-odds plot-odds-low">0%</span>
-            <span className="plot-odds plot-odds-mid">{oddsLabel(scale.maxProbability / 2)}</span>
-            <span className="plot-odds plot-odds-high">{oddsLabel(scale.maxProbability)}</span>
-          </div>
-          <svg className="chase-pointers" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-            {layout.map((point) => {
-              const row = rowById.get(point.id)!;
-              const radius = 1.1 + Math.sqrt(row.sellableValue / maxContribution) * 1.8;
+        <div className="chase-map" aria-label={`${SLOT_NAMES[slot.id]} card price and pull chance map`}>
+          <div className="constellation">
+            <div className="chase-plot" aria-hidden="true">
+              <span className="plot-price plot-price-high">{fmt(scale.maxPrice)}</span>
+              <span className="plot-price plot-price-mid">{fmt(scale.maxPrice / 2)}</span>
+              <span className="plot-price plot-price-low">$0</span>
+              <span className="plot-odds plot-odds-low">0%</span>
+              <span className="plot-odds plot-odds-mid">{oddsLabel(scale.maxProbability / 2)}</span>
+              <span className="plot-odds plot-odds-high">{oddsLabel(scale.maxProbability)}</span>
+            </div>
+            {rows.map((row, index) => {
+              const point = scale.position(datum(row));
+              const radius = 26 + Math.sqrt(row.sellableValue / maxContribution) * 12;
+              const displayName = cardDisplayName(row.card, row.finish);
               return (
-                <g key={point.id}>
-                  <polyline points={`${point.x},${point.y} ${point.exitX},${point.exitY} ${point.targetX},${point.targetY}`} />
-                  <circle cx={point.x} cy={point.y} r={radius} />
-                </g>
+                <button
+                  className="chase-point"
+                  key={contributorId(row)}
+                  style={{
+                    left: `${point.x}%`,
+                    top: `${point.y}%`,
+                    width: `${radius}px`,
+                    height: `${radius}px`,
+                  }}
+                  onClick={() => onInspect(row)}
+                  aria-label={`${displayName}: ${oddsLabel(row.sellablePullProbability)} pull chance, ${fmt(datum(row).price)} market price, adds ${fmt(row.sellableValue)} to the average`}
+                  title={displayName}
+                >
+                  {index + 1}
+                </button>
               );
             })}
-          </svg>
-          {layout.map((point) => {
-            const row = rowById.get(point.id)!;
-            const price = datum(row).price;
-            const displayName = cardDisplayName(row.card, row.finish);
-            return (
-              <button
-                className="chase-target"
-                key={contributorId(row)}
-                style={{ left: `${point.targetX}%`, top: `${point.targetY}%` }}
-                onClick={() => onInspect(row)}
-                aria-label={`${displayName}: ${oddsLabel(row.sellablePullProbability)} pull chance, ${fmt(price)} market price, adds ${fmt(row.sellableValue)} to the average`}
-                title={displayName}
-              >
-                {row.card.image ? <img src={row.card.image} alt="" loading="lazy" /> : <span>{row.card.name.slice(0, 1)}</span>}
-                <i>{oddsLabel(row.sellablePullProbability)}</i>
+          </div>
+          <div className="chase-card-key">
+            {rows.map((row, index) => (
+              <button key={contributorId(row)} type="button" onClick={() => onInspect(row)}>
+                <b>{index + 1}</b>
+                <CardThumbnail row={row} />
+                <span><strong>{cardDisplayName(row.card, row.finish)}</strong><small>{oddsLabel(row.sellablePullProbability)} chance · {fmt(datum(row).price)}</small></span>
+                <em>{fmt(row.sellableValue)}</em>
               </button>
-            );
-          })}
+            ))}
+          </div>
         </div>
       )}
       {rows.length > 0 && <div className="chase-chart-key" aria-label="Chase Map chart key">
@@ -2349,15 +2369,6 @@ function Workspace({
           >
             <Copy />
           </button>
-          {mode === "buyer" && (
-            <button
-              className="icon-button"
-              onClick={() => setBuilder(true)}
-              title="Add product"
-            >
-              <PackagePlus />
-            </button>
-          )}
         </div>
       </nav>
       <main className="workspace page">
