@@ -31,3 +31,16 @@ export function undoAssignment(state: AuctionState): AuctionState {
     assignments: state.assignments.slice(0, -1),
   };
 }
+
+export function toggleSlotTaken(state: AuctionState, slot: SlotId): AuctionState {
+  if (state.remaining.includes(slot)) {
+    if (state.remaining.length === 1) return state;
+    return assignSlot(state, slot);
+  }
+  return {
+    remaining: SLOT_IDS.filter((candidate) =>
+      state.remaining.includes(candidate) || candidate === slot,
+    ),
+    assignments: state.assignments.filter((candidate) => candidate !== slot),
+  };
+}

@@ -33,7 +33,7 @@ import { catalogSets, productsForSet } from "./data/catalog";
 import { evaluateBreakAnalysis } from "./data/evaluate";
 import type { BreakAnalysis } from "./data/evaluate";
 import { sealedMarketPrice } from "./data/sealed-prices";
-import { assignSlot, createAuction, undoAssignment } from "./domain/auction";
+import { createAuction, toggleSlotTaken } from "./domain/auction";
 import type { AuctionState } from "./domain/auction";
 import { decodeLegacySearch, encodeComposition } from "./domain/legacy";
 import {
@@ -62,6 +62,7 @@ import { track } from "./analytics";
 import { chaseMapLayout } from "./constellation-layout";
 
 type Mode = "home" | "buyer" | "seller";
+type AssignmentMode = "random" | "pick";
 const money = new Intl.NumberFormat("en-US", {
   style: "currency",
   currency: "USD",
@@ -667,16 +668,18 @@ export function Composition({
   add,
   update,
   remove,
+  headingLabel = "BREAK",
 }: {
   lines: BreakLine[];
   add: () => void;
   update: (id: string, patch: Partial<BreakLine>) => void;
   remove: (id: string) => void;
+  headingLabel?: string;
 }) {
   return (
     <section className="composition panel">
       <PanelHeading
-        label="BREAK"
+        label={headingLabel}
         help="The sealed products and quantities being opened in this break. Changing any line immediately recalculates card contents, prices, color value, and possible opening values."
         title={<>{lines.length} product{lines.length === 1 ? "" : "s"}</>}
         accessory={<button className="quiet" onClick={add}>
@@ -778,58 +781,82 @@ export function ValueSummary({ result }: { result: ValuationResult }) {
 
 export function SlotRail({
   result,
+  auction,
+  setAuction,
+  assignmentMode,
+  setAssignmentMode,
   selected,
   setSelected,
 }: {
-  result: ValuationResult;
+  result?: ValuationResult;
+  auction: AuctionState;
+  setAuction: (state: AuctionState) => void;
+  assignmentMode: AssignmentMode;
+  setAssignmentMode: (mode: AssignmentMode) => void;
   selected: SlotId;
   setSelected: (id: SlotId) => void;
 }) {
-  const railRef = useRef<HTMLElement>(null);
-  const anchorTop = useRef<number | null>(null);
-
-  const rememberPosition = () => {
-    anchorTop.current = railRef.current?.getBoundingClientRect().top ?? null;
-  };
-
-  useLayoutEffect(() => {
-    if (anchorTop.current == null || !railRef.current) return;
-    const delta = railRef.current.getBoundingClientRect().top - anchorTop.current;
-    anchorTop.current = null;
-    if (Math.abs(delta) > 0.5) {
-      window.scrollBy({ behavior: "instant", top: delta });
-    }
-  }, [selected]);
-
   return (
-    <section ref={railRef} className="slot-browser">
-      <div className="slot-browser-heading">
-        <span>Inspect a color slot</span>
-        <Tip text="Choose a color to update the card-level views below. These buttons inspect a slot; they do not remove it from the remaining random-assignment pool." />
+    <section className="buyer-slot-control" aria-labelledby="buyer-color-heading">
+      <div className="buyer-slot-heading">
+        <div>
+          <p className="section-label">2 · COLOR</p>
+          <h2 id="buyer-color-heading">{assignmentMode === "pick" ? "Choose your color" : "Mark colors already taken"}</h2>
+          <p>Tap a color to price it. Tap × to remove a taken color from the random pool.</p>
+        </div>
+        <Tip text="Choose a color when the auction lets you pick. For random assignment, tap × on every color already taken; ColorBreak recalculates using only the colors left." />
       </div>
-      <div className="slot-rail" role="tablist" aria-label="Color slots">
-        {result.slots.map((slot) => (
-          <button
-            role="tab"
-            aria-selected={selected === slot.id}
-            aria-label={`${slot.name} slot`}
-            className={`slot slot-${slot.id} ${selected === slot.id ? "active" : ""}`}
-            key={slot.id}
-            onPointerDown={rememberPosition}
-            onClick={() => {
-              if (slot.id === selected) {
-                anchorTop.current = null;
-                return;
-              }
-              if (anchorTop.current == null) rememberPosition();
-              setSelected(slot.id);
-            }}
-          >
-            <span>{slot.id}</span>
-            <b>{fmt(slot.sellableEV)}</b>
-          </button>
-        ))}
+      <div className="assignment-toggle buyer-assignment-toggle" role="group" aria-label="Break assignment mode">
+        <button className={assignmentMode === "pick" ? "active" : ""} onClick={() => {
+          const nextSelected = auction.remaining.includes(selected) ? selected : auction.remaining[0];
+          if (nextSelected) setSelected(nextSelected);
+          setAssignmentMode("pick");
+        }}>Pick a color</button>
+        <button className={assignmentMode === "random" ? "active" : ""} onClick={() => setAssignmentMode("random")}>Random remaining</button>
       </div>
+      <div className="buyer-slot-rail" role="group" aria-label="Color slots">
+        {SLOT_IDS.map((id) => {
+          const slot = result?.slots.find((row) => row.id === id);
+          const taken = !auction.remaining.includes(id);
+          const finalAvailable = !taken && auction.remaining.length === 1;
+          return (
+            <div className={`buyer-slot-tile slot-${id} ${selected === id && assignmentMode === "pick" ? "active" : ""} ${taken ? "taken" : ""}`} key={id}>
+              <button
+                type="button"
+                aria-pressed={selected === id && assignmentMode === "pick"}
+                aria-label={`${SLOT_NAMES[id]} slot`}
+                disabled={taken}
+                className="buyer-slot-select"
+                onClick={() => {
+                  setSelected(id);
+                  setAssignmentMode("pick");
+                }}
+              >
+                <span>{id}</span>
+                <b>{slot ? fmt(slot.sellableEV) : "—"}</b>
+                <small>{taken ? "Taken" : SLOT_NAMES[id]}</small>
+              </button>
+              <button
+                type="button"
+                className="slot-taken-toggle"
+                aria-label={taken ? `Restore ${SLOT_NAMES[id]} slot` : `Mark ${SLOT_NAMES[id]} taken`}
+                aria-pressed={taken}
+                disabled={finalAvailable}
+                title={finalAvailable ? "At least one color must remain" : taken ? "Restore color" : "Mark taken"}
+                onClick={() => {
+                  const next = toggleSlotTaken(auction, id);
+                  if (next === auction) return;
+                  setAuction(next);
+                  setAssignmentMode("random");
+                  if (!next.remaining.includes(selected)) setSelected(next.remaining[0]);
+                  if (!taken) track("slot_assigned", { remainingCount: next.remaining.length });
+                }}
+              ><X aria-hidden="true" /></button>
+            </div>
+          );
+        })}
+      </div>
+      <p className="remaining-summary">{assignmentMode === "random" ? `${auction.remaining.length} colors remain in the random pool` : `${SLOT_NAMES[selected]} selected`}</p>
     </section>
   );
 }
@@ -1564,18 +1591,15 @@ export function SlotValueDetails({
 export function BuyerView({
   analysis,
   auction,
-  setAuction,
+  assignmentMode,
   selected,
-  setSelected,
 }: {
   analysis: BreakAnalysis;
   auction: AuctionState;
-  setAuction: (state: AuctionState) => void;
+  assignmentMode: AssignmentMode;
   selected: SlotId;
-  setSelected: (slot: SlotId) => void;
 }) {
   const result = analysis.valuation;
-  const [assignmentMode, setAssignmentMode] = useState<"random" | "pick">("pick");
   const [bid, setBid] = useState<number>();
   const [shipping, setShipping] = useState<number>();
   const [inspectedCard, setInspectedCard] = useState<Contributor | null>(null);
@@ -1599,10 +1623,6 @@ export function BuyerView({
       <section
         className={`verdict panel verdict-${decision.replace(/[^A-Z]/g, "").toLowerCase()}`}
       >
-        <div className="assignment-toggle" role="group" aria-label="Break assignment mode">
-          <button className={assignmentMode === "random" ? "active" : ""} onClick={() => setAssignmentMode("random")}>Random remaining slot</button>
-          <button className={assignmentMode === "pick" ? "active" : ""} onClick={() => setAssignmentMode("pick")}>I pick my color</button>
-        </div>
         <div className="verdict-head">
           <div className="verdict-decision">
             <SectionLabel text={assignmentMode === "random"
@@ -1648,35 +1668,9 @@ export function BuyerView({
           </p>
         )}
       </section>
-      {assignmentMode === "random" && (
-        <section className="panel assignment-panel">
-          <PanelHeading
-            label="AFTER EACH AUCTION"
-            help="After Whatnot reveals which color the buyer received, tap that matching circle once. ColorBreak removes it from the random pool and recalculates the next auction. Dimmed circles are already assigned; Undo restores the most recent one."
-            title="Tap the assigned slot"
-            accessory={<button className="quiet" disabled={!auction.assignments.length} onClick={() => setAuction(undoAssignment(auction))}>Undo</button>}
-          />
-          <div className="assignment-slots">
-            {SLOT_IDS.map((id) => (
-              <button
-                key={id}
-                className={`slot-${id}`}
-                disabled={!auction.remaining.includes(id) || auction.remaining.length === 1}
-                onClick={() => {
-                  const next = assignSlot(auction, id);
-                  setAuction(next);
-                  track("slot_assigned", { remainingCount: next.remaining.length });
-                }}
-                aria-label={`Mark ${SLOT_NAMES[id]} assigned`}
-              ><span>{id}</span><small>{SLOT_NAMES[id]}</small></button>
-            ))}
-          </div>
-          {auction.remaining.length === 1 && <p className="last-slot">Final slot: {SLOT_NAMES[auction.remaining[0]]}. No assignment tap needed.</p>}
-        </section>
-      )}
+      <ValueSummary result={result} />
       <BreakBalance result={result} model={analysis.outcomeModel} remaining={auction.remaining} simulation={simulation.result} />
       <EvidenceLens analysis={analysis} />
-        <SlotRail result={result} selected={selected} setSelected={(slotId) => { setSelected(slotId); setAssignmentMode("pick"); }} />
       <ChaseConstellation slot={slot} onInspect={setInspectedCard} />
       <SlotValueDetails
         slot={slot}
@@ -2253,6 +2247,72 @@ function storedLines(
   }
 }
 
+export function BuyerSetup({
+  lines,
+  add,
+  update,
+  remove,
+  result,
+  auction,
+  setAuction,
+  assignmentMode,
+  setAssignmentMode,
+  selected,
+  setSelected,
+  bulkEnabled,
+  bulkThreshold,
+  setBulkEnabled,
+  setBulkThreshold,
+}: {
+  lines: BreakLine[];
+  add: () => void;
+  update: (id: string, patch: Partial<BreakLine>) => void;
+  remove: (id: string) => void;
+  result?: ValuationResult;
+  auction: AuctionState;
+  setAuction: (state: AuctionState) => void;
+  assignmentMode: AssignmentMode;
+  setAssignmentMode: (mode: AssignmentMode) => void;
+  selected: SlotId;
+  setSelected: (slot: SlotId) => void;
+  bulkEnabled: boolean;
+  bulkThreshold: number;
+  setBulkEnabled: (enabled: boolean) => void;
+  setBulkThreshold: (threshold: number) => void;
+}) {
+  return (
+    <section className="buyer-setup" aria-label="Bid setup">
+      <Composition
+        lines={lines}
+        add={add}
+        update={update}
+        remove={remove}
+        headingLabel="1 · BREAK CONTENTS"
+      />
+      <SlotRail
+        result={result}
+        auction={auction}
+        setAuction={setAuction}
+        assignmentMode={assignmentMode}
+        setAssignmentMode={setAssignmentMode}
+        selected={selected}
+        setSelected={setSelected}
+      />
+      <div className="buyer-options-heading">
+        <p className="section-label">3 · BID OPTIONS</p>
+        <h2>Set what counts as value</h2>
+      </div>
+      <BulkFilterControl
+        enabled={bulkEnabled}
+        threshold={bulkThreshold}
+        result={result}
+        onToggle={setBulkEnabled}
+        onThreshold={setBulkThreshold}
+      />
+    </section>
+  );
+}
+
 function Workspace({
   mode,
   exit,
@@ -2276,6 +2336,7 @@ function Workspace({
     [error, setError] = useState<string>(),
     [bulkThreshold, setBulkThreshold] = useState(2),
     [bulkEnabled, setBulkEnabled] = useState(true),
+    [assignmentMode, setAssignmentMode] = useState<AssignmentMode>("pick"),
     [selectedSlot, setSelectedSlot] = useState<SlotId>(() => {
       const shared = new URLSearchParams(location.search).get("s") as SlotId | null;
       return shared && SLOT_IDS.includes(shared) ? shared : "W";
@@ -2384,18 +2445,49 @@ function Workspace({
             <h1>{mode === "buyer" ? "Check a bid" : "Build & price"}</h1>
           </div>
         </header>
-        {lines.length > 0 && (
-          <BulkFilterControl
-            enabled={bulkEnabled}
-            threshold={bulkThreshold}
-            result={analysis?.valuation}
-            onToggle={setBulkEnabled}
-            onThreshold={setBulkThreshold}
-          />
-        )}
         {!lines.length ? (
           <EmptyBreak add={() => setBuilder(true)} />
+        ) : mode === "buyer" ? (
+          <>
+            <BuyerSetup
+              lines={lines}
+              add={() => setBuilder(true)}
+              update={update}
+              remove={(id) => setLines((rows) => rows.filter((row) => row.id !== id))}
+              result={analysis?.valuation}
+              auction={auction}
+              setAuction={setAuction}
+              assignmentMode={assignmentMode}
+              setAssignmentMode={setAssignmentMode}
+              selected={selectedSlot}
+              setSelected={setSelectedSlot}
+              bulkEnabled={bulkEnabled}
+              bulkThreshold={bulkThreshold}
+              setBulkEnabled={setBulkEnabled}
+              setBulkThreshold={setBulkThreshold}
+            />
+            <div className="results buyer-results">
+              {busy && <div className="calculating"><span />Calculating exact contents and prices…</div>}
+              {error && <div className="error"><ShieldAlert />{error}</div>}
+              {analysis && !busy && (
+                <BuyerView
+                  analysis={analysis}
+                  auction={auction}
+                  assignmentMode={assignmentMode}
+                  selected={selectedSlot}
+                />
+              )}
+            </div>
+          </>
         ) : (
+          <>
+            <BulkFilterControl
+              enabled={bulkEnabled}
+              threshold={bulkThreshold}
+              result={analysis?.valuation}
+              onToggle={setBulkEnabled}
+              onThreshold={setBulkThreshold}
+            />
           <div className="workspace-grid">
             <aside>
               <Composition
@@ -2421,16 +2513,11 @@ function Workspace({
                 </div>
               )}
               {analysis && !busy && (
-                <>
-                  {mode === "buyer" ? (
-                    <><ValueSummary result={analysis.valuation} /><BuyerView analysis={analysis} auction={auction} setAuction={setAuction} selected={selectedSlot} setSelected={setSelectedSlot} /></>
-                  ) : (
-                    <SellerView analysis={analysis} lines={lines} update={update} selectedSlot={selectedSlot} setSelectedSlot={setSelectedSlot} />
-                  )}
-                </>
+                <><ValueSummary result={analysis.valuation} /><SellerView analysis={analysis} lines={lines} update={update} selectedSlot={selectedSlot} setSelectedSlot={setSelectedSlot} /></>
               )}
             </div>
           </div>
+          </>
         )}
       </main>
       <Builder

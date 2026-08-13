@@ -1,7 +1,7 @@
-import { createElement, useState } from "react";
+import { createElement, Fragment, useState } from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { BuyerView } from "./App";
+import { BuyerView, SlotRail } from "./App";
 import { createAuction } from "./domain/auction";
 import { calculateBreak } from "./domain/valuation";
 import type { AuctionState } from "./domain/auction";
@@ -36,13 +36,17 @@ const analysis: BreakAnalysis = {
 function Harness() {
   const [auction, setAuction] = useState<AuctionState>(() => createAuction());
   const [selected, setSelected] = useState<SlotId>("W");
-  return createElement(BuyerView, { analysis, auction, setAuction, selected, setSelected });
+  const [assignmentMode, setAssignmentMode] = useState<"pick" | "random">("pick");
+  return createElement(Fragment, null,
+    createElement(SlotRail, { result: valuation, auction, setAuction, assignmentMode, setAssignmentMode, selected, setSelected }),
+    createElement(BuyerView, { analysis, auction, assignmentMode, selected }),
+  );
 }
 
 describe("live random-slot buyer workflow", () => {
-  it("removes the revealed slot in one tap and restores it with undo", async () => {
+  it("removes a taken slot in one tap and restores it from the same color tile", async () => {
     render(createElement(Harness));
-    fireEvent.click(screen.getByRole("button", { name: "Random remaining slot" }));
+    fireEvent.click(screen.getByRole("button", { name: "Random remaining" }));
     expect(screen.getByText("8 RANDOM SLOTS REMAIN")).toBeInTheDocument();
     expect(screen.getByText("ENTER BID")).toBeInTheDocument();
     await waitFor(() => expect(screen.getByLabelText("Possible opening values")).toBeInTheDocument());
@@ -52,11 +56,11 @@ describe("live random-slot buyer workflow", () => {
     fireEvent.blur(screen.getByLabelText("Current bid"));
     await waitFor(() => expect(screen.getByText(/Chance card value covers your \$12\.50 cost/)).toBeInTheDocument());
 
-    fireEvent.click(screen.getByRole("button", { name: "Mark Blue assigned" }));
+    fireEvent.click(screen.getByRole("button", { name: "Mark Blue taken" }));
     expect(screen.getByText("7 RANDOM SLOTS REMAIN")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Mark Blue assigned" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Blue slot" })).toBeDisabled();
 
-    fireEvent.click(screen.getByRole("button", { name: "Undo" }));
+    fireEvent.click(screen.getByRole("button", { name: "Restore Blue slot" }));
     expect(screen.getByText("8 RANDOM SLOTS REMAIN")).toBeInTheDocument();
     await waitFor(() => expect(screen.getByLabelText("Possible opening values")).toBeInTheDocument());
   });
@@ -65,8 +69,8 @@ describe("live random-slot buyer workflow", () => {
     render(createElement(Harness));
     await waitFor(() => expect(document.querySelectorAll(".balance-column")).toHaveLength(8));
     expect(screen.getByLabelText("Explain the Break Balance percentage")).toHaveTextContent("0%");
-    fireEvent.click(screen.getByRole("tab", { name: "Green slot" }));
-    expect(screen.getByRole("button", { name: "I pick my color" })).toHaveClass("active");
+    fireEvent.click(screen.getByRole("button", { name: "Green slot" }));
+    expect(screen.getByRole("button", { name: "Pick a color" })).toHaveClass("active");
     expect(screen.getByText("GREEN SLOT")).toBeInTheDocument();
     expect(screen.getByText("GREEN VALUE DETAILS")).toBeInTheDocument();
     expect(document.querySelectorAll(".balance-column")).toHaveLength(8);
@@ -75,9 +79,17 @@ describe("live random-slot buyer workflow", () => {
   it("updates the typical card value from the selected color distribution", async () => {
     render(createElement(Harness));
     await waitFor(() => expect(screen.getByLabelText("Typical card value")).toHaveTextContent("$10.00"));
-    fireEvent.click(screen.getByRole("tab", { name: "Blue slot" }));
+    fireEvent.click(screen.getByRole("button", { name: "Blue slot" }));
     await waitFor(() => expect(screen.getByLabelText("Typical card value")).toHaveTextContent("$20.00"));
     expect(screen.getByRole("button", { name: /middle result across many simulated openings/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Pick My Color evaluates only/i })).toBeInTheDocument();
+  });
+
+  it("shows the bid verdict before the supporting break-value summary", () => {
+    const { container } = render(createElement(Harness));
+    const verdict = container.querySelector(".verdict")!;
+    const valueSummary = container.querySelector(".value-summary")!;
+
+    expect(verdict.compareDocumentPosition(valueSummary) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 });

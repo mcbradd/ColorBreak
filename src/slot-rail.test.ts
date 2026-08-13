@@ -1,7 +1,9 @@
 import { createElement, useState } from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { SlotRail } from "./App";
+import { createAuction } from "./domain/auction";
+import type { AuctionState } from "./domain/auction";
 import type { SlotId, ValuationResult } from "./domain/types";
 
 const result = {
@@ -26,33 +28,40 @@ const result = {
 
 function Harness() {
   const [selected, setSelected] = useState<SlotId>("W");
-  return createElement(SlotRail, { result, selected, setSelected });
+  const [auction, setAuction] = useState<AuctionState>(() => createAuction());
+  const [assignmentMode, setAssignmentMode] = useState<"pick" | "random">("pick");
+  return createElement(SlotRail, {
+    result,
+    auction,
+    setAuction,
+    assignmentMode,
+    setAssignmentMode,
+    selected,
+    setSelected,
+  });
 }
 
-describe("color slot inspector rail", () => {
-  afterEach(() => vi.restoreAllMocks());
-
-  it("keeps the rail at the same viewport position when selection-dependent content changes height", () => {
-    let top = 240;
-    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(() => ({
-      top,
-      bottom: top + 80,
-      left: 0,
-      right: 320,
-      width: 320,
-      height: 80,
-      x: 0,
-      y: top,
-      toJSON: () => ({}),
-    }));
-    const scrollBy = vi.spyOn(window, "scrollBy").mockImplementation(() => {});
+describe("buyer color controls", () => {
+  it("selects a color for pick mode", () => {
     render(createElement(Harness));
 
-    const blue = screen.getByRole("tab", { name: "U slot" });
-    fireEvent.pointerDown(blue);
-    top = 96;
-    fireEvent.click(blue);
+    fireEvent.click(screen.getByRole("button", { name: "Green slot" }));
 
-    expect(scrollBy).toHaveBeenCalledWith({ behavior: "instant", top: -144 });
+    expect(screen.getByRole("button", { name: "Pick a color" })).toHaveClass("active");
+    expect(screen.getByText("Green selected")).toBeInTheDocument();
+  });
+
+  it("marks and restores taken colors with the x toggle", () => {
+    render(createElement(Harness));
+
+    fireEvent.click(screen.getByRole("button", { name: "Mark Blue taken" }));
+    expect(screen.getByRole("button", { name: "Random remaining" })).toHaveClass("active");
+    expect(screen.getByRole("button", { name: "Blue slot" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Restore Blue slot" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByText("7 colors remain in the random pool")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Restore Blue slot" }));
+    expect(screen.getByRole("button", { name: "Blue slot" })).toBeEnabled();
+    expect(screen.getByText("8 colors remain in the random pool")).toBeInTheDocument();
   });
 });
