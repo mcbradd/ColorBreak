@@ -1,5 +1,5 @@
 import { createElement } from "react";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { calculateBreak } from "./domain/valuation";
 import type { BreakAnalysis } from "./data/evaluate";
@@ -36,6 +36,7 @@ describe("buyer bid persistence", () => {
   });
 
   afterEach(() => {
+    cleanup();
     localStorage.clear();
     evaluateBreakAnalysis.mockReset();
   });
