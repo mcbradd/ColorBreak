@@ -41,7 +41,9 @@ import {
   requiredHammer,
   WHATNOT_US,
 } from "./domain/marketplace";
-import { buyerVerdict } from "./domain/valuation";
+import { recommendBid, solveFinancialCap } from "./domain/buyer-treatment";
+import type { ValueRule } from "./domain/buyer-treatment";
+import { completeCost, sellerPlanStatus } from "./domain/seller-plan";
 import { cardDisplayName } from "./domain/card-label";
 import { simulateOutcomesAsync } from "./domain/simulation-client";
 import type { DistributionSummary, PackOutcomeModel, SimulationResult } from "./domain/simulation";
@@ -414,9 +416,9 @@ function Home({ choose }: { choose: (mode: Mode) => void }) {
             <DollarSign />
           </span>
           <span>
-            <small>LIVE AUCTION</small>
-            <strong>Check a bid</strong>
-            <p>See what a slot is worth before the clock runs out.</p>
+            <small>BUYER · SUB-10 SECOND MODE</small>
+            <strong>Bid Check</strong>
+            <p>Prepare a limit, then make one clear call before the clock runs out.</p>
           </span>
           <ChevronRight />
         </button>
@@ -428,9 +430,9 @@ function Home({ choose }: { choose: (mode: Mode) => void }) {
             <Store />
           </span>
           <span>
-            <small>BREAK PLANNING</small>
-            <strong>Build & price</strong>
-            <p>Set profitable asks with fees, packing, and shipping included.</p>
+            <small>SELLER · PLAN TO LAUNCH</small>
+            <strong>Seller Studio</strong>
+            <p>See complete-cost economics first, then build a launch-ready plan.</p>
           </span>
           <ChevronRight />
         </button>
@@ -1609,6 +1611,7 @@ export function BuyerView({
 }) {
   const result = analysis.valuation;
   const [inspectedCard, setInspectedCard] = useState<Contributor | null>(null);
+  const [valueRule, setValueRule] = useState<ValueRule>({ kind: "median" });
   const slot = result.slots.find((row) => row.id === selected)!;
   const landed = (bid ?? 0) + (shipping ?? 0);
   const simulation = useOutcomeSimulation(analysis, auction.remaining, bid == null ? undefined : landed);
@@ -1618,17 +1621,48 @@ export function BuyerView({
   const fallbackMean = assignmentMode === "random"
     ? result.slots.filter((row) => auction.remaining.includes(row.id)).reduce((sum, row) => sum + row.sellableEV, 0) / Math.max(1, auction.remaining.length)
     : slot.sellableEV;
-  const decision = bid == null ? "ENTER BID"
-    : result.status === "incomplete" ? "NO VERDICT"
-      : distribution?.chanceToClearCost == null
-        ? buyerVerdict(slot, landed, result.status)
-        : distribution.chanceToClearCost >= .6 ? "MORE CONSERVATIVE"
-          : distribution.chanceToClearCost >= .4 ? "HIGHER RISK" : "CHASE-ORIENTED";
+  const valueTarget = distribution == null
+    ? undefined
+    : valueRule.kind === "median"
+      ? distribution.median
+      : valueRule.kind === "coverage"
+        ? distribution.p25
+        : distribution.mean;
+  const cap = result.status === "incomplete" || valueTarget == null || shipping == null
+    ? { kind: "unknown-cost" as const }
+    : solveFinancialCap({
+        valueTarget,
+        acceptedAmounts: valueTarget > shipping
+          ? [Math.floor((valueTarget - shipping) * 100) / 100]
+          : [],
+        addedCost: () => shipping,
+      });
+  const recommendation = recommendBid(bid, cap);
+  const decision = bid == null
+    ? "ENTER BID"
+    : shipping == null
+      ? "ADD SHIPPING"
+      : recommendation.action === "bid"
+        ? "BID"
+        : recommendation.action === "stop"
+          ? "STOP HERE"
+          : recommendation.action === "pass"
+            ? "PASS"
+            : "NO CAP";
+  const ruleLabel = valueRule.kind === "median"
+    ? "Typical outcome"
+    : valueRule.kind === "coverage"
+      ? "75% coverage"
+      : "Average outcome";
   return (
     <>
       <section
-        className={`verdict panel verdict-${decision.replace(/[^A-Z]/g, "").toLowerCase()}`}
+        className={`verdict panel v2-decision decision-${recommendation.tone} verdict-${decision.replace(/[^A-Z]/g, "").toLowerCase()}`}
       >
+        <div className="decision-kicker">
+          <span>V2 RESEARCH PREVIEW</span>
+          <span>Modeled, not guaranteed</span>
+        </div>
         <div className="verdict-head">
           <div className="verdict-decision">
             <SectionLabel text={assignmentMode === "random"
@@ -1637,14 +1671,31 @@ export function BuyerView({
             >
               {assignmentMode === "random" ? `${auction.remaining.length} RANDOM SLOTS REMAIN` : `${SLOT_NAMES[selected].toUpperCase()} SLOT`}
             </SectionLabel>
-            <h2>{decision}</h2>
+            <h2 aria-live="polite">{decision}</h2>
+            {recommendation.action === "bid" && (
+              <p className="decision-reason">Current hammer is {fmt(recommendation.room)} below your modeled ceiling.</p>
+            )}
+            {recommendation.action === "stop" && (
+              <p className="decision-reason">The current hammer has reached your modeled ceiling.</p>
+            )}
+            {recommendation.action === "pass" && (
+              <p className="decision-reason">Current hammer is {fmt(Math.abs(recommendation.room))} beyond your modeled ceiling.</p>
+            )}
           </div>
           <div className="ev-orb">
-            <small><span>TYPICAL CARD VALUE</span><Tip text="The middle result across many simulated openings: about half are worth less and half are worth more. A $0 typical result means most modeled openings do not contain a card in this color above your bulk-filter amount; it does not mean the color has no average value." /></small>
+            <Tip text="The middle result across many simulated openings: about half are worth less and half are worth more." />
+            <small><span>YOUR MAX HAMMER</span><Tip text="The highest hammer price that stays within the value rule you chose after the shipping you entered. This is a model output, not a guarantee." /></small>
+            <strong className="max-hammer" aria-label="Maximum hammer" aria-live="polite">{cap.kind === "cap" ? fmt(cap.amount) : "—"}</strong>
+            <span>{ruleLabel} · all-in {fmt(valueTarget)}</span>
             <strong aria-label="Typical card value" aria-live="polite">{simulation.busy && !distribution ? "Checking…" : fmt(distribution?.median ?? fallbackMean)}</strong>
             {distribution?.median === 0 && <em>Usually no card above the bulk filter</em>}
             <span>Average {fmt(distribution?.mean ?? fallbackMean)}</span>
           </div>
+        </div>
+        <div className="value-rule" role="group" aria-label="Value rule">
+          <button aria-pressed={valueRule.kind === "coverage"} onClick={() => setValueRule({ kind: "coverage", coverage: .75 })}>Safer · 75%</button>
+          <button aria-pressed={valueRule.kind === "median"} onClick={() => setValueRule({ kind: "median" })}>Balanced · median</button>
+          <button aria-pressed={valueRule.kind === "average"} onClick={() => setValueRule({ kind: "average" })}>Chase · average</button>
         </div>
         <div className="bid-inputs">
           <NumberField label="Current bid" value={bid} onChange={setBid} />
@@ -1938,6 +1989,11 @@ export function SellerView({
     [covered, setCovered] = useState(0),
     [shipments, setShipments] = useState(8),
     [minimum, setMinimum] = useState(1);
+  const [labor, setLabor] = useState(0);
+  const [tax, setTax] = useState(0);
+  const [giveaways, setGiveaways] = useState(0);
+  const [refundReserve, setRefundReserve] = useState(0);
+  const [overhead, setOverhead] = useState(0);
   const [commission, setCommission] = useState(WHATNOT_US.commissionRate * 100);
   const [processing, setProcessing] = useState(WHATNOT_US.processingRate * 100);
   const [processingFlat, setProcessingFlat] = useState(WHATNOT_US.processingFlat);
@@ -1954,7 +2010,6 @@ export function SellerView({
   const costsComplete = lines.every(
     (l) => l.myCost != null || l.marketCost != null,
   );
-  const targetProfit = (acquisition * margin) / 100;
   const marketplace = {
     ...WHATNOT_US,
     commissionRate: commission / 100,
@@ -1966,23 +2021,41 @@ export function SellerView({
   };
   const soldIds = SLOT_IDS.filter((id) => !unsold.has(id));
   const shipmentCount = Math.min(soldIds.length, Math.max(1, Math.round(shipments)));
+  const shipmentCosts = (packing + covered) * shipmentCount;
+  const otherCosts = labor + tax + giveaways + refundReserve + overhead;
+  const plannedCost = completeCost({
+    acquisition,
+    packingAndCoveredShipping: shipmentCosts,
+    labor,
+    tax,
+    giveaways,
+    refundReserve,
+    overhead,
+  });
+  const targetProfit = plannedCost * margin / 100;
   const target = requiredHammer(
     soldIds.length,
-    (packing + covered) * shipmentCount,
-    acquisition,
+    shipmentCosts,
+    acquisition + otherCosts,
     targetProfit,
     buyerShip,
     marketplace,
   );
   const breakEven = requiredHammer(
     soldIds.length,
-    (packing + covered) * shipmentCount,
-    acquisition,
+    shipmentCosts,
+    acquisition + otherCosts,
     0,
     buyerShip,
     marketplace,
   );
   const asks = allocate(result, target, minimum, locked, unsold);
+  const planStatus = sellerPlanStatus(result.sellableEV, breakEven, target);
+  const planStatusLabel = planStatus.kind === "run"
+    ? "RUN THIS BREAK"
+    : planStatus.kind === "change"
+      ? "REPRICE OR CHANGE"
+      : "DO NOT RUN";
   const askTotal = soldIds.reduce((sum, id) => sum + asks[id], 0);
   const transactions = Object.entries(actual)
     .filter(([slot, v]) => v != null && !unsold.has(slot as SlotId))
@@ -2005,12 +2078,34 @@ export function SellerView({
             packingCost: packing,
             sellerCoveredShipping: covered,
           })),
-          acquisition,
+          acquisition + otherCosts,
           marketplace,
         )
       : undefined;
   return (
     <>
+      <section className={`panel seller-primary-decision seller-${costsComplete ? planStatus.kind : "incomplete"}`}>
+        <div className="decision-kicker">
+          <span>V2 SELLER DECISION</span>
+          <span>Economics check · no fill prediction</span>
+        </div>
+        <div className="seller-decision-main">
+          <div>
+            <p className="section-label">RECOMMENDATION</p>
+            <h2>{costsComplete ? planStatusLabel : "ADD PRODUCT COST"}</h2>
+            {costsComplete && <p>Modeled buyer card value is {fmt(Math.abs(planStatus.headroom))} {planStatus.headroom >= 0 ? "above" : "below"} the sales target. Validate demand before launch.</p>}
+          </div>
+          <strong>{costsComplete ? fmt(targetProfit) : "—"}<small>planned net target</small></strong>
+        </div>
+        {costsComplete && (
+          <div className="seller-decision-metrics">
+            <div><span>Break-even sales</span><b>{fmt(breakEven)}</b></div>
+            <div><span>Target sales</span><b>{fmt(target)}</b></div>
+            <div><span>Complete planned cost</span><b>{fmt(plannedCost)}</b></div>
+          </div>
+        )}
+      </section>
+      <ValueSummary result={result} />
       <section className="panel seller-plan">
         <PanelHeading
           label="PROFIT PLAN"
@@ -2024,7 +2119,7 @@ export function SellerView({
         {costsComplete && (
           <div className="profit-plan-summary">
             <div><span>Buyer card value</span><b>{fmt(result.sellableEV)}</b></div>
-            <div><span>Product cost used</span><b>{fmt(acquisition)}</b></div>
+            <div><span>Complete planned cost</span><b>{fmt(plannedCost)}</b></div>
             <div><span>Sales goal</span><b>{fmt(target)}</b><small>{margin}% profit target</small></div>
           </div>
         )}
@@ -2082,6 +2177,11 @@ export function SellerView({
             prefix=""
             hint="Buyer-grouped packages. Fees remain per color-slot purchase."
           />
+          <NumberField label="Labor" value={labor} onChange={(n) => setLabor(n ?? 0)} hint="Total labor opportunity cost for preparing and running this break." />
+          <NumberField label="Tax / permits" value={tax} onChange={(n) => setTax(n ?? 0)} />
+          <NumberField label="Giveaways" value={giveaways} onChange={(n) => setGiveaways(n ?? 0)} />
+          <NumberField label="Refund reserve" value={refundReserve} onChange={(n) => setRefundReserve(n ?? 0)} />
+          <NumberField label="Allocated overhead" value={overhead} onChange={(n) => setOverhead(n ?? 0)} />
         </div>
         <details className="fee-settings">
           <summary className="disclosure-summary"><span>Marketplace fee assumptions</span><DisclosureArrow /></summary>
@@ -2097,7 +2197,7 @@ export function SellerView({
         <SellerScenarioLab
           baseAnalysis={analysis}
           lines={lines}
-          acquisition={acquisition}
+          acquisition={acquisition + otherCosts}
           buyerShipping={buyerShip}
           packing={packing}
           coveredShipping={covered}
@@ -2253,6 +2353,17 @@ function storedLines(
   }
 }
 
+function storedBuyerNumber(key: "bid" | "shipping"): number | undefined {
+  try {
+    const stored = localStorage.getItem(`colorbreak:buyer:${key}`);
+    if (stored == null || stored.trim() === "") return undefined;
+    const value = Number(stored);
+    return Number.isFinite(value) && value >= 0 ? value : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export function BuyerSetup({
   lines,
   add,
@@ -2343,8 +2454,8 @@ export function Workspace({
     [bulkThreshold, setBulkThreshold] = useState(2),
     [bulkEnabled, setBulkEnabled] = useState(true),
     [assignmentMode, setAssignmentMode] = useState<AssignmentMode>("pick"),
-    [buyerBid, setBuyerBid] = useState<number>(),
-    [buyerShipping, setBuyerShipping] = useState<number>(),
+    [buyerBid, setBuyerBid] = useState<number | undefined>(() => storedBuyerNumber("bid")),
+    [buyerShipping, setBuyerShipping] = useState<number | undefined>(() => storedBuyerNumber("shipping")),
     [selectedSlot, setSelectedSlot] = useState<SlotId>(() => {
       const shared = new URLSearchParams(location.search).get("s") as SlotId | null;
       return shared && SLOT_IDS.includes(shared) ? shared : "W";
@@ -2361,6 +2472,18 @@ export function Workspace({
   useEffect(() => {
     try { localStorage.setItem("colorbreak:buyer:auction", JSON.stringify(auction)); } catch { /* optional */ }
   }, [auction]);
+  useEffect(() => {
+    try {
+      if (buyerBid == null) localStorage.removeItem("colorbreak:buyer:bid");
+      else localStorage.setItem("colorbreak:buyer:bid", String(buyerBid));
+    } catch { /* optional */ }
+  }, [buyerBid]);
+  useEffect(() => {
+    try {
+      if (buyerShipping == null) localStorage.removeItem("colorbreak:buyer:shipping");
+      else localStorage.setItem("colorbreak:buyer:shipping", String(buyerShipping));
+    } catch { /* optional */ }
+  }, [buyerShipping]);
   useEffect(() => {
     if (!lines.length) {
       setAnalysis(undefined);
@@ -2448,9 +2571,9 @@ export function Workspace({
         <header className="workspace-title">
           <div>
             <p className="eyebrow">
-              {mode === "buyer" ? "LIVE AUCTION" : "BREAK PLANNING"}
+              {mode === "buyer" ? "BUYER · SUB-10 SECOND MODE" : "SELLER · PLAN TO LAUNCH"}
             </p>
-            <h1>{mode === "buyer" ? "Check a bid" : "Build & price"}</h1>
+            <h1>{mode === "buyer" ? "Bid Check" : "Seller Studio"}</h1>
           </div>
         </header>
         {!lines.length ? (
@@ -2525,7 +2648,7 @@ export function Workspace({
                 </div>
               )}
               {analysis && !busy && (
-                <><ValueSummary result={analysis.valuation} /><SellerView analysis={analysis} lines={lines} update={update} selectedSlot={selectedSlot} setSelectedSlot={setSelectedSlot} /></>
+                <SellerView analysis={analysis} lines={lines} update={update} selectedSlot={selectedSlot} setSelectedSlot={setSelectedSlot} />
               )}
             </div>
           </div>

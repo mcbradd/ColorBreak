@@ -369,3 +369,111 @@ body { background-image: none; }
   .constellation { height: 300px; }
   .card-inspector { border-radius: 2px; }
 }
+
+/* V2 buyer decision: one action, one ceiling, one falsifiable reason. */
+.v2-decision { border-top-width: 4px; }
+.v2-decision.decision-positive { border-top-color: var(--safe); }
+.v2-decision.decision-warning { border-top-color: #f2bd58; }
+.v2-decision.decision-negative { border-top-color: var(--danger); }
+.decision-kicker {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 18px;
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .11em;
+}
+.decision-kicker span:first-child { color: var(--accent); }
+.decision-reason {
+  max-width: 430px;
+  margin: 6px 0 0;
+  color: #c4cbd5;
+  font-size: 12px;
+  line-height: 1.4;
+}
+.ev-orb .max-hammer { display: block; color: var(--accent); font-size: clamp(28px, 8vw, 44px); }
+.ev-orb > strong:not(.max-hammer),
+.ev-orb > em,
+.ev-orb > span:last-child { display: none; }
+.ev-orb > span { display: block; margin-top: 2px; color: var(--muted); font-size: 10px; }
+.ev-orb > i { display: block; margin-top: 5px; color: #7e8795; font-size: 9px; font-style: normal; }
+.value-rule {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 0 18px 16px;
+  border: 1px solid var(--line-strong);
+}
+.value-rule button {
+  min-height: 44px;
+  padding: 7px 5px;
+  border: 0;
+  border-right: 1px solid var(--line-strong);
+  color: var(--muted);
+  background: #0d1015;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.value-rule button:last-child { border-right: 0; }
+.value-rule button[aria-pressed="true"] { color: #11160b; background: var(--accent); }
+.v2-decision .bid-inputs { border-top: 1px solid var(--line); padding-top: 16px; }
+
+@media (max-width: 520px) {
+  .v2-decision .verdict-head { align-items: flex-start; padding: 18px 16px 14px; }
+  .v2-decision .verdict-head h2 { font-size: clamp(31px, 10vw, 44px); }
+  .v2-decision .ev-orb { min-width: 116px; }
+  .value-rule { margin-inline: 16px; }
+}
+
+/* V2 seller first result: viability before allocation mechanics. */
+.seller-primary-decision { border-top: 4px solid var(--muted); }
+.seller-primary-decision.seller-run { border-top-color: var(--safe); }
+.seller-primary-decision.seller-change { border-top-color: #f2bd58; }
+.seller-primary-decision.seller-do-not-run { border-top-color: var(--danger); }
+.seller-decision-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 20px;
+  padding: 22px 20px;
+}
+.seller-decision-main h2 { margin: 0; font: 800 clamp(30px, 7vw, 52px)/1 Manrope, sans-serif; letter-spacing: -.045em; }
+.seller-run .seller-decision-main h2 { color: var(--safe); }
+.seller-change .seller-decision-main h2 { color: #f2bd58; }
+.seller-do-not-run .seller-decision-main h2 { color: var(--danger); }
+.seller-decision-main p:last-child { max-width: 620px; margin: 9px 0 0; color: var(--muted); font-size: 12px; line-height: 1.45; }
+.seller-decision-main > strong { color: var(--accent); font: 800 clamp(25px, 6vw, 42px) Manrope, sans-serif; text-align: right; }
+.seller-decision-main > strong small { display: block; color: var(--muted); font: 700 9px "DM Sans", sans-serif; letter-spacing: .06em; text-transform: uppercase; }
+.seller-decision-metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-top: 1px solid var(--line); }
+.seller-decision-metrics > div { padding: 13px 18px; border-right: 1px solid var(--line); }
+.seller-decision-metrics > div:last-child { border-right: 0; }
+.seller-decision-metrics span,
+.seller-decision-metrics b { display: block; }
+.seller-decision-metrics span { color: var(--muted); font-size: 9px; }
+.seller-decision-metrics b { margin-top: 4px; font-size: 14px; }
+
+@media (max-width: 520px) {
+  .seller-decision-main { grid-template-columns: 1fr; align-items: start; padding: 19px 16px; }
+  .seller-decision-main > strong { text-align: left; }
+  .seller-decision-metrics > div { padding-inline: 10px; }
+
+  .buyer-setup { margin-bottom: 10px; }
+  .buyer-setup > .composition .panel-heading { min-height: 64px; padding: 11px 14px; }
+  .buyer-setup > .composition .panel-heading-copy h2 { font-size: 18px; }
+  .buyer-setup > .composition .line { padding: 8px 12px; }
+  .buyer-setup > .composition .set-glyph { width: 34px; height: 34px; }
+  .buyer-slot-control { padding-block: 12px; }
+  .buyer-slot-heading p:last-child { display: none; }
+  .buyer-assignment-toggle { margin-block: 9px; }
+  .buyer-assignment-toggle button { min-height: 44px; }
+  .buyer-slot-select { min-height: 66px; padding-block: 6px; }
+  .buyer-slot-select > span { width: 27px; height: 27px; }
+  .remaining-summary { margin-top: 7px; }
+  .buyer-options-heading { padding-block: 12px 7px; }
+  .buyer-options-heading h2 { font-size: 18px; }
+  .workspace-title { margin-block: 13px 16px; }
+  .workspace-title .eyebrow { margin-bottom: 4px; }
+}

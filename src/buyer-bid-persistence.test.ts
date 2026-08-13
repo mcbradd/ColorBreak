@@ -56,4 +56,17 @@ describe("buyer bid persistence", () => {
     expect(await screen.findByLabelText("Current bid")).toHaveValue("12.5");
     expect(screen.getByLabelText("Your added shipping")).toHaveValue("4.25");
   });
+
+  it("restores bid and shipping after a cold remount", async () => {
+    const first = render(createElement(Workspace, { mode: "buyer", exit: vi.fn() }));
+    fireEvent.change(await screen.findByLabelText("Current bid"), { target: { value: "12.50" } });
+    fireEvent.blur(screen.getByLabelText("Current bid"));
+    fireEvent.change(screen.getByLabelText("Your added shipping"), { target: { value: "4.25" } });
+    fireEvent.blur(screen.getByLabelText("Your added shipping"));
+    first.unmount();
+
+    render(createElement(Workspace, { mode: "buyer", exit: vi.fn() }));
+    expect(await screen.findByLabelText("Current bid")).toHaveValue("12.5");
+    expect(screen.getByLabelText("Your added shipping")).toHaveValue("4.25");
+  });
 });

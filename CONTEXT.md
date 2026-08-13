@@ -24,6 +24,14 @@ ColorBreak supports two time-sensitive jobs: a buyer deciding whether to bid on 
 - **Evidence state**: separate claims about product identity, contents, collation, finish, break rules, and price freshness. A material unresolved claim suppresses outcome assertions.
 - **Eligible / Estimated / Incomplete**: decision-confidence states. Incomplete is a disclosed lower bound and suppresses buyer verdicts and probability views.
 - **Omission**: a named unresolved product, booster, printing, finish, or sheet weight. Material omissions change status to Incomplete.
+- **Bid Check**: the buyer's time-critical workspace for deciding whether to bid and setting a maximum hammer price. It has Prepare and Live states, but they share one saved decision.
+- **Seller Studio**: the seller's planning workspace for deciding whether to run a break, pricing it, checking downside, and producing policy-safe launch assets.
+- **Truth engine**: the shared composition, collation, pricing, evidence, simulation, auction, and fee model used by both workspaces. A seller-authored link supplies assumptions but never overrides buyer-visible evidence.
+- **Bid ceiling**: the greatest hammer price consistent with the buyer's selected risk stance after incremental shipping and any explicitly modeled costs. It is a limit, not a prediction or encouragement to bid.
+- **Viability decision**: the Seller Studio result: Run, Reprice, Change mix, or Do not run, supported by net profit, break-even fill, and explicit assumptions.
+- **Break-even fill**: the minimum number or percentage of planned spots that must sell at the modeled prices for seller net profit to reach zero.
+- **Risk stance**: a buyer-selected interpretation of modeled outcomes (Protect downside, Balanced, or Chase upside) used to derive a bid ceiling. It never changes the underlying distribution.
+- **Launch pack**: buyer-facing and operational assets generated from the same modeled break: rules, spot labels, listing copy, show notes, a portrait graphic, and a checklist.
 
 ## Source policy
 
