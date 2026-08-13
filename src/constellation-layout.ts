@@ -7,14 +7,16 @@ export interface ChaseMarkerDatum extends ChaseDatum { diameter: number }
 
 /** Keeps the visible cards spread across the plot without changing their values. */
 export function chaseMapScale(rows: ChaseDatum[]) {
-  const maxPrice = Math.max(Number.EPSILON, ...rows.map((row) => row.price));
-  const maxProbability = Math.max(Number.EPSILON, ...rows.map((row) => row.probability));
+  const price = (row: ChaseDatum) => Math.max(0, Number.isFinite(row.price) ? row.price : 0);
+  const probability = (row: ChaseDatum) => Math.max(0, Number.isFinite(row.probability) ? row.probability : 0);
+  const maxPrice = Math.max(Number.EPSILON, ...rows.map(price));
+  const maxProbability = Math.max(Number.EPSILON, ...rows.map(probability));
   return {
     maxPrice,
     maxProbability,
     position: (row: ChaseDatum) => ({
-      x: PLOT.left + row.probability / maxProbability * (PLOT.right - PLOT.left),
-      y: PLOT.bottom - row.price / maxPrice * (PLOT.bottom - PLOT.top),
+      x: PLOT.left + probability(row) / maxProbability * (PLOT.right - PLOT.left),
+      y: PLOT.bottom - price(row) / maxPrice * (PLOT.bottom - PLOT.top),
     }),
   };
 }
@@ -37,10 +39,10 @@ export function chaseMapLayout(rows: ChaseMarkerDatum[]) {
     const anchorX = anchor.x / 100 * REFERENCE_SIZE.width;
     const anchorY = anchor.y / 100 * REFERENCE_SIZE.height;
     const pointRadius = row.diameter / 2;
-    const minX = pointRadius + POINT_GAP;
-    const maxX = REFERENCE_SIZE.width - pointRadius - POINT_GAP;
-    const minY = pointRadius + POINT_GAP;
-    const maxY = REFERENCE_SIZE.height - pointRadius - POINT_GAP;
+    const minX = PLOT.left / 100 * REFERENCE_SIZE.width + pointRadius;
+    const maxX = PLOT.right / 100 * REFERENCE_SIZE.width - pointRadius;
+    const minY = PLOT.top / 100 * REFERENCE_SIZE.height + pointRadius;
+    const maxY = PLOT.bottom / 100 * REFERENCE_SIZE.height - pointRadius;
     let position: { x: number; y: number } | undefined;
 
     for (let searchRadius = 0; searchRadius <= maxSearchRadius && !position; searchRadius += 4) {
@@ -63,7 +65,10 @@ export function chaseMapLayout(rows: ChaseMarkerDatum[]) {
       }
     }
 
-    const resolved = position ?? { x: anchorX, y: anchorY };
+    const resolved = position ?? {
+      x: Math.min(maxX, Math.max(minX, anchorX)),
+      y: Math.min(maxY, Math.max(minY, anchorY)),
+    };
     placed[index] = { ...resolved, diameter: row.diameter };
   }
 
