@@ -1,5 +1,5 @@
 import { createElement, Fragment, useState } from "react";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { BuyerView, SlotRail } from "./App";
 import { createAuction } from "./domain/auction";
@@ -49,7 +49,8 @@ describe("live random-slot buyer workflow", () => {
   it("removes a taken slot in one tap and restores it from the same color tile", async () => {
     render(createElement(Harness));
     fireEvent.click(screen.getByRole("button", { name: "Random remaining" }));
-    expect(screen.getByText("8 RANDOM SLOTS REMAIN")).toBeInTheDocument();
+    expect(screen.getByText("8 colors remain in the random pool")).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Live bid decision" })).toHaveTextContent("8 random colors");
     expect(screen.getByText("ENTER BID")).toBeInTheDocument();
     await waitFor(() => expect(screen.getByLabelText("Possible opening values")).toBeInTheDocument());
     expect(screen.queryByLabelText("Twenty equal-probability modeled outcome bands")).not.toBeInTheDocument();
@@ -59,11 +60,12 @@ describe("live random-slot buyer workflow", () => {
     await waitFor(() => expect(screen.getByText(/Chance card value covers your \$12\.50 cost/)).toBeInTheDocument());
 
     fireEvent.click(screen.getByRole("button", { name: "Mark Blue taken" }));
-    expect(screen.getByText("7 RANDOM SLOTS REMAIN")).toBeInTheDocument();
+    expect(screen.getByText("7 colors remain in the random pool")).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Live bid decision" })).toHaveTextContent("7 random colors");
     expect(screen.getByRole("button", { name: "Blue slot" })).toBeDisabled();
 
     fireEvent.click(screen.getByRole("button", { name: "Restore Blue slot" }));
-    expect(screen.getByText("8 RANDOM SLOTS REMAIN")).toBeInTheDocument();
+    expect(screen.getByText("8 colors remain in the random pool")).toBeInTheDocument();
     await waitFor(() => expect(screen.getByLabelText("Possible opening values")).toBeInTheDocument());
   });
 
@@ -73,7 +75,7 @@ describe("live random-slot buyer workflow", () => {
     expect(screen.getByLabelText("Explain the Break Balance percentage")).toHaveTextContent("0%");
     fireEvent.click(screen.getByRole("button", { name: "Green slot" }));
     expect(screen.getByRole("button", { name: "Pick a color" })).toHaveClass("active");
-    expect(screen.getByText("GREEN SLOT")).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Live bid decision" })).toHaveTextContent("Green slot");
     expect(screen.getByText("GREEN VALUE DETAILS")).toBeInTheDocument();
     expect(document.querySelectorAll(".balance-column")).toHaveLength(8);
   });
@@ -83,15 +85,17 @@ describe("live random-slot buyer workflow", () => {
     await waitFor(() => expect(screen.getByLabelText("Typical card value")).toHaveTextContent("$10.00"));
     fireEvent.click(screen.getByRole("button", { name: "Blue slot" }));
     await waitFor(() => expect(screen.getByLabelText("Typical card value")).toHaveTextContent("$20.00"));
-    expect(screen.getByRole("button", { name: /middle result across many simulated openings/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Pick My Color evaluates only/i })).toBeInTheDocument();
+    const outcomeRange = within(screen.getByLabelText("Possible opening values"));
+    expect(outcomeRange.getByText("Typical").parentElement).toHaveTextContent("$20.00");
+    expect(screen.getByRole("region", { name: "Live bid decision" })).toHaveTextContent("Blue slot");
   });
 
   it("shows the bid verdict before the supporting break-value summary", () => {
     const { container } = render(createElement(Harness));
-    const verdict = container.querySelector(".verdict")!;
-    const valueSummary = container.querySelector(".value-summary")!;
+    const verdict = container.querySelector('[aria-label="Live bid decision"]')!;
+    const supporting = container.querySelector(".bid-explorer")!;
 
-    expect(verdict.compareDocumentPosition(valueSummary) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(verdict.compareDocumentPosition(supporting) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(supporting).not.toHaveAttribute("open");
   });
 });
