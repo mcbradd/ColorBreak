@@ -144,6 +144,14 @@ Every story requires: red test first at a public seam; counterexample fixtures w
 
 **Tests:** unequal/tied/flat prices and deterministic identity tie break.
 
+### V2-206 Single-screen seller operating view
+
+**Outcome:** Replace the planning-dashboard presentation with one seller-only operating screen: break contents and market/cost basis, one optional complete-cost rollout, break-even and seller-entered bid scenarios, and a threshold-pack enticement calculator. Buyer landed-value, color-slot, and per-slot analysis stay out of Seller Studio.
+
+**Acceptance:** At 440 x 956 with costs collapsed, the page has no horizontal or vertical scroll and all four operating sections are visible. Market price auto-populates; a seller cost-basis override changes break-even immediately. A planned bid shows deterministic 8/8, 6/8, and 4/8 profit/loss. The cost rollout exposes current fee defaults, buyer shipping, mailing method, seller-paid postage, packing, labor, tax/permits, giveaways, refund reserve, and overhead. Enticement reports cost and modeled pull-EV change per qualifying bid and if all eight qualify.
+
+**Tests/gates:** Rendered Seller Studio public seam; $100 product fixture produces $16.77 break-even and, at a $20 planned bid, $23.00 / -$7.75 / -$38.50 outcomes; $80 cost basis produces $13.97 break-even. DOM rejects Buyer card-value and color-slot groups. Production browser gate measures 440 px scroll width, 956 px scroll height, committed-input recomputation, and closed cost rollout.
+
 ## Sprint 3 — Seller operations and launch pack
 
 ### V2-301 PlanRevision / ShowRun

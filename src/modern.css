@@ -821,3 +821,235 @@ body {
   .bid-live-decision .outcome-range-compact { padding: 14px; }
   .bid-check-workbench .buyer-slot-rail { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
+
+/* Seller Studio is one operating screen: contents, costs, bid economics, enticement. */
+.seller-studio-shell,
+.seller-command-center { min-width: 0; }
+
+.seller-command-center {
+  border-top: 1px solid var(--line-strong);
+}
+
+.seller-command-center > section,
+.seller-cost-rollout {
+  margin: 0;
+  border: 0;
+  border-bottom: 1px solid var(--line-strong);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.seller-section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.seller-section-heading .section-label { margin-bottom: 4px; }
+.seller-section-heading h2 {
+  margin: 0;
+  font: 750 18px Manrope, sans-serif;
+  letter-spacing: -.025em;
+}
+.seller-section-heading > small {
+  max-width: 220px;
+  color: var(--muted);
+  font-size: 9px;
+  text-align: right;
+}
+
+.seller-contents { padding: 14px 0 0; }
+.seller-product-lines { margin-top: 10px; }
+.seller-product-line {
+  display: grid;
+  grid-template-columns: auto minmax(130px, 1fr) 112px 140px auto;
+  align-items: end;
+  gap: 10px;
+  padding: 9px 0;
+  border-top: 1px solid var(--line);
+}
+.seller-product-name,
+.seller-market-price span,
+.seller-market-price b { display: block; }
+.seller-product-name { align-self: center; min-width: 0; }
+.seller-product-name strong {
+  display: block;
+  overflow: hidden;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.seller-product-name small,
+.seller-market-price span { color: var(--muted); font-size: 9px; }
+.seller-market-price { padding-bottom: 8px; }
+.seller-market-price b { margin-top: 3px; font-size: 13px; }
+.seller-product-line .number-field > span { height: 17px; font-size: 9px; }
+.seller-product-line .number-field > div { min-height: 38px; border-radius: 2px; }
+.seller-product-line .line-controls { padding-bottom: 3px; }
+
+.seller-cost-rollout > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 58px;
+  padding: 8px 2px;
+}
+.seller-cost-rollout > summary strong,
+.seller-cost-rollout > summary small { display: block; }
+.seller-cost-rollout > summary strong { font-size: 13px; }
+.seller-cost-rollout > summary small { margin-top: 3px; color: var(--muted); font-size: 9px; }
+.seller-cost-rollout[open] > summary .disclosure-arrow { transform: rotate(90deg); }
+.seller-cost-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 9px;
+  padding: 12px 0;
+  border-top: 1px solid var(--line);
+}
+.seller-cost-grid .number-field > span,
+.compact-select > span {
+  display: block;
+  min-height: 18px;
+  color: var(--muted);
+  font-size: 9px;
+}
+.seller-cost-grid .number-field > div { min-height: 40px; border-radius: 2px; }
+.compact-select select {
+  width: 100%;
+  min-height: 40px;
+  padding: 0 9px;
+  border: 1px solid var(--line-strong);
+  border-radius: 2px;
+  color: var(--ink);
+  background: #0d1015;
+  font: 700 11px "DM Sans", sans-serif;
+}
+.seller-cost-source {
+  margin: 0 0 12px;
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.4;
+}
+
+.seller-break-economics {
+  display: grid;
+  grid-template-columns: auto 170px minmax(0, 1fr);
+  align-items: center;
+  gap: 18px;
+  padding: 14px 0;
+}
+.seller-break-even span,
+.seller-break-even strong,
+.seller-break-even small { display: block; }
+.seller-break-even span { color: var(--muted); font-size: 9px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.seller-break-even strong { margin-top: 2px; color: var(--accent); font: 800 34px/1 Manrope, sans-serif; letter-spacing: -.04em; }
+.seller-break-even small { margin-top: 2px; color: var(--muted); font-size: 9px; }
+.seller-break-economics > .number-field > span { height: 18px; font-size: 9px; }
+.seller-break-economics > .number-field > div { min-height: 46px; border-radius: 2px; }
+.seller-break-economics > .number-field input { font-size: 18px; }
+.seller-fill-scenarios {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-left: 1px solid var(--line);
+}
+.seller-fill-scenarios > div { min-width: 0; padding: 8px 10px; border-right: 1px solid var(--line); }
+.seller-fill-scenarios > div:last-child { border-right: 0; }
+.seller-fill-scenarios span,
+.seller-fill-scenarios b { display: block; }
+.seller-fill-scenarios span { color: var(--muted); font-size: 9px; }
+.seller-fill-scenarios b { margin-top: 4px; font-size: 12px; white-space: nowrap; }
+.seller-fill-scenarios .positive b { color: var(--safe); }
+.seller-fill-scenarios .negative b { color: var(--danger); }
+
+.seller-enticement { padding: 13px 0 0; }
+.enticement-controls {
+  display: grid;
+  grid-template-columns: minmax(190px, 1.4fr) minmax(105px, .7fr) minmax(105px, .7fr);
+  gap: 9px;
+  margin-top: 10px;
+}
+.enticement-controls .number-field > span { height: 18px; font-size: 9px; }
+.enticement-controls .number-field > div { min-height: 40px; border-radius: 2px; }
+.enticement-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-top: 10px;
+  border-top: 1px solid var(--line);
+}
+.enticement-metrics > div { min-width: 0; padding: 9px 10px; border-right: 1px solid var(--line); }
+.enticement-metrics > div:first-child { padding-left: 0; }
+.enticement-metrics > div:last-child { padding-right: 0; border-right: 0; }
+.enticement-metrics span,
+.enticement-metrics b,
+.enticement-metrics small { display: block; }
+.enticement-metrics span { color: var(--muted); font-size: 8px; }
+.enticement-metrics b { margin-top: 3px; font-size: 12px; }
+.enticement-metrics small { margin-top: 3px; color: var(--muted); font-size: 8px; line-height: 1.3; }
+.enticement-policy {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 8px 0;
+  color: #e6c47a;
+  font-size: 9px;
+}
+.enticement-policy svg { flex: none; width: 14px; }
+
+@media (max-width: 700px) {
+  .workspace:has(.seller-command-center) {
+    padding: 8px 12px max(12px, env(safe-area-inset-bottom));
+  }
+  .workspace:has(.seller-command-center) .workspace-title {
+    margin: 4px 0 8px;
+  }
+  .workspace:has(.seller-command-center) .workspace-title .eyebrow { display: none; }
+  .workspace:has(.seller-command-center) .workspace-title h1 { font-size: 27px; }
+  .seller-section-heading h2 { font-size: 16px; }
+  .seller-section-heading > small { max-width: 150px; }
+  .seller-contents { padding-top: 9px; }
+  .seller-product-lines { margin-top: 7px; }
+  .seller-product-line {
+    grid-template-columns: auto minmax(0, 1fr) 88px 100px;
+    grid-template-areas: "glyph name market basis" "glyph controls market basis";
+    gap: 3px 8px;
+    padding: 7px 0;
+  }
+  .seller-product-line .set-glyph { grid-area: glyph; align-self: center; width: 32px; height: 32px; }
+  .seller-product-name { grid-area: name; align-self: end; }
+  .seller-market-price { grid-area: market; align-self: center; padding: 0; }
+  .seller-product-line > .number-field { grid-area: basis; align-self: center; }
+  .seller-product-line .line-controls { grid-area: controls; align-self: start; justify-content: flex-start; padding: 0; }
+  .seller-product-line .remove-line { display: none; }
+  .seller-product-line .stepper button { width: 25px; height: 25px; }
+  .seller-product-line .number-field > div { min-height: 34px; }
+  .seller-cost-rollout > summary { min-height: 50px; }
+  .seller-cost-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .seller-break-economics {
+    grid-template-columns: 1fr 120px;
+    gap: 10px;
+    padding: 10px 0;
+  }
+  .seller-break-even strong { font-size: 29px; }
+  .seller-fill-scenarios {
+    grid-column: 1 / -1;
+    border-top: 1px solid var(--line);
+    border-left: 0;
+  }
+  .seller-fill-scenarios > div { padding-block: 6px; }
+  .seller-enticement { padding-top: 9px; }
+  .enticement-controls {
+    grid-template-columns: minmax(0, 1fr) 92px 92px;
+    gap: 6px;
+    margin-top: 7px;
+  }
+  .enticement-controls .compact-select select,
+  .enticement-controls .number-field > div { min-height: 36px; }
+  .enticement-metrics { margin-top: 7px; }
+  .enticement-metrics > div { padding: 7px 6px; }
+  .enticement-metrics > div:first-child { padding-left: 0; }
+  .enticement-metrics > div:last-child { padding-right: 0; }
+  .enticement-policy { padding-block: 6px; }
+}

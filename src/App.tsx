@@ -2001,7 +2001,7 @@ function SellerScenarioLab({
   );
 }
 
-export function SellerView({
+function LegacySellerView({
   analysis,
   lines,
   update,
@@ -2371,6 +2371,262 @@ export function SellerView({
   );
 }
 
+function sellerOutcomeLabel(value: number) {
+  return `${value >= 0 ? "Profit" : "Loss"} ${fmt(Math.abs(value))}`;
+}
+
+function SellerEnticement({
+  baseAnalysis,
+  lines,
+  transactionCount,
+  baseProfitAtAll,
+}: {
+  baseAnalysis: BreakAnalysis;
+  lines: BreakLine[];
+  transactionCount: number;
+  baseProfitAtAll: number;
+}) {
+  const [products, setProducts] = useState<ProductChoice[]>([]);
+  const [selectedKey, setSelectedKey] = useState("");
+  const [threshold, setThreshold] = useState(25);
+  const [bonusAnalysis, setBonusAnalysis] = useState<BreakAnalysis>();
+  const [marketPrice, setMarketPrice] = useState<number>();
+  const [costOverride, setCostOverride] = useState<number>();
+  const [loading, setLoading] = useState(false);
+  const setCodes = [...new Set(lines.map((line) => line.set))];
+  const productRef = (product: ProductChoice) => `${product.set}|${product.sealedKey ?? product.key}`;
+
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all(setCodes.map(productsForSet))
+      .then((groups) => groups.flat().filter((product) => product.category === "pack"))
+      .then((packs) => {
+        if (cancelled) return;
+        setProducts(packs);
+        setSelectedKey((current) => packs.some((product) => productRef(product) === current)
+          ? current
+          : (packs[0] ? productRef(packs[0]) : ""));
+      })
+      .catch(() => { if (!cancelled) setProducts([]); });
+    return () => { cancelled = true; };
+  }, [setCodes.join("|")]);
+
+  const selected = products.find((product) => productRef(product) === selectedKey);
+  useEffect(() => {
+    if (!selected) {
+      setBonusAnalysis(undefined);
+      setMarketPrice(undefined);
+      return;
+    }
+    let cancelled = false;
+    setLoading(true);
+    setBonusAnalysis(undefined);
+    setMarketPrice(undefined);
+    setCostOverride(undefined);
+    const bonusLine: BreakLine = {
+      id: "seller-enticement-preview",
+      set: selected.set,
+      productKey: selected.sealedKey ? `sealed:${selected.sealedKey}` : selected.key,
+      productLabel: selected.label,
+      quantity: 1,
+      packCount: selected.packCount,
+      tcgId: selected.tcgId,
+    };
+    Promise.all([
+      evaluateBreakAnalysis([...lines, bonusLine], 0),
+      sealedMarketPrice(selected.set, selected.tcgId),
+    ]).then(([next, market]) => {
+      if (!cancelled) {
+        setBonusAnalysis(next);
+        setMarketPrice(market);
+      }
+    }).catch(() => undefined).finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [selected?.set, selected?.sealedKey, selected?.key, lines]);
+
+  const packCost = costOverride ?? marketPrice;
+  const evAdded = bonusAnalysis
+    ? Math.max(0, bonusAnalysis.valuation.marketEV - baseAnalysis.valuation.marketEV)
+    : undefined;
+  const allCost = packCost == null ? undefined : packCost * transactionCount;
+  const allEv = evAdded == null ? undefined : evAdded * transactionCount;
+
+  return (
+    <section className="seller-enticement" aria-label="Enticement">
+      <div className="seller-section-heading">
+        <div><p className="section-label">4 · ENTICEMENT</p><h2>Bonus pack threshold</h2></div>
+        <small>One pack per bid over the threshold</small>
+      </div>
+      <div className="enticement-controls">
+        <label className="compact-select"><span>Booster</span><select aria-label="Bonus booster" value={selectedKey} onChange={(event) => setSelectedKey(event.target.value)}>
+          <option value="">Choose a booster</option>
+          {products.map((product) => <option key={productRef(product)} value={productRef(product)}>{product.set} · {product.label}</option>)}
+        </select></label>
+        <NumberField label="Bid threshold" value={threshold} onChange={(value) => setThreshold(value ?? 0)} />
+        <NumberField label="My booster cost" value={costOverride} onChange={setCostOverride} />
+      </div>
+      <div className="enticement-metrics">
+        <div><span>Market / pack</span><b>{loading ? "Loading…" : fmt(marketPrice)}</b></div>
+        <div><span>Cost / qualifying bid</span><b>{packCost == null ? "Choose pack" : fmt(packCost)}</b></div>
+        <div><span>Pull EV added / pack</span><b>{evAdded == null ? "—" : `+${fmt(evAdded)}`}</b></div>
+        <div><span>If all {transactionCount} clear {fmt(threshold)}</span><b>{allCost == null ? "—" : `${fmt(allCost)} cost`}</b><small>{allEv == null ? "" : `+${fmt(allEv)} modeled pull EV · ${sellerOutcomeLabel(baseProfitAtAll - (allCost ?? 0))}`}</small></div>
+      </div>
+      <p className="enticement-policy"><ShieldAlert />Threshold-triggered packs require written Whatnot approval before advertising.</p>
+    </section>
+  );
+}
+
+export function SellerView({
+  analysis,
+  lines,
+  add,
+  update,
+  remove,
+}: {
+  analysis: BreakAnalysis;
+  lines: BreakLine[];
+  add: () => void;
+  update: (id: string, patch: Partial<BreakLine>) => void;
+  remove: (id: string) => void;
+}) {
+  const [buyerShipping, setBuyerShipping] = useState(5);
+  const [packing, setPacking] = useState(2);
+  const [postage, setPostage] = useState(0);
+  const [shipments, setShipments] = useState(8);
+  const [mailingMethod, setMailingMethod] = useState("whatnot-label");
+  const [labor, setLabor] = useState(0);
+  const [tax, setTax] = useState(0);
+  const [giveaways, setGiveaways] = useState(0);
+  const [refundReserve, setRefundReserve] = useState(0);
+  const [overhead, setOverhead] = useState(0);
+  const [commission, setCommission] = useState(WHATNOT_US.commissionRate * 100);
+  const [processing, setProcessing] = useState(WHATNOT_US.processingRate * 100);
+  const [processingFlat, setProcessingFlat] = useState(WHATNOT_US.processingFlat);
+  const [plannedBidOverride, setPlannedBidOverride] = useState<number>();
+  const transactionCount = 8;
+  const acquisition = lines.reduce((total, line) => total + (line.myCost ?? line.marketCost ?? 0) * line.quantity, 0);
+  const costsComplete = lines.every((line) => line.myCost != null || line.marketCost != null);
+  const otherCosts = labor + tax + giveaways + refundReserve + overhead;
+  const shipmentCount = Math.min(transactionCount, Math.max(1, Math.round(shipments)));
+  const shipmentCost = (packing + postage) * shipmentCount;
+  const completeOverhead = completeCost({
+    acquisition,
+    packingAndCoveredShipping: shipmentCost,
+    labor,
+    tax,
+    giveaways,
+    refundReserve,
+    overhead,
+  });
+  const marketplace: MarketplacePreset = {
+    ...WHATNOT_US,
+    commissionRate: commission / 100,
+    processingRate: processing / 100,
+    processingFlat,
+    name: commission === 8 && processing === 2.9 && processingFlat === .3 ? "Whatnot US" : "Custom fees",
+  };
+  const breakEvenTotal = costsComplete
+    ? requiredHammer(transactionCount, shipmentCost, acquisition + otherCosts, 0, buyerShipping, marketplace)
+    : undefined;
+  const breakEvenBid = breakEvenTotal == null ? undefined : breakEvenTotal / transactionCount;
+  const plannedBid = plannedBidOverride ?? (breakEvenBid == null ? undefined : Math.ceil(breakEvenBid * 100) / 100);
+  const profitAt = (bid: number, soldCount: number) => {
+    const transactionNetValue = bid
+      - bid * marketplace.commissionRate
+      - (bid + buyerShipping) * marketplace.processingRate
+      - marketplace.processingFlat;
+    const scenarioShipments = Math.min(soldCount, shipmentCount);
+    return transactionNetValue * soldCount
+      - (packing + postage) * scenarioShipments
+      - acquisition
+      - otherCosts;
+  };
+  const allSoldProfit = plannedBid == null ? 0 : profitAt(plannedBid, transactionCount);
+  const scenarios = [8, 6, 4].map((sold) => ({ sold, profit: plannedBid == null ? undefined : profitAt(plannedBid, sold) }));
+
+  return (
+    <section className="seller-command-center">
+      <section className="seller-contents" aria-labelledby="seller-contents-heading">
+        <div className="seller-section-heading">
+          <div><p className="section-label">1 · BREAK</p><h2 id="seller-contents-heading">Contents &amp; cost basis</h2></div>
+          <button className="quiet" onClick={add}><PackagePlus />Add</button>
+        </div>
+        <div className="seller-product-lines">
+          {lines.map((line) => (
+            <div className="seller-product-line" key={line.id}>
+              <span className="set-glyph">{line.set}</span>
+              <span className="seller-product-name"><strong>{line.productLabel}</strong><small>{line.set}</small></span>
+              <div className="seller-market-price"><span>Current market</span><b>{fmt(line.marketCost)}</b></div>
+              <NumberField label="My cost basis" value={line.myCost} onChange={(value) => update(line.id, { myCost: value })} />
+              <div className="line-controls">
+                <div className="stepper" aria-label={`${line.productLabel} quantity`}>
+                  <button disabled={line.quantity <= 1} onClick={() => update(line.id, { quantity: Math.max(1, line.quantity - 1) })}>−</button>
+                  <b>{line.quantity}</b>
+                  <button onClick={() => update(line.id, { quantity: line.quantity + 1 })}>+</button>
+                </div>
+                <button className="remove-line" aria-label={`Remove ${line.productLabel} from break`} onClick={() => remove(line.id)}><Trash2 /></button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <details className="seller-cost-rollout">
+        <summary className="disclosure-summary">
+          <span><strong>Costs &amp; platform fees</strong><small>{fmt(completeOverhead)} base cost · {marketplace.name} · {shipmentCount} shipments</small></span>
+          <DisclosureArrow />
+        </summary>
+        <div className="seller-cost-grid">
+          <label className="compact-select"><span>Mailing method</span><select aria-label="Mailing method" value={mailingMethod} onChange={(event) => {
+            setMailingMethod(event.target.value);
+            if (event.target.value === "whatnot-label") setPostage(0);
+          }}>
+            <option value="whatnot-label">Whatnot buyer-paid label</option>
+            <option value="ground">USPS Ground Advantage</option>
+            <option value="priority">USPS Priority Mail</option>
+            <option value="custom">Other / custom</option>
+          </select></label>
+          <NumberField label="Buyer shipping at checkout" value={buyerShipping} onChange={(value) => setBuyerShipping(value ?? 0)} />
+          <NumberField label="Packaging / shipment" value={packing} onChange={(value) => setPacking(value ?? 0)} />
+          <NumberField label="Postage / shipment" value={postage} onChange={(value) => setPostage(value ?? 0)} />
+          <NumberField label="Shipments" value={shipments} onChange={(value) => setShipments(value ?? 1)} />
+          <NumberField label="Labor" value={labor} onChange={(value) => setLabor(value ?? 0)} />
+          <NumberField label="Tax on fees / permits" value={tax} onChange={(value) => setTax(value ?? 0)} />
+          <NumberField label="Giveaways" value={giveaways} onChange={(value) => setGiveaways(value ?? 0)} />
+          <NumberField label="Refund / damage reserve" value={refundReserve} onChange={(value) => setRefundReserve(value ?? 0)} />
+          <NumberField label="Allocated overhead" value={overhead} onChange={(value) => setOverhead(value ?? 0)} />
+          <NumberField label="Commission" value={commission} onChange={(value) => setCommission(value ?? 0)} prefix="%" />
+          <NumberField label="Processing" value={processing} onChange={(value) => setProcessing(value ?? 0)} prefix="%" />
+          <NumberField label="Fixed / purchase" value={processingFlat} onChange={(value) => setProcessingFlat(value ?? 0)} />
+        </div>
+        <p className="seller-cost-source">Whatnot US TCG defaults: 8% commission and 2.9% + $0.30 processing, checked {WHATNOT_US.policyDate}. USPS postage varies by weight and distance; enter the actual label cost when the seller pays it.</p>
+      </details>
+
+      <section className="seller-break-economics" aria-label="Seller break economics">
+        <div className="seller-break-even">
+          <span>Break-even bid</span>
+          <strong>{fmt(breakEvenBid)}</strong>
+          <small>per spot · all 8 sold</small>
+        </div>
+        <NumberField label="Planned bid per spot" value={plannedBid} onChange={setPlannedBidOverride} />
+        <div className="seller-fill-scenarios">
+          {scenarios.map((scenario) => <div className={scenario.profit != null && scenario.profit >= 0 ? "positive" : "negative"} key={scenario.sold}>
+            <span>{scenario.sold} / 8 sold</span>
+            <b>{scenario.profit == null ? "Add costs" : sellerOutcomeLabel(scenario.profit)}</b>
+          </div>)}
+        </div>
+      </section>
+
+      <SellerEnticement
+        baseAnalysis={analysis}
+        lines={lines}
+        transactionCount={transactionCount}
+        baseProfitAtAll={allSoldProfit}
+      />
+    </section>
+  );
+}
+
 function storedLines(
   mode: "buyer" | "seller",
   legacy: BreakLine[],
@@ -2495,7 +2751,7 @@ export function Workspace({
       return shared && SLOT_IDS.includes(shared) ? shared : "W";
     }),
     [busy, setBusy] = useState(false);
-  const threshold = bulkEnabled ? bulkThreshold : 0;
+  const threshold = mode === "seller" ? 0 : bulkEnabled ? bulkThreshold : 0;
   useEffect(() => {
     try {
       localStorage.setItem(`colorbreak:${mode}:lines`, JSON.stringify(lines));
@@ -2650,26 +2906,7 @@ export function Workspace({
             </div>
           </div>
         ) : (
-          <>
-            <BulkFilterControl
-              enabled={bulkEnabled}
-              threshold={bulkThreshold}
-              result={analysis?.valuation}
-              onToggle={setBulkEnabled}
-              onThreshold={setBulkThreshold}
-            />
-          <div className="workspace-grid">
-            <aside>
-              <Composition
-                lines={lines}
-                add={() => setBuilder(true)}
-                update={update}
-                remove={(id) =>
-                  setLines((rows) => rows.filter((r) => r.id !== id))
-                }
-              />
-            </aside>
-            <div className="results">
+          <div className="seller-studio-shell">
               {busy && (
                 <div className="calculating">
                   <span />
@@ -2683,11 +2920,15 @@ export function Workspace({
                 </div>
               )}
               {analysis && !busy && (
-                <SellerView analysis={analysis} lines={lines} update={update} selectedSlot={selectedSlot} setSelectedSlot={setSelectedSlot} />
+                <SellerView
+                  analysis={analysis}
+                  lines={lines}
+                  add={() => setBuilder(true)}
+                  update={update}
+                  remove={(id) => setLines((rows) => rows.filter((row) => row.id !== id))}
+                />
               )}
-            </div>
           </div>
-          </>
         )}
       </main>
       <Builder
