@@ -9,7 +9,7 @@ Release definition: `PRODUCT-SPEC-v2.md` section 15
 - [x] Chase Map impossible-domain clamp and plot-bound marker geometry, with regression fixtures.
 - [x] V2 buyer value-rule math, hammer-dependent cap solver, action mapping, and immutable-cap primitives.
 - [x] Buyer product → color/taken → options sequence and warm/cold bid-cost persistence.
-- [x] Research-preview first result with action, ceiling, all-in value, falsifiable reason, and distribution.
+- [x] Bid Check command-center reset with a single live decision surface, flat setup rail, and one optional evidence rollout.
 - [x] Seller complete-cost arithmetic and first-result run/change/do-not-run feasibility screen.
 - [x] Flat mobile presentation and 440×956 preview geometry pass.
 - [ ] Treatment-study gate and all production fallback variants.
@@ -91,6 +91,16 @@ Every story requires: red test first at a public seam; counterexample fixtures w
 **Acceptance:** fixtures 4 and player/collector scripts; routing shown; residual mode explicit; buy-single limitations.
 
 **Tests:** public wanted evaluator with homogeneous/heterogeneous/ties/overlap/missing price.
+
+### V2-106 Bid Check command-center reset
+
+**Outcome:** Replace the explanation-heavy buyer dashboard with one fast workspace: editable break setup beside a live decision surface on large screens, and the complete live decision first on the target phone.
+
+**Acceptance:** Recommendation, maximum hammer, current bid, incremental shipping, risk stance, outcome range, and chance-to-cover share one named region; product/slot/evidence context stays visible; setup remains product → color/taken → value options; total break value, Break Balance, evidence, and ranked cards are closed under one optional rollout; Chase Map is absent; bid/shipping persist; no horizontal overflow or selection-triggered scroll.
+
+**Tests before code:** `src/bid-check-command-center.test.ts` at the rendered workspace seam, plus the existing setup-order, buyer-persistence, bulk-filter, help-layout, and disclosure suites.
+
+**Gate:** Focused regression suite green; production build and diff check green; at 440×956 the decision occupies y=141–694, body width equals scroll width, input values survive reload and risk changes, risk changes retain scroll y=0; at 1440×900 setup and decision form stable 510 px / 676 px columns.
 
 ## Sprint 2 — Seller conditional economics
 

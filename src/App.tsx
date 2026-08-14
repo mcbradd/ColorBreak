@@ -343,14 +343,16 @@ function PanelHeading({
   description,
 }: {
   label: ReactNode;
-  help: string;
+  help?: string;
   title: ReactNode;
   accessory?: ReactNode;
   description?: ReactNode;
 }) {
   return (
     <header className="panel-heading">
-      <SectionLabel text={help}>{label}</SectionLabel>
+      {help
+        ? <SectionLabel text={help}>{label}</SectionLabel>
+        : <p className="section-label">{label}</p>}
       <div className="panel-heading-main">
         <div className="panel-heading-copy">
           <h2>{title}</h2>
@@ -689,18 +691,20 @@ export function Composition({
   update,
   remove,
   headingLabel = "BREAK",
+  showHelp = true,
 }: {
   lines: BreakLine[];
   add: () => void;
   update: (id: string, patch: Partial<BreakLine>) => void;
   remove: (id: string) => void;
   headingLabel?: string;
+  showHelp?: boolean;
 }) {
   return (
     <section className="composition panel">
       <PanelHeading
         label={headingLabel}
-        help="The sealed products and quantities being opened in this break. Changing any line immediately recalculates card contents, prices, color value, and possible opening values."
+        help={showHelp ? "The sealed products and quantities being opened in this break. Changing any line immediately recalculates card contents, prices, color value, and possible opening values." : undefined}
         title={<>{lines.length} product{lines.length === 1 ? "" : "s"}</>}
         accessory={<button className="quiet" onClick={add}>
           <PackagePlus /> Add
@@ -822,9 +826,8 @@ export function SlotRail({
         <div>
           <p className="section-label">2 · COLOR</p>
           <h2 id="buyer-color-heading">{assignmentMode === "pick" ? "Choose your color" : "Mark colors already taken"}</h2>
-          <p>Tap a color to price it. Tap × to remove a taken color from the random pool.</p>
+          <p>Tap a color. Use × for colors already taken.</p>
         </div>
-        <Tip text="Choose a color when the auction lets you pick. For random assignment, tap × on every color already taken; ColorBreak recalculates using only the colors left." />
       </div>
       <div className="assignment-toggle buyer-assignment-toggle" role="group" aria-label="Break assignment mode">
         <button className={assignmentMode === "pick" ? "active" : ""} onClick={() => {
@@ -1095,32 +1098,32 @@ export function useOutcomeSimulation(
   return state;
 }
 
-function OutcomeRange({ summary, landed }: { summary?: DistributionSummary; landed?: number }) {
+function OutcomeRange({ summary, landed, compact = false }: { summary?: DistributionSummary; landed?: number; compact?: boolean }) {
   if (!summary) return <div className="distribution-empty">Distribution unavailable until every material input is resolved.</div>;
   const chanceToClear = landed == null
     ? undefined
     : summary.chanceToClearCost ?? summary.fingerprint.filter((value) => value >= landed).length / summary.fingerprint.length;
   return (
-    <div className="outcome-range" aria-label="Possible opening values">
+    <div className={`outcome-range ${compact ? "outcome-range-compact" : ""}`} aria-label="Possible opening values">
       <div className="outcome-range-heading">
-        <span>Possible opening values</span>
-        <Tip text="Shows a lower result, a middle result, and a higher result across many simulated openings. These are examples of the range you could see, not a prediction of the next opening." />
+        <span>{compact ? "Outcome range" : "Possible opening values"}</span>
+        {!compact && <Tip text="Shows a lower result, a middle result, and a higher result across many simulated openings. These are examples of the range you could see, not a prediction of the next opening." />}
       </div>
       <div className="outcome-landmarks">
         <div>
-          <span>Lower result</span>
+          <span>{compact ? "Downside" : "Lower result"}</span>
           <b>{fmt(summary.p10)}</b>
-          <small>About 1 in 10 openings are worth this or less</small>
+          {!compact && <small>About 1 in 10 openings are worth this or less</small>}
         </div>
         <div className="typical">
-          <span>Typical result</span>
+          <span>{compact ? "Typical" : "Typical result"}</span>
           <b>{fmt(summary.median)}</b>
-          <small>About half are worth less and half are worth more</small>
+          {!compact && <small>About half are worth less and half are worth more</small>}
         </div>
         <div>
-          <span>Higher result</span>
+          <span>{compact ? "Upside" : "Higher result"}</span>
           <b>{fmt(summary.p90)}</b>
-          <small>About 1 in 10 openings are worth this or more</small>
+          {!compact && <small>About 1 in 10 openings are worth this or more</small>}
         </div>
       </div>
       {chanceToClear != null && landed != null && (
@@ -1131,7 +1134,7 @@ function OutcomeRange({ summary, landed }: { summary?: DistributionSummary; land
           </div>
         </div>
       )}
-      <p>Possible results from simulations—not a prediction of the next opening.</p>
+      {!compact && <p>Possible results from simulations—not a prediction of the next opening.</p>}
     </div>
   );
 }
@@ -1437,12 +1440,14 @@ export function BulkFilterControl({
   result,
   onToggle,
   onThreshold,
+  compact = false,
 }: {
   enabled: boolean;
   threshold: number;
   result?: ValuationResult;
   onToggle: (enabled: boolean) => void;
   onThreshold: (threshold: number) => void;
+  compact?: boolean;
 }) {
   const ignored = result ? Math.max(0, result.marketEV - result.sellableEV) : 0;
   const retained = result && result.marketEV > 0 ? result.sellableEV / result.marketEV : 1;
@@ -1459,9 +1464,9 @@ export function BulkFilterControl({
           <span>Ignore cards under</span>
           <div><b>$</b><NumericInput value={threshold} onCommit={(value) => onThreshold(value ?? 0)} ariaLabel="Bulk filter dollar amount" /></div>
         </label>
-        <Tip className="bulk-filter-help" text={explanation} label="Explain the current bulk filter setting" />
+        {!compact && <Tip className="bulk-filter-help" text={explanation} label="Explain the current bulk filter setting" />}
       </div>
-      <details className="bulk-filter-details">
+      {!compact && <details className="bulk-filter-details">
         <summary className="disclosure-summary"><span>See what the filter changes</span><DisclosureArrow /></summary>
         {!result ? <p>Product values are still loading.</p> : (
           <div className="bulk-filter-rollout">
@@ -1474,7 +1479,7 @@ export function BulkFilterControl({
               : `No priced cards are being removed. Turn the filter on when you do not want low-value bulk included in card value.`}</p>
           </div>
         )}
-      </details>
+      </details>}
     </section>
   );
 }
@@ -1613,6 +1618,7 @@ export function BuyerView({
   auction,
   assignmentMode,
   selected,
+  breakLabel,
   bid,
   setBid,
   shipping,
@@ -1622,6 +1628,7 @@ export function BuyerView({
   auction: AuctionState;
   assignmentMode: AssignmentMode;
   selected: SlotId;
+  breakLabel?: string;
   bid: number | undefined;
   setBid: (value: number | undefined) => void;
   shipping: number | undefined;
@@ -1675,21 +1682,19 @@ export function BuyerView({
   return (
     <>
       <section
-        className={`verdict panel v2-decision decision-${recommendation.tone} verdict-${decision.replace(/[^A-Z]/g, "").toLowerCase()}`}
+        className={`bid-live-decision decision-${recommendation.tone} verdict-${decision.replace(/[^A-Z]/g, "").toLowerCase()}`}
+        aria-label="Live bid decision"
       >
         <div className="decision-kicker">
-          <span>V2 RESEARCH PREVIEW</span>
-          <span>Modeled, not guaranteed</span>
+          <span>{breakLabel ? `${breakLabel} · ` : ""}{assignmentMode === "random" ? `${auction.remaining.length} random colors` : `${SLOT_NAMES[selected]} slot`}</span>
+          <span className={`decision-evidence evidence-${result.status}`}>{result.status === "verified" ? "Data ready" : result.status}</span>
         </div>
         <div className="verdict-head">
           <div className="verdict-decision">
-            <SectionLabel text={assignmentMode === "random"
-              ? "The next buyer is assigned one of these remaining color slots at random. Enter the current bid to compare your total cost with all the ways the remaining slots could turn out."
-              : "Pick My Color evaluates only the selected color slot instead of averaging across a random assignment from the remaining pool."}
-            >
-              {assignmentMode === "random" ? `${auction.remaining.length} RANDOM SLOTS REMAIN` : `${SLOT_NAMES[selected].toUpperCase()} SLOT`}
-            </SectionLabel>
+            <p className="section-label">Recommendation</p>
             <h2 aria-live="polite">{decision}</h2>
+            {bid == null && <p className="decision-reason">Enter the current hammer to compare it with your limit.</p>}
+            {bid != null && shipping == null && <p className="decision-reason">Add only the shipping this purchase adds to your order.</p>}
             {recommendation.action === "bid" && (
               <p className="decision-reason">Current hammer is {fmt(recommendation.room)} below your modeled ceiling.</p>
             )}
@@ -1701,19 +1706,18 @@ export function BuyerView({
             )}
           </div>
           <div className="ev-orb">
-            <Tip text="The middle result across many simulated openings: about half are worth less and half are worth more." />
-            <small><span>YOUR MAX HAMMER</span><Tip text="The highest hammer price that stays within the value rule you chose after the shipping you entered. This is a model output, not a guarantee." /></small>
+            <small><span>Your max hammer</span></small>
             <strong className="max-hammer" aria-label="Maximum hammer" aria-live="polite">{cap.kind === "cap" ? fmt(cap.amount) : "—"}</strong>
-            <span>{ruleLabel} · all-in {fmt(valueTarget)}</span>
+            <span>{ruleLabel} limit</span>
             <strong aria-label="Typical card value" aria-live="polite">{simulation.busy && !distribution ? "Checking…" : fmt(distribution?.median ?? fallbackMean)}</strong>
             {distribution?.median === 0 && <em>Usually no card above the bulk filter</em>}
             <span>Average {fmt(distribution?.mean ?? fallbackMean)}</span>
           </div>
         </div>
-        <div className="value-rule" role="group" aria-label="Value rule">
-          <button aria-pressed={valueRule.kind === "coverage"} onClick={() => setValueRule({ kind: "coverage", coverage: .75 })}>Safer · 75%</button>
-          <button aria-pressed={valueRule.kind === "median"} onClick={() => setValueRule({ kind: "median" })}>Balanced · median</button>
-          <button aria-pressed={valueRule.kind === "average"} onClick={() => setValueRule({ kind: "average" })}>Chase · average</button>
+        <div className="value-rule" role="group" aria-label="Risk stance">
+          <button aria-pressed={valueRule.kind === "coverage"} onClick={() => setValueRule({ kind: "coverage", coverage: .75 })}>Protect downside</button>
+          <button aria-pressed={valueRule.kind === "median"} onClick={() => setValueRule({ kind: "median" })}>Balanced</button>
+          <button aria-pressed={valueRule.kind === "average"} onClick={() => setValueRule({ kind: "average" })}>Chase upside</button>
         </div>
         <div className="bid-inputs">
           <NumberField label="Current bid" value={bid} onChange={setBid} />
@@ -1734,7 +1738,7 @@ export function BuyerView({
             </span>
           </div>
         )}
-        <OutcomeRange summary={distribution} landed={bid == null ? undefined : landed} />
+        <OutcomeRange summary={distribution} landed={bid == null ? undefined : landed} compact />
         {simulation.busy && <p className="simulation-state">Checking more possible openings…</p>}
         {simulation.error && <p className="blocked"><ShieldAlert />{simulation.error}</p>}
         {result.status === "incomplete" && (
@@ -1743,15 +1747,25 @@ export function BuyerView({
           </p>
         )}
       </section>
-      <ValueSummary result={result} />
-      <BreakBalance result={result} model={analysis.outcomeModel} remaining={auction.remaining} simulation={simulation.result} />
-      <EvidenceLens analysis={analysis} />
-      <ChaseConstellation slot={slot} onInspect={setInspectedCard} />
-      <SlotValueDetails
-        slot={slot}
-        threshold={result.threshold}
-        onInspect={setInspectedCard}
-      />
+      <details className="bid-explorer">
+        <summary className="disclosure-summary">
+          <span>
+            <strong>Explore the numbers</strong>
+            <small>Break value, Break Balance, data quality, and ranked cards</small>
+          </span>
+          <DisclosureArrow />
+        </summary>
+        <div className="bid-explorer-body">
+          <ValueSummary result={result} />
+          <BreakBalance result={result} model={analysis.outcomeModel} remaining={auction.remaining} simulation={simulation.result} />
+          <EvidenceLens analysis={analysis} />
+          <SlotValueDetails
+            slot={slot}
+            threshold={result.threshold}
+            onInspect={setInspectedCard}
+          />
+        </div>
+      </details>
       <CardInspector
         row={inspectedCard}
         status={result.status}
@@ -2423,6 +2437,7 @@ export function BuyerSetup({
         update={update}
         remove={remove}
         headingLabel="1 · BREAK CONTENTS"
+        showHelp={false}
       />
       <SlotRail
         result={result}
@@ -2443,6 +2458,7 @@ export function BuyerSetup({
         result={result}
         onToggle={setBulkEnabled}
         onThreshold={setBulkThreshold}
+        compact
       />
     </section>
   );
@@ -2597,7 +2613,7 @@ export function Workspace({
         {!lines.length ? (
           <EmptyBreak add={() => setBuilder(true)} />
         ) : mode === "buyer" ? (
-          <>
+          <div className="bid-check-workbench">
             <BuyerSetup
               lines={lines}
               add={() => setBuilder(true)}
@@ -2624,6 +2640,7 @@ export function Workspace({
                   auction={auction}
                   assignmentMode={assignmentMode}
                   selected={selectedSlot}
+                  breakLabel={lines.length === 1 ? `${lines[0].quantity}× ${lines[0].set} ${lines[0].productLabel}` : `${lines.length} products`}
                   bid={buyerBid}
                   setBid={setBuyerBid}
                   shipping={buyerShipping}
@@ -2631,7 +2648,7 @@ export function Workspace({
                 />
               )}
             </div>
-          </>
+          </div>
         ) : (
           <>
             <BulkFilterControl

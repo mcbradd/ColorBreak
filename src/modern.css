@@ -528,3 +528,296 @@ body {
   .workspace-title { margin-block: 13px 16px; }
   .workspace-title .eyebrow { margin-bottom: 4px; }
 }
+
+/* Bid Check command center: setup and decision, without a dashboard of cards. */
+.bid-check-workbench {
+  display: grid;
+  gap: 24px;
+  min-width: 0;
+}
+
+.bid-check-workbench .buyer-setup,
+.bid-check-workbench .buyer-results { min-width: 0; }
+
+.bid-check-workbench .buyer-setup {
+  align-content: start;
+  margin: 0;
+  border-top: 1px solid var(--line-strong);
+}
+
+.bid-check-workbench .buyer-setup > .composition,
+.bid-check-workbench .buyer-setup > .bulk-filter-control {
+  overflow: visible;
+  margin: 0;
+  border: 0;
+  border-bottom: 1px solid var(--line-strong);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.bid-check-workbench .composition > .panel-heading {
+  min-height: 72px;
+  padding: 16px 0 12px;
+}
+
+.bid-check-workbench .composition .line { padding-inline: 0; }
+.bid-check-workbench .composition .line:last-child { border-bottom: 0; }
+.bid-check-workbench .composition .quiet { background: transparent; }
+.bid-check-workbench .composition .quiet:hover { background: var(--panel-raised); }
+
+.bid-check-workbench .buyer-slot-control {
+  padding: 18px 0;
+  border-bottom-color: var(--line-strong);
+}
+
+.bid-check-workbench .buyer-slot-heading {
+  grid-template-columns: 1fr;
+}
+
+.bid-check-workbench .buyer-slot-heading p:last-child {
+  display: block;
+  max-width: none;
+}
+
+.bid-check-workbench .buyer-assignment-toggle {
+  width: 100%;
+  margin: 14px 0 10px;
+  padding: 0;
+  border-color: var(--line-strong);
+  background: transparent;
+}
+
+.bid-check-workbench .buyer-assignment-toggle button.active,
+.bid-check-workbench .value-rule button[aria-pressed="true"] {
+  color: var(--ink);
+  background: #253519;
+  box-shadow: inset 0 -3px 0 var(--accent);
+}
+
+.bid-check-workbench .buyer-slot-tile {
+  border-color: var(--line-strong);
+  background: transparent;
+}
+
+.bid-check-workbench .buyer-slot-tile.active {
+  border-color: var(--accent);
+  background: rgba(174, 255, 94, .045);
+}
+
+.bid-check-workbench .buyer-options-heading { padding: 18px 0 10px; }
+.bid-check-workbench .bulk-filter-main { padding-inline: 0; }
+
+.bid-live-decision {
+  overflow: hidden;
+  border: 1px solid var(--line-strong);
+  border-top: 4px solid var(--muted);
+  border-radius: 2px;
+  background: #0d1014;
+}
+
+.bid-live-decision.decision-positive { border-top-color: var(--safe); }
+.bid-live-decision.decision-warning { border-top-color: #f2bd58; }
+.bid-live-decision.decision-negative { border-top-color: var(--danger); }
+
+.bid-live-decision .decision-kicker {
+  min-height: 38px;
+  padding: 10px 16px;
+  border-bottom-color: var(--line-strong);
+}
+
+.bid-live-decision .decision-kicker span:first-child { color: #cbd3df; }
+.bid-live-decision .decision-kicker span:first-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.decision-evidence { color: var(--muted); }
+.decision-evidence.evidence-verified { color: var(--safe); }
+.decision-evidence.evidence-incomplete { color: var(--danger); }
+
+.bid-live-decision .verdict-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 20px;
+  padding: 24px 20px 18px;
+}
+
+.bid-live-decision .verdict-decision .section-label { margin-bottom: 7px; }
+.bid-live-decision .verdict-decision h2 {
+  margin: 0;
+  color: var(--ink);
+  font: 800 clamp(38px, 7vw, 68px)/.9 Manrope, sans-serif;
+  letter-spacing: -.055em;
+}
+
+.bid-live-decision.decision-positive .verdict-decision h2 { color: var(--safe); }
+.bid-live-decision.decision-warning .verdict-decision h2 { color: #f2bd58; }
+.bid-live-decision.decision-negative .verdict-decision h2 { color: var(--danger); }
+
+.bid-live-decision .decision-reason {
+  max-width: 420px;
+  margin-top: 10px;
+  font-size: 13px;
+}
+
+.bid-live-decision .ev-orb {
+  min-width: 150px;
+  text-align: right;
+}
+
+.bid-live-decision .ev-orb small {
+  display: block;
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.bid-live-decision .ev-orb .max-hammer {
+  margin-top: 3px;
+  color: var(--accent);
+  font: 800 clamp(34px, 6vw, 56px)/1 Manrope, sans-serif;
+}
+
+.bid-live-decision .value-rule {
+  margin: 0;
+  border-right: 0;
+  border-left: 0;
+}
+
+.bid-live-decision .value-rule button {
+  min-height: 48px;
+  background: #11151a;
+  font-size: 11px;
+}
+
+.bid-live-decision .bid-inputs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  padding: 18px 20px;
+  border-top: 1px solid var(--line-strong);
+}
+
+.bid-live-decision .number-field > span {
+  height: auto;
+  margin-bottom: 6px;
+  color: #c4cbd5;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.bid-live-decision .number-field > div {
+  min-height: 52px;
+  border-color: #394250;
+  border-radius: 2px;
+  background: #090c10;
+}
+
+.bid-live-decision .number-field input { font-size: 21px; }
+.bid-live-decision .delta { padding: 12px 20px; border-top-color: var(--line-strong); }
+
+.bid-live-decision .outcome-range-compact {
+  padding: 16px 20px 18px;
+  border-top-color: var(--line-strong);
+  background: transparent;
+}
+
+.outcome-range-compact .outcome-range-heading { margin-bottom: 9px; }
+.outcome-range-compact .outcome-landmarks {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.outcome-range-compact .outcome-landmarks > div {
+  padding: 7px 12px;
+  border-right-color: var(--line-strong);
+  background: transparent;
+}
+
+.outcome-range-compact .outcome-landmarks > div:first-child { padding-left: 0; }
+.outcome-range-compact .outcome-landmarks > div:last-child { padding-right: 0; }
+.outcome-range-compact .outcome-landmarks b { font-size: 19px; }
+.outcome-range-compact .clear-chance { margin-top: 14px; }
+
+.bid-explorer {
+  margin-top: 12px;
+  border-top: 1px solid var(--line-strong);
+  border-bottom: 1px solid var(--line-strong);
+}
+
+.bid-explorer > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 68px;
+  padding: 12px 2px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.bid-explorer > summary::-webkit-details-marker { display: none; }
+.bid-explorer > summary strong,
+.bid-explorer > summary small { display: block; }
+.bid-explorer > summary strong { font-size: 14px; }
+.bid-explorer > summary small { margin-top: 4px; color: var(--muted); font-size: 10px; }
+.bid-explorer > summary .disclosure-arrow { flex: none; width: 18px; }
+.bid-explorer[open] > summary .disclosure-arrow { transform: rotate(90deg); }
+
+.bid-explorer-body {
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.bid-explorer-body > .panel,
+.bid-explorer-body > .supporting-view {
+  margin: 0;
+  border-right: 0;
+  border-left: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+@media (min-width: 900px) {
+  .workspace.page { width: min(1280px, 100%); }
+  .bid-check-workbench {
+    grid-template-columns: minmax(390px, .86fr) minmax(500px, 1.14fr);
+    align-items: start;
+    gap: clamp(28px, 4vw, 58px);
+  }
+  .bid-check-workbench .buyer-results {
+    position: sticky;
+    top: 84px;
+  }
+}
+
+@media (max-width: 899px) {
+  .bid-check-workbench .buyer-results { order: -1; }
+  .bid-explorer { margin-bottom: 6px; }
+}
+
+@media (max-width: 520px) {
+  .workspace.page { padding: 12px 12px 56px; }
+  .workspace-title { margin: 6px 0 12px; }
+  .workspace-title h1 { font-size: 30px; }
+  .bid-check-workbench { gap: 18px; }
+  .bid-live-decision .verdict-head {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+    padding: 18px 14px 14px;
+  }
+  .bid-live-decision .verdict-decision h2 { font-size: clamp(34px, 11vw, 48px); }
+  .bid-live-decision .ev-orb { min-width: 112px; }
+  .bid-live-decision .ev-orb .max-hammer { font-size: clamp(30px, 10vw, 42px); }
+  .bid-live-decision .bid-inputs { padding: 14px; }
+  .bid-live-decision .value-rule button { padding-inline: 4px; font-size: 9px; }
+  .bid-live-decision .outcome-range-compact { padding: 14px; }
+  .bid-check-workbench .buyer-slot-rail { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
