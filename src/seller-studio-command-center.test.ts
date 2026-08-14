@@ -56,7 +56,6 @@ describe("Seller Studio command center", () => {
     expect(within(studio).getByText("$16.77")).toBeInTheDocument();
     const plannedBid = within(studio).getByLabelText("Planned bid per spot");
     fireEvent.change(plannedBid, { target: { value: "20" } });
-    fireEvent.blur(plannedBid);
 
     expect(within(screen.getByText("8 / 8 sold").parentElement!).getByText("Profit $23.00")).toBeInTheDocument();
     expect(within(screen.getByText("6 / 8 sold").parentElement!).getByText("Loss $7.75")).toBeInTheDocument();
@@ -69,7 +68,6 @@ describe("Seller Studio command center", () => {
     expect(screen.getByText("Current market").parentElement).toHaveTextContent("$100.00");
     const cost = screen.getByLabelText("My cost basis");
     fireEvent.change(cost, { target: { value: "80" } });
-    fireEvent.blur(cost);
     expect(screen.getByRole("region", { name: "Seller break economics" })).toHaveTextContent("$13.97");
   });
 

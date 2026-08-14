@@ -116,12 +116,14 @@ function NumericInput({
   placeholder = "0",
   disabled = false,
   ariaLabel,
+  live = false,
 }: {
   value: number | undefined;
   onCommit: (value: number | undefined) => void;
   placeholder?: string;
   disabled?: boolean;
   ariaLabel?: string;
+  live?: boolean;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [draft, setDraft] = useState(value == null ? "" : String(value));
@@ -164,7 +166,16 @@ function NumericInput({
       aria-label={ariaLabel}
       onChange={(event) => {
         const next = event.target.value;
-        if (/^\d*(?:[.,]\d*)?$/.test(next)) setDraft(next);
+        if (!/^\d*(?:[.,]\d*)?$/.test(next)) return;
+        setDraft(next);
+        if (!live) return;
+        const normalized = next.trim().replace(",", ".");
+        if (!normalized || normalized === ".") {
+          onCommit(undefined);
+          return;
+        }
+        const parsed = Number(normalized);
+        if (Number.isFinite(parsed)) onCommit(Math.max(0, parsed));
       }}
       onBlur={commit}
       onKeyDown={(event) => {
@@ -184,12 +195,14 @@ export function NumberField({
   onChange,
   prefix = "$",
   hint,
+  live = false,
 }: {
   label: string;
   value: number | undefined;
   onChange: (n: number | undefined) => void;
   prefix?: string;
   hint?: string;
+  live?: boolean;
 }) {
   return (
     <label className="number-field">
@@ -204,6 +217,7 @@ export function NumberField({
           placeholder="0"
           onCommit={onChange}
           ariaLabel={label}
+          live={live}
         />
       </div>
     </label>
@@ -2462,8 +2476,8 @@ function SellerEnticement({
           <option value="">Choose a booster</option>
           {products.map((product) => <option key={productRef(product)} value={productRef(product)}>{product.set} · {product.label}</option>)}
         </select></label>
-        <NumberField label="Bid threshold" value={threshold} onChange={(value) => setThreshold(value ?? 0)} />
-        <NumberField label="My booster cost" value={costOverride} onChange={setCostOverride} />
+        <NumberField label="Bid threshold" value={threshold} onChange={(value) => setThreshold(value ?? 0)} live />
+        <NumberField label="My booster cost" value={costOverride} onChange={setCostOverride} live />
       </div>
       <div className="enticement-metrics">
         <div><span>Market / pack</span><b>{loading ? "Loading…" : fmt(marketPrice)}</b></div>
@@ -2557,7 +2571,7 @@ export function SellerView({
               <span className="set-glyph">{line.set}</span>
               <span className="seller-product-name"><strong>{line.productLabel}</strong><small>{line.set}</small></span>
               <div className="seller-market-price"><span>Current market</span><b>{fmt(line.marketCost)}</b></div>
-              <NumberField label="My cost basis" value={line.myCost} onChange={(value) => update(line.id, { myCost: value })} />
+              <NumberField label="My cost basis" value={line.myCost} onChange={(value) => update(line.id, { myCost: value })} live />
               <div className="line-controls">
                 <div className="stepper" aria-label={`${line.productLabel} quantity`}>
                   <button disabled={line.quantity <= 1} onClick={() => update(line.id, { quantity: Math.max(1, line.quantity - 1) })}>−</button>
@@ -2586,18 +2600,18 @@ export function SellerView({
             <option value="priority">USPS Priority Mail</option>
             <option value="custom">Other / custom</option>
           </select></label>
-          <NumberField label="Buyer shipping at checkout" value={buyerShipping} onChange={(value) => setBuyerShipping(value ?? 0)} />
-          <NumberField label="Packaging / shipment" value={packing} onChange={(value) => setPacking(value ?? 0)} />
-          <NumberField label="Postage / shipment" value={postage} onChange={(value) => setPostage(value ?? 0)} />
-          <NumberField label="Shipments" value={shipments} onChange={(value) => setShipments(value ?? 1)} />
-          <NumberField label="Labor" value={labor} onChange={(value) => setLabor(value ?? 0)} />
-          <NumberField label="Tax on fees / permits" value={tax} onChange={(value) => setTax(value ?? 0)} />
-          <NumberField label="Giveaways" value={giveaways} onChange={(value) => setGiveaways(value ?? 0)} />
-          <NumberField label="Refund / damage reserve" value={refundReserve} onChange={(value) => setRefundReserve(value ?? 0)} />
-          <NumberField label="Allocated overhead" value={overhead} onChange={(value) => setOverhead(value ?? 0)} />
-          <NumberField label="Commission" value={commission} onChange={(value) => setCommission(value ?? 0)} prefix="%" />
-          <NumberField label="Processing" value={processing} onChange={(value) => setProcessing(value ?? 0)} prefix="%" />
-          <NumberField label="Fixed / purchase" value={processingFlat} onChange={(value) => setProcessingFlat(value ?? 0)} />
+          <NumberField label="Buyer shipping at checkout" value={buyerShipping} onChange={(value) => setBuyerShipping(value ?? 0)} live />
+          <NumberField label="Packaging / shipment" value={packing} onChange={(value) => setPacking(value ?? 0)} live />
+          <NumberField label="Postage / shipment" value={postage} onChange={(value) => setPostage(value ?? 0)} live />
+          <NumberField label="Shipments" value={shipments} onChange={(value) => setShipments(value ?? 1)} live />
+          <NumberField label="Labor" value={labor} onChange={(value) => setLabor(value ?? 0)} live />
+          <NumberField label="Tax on fees / permits" value={tax} onChange={(value) => setTax(value ?? 0)} live />
+          <NumberField label="Giveaways" value={giveaways} onChange={(value) => setGiveaways(value ?? 0)} live />
+          <NumberField label="Refund / damage reserve" value={refundReserve} onChange={(value) => setRefundReserve(value ?? 0)} live />
+          <NumberField label="Allocated overhead" value={overhead} onChange={(value) => setOverhead(value ?? 0)} live />
+          <NumberField label="Commission" value={commission} onChange={(value) => setCommission(value ?? 0)} prefix="%" live />
+          <NumberField label="Processing" value={processing} onChange={(value) => setProcessing(value ?? 0)} prefix="%" live />
+          <NumberField label="Fixed / purchase" value={processingFlat} onChange={(value) => setProcessingFlat(value ?? 0)} live />
         </div>
         <p className="seller-cost-source">Whatnot US TCG defaults: 8% commission and 2.9% + $0.30 processing, checked {WHATNOT_US.policyDate}. USPS postage varies by weight and distance; enter the actual label cost when the seller pays it.</p>
       </details>
@@ -2608,7 +2622,7 @@ export function SellerView({
           <strong>{fmt(breakEvenBid)}</strong>
           <small>per spot · all 8 sold</small>
         </div>
-        <NumberField label="Planned bid per spot" value={plannedBid} onChange={setPlannedBidOverride} />
+        <NumberField label="Planned bid per spot" value={plannedBid} onChange={setPlannedBidOverride} live />
         <div className="seller-fill-scenarios">
           {scenarios.map((scenario) => <div className={scenario.profit != null && scenario.profit >= 0 ? "positive" : "negative"} key={scenario.sold}>
             <span>{scenario.sold} / 8 sold</span>
