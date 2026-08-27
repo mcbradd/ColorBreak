@@ -71,9 +71,15 @@ export function createLargeBreakPlan(result: ValuationResult, spotCount: number,
       byCard.set(key, { key, name: row.card.name, set: row.card.set, image: row.card.image, marketPrice, pullEV: row.sellableValue });
     }
   }
+  // Sparse or incomplete price snapshots can contain fewer valued cards than the
+  // requested named-spot target. Keep the same share of that valued pool in the
+  // residual categories instead of consuming every card as an individual spot.
+  const availableNamedTarget = namedTarget > 0 && byCard.size > 0
+    ? Math.max(1, Math.floor(byCard.size * namedShare))
+    : 0;
   const namedCards = [...byCard.values()]
     .sort((left, right) => right.marketPrice - left.marketPrice || right.pullEV - left.pullEV || left.name.localeCompare(right.name))
-    .slice(0, namedTarget);
+    .slice(0, Math.min(namedTarget, availableNamedTarget));
   const namedKeys = new Set(namedCards.map((card) => card.key));
   const grouped = new Map<string, { key: string; label: string; pullEV: number; cards: Set<string> }>();
   for (const row of contributors) {
