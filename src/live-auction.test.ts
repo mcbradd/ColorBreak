@@ -40,7 +40,7 @@ function Harness() {
   const [bid, setBid] = useState<number>();
   const [shipping, setShipping] = useState<number>();
   return createElement(Fragment, null,
-    createElement(SlotRail, { result: valuation, auction, setAuction, assignmentMode, setAssignmentMode, selected, setSelected }),
+    createElement(SlotRail, { result: valuation, auction, setAuction, assignmentMode, setAssignmentMode, selected, setSelected, largeSpots: 120, setLargeSpots: () => undefined }),
     createElement(BuyerView, { analysis, auction, assignmentMode, selected, bid, setBid, shipping, setShipping }),
   );
 }
@@ -96,6 +96,6 @@ describe("live random-slot buyer workflow", () => {
     const supporting = container.querySelector(".bid-explorer")!;
 
     expect(verdict.compareDocumentPosition(supporting) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(supporting).not.toHaveAttribute("open");
+    expect(supporting.tagName).toBe("SECTION");
   });
 });

@@ -9,6 +9,7 @@
 5. Market EV, Sellable EV, Known EV, chase share, value without the chase, and top contributors remain available without obstructing the primary decision.
 6. Buyer spot format offers Pick a color, Random remaining, and Large break. Large break accepts 1–500 spots, defaults to 120, and targets 75% individually named high-market cards.
 7. Large break shows sealed market value per spot, pull EV per spot under the shared bulk filter, top named cards, and residual creature-color/card-type EV with named cards excluded.
+8. Buyer setup presents break format first, then break contents and the value filter in one working screen. The latest decision evidence and visualizations remain visible during recalculation and require no disclosure to open.
 
 ## Seller
 

@@ -722,7 +722,7 @@ export function Composition({
         help={showHelp ? "The sealed products and quantities being opened in this break. Changing any line immediately recalculates card contents, prices, color value, and possible opening values." : undefined}
         title={<>{lines.length} product{lines.length === 1 ? "" : "s"}</>}
         accessory={<button className="quiet" onClick={add}>
-          <PackagePlus /> Add
+          <PackagePlus /> Add a product
         </button>}
       />
       {lines.map((line) => (
@@ -843,7 +843,7 @@ export function SlotRail({
     <section className="buyer-slot-control" aria-labelledby="buyer-color-heading">
       <div className="buyer-slot-heading">
         <div>
-          <p className="section-label">2 · SPOT FORMAT</p>
+          <p className="section-label">1 · BREAK FORMAT</p>
           <h2 id="buyer-color-heading">{assignmentMode === "pick" ? "Choose your color" : assignmentMode === "random" ? "Mark colors already taken" : "Set the random spot count"}</h2>
           <p>{assignmentMode === "large" ? "For named-card, creature-color, and card-type spots." : "Tap a color. Use × for colors already taken."}</p>
         </div>
@@ -1821,14 +1821,13 @@ export function BuyerView({
           </p>
         )}
       </section>
-      <details className="bid-explorer">
-        <summary className="disclosure-summary">
+      <section className="bid-explorer">
+        <header className="disclosure-summary">
           <span>
-            <strong>Explore the numbers</strong>
-            <small>Break value, Break Balance, data quality, and ranked cards</small>
+            <strong>Decision evidence</strong>
+            <small>Break value, Break Balance, data quality, and ranked cards · updated live</small>
           </span>
-          <DisclosureArrow />
-        </summary>
+        </header>
         <div className="bid-explorer-body">
           <ValueSummary result={result} />
           <BreakBalance result={result} model={analysis.outcomeModel} remaining={auction.remaining} simulation={simulation.result} />
@@ -1839,7 +1838,7 @@ export function BuyerView({
             onInspect={setInspectedCard}
           />
         </div>
-      </details>
+      </section>
       <CardInspector
         row={inspectedCard}
         status={result.status}
@@ -2765,14 +2764,6 @@ export function BuyerSetup({
 }) {
   return (
     <section className="buyer-setup" aria-label="Bid setup">
-      <Composition
-        lines={lines}
-        add={add}
-        update={update}
-        remove={remove}
-        headingLabel="1 · BREAK CONTENTS"
-        showHelp={false}
-      />
       <SlotRail
         result={result}
         auction={auction}
@@ -2783,6 +2774,14 @@ export function BuyerSetup({
         setSelected={setSelected}
         largeSpots={largeSpots}
         setLargeSpots={setLargeSpots}
+      />
+      <Composition
+        lines={lines}
+        add={add}
+        update={update}
+        remove={remove}
+        headingLabel="2 · BREAK CONTENTS"
+        showHelp={false}
       />
       <div className="buyer-options-heading">
         <p className="section-label">3 · VALUE FILTER</p>
@@ -2962,9 +2961,7 @@ export function Workspace({
             <h1>{mode === "buyer" ? assignmentMode === "large" ? "Large Break" : "Bid Check" : "Seller Studio"}</h1>
           </div>
         </header>
-        {!lines.length ? (
-          <EmptyBreak add={() => setBuilder(true)} />
-        ) : mode === "buyer" ? (
+        {mode === "buyer" ? (
           <div className="bid-check-workbench">
             <BuyerSetup
               lines={lines}
@@ -2986,6 +2983,7 @@ export function Workspace({
               setLargeSpots={setLargeSpots}
             />
             <div className="results buyer-results">
+              {!lines.length && <section className="buyer-awaiting-break"><span><BarChart3 /></span><h2>Evaluation appears here</h2><p>Choose a format, add the sealed products, and ColorBreak calculates immediately.</p></section>}
               {busy && <div className="calculating"><span />Calculating exact contents and prices…</div>}
               {error && <div className="error"><ShieldAlert />{error}</div>}
               {analysis && (assignmentMode === "large" ? (
@@ -3005,6 +3003,8 @@ export function Workspace({
               ))}
             </div>
           </div>
+        ) : !lines.length ? (
+          <EmptyBreak add={() => setBuilder(true)} />
         ) : (
           <div className="seller-studio-shell">
               {busy && (

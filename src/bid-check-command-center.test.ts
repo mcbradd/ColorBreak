@@ -69,14 +69,13 @@ describe("Bid Check command center", () => {
     expect(screen.queryByText("V2 RESEARCH PREVIEW")).not.toBeInTheDocument();
   });
 
-  it("puts supporting analysis behind one optional exploration disclosure", async () => {
+  it("keeps supporting analysis immediately available without a disclosure", async () => {
     render(createElement(Workspace, { mode: "buyer", exit: vi.fn() }));
     await screen.findByRole("region", { name: "Live bid decision" });
 
-    const explore = screen.getByText("Explore the numbers").closest("details");
-    expect(explore).not.toBeNull();
-    expect(explore).not.toHaveAttribute("open");
-    await waitFor(() => expect(within(explore as HTMLElement).getByText(/Break Balance/)).toBeInTheDocument());
+    const evidence = screen.getByText("Decision evidence").closest("section");
+    expect(evidence).not.toBeNull();
+    await waitFor(() => expect(within(evidence as HTMLElement).getByText(/Break Balance/)).toBeInTheDocument());
     expect(screen.queryByText("Chase Map")).not.toBeInTheDocument();
   });
 });

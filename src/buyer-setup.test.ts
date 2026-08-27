@@ -57,12 +57,12 @@ describe("Check a Bid setup order", () => {
     const setup = container.querySelector(".buyer-setup")!;
     const directSections = Array.from(setup.children);
 
-    expect(directSections[0]).toHaveClass("composition");
-    expect(directSections[1]).toHaveClass("buyer-slot-control");
+    expect(directSections[0]).toHaveClass("buyer-slot-control");
+    expect(directSections[1]).toHaveClass("composition");
     expect(directSections[2]).toHaveClass("buyer-options-heading");
     expect(directSections[3]).toHaveClass("bulk-filter-control");
-    expect(screen.getByText("1 · BREAK CONTENTS")).toBeInTheDocument();
-    expect(screen.getByText("2 · SPOT FORMAT")).toBeInTheDocument();
+    expect(screen.getByText("1 · BREAK FORMAT")).toBeInTheDocument();
+    expect(screen.getByText("2 · BREAK CONTENTS")).toBeInTheDocument();
     expect(screen.getByText("3 · VALUE FILTER")).toBeInTheDocument();
   });
 
