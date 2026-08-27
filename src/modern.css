@@ -900,15 +900,69 @@ body {
 }
 
 @media (max-width: 899px) {
-  .bid-check-workbench .buyer-results { order: -1; }
+  /* Entry stays first on narrow screens; decision evidence follows the controls. */
+  .bid-check-workbench .buyer-results { order: initial; }
   .bid-explorer { margin-bottom: 6px; }
 }
 
 @media (max-width: 520px) {
-  .workspace.page { padding: 12px 12px 56px; }
-  .workspace-title { margin: 6px 0 12px; }
-  .workspace-title h1 { font-size: 30px; }
-  .bid-check-workbench { gap: 18px; }
+  .workspace.page { padding: 7px 10px 48px; }
+  .workspace-title { margin: 3px 0 7px; }
+  .workspace-title .eyebrow { display: none; }
+  .workspace-title h1 { font-size: 23px; }
+  .bid-check-workbench { gap: 12px; }
+  .bid-check-workbench .buyer-setup { border-top: 0; }
+
+  /* The complete buying setup fits in the first phone viewport. */
+  .bid-check-workbench .buyer-slot-control { padding: 6px 0 7px; }
+  .bid-check-workbench .buyer-slot-heading .section-label { margin: 0; font-size: 8px; }
+  .bid-check-workbench .buyer-slot-heading h2,
+  .bid-check-workbench .buyer-slot-heading p:last-child { display: none; }
+  .bid-check-workbench .buyer-assignment-toggle { margin: 5px 0; }
+  .bid-check-workbench .buyer-assignment-toggle button { min-height: 33px; padding: 4px 2px; font-size: 8px; line-height: 1.1; }
+  .bid-check-workbench .buyer-slot-rail { grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 3px; }
+  .bid-check-workbench .buyer-slot-select { min-height: 43px; padding: 4px 1px; }
+  .bid-check-workbench .buyer-slot-select > span { width: 23px; height: 23px; font-size: 9px; }
+  .bid-check-workbench .buyer-slot-select b,
+  .bid-check-workbench .buyer-slot-select small { display: none; }
+  .bid-check-workbench .slot-taken-toggle { top: 1px; right: 1px; width: 20px; height: 20px; }
+  .bid-check-workbench .slot-taken-toggle svg { width: 11px; height: 11px; }
+  .bid-check-workbench .remaining-summary { margin-top: 4px; font-size: 8px; }
+  .bid-check-workbench .large-break-spot-input { grid-template-columns: minmax(0, 1fr) 88px; gap: 7px; padding: 7px 8px; }
+  .bid-check-workbench .large-break-spot-label small,
+  .bid-check-workbench .large-break-spot-input > p { display: none; }
+  .bid-check-workbench .large-break-spot-input input { padding-block: 6px; font-size: 16px; }
+
+  .bid-check-workbench .composition > .panel-heading { min-height: 44px; padding: 6px 0; }
+  .bid-check-workbench .composition .panel-heading-copy .section-label { margin-bottom: 2px; font-size: 8px; }
+  .bid-check-workbench .composition .panel-heading-copy h2 { font-size: 14px; }
+  .bid-check-workbench .composition .quiet { min-height: 32px; padding: 5px 7px; font-size: 9px; white-space: nowrap; }
+  .bid-check-workbench .composition .line { gap: 6px; padding: 5px 0; }
+  .bid-check-workbench .composition .set-glyph { width: 28px; height: 28px; }
+  .bid-check-workbench .composition .line strong { font-size: 10px; }
+  .bid-check-workbench .composition .line small { font-size: 8px; }
+  .bid-check-workbench .composition .line-controls { gap: 3px; }
+  .bid-check-workbench .composition .stepper button { width: 25px; height: 25px; }
+  .bid-check-workbench .composition .remove-line { width: 28px; height: 28px; }
+
+  .bid-check-workbench .buyer-options-heading { padding: 7px 0 3px; }
+  .bid-check-workbench .buyer-options-heading .section-label { margin: 0; font-size: 8px; }
+  .bid-check-workbench .buyer-options-heading h2 { display: none; }
+  .bid-check-workbench .bulk-filter-main { grid-template-columns: minmax(0, 1fr) 108px; gap: 6px; padding: 5px 0 7px; }
+  .bid-check-workbench .bulk-toggle { grid-template-columns: 32px minmax(0, 1fr) auto; gap: 6px; }
+  .bid-check-workbench .bulk-toggle > span { width: 32px; height: 20px; }
+  .bid-check-workbench .bulk-toggle > span i { width: 12px; height: 12px; }
+  .bid-check-workbench .bulk-toggle[aria-checked="true"] > span i { transform: translateX(12px); }
+  .bid-check-workbench .bulk-toggle b { font-size: 10px; }
+  .bid-check-workbench .bulk-toggle small { grid-column: auto; margin: 0; font-size: 8px; }
+  .bid-check-workbench .bulk-value-field > span { font-size: 8px; }
+  .bid-check-workbench .bulk-value-field > div { min-height: 32px; }
+  .bid-check-workbench .bulk-value-field input { padding-block: 5px; font-size: 14px; }
+  .bid-check-workbench .bulk-filter-help,
+  .bid-check-workbench .bulk-filter-details { display: none; }
+  .buyer-awaiting-break { min-height: 130px; padding: 18px; }
+  .buyer-awaiting-break > span { width: 38px; height: 38px; }
+  .buyer-awaiting-break h2 { margin-top: 10px; font-size: 17px; }
   .bid-live-decision .verdict-head {
     grid-template-columns: minmax(0, 1fr) auto;
     gap: 10px;
@@ -920,7 +974,7 @@ body {
   .bid-live-decision .bid-inputs { padding: 14px; }
   .bid-live-decision .value-rule button { padding-inline: 4px; font-size: 9px; }
   .bid-live-decision .outcome-range-compact { padding: 14px; }
-  .bid-check-workbench .buyer-slot-rail { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .bid-check-workbench .buyer-slot-rail { grid-template-columns: repeat(8, minmax(0, 1fr)); }
 }
 
 /* Seller Studio is one operating screen: contents, costs, bid economics, enticement. */
