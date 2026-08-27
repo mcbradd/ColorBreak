@@ -11,6 +11,7 @@
 7. Large break shows sealed market value per spot, pull EV per spot under the shared bulk filter, top named cards, and residual creature-color/card-type EV with named cards excluded.
 8. Buyer setup presents break format first, then break contents and the value filter in one working screen. The latest decision evidence and visualizations remain visible during recalculation and require no disclosure to open.
 9. On a phone viewport, format, color/spot selection, break contents, and bulk-value controls appear before results and fit in the initial landing viewport for a new break. Buying recommendation and limit precede supporting evidence.
+10. The current URL continuously encodes break products, quantities, format, spot/color state, and bulk-value options. Opening or sharing that URL reconstructs the filled-out buyer view.
 
 ## Seller
 

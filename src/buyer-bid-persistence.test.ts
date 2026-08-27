@@ -65,6 +65,7 @@ describe("buyer bid persistence", () => {
     fireEvent.change(screen.getByLabelText("Your added shipping"), { target: { value: "4.25" } });
     fireEvent.blur(screen.getByLabelText("Your added shipping"));
     first.unmount();
+    history.replaceState(null, "", "/#buyer");
 
     render(createElement(Workspace, { mode: "buyer", exit: vi.fn() }));
     expect(await screen.findByLabelText("Current bid")).toHaveValue("12.5");

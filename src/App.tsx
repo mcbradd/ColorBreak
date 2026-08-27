@@ -35,7 +35,8 @@ import type { BreakAnalysis } from "./data/evaluate";
 import { sealedMarketPrice } from "./data/sealed-prices";
 import { createAuction, toggleSlotTaken } from "./domain/auction";
 import type { AuctionState } from "./domain/auction";
-import { decodeLegacySearch, encodeComposition } from "./domain/legacy";
+import { decodeLegacySearch } from "./domain/legacy";
+import { createBreakShareUrl, decodeBuyerShare, type AssignmentMode } from "./domain/share-url";
 import {
   calculateProfit,
   requiredHammer,
@@ -65,7 +66,6 @@ import { chaseMapLayout } from "./constellation-layout";
 import { createLargeBreakPlan } from "./domain/large-break";
 
 type Mode = "home" | "buyer" | "seller";
-type AssignmentMode = "random" | "pick" | "large";
 const money = new Intl.NumberFormat("en-US", {
   style: "currency",
   currency: "USD",
@@ -2807,6 +2807,7 @@ export function Workspace({
   exit: () => void;
 }) {
   const legacy = useMemo(() => decodeLegacySearch(location.search), []);
+  const sharedBuyer = useMemo(() => decodeBuyerShare(location.search), []);
   const firstResultTracked = useRef(false);
   const calculationStarted = useRef(Date.now());
   const [lines, setLines] = useState<BreakLine[]>(() =>
@@ -2815,23 +2816,19 @@ export function Workspace({
     [builder, setBuilder] = useState(false),
     [analysis, setAnalysis] = useState<BreakAnalysis>(),
     [auction, setAuction] = useState<AuctionState>(() => {
-      const shared = new URLSearchParams(location.search).get("r");
-      const remaining = shared?.split("").filter((slot): slot is SlotId => SLOT_IDS.includes(slot as SlotId));
-      return remaining?.length ? createAuction(remaining) : createAuction();
+      return sharedBuyer.remaining?.length ? createAuction(sharedBuyer.remaining) : createAuction();
     }),
     [error, setError] = useState<string>(),
-    [bulkThreshold, setBulkThreshold] = useState(2),
-    [bulkEnabled, setBulkEnabled] = useState(true),
-    [assignmentMode, setAssignmentMode] = useState<AssignmentMode>(() => new URLSearchParams(location.search).get("m") === "large" ? "large" : "pick"),
+    [bulkThreshold, setBulkThreshold] = useState(() => sharedBuyer.bulkThreshold ?? 2),
+    [bulkEnabled, setBulkEnabled] = useState(() => sharedBuyer.bulkEnabled ?? true),
+    [assignmentMode, setAssignmentMode] = useState<AssignmentMode>(() => sharedBuyer.assignmentMode),
     [buyerBid, setBuyerBid] = useState<number | undefined>(() => storedBuyerNumber("bid")),
     [buyerShipping, setBuyerShipping] = useState<number | undefined>(() => storedBuyerNumber("shipping")),
     [largeSpots, setLargeSpots] = useState<number>(() => {
-      const shared = Number(new URLSearchParams(location.search).get("n"));
-      return Number.isFinite(shared) && shared > 0 ? Math.min(500, Math.round(shared)) : storedBuyerNumber("large-spots") ?? 120;
+      return sharedBuyer.largeSpots ?? storedBuyerNumber("large-spots") ?? 120;
     }),
     [selectedSlot, setSelectedSlot] = useState<SlotId>(() => {
-      const shared = new URLSearchParams(location.search).get("s") as SlotId | null;
-      return shared && SLOT_IDS.includes(shared) ? shared : "W";
+      return sharedBuyer.selectedSlot ?? "W";
     }),
     [busy, setBusy] = useState(false);
   const threshold = mode === "seller" ? 0 : bulkEnabled ? bulkThreshold : 0;
@@ -2860,6 +2857,18 @@ export function Workspace({
   useEffect(() => {
     try { localStorage.setItem("colorbreak:buyer:large-spots", String(largeSpots)); } catch { /* optional */ }
   }, [largeSpots]);
+  const sharedHref = createBreakShareUrl(location.href, {
+    lines,
+    assignmentMode,
+    selectedSlot,
+    remaining: auction.remaining,
+    bulkEnabled,
+    bulkThreshold,
+    largeSpots,
+  });
+  useEffect(() => {
+    history.replaceState(null, "", sharedHref);
+  }, [sharedHref]);
   useEffect(() => {
     if (!lines.length) {
       setAnalysis(undefined);
@@ -2917,20 +2926,7 @@ export function Workspace({
     return () => { cancelled = true; };
   }, [lines.map((line) => `${line.id}:${line.productKey}:${line.tcgId ?? ""}`).join("|")]);
   const share = async () => {
-    const url = new URL(location.href);
-    url.searchParams.set("b", encodeComposition(lines));
-    url.searchParams.set("s", selectedSlot);
-    if (mode === "buyer") {
-      url.searchParams.set("r", auction.remaining.join(""));
-      if (assignmentMode === "large") {
-        url.searchParams.set("m", "large");
-        url.searchParams.set("n", String(largeSpots));
-      } else {
-        url.searchParams.delete("m");
-        url.searchParams.delete("n");
-      }
-    }
-    await navigator.clipboard.writeText(url.toString());
+    await navigator.clipboard.writeText(sharedHref);
     track("break_shared", { mode, productCount: lines.length, remainingCount: auction.remaining.length });
   };
   return (
