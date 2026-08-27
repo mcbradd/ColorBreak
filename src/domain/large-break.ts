@@ -27,6 +27,14 @@ export interface LargeBreakPlan {
   totalPullEV: number;
 }
 
+export type TopCardSort = "price" | "expected-value";
+
+export function sortNamedCards(cards: NamedSpot[], sort: TopCardSort): NamedSpot[] {
+  return [...cards].sort((left, right) => sort === "expected-value"
+    ? right.pullEV - left.pullEV || right.marketPrice - left.marketPrice || left.name.localeCompare(right.name)
+    : right.marketPrice - left.marketPrice || right.pullEV - left.pullEV || left.name.localeCompare(right.name));
+}
+
 const cardKey = (row: Contributor) => row.card.id || `${row.card.set}|${row.card.collectorNumber}`;
 
 function categoryFor(row: Contributor): { key: string; label: string } {

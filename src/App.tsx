@@ -63,7 +63,8 @@ import { SLOT_IDS, SLOT_NAMES } from "./domain/types";
 import { useMobileInputViewport } from "./mobile-input-viewport";
 import { track } from "./analytics";
 import { chaseMapLayout } from "./constellation-layout";
-import { createLargeBreakPlan } from "./domain/large-break";
+import { createLargeBreakPlan, sortNamedCards } from "./domain/large-break";
+import type { TopCardSort } from "./domain/large-break";
 
 type Mode = "home" | "buyer" | "seller";
 const money = new Intl.NumberFormat("en-US", {
@@ -1640,7 +1641,9 @@ export function SlotValueDetails({
 }
 
 export function LargeBreakView({ result, lines, spots }: { result: ValuationResult; lines: BreakLine[]; spots: number }) {
+  const [topCardSort, setTopCardSort] = useState<TopCardSort>("price");
   const plan = useMemo(() => createLargeBreakPlan(result, spots), [result, spots]);
+  const rankedNamedCards = useMemo(() => sortNamedCards(plan.namedCards, topCardSort), [plan.namedCards, topCardSort]);
   const completeSealedValue = lines.every((line) => line.marketCost != null);
   const sealedMarketValue = completeSealedValue
     ? lines.reduce((sum, line) => sum + line.quantity * line.marketCost!, 0)
@@ -1663,9 +1666,18 @@ export function LargeBreakView({ result, lines, spots }: { result: ValuationResu
         <div><span>Total pull EV</span><b>{fmt(plan.totalPullEV)}</b><small>Expected across the opening</small></div>
       </div>
       <section className="large-break-pool-section">
-        <div className="large-break-section-heading"><div><p className="section-label">NAMED POOL</p><h3>Top cards</h3></div><span>Highest market cards first · {plan.namedCards.length} named spots</span></div>
+        <div className="large-break-section-heading large-break-top-heading">
+          <div><p className="section-label">NAMED POOL</p><h3>Top cards</h3></div>
+          <div className="top-card-sort" role="group" aria-label="Rank top cards by">
+            <span>Rank by</span>
+            <div>
+              <button type="button" aria-pressed={topCardSort === "price"} onClick={() => setTopCardSort("price")}>Price</button>
+              <button type="button" aria-pressed={topCardSort === "expected-value"} onClick={() => setTopCardSort("expected-value")}>Expected value</button>
+            </div>
+          </div>
+        </div>
         <div className="large-break-card-list">
-          {plan.namedCards.slice(0, 12).map((card, index) => <div className="large-break-card" key={card.key}>
+          {rankedNamedCards.slice(0, 12).map((card, index) => <div className="large-break-card" key={card.key}>
             <span className="large-break-rank">{String(index + 1).padStart(2, "0")}</span>
             {card.image ? <img src={card.image} alt="" /> : <span className="card-placeholder" />}
             <div><strong>{card.name}</strong><small>{card.set} · {fmt(card.marketPrice)} market</small></div>

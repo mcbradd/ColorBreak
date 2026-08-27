@@ -1,8 +1,19 @@
 import { describe, expect, it } from "vitest";
-import { createLargeBreakPlan } from "./large-break";
+import { createLargeBreakPlan, sortNamedCards } from "./large-break";
 import { calculateBreak } from "./valuation";
 
 describe("large random break plan", () => {
+  it("ranks the named pool by either price or expected value without mutating it", () => {
+    const cards = [
+      { key: "chase", name: "Expensive Chase", set: "TST", marketPrice: 100, pullEV: 2 },
+      { key: "common", name: "Frequent Hit", set: "TST", marketPrice: 20, pullEV: 8 },
+    ];
+
+    expect(sortNamedCards(cards, "price").map((card) => card.name)).toEqual(["Expensive Chase", "Frequent Hit"]);
+    expect(sortNamedCards(cards, "expected-value").map((card) => card.name)).toEqual(["Frequent Hit", "Expensive Chase"]);
+    expect(cards.map((card) => card.name)).toEqual(["Expensive Chase", "Frequent Hit"]);
+  });
+
   it("removes named cards from residual creature and card-type EV", () => {
     const result = calculateBreak({ threshold: 2, prices: [
       { id: "named", set: "TST", collectorNumber: "1", name: "Named Dragon", typeLine: "Legendary Creature — Dragon", slot: "R", nonfoil: 50, foil: null },
