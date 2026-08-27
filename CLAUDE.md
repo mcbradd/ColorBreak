@@ -9,6 +9,10 @@ Read `CONTEXT.md` for domain language and `SPEC.md` for the current acceptance c
 - Production build: `npm run build`
 - Full check: `npm run check`
 
+## Delivery gate
+
+Product-facing work is complete only when the production deployment succeeds and the changed flow passes a live-site check. Treat local tests and builds as pre-deployment validation, not completion.
+
 The deployable output is `dist/`. GitHub Pages must receive the built assets plus `data/` and `public/` content.
 
 ## Architecture boundaries

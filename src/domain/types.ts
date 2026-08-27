@@ -56,6 +56,8 @@ export interface CardPrice {
   /** Printing treatment only; base printings omit this. */
   treatment?: string;
   rarity?: string;
+  /** Front-face Scryfall type line used for large-break residual categories. */
+  typeLine?: string;
   slot: SlotId;
   nonfoil: number | null;
   foil: number | null;

@@ -62,9 +62,10 @@ import { SLOT_IDS, SLOT_NAMES } from "./domain/types";
 import { useMobileInputViewport } from "./mobile-input-viewport";
 import { track } from "./analytics";
 import { chaseMapLayout } from "./constellation-layout";
+import { createLargeBreakPlan } from "./domain/large-break";
 
 type Mode = "home" | "buyer" | "seller";
-type AssignmentMode = "random" | "pick";
+type AssignmentMode = "random" | "pick" | "large";
 const money = new Intl.NumberFormat("en-US", {
   style: "currency",
   currency: "USD",
@@ -825,6 +826,8 @@ export function SlotRail({
   setAssignmentMode,
   selected,
   setSelected,
+  largeSpots,
+  setLargeSpots,
 }: {
   result?: ValuationResult;
   auction: AuctionState;
@@ -833,14 +836,16 @@ export function SlotRail({
   setAssignmentMode: (mode: AssignmentMode) => void;
   selected: SlotId;
   setSelected: (id: SlotId) => void;
+  largeSpots: number;
+  setLargeSpots: (spots: number) => void;
 }) {
   return (
     <section className="buyer-slot-control" aria-labelledby="buyer-color-heading">
       <div className="buyer-slot-heading">
         <div>
-          <p className="section-label">2 · COLOR</p>
-          <h2 id="buyer-color-heading">{assignmentMode === "pick" ? "Choose your color" : "Mark colors already taken"}</h2>
-          <p>Tap a color. Use × for colors already taken.</p>
+          <p className="section-label">2 · SPOT FORMAT</p>
+          <h2 id="buyer-color-heading">{assignmentMode === "pick" ? "Choose your color" : assignmentMode === "random" ? "Mark colors already taken" : "Set the random spot count"}</h2>
+          <p>{assignmentMode === "large" ? "For named-card, creature-color, and card-type spots." : "Tap a color. Use × for colors already taken."}</p>
         </div>
       </div>
       <div className="assignment-toggle buyer-assignment-toggle" role="group" aria-label="Break assignment mode">
@@ -850,8 +855,15 @@ export function SlotRail({
           setAssignmentMode("pick");
         }}>Pick a color</button>
         <button className={assignmentMode === "random" ? "active" : ""} onClick={() => setAssignmentMode("random")}>Random remaining</button>
+        <button className={assignmentMode === "large" ? "active" : ""} onClick={() => setAssignmentMode("large")}>Large break</button>
       </div>
-      <div className="buyer-slot-rail" role="group" aria-label="Color slots">
+      {assignmentMode === "large" ? (
+        <div className="large-break-spot-input">
+          <div className="large-break-spot-label"><span>Random spots</span><small>Usually 100–200</small></div>
+          <NumericInput value={largeSpots} onCommit={(value) => setLargeSpots(Math.max(1, Math.min(500, Math.round(value ?? 1))))} ariaLabel="Large break spot count" live />
+          <p><b>{Math.round(largeSpots * .75)}</b> named-card targets · <b>{largeSpots - Math.round(largeSpots * .75)}</b> residual category spots</p>
+        </div>
+      ) : <><div className="buyer-slot-rail" role="group" aria-label="Color slots">
         {SLOT_IDS.map((id) => {
           const slot = result?.slots.find((row) => row.id === id);
           const taken = !auction.remaining.includes(id);
@@ -893,7 +905,7 @@ export function SlotRail({
           );
         })}
       </div>
-      <p className="remaining-summary">{assignmentMode === "random" ? `${auction.remaining.length} colors remain in the random pool` : `${SLOT_NAMES[selected]} selected`}</p>
+      <p className="remaining-summary">{assignmentMode === "random" ? `${auction.remaining.length} colors remain in the random pool` : `${SLOT_NAMES[selected]} selected`}</p></>}
     </section>
   );
 }
@@ -1623,6 +1635,54 @@ export function SlotValueDetails({
         </summary>
         <ContributorRows slot={slot} onInspect={onInspect} />
       </details>
+    </section>
+  );
+}
+
+export function LargeBreakView({ result, lines, spots }: { result: ValuationResult; lines: BreakLine[]; spots: number }) {
+  const plan = useMemo(() => createLargeBreakPlan(result, spots), [result, spots]);
+  const completeSealedValue = lines.every((line) => line.marketCost != null);
+  const sealedMarketValue = completeSealedValue
+    ? lines.reduce((sum, line) => sum + line.quantity * line.marketCost!, 0)
+    : undefined;
+  const namedEV = plan.namedCards.reduce((sum, card) => sum + card.pullEV, 0);
+  const categoryEV = plan.categories.reduce((sum, category) => sum + category.pullEV, 0);
+  return (
+    <section className="large-break-results" aria-label="Large break spot value">
+      <header className="large-break-result-head">
+        <div><p className="section-label">LARGE RANDOM BREAK</p><h2>{plan.spotCount} spots</h2></div>
+        <Status result={result} />
+      </header>
+      <div className="large-break-metrics">
+        <div><span>Sealed market value / spot</span><strong>{sealedMarketValue == null ? "—" : fmt(sealedMarketValue / plan.spotCount)}</strong><small>{sealedMarketValue == null ? "Waiting for sealed market prices" : `${fmt(sealedMarketValue)} total sealed value`}</small></div>
+        <div><span>Pull EV / spot</span><strong>{fmt(plan.totalPullEV / plan.spotCount)}</strong><small>{result.threshold > 0 ? `Cards under ${fmt(result.threshold)} ignored as bulk` : "All priced cards included"}</small></div>
+      </div>
+      <div className="large-break-allocation">
+        <div><span>Named card spots</span><b>{plan.namedCards.length}</b><small>{fmt(namedEV)} pull EV</small></div>
+        <div><span>Category spots</span><b>{plan.categories.reduce((sum, row) => sum + row.spots, 0)}</b><small>{fmt(categoryEV)} pull EV</small></div>
+        <div><span>Total pull EV</span><b>{fmt(plan.totalPullEV)}</b><small>Expected across the opening</small></div>
+      </div>
+      <section className="large-break-pool-section">
+        <div className="large-break-section-heading"><div><p className="section-label">NAMED POOL</p><h3>Top cards</h3></div><span>Highest market cards first · {plan.namedCards.length} named spots</span></div>
+        <div className="large-break-card-list">
+          {plan.namedCards.slice(0, 12).map((card, index) => <div className="large-break-card" key={card.key}>
+            <span className="large-break-rank">{String(index + 1).padStart(2, "0")}</span>
+            {card.image ? <img src={card.image} alt="" /> : <span className="card-placeholder" />}
+            <div><strong>{card.name}</strong><small>{card.set} · {fmt(card.marketPrice)} market</small></div>
+            <div className="large-break-card-value"><span>Pull EV</span><b>{fmt(card.pullEV)}</b></div>
+          </div>)}
+        </div>
+        {plan.namedCards.length > 12 && <p className="large-break-overflow">Showing 12 of {plan.namedCards.length} individually named spots.</p>}
+      </section>
+      <section className="large-break-pool-section">
+        <div className="large-break-section-heading"><div><p className="section-label">RESIDUAL POOL</p><h3>Creature colors & card types</h3></div><span>Individually named cards excluded</span></div>
+        <div className="large-break-category-head"><span>Slot group</span><span>Group EV</span><span>EV / spot</span></div>
+        {plan.categories.map((category) => <div className="large-break-category" key={category.key}>
+          <div><strong>{category.label}</strong><small>{category.cardCount} remaining cards · {category.spots} spot{category.spots === 1 ? "" : "s"}</small></div>
+          <span>{fmt(category.pullEV)}</span><b>{fmt(category.evPerSpot)}</b>
+        </div>)}
+      </section>
+      {result.status === "incomplete" && <p className="blocked"><ShieldAlert />Values are a lower bound. {result.statusReason}</p>}
     </section>
   );
 }
@@ -2655,7 +2715,7 @@ function storedLines(
   }
 }
 
-function storedBuyerNumber(key: "bid" | "shipping"): number | undefined {
+function storedBuyerNumber(key: "bid" | "shipping" | "large-spots"): number | undefined {
   try {
     const stored = localStorage.getItem(`colorbreak:buyer:${key}`);
     if (stored == null || stored.trim() === "") return undefined;
@@ -2682,6 +2742,8 @@ export function BuyerSetup({
   bulkThreshold,
   setBulkEnabled,
   setBulkThreshold,
+  largeSpots,
+  setLargeSpots,
 }: {
   lines: BreakLine[];
   add: () => void;
@@ -2698,6 +2760,8 @@ export function BuyerSetup({
   bulkThreshold: number;
   setBulkEnabled: (enabled: boolean) => void;
   setBulkThreshold: (threshold: number) => void;
+  largeSpots: number;
+  setLargeSpots: (spots: number) => void;
 }) {
   return (
     <section className="buyer-setup" aria-label="Bid setup">
@@ -2717,9 +2781,11 @@ export function BuyerSetup({
         setAssignmentMode={setAssignmentMode}
         selected={selected}
         setSelected={setSelected}
+        largeSpots={largeSpots}
+        setLargeSpots={setLargeSpots}
       />
       <div className="buyer-options-heading">
-        <p className="section-label">3 · BID OPTIONS</p>
+        <p className="section-label">3 · VALUE FILTER</p>
         <h2>Set what counts as value</h2>
       </div>
       <BulkFilterControl
@@ -2757,9 +2823,13 @@ export function Workspace({
     [error, setError] = useState<string>(),
     [bulkThreshold, setBulkThreshold] = useState(2),
     [bulkEnabled, setBulkEnabled] = useState(true),
-    [assignmentMode, setAssignmentMode] = useState<AssignmentMode>("pick"),
+    [assignmentMode, setAssignmentMode] = useState<AssignmentMode>(() => new URLSearchParams(location.search).get("m") === "large" ? "large" : "pick"),
     [buyerBid, setBuyerBid] = useState<number | undefined>(() => storedBuyerNumber("bid")),
     [buyerShipping, setBuyerShipping] = useState<number | undefined>(() => storedBuyerNumber("shipping")),
+    [largeSpots, setLargeSpots] = useState<number>(() => {
+      const shared = Number(new URLSearchParams(location.search).get("n"));
+      return Number.isFinite(shared) && shared > 0 ? Math.min(500, Math.round(shared)) : storedBuyerNumber("large-spots") ?? 120;
+    }),
     [selectedSlot, setSelectedSlot] = useState<SlotId>(() => {
       const shared = new URLSearchParams(location.search).get("s") as SlotId | null;
       return shared && SLOT_IDS.includes(shared) ? shared : "W";
@@ -2788,6 +2858,9 @@ export function Workspace({
       else localStorage.setItem("colorbreak:buyer:shipping", String(buyerShipping));
     } catch { /* optional */ }
   }, [buyerShipping]);
+  useEffect(() => {
+    try { localStorage.setItem("colorbreak:buyer:large-spots", String(largeSpots)); } catch { /* optional */ }
+  }, [largeSpots]);
   useEffect(() => {
     if (!lines.length) {
       setAnalysis(undefined);
@@ -2848,7 +2921,16 @@ export function Workspace({
     const url = new URL(location.href);
     url.searchParams.set("b", encodeComposition(lines));
     url.searchParams.set("s", selectedSlot);
-    if (mode === "buyer") url.searchParams.set("r", auction.remaining.join(""));
+    if (mode === "buyer") {
+      url.searchParams.set("r", auction.remaining.join(""));
+      if (assignmentMode === "large") {
+        url.searchParams.set("m", "large");
+        url.searchParams.set("n", String(largeSpots));
+      } else {
+        url.searchParams.delete("m");
+        url.searchParams.delete("n");
+      }
+    }
     await navigator.clipboard.writeText(url.toString());
     track("break_shared", { mode, productCount: lines.length, remainingCount: auction.remaining.length });
   };
@@ -2875,9 +2957,9 @@ export function Workspace({
         <header className="workspace-title">
           <div>
             <p className="eyebrow">
-              {mode === "buyer" ? "BUYER · SUB-10 SECOND MODE" : "SELLER · PLAN TO LAUNCH"}
+              {mode === "buyer" ? assignmentMode === "large" ? "BUYER · LARGE RANDOM MODE" : "BUYER · SUB-10 SECOND MODE" : "SELLER · PLAN TO LAUNCH"}
             </p>
-            <h1>{mode === "buyer" ? "Bid Check" : "Seller Studio"}</h1>
+            <h1>{mode === "buyer" ? assignmentMode === "large" ? "Large Break" : "Bid Check" : "Seller Studio"}</h1>
           </div>
         </header>
         {!lines.length ? (
@@ -2900,11 +2982,15 @@ export function Workspace({
               bulkThreshold={bulkThreshold}
               setBulkEnabled={setBulkEnabled}
               setBulkThreshold={setBulkThreshold}
+              largeSpots={largeSpots}
+              setLargeSpots={setLargeSpots}
             />
             <div className="results buyer-results">
               {busy && <div className="calculating"><span />Calculating exact contents and prices…</div>}
               {error && <div className="error"><ShieldAlert />{error}</div>}
-              {analysis && !busy && (
+              {analysis && (assignmentMode === "large" ? (
+                <LargeBreakView result={analysis.valuation} lines={lines} spots={largeSpots} />
+              ) : (
                 <BuyerView
                   analysis={analysis}
                   auction={auction}
@@ -2916,7 +3002,7 @@ export function Workspace({
                   shipping={buyerShipping}
                   setShipping={setBuyerShipping}
                 />
-              )}
+              ))}
             </div>
           </div>
         ) : (

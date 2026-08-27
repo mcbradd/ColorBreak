@@ -25,6 +25,9 @@ ColorBreak supports two time-sensitive jobs: a buyer deciding whether to bid on 
 - **Eligible / Estimated / Incomplete**: decision-confidence states. Incomplete is a disclosed lower bound and suppresses buyer verdicts and probability views.
 - **Omission**: a named unresolved product, booster, printing, finish, or sheet weight. Material omissions change status to Incomplete.
 - **Bid Check**: the buyer's time-critical workspace for deciding whether to bid and setting a maximum hammer price. It has Prepare and Live states, but they share one saved decision.
+- **Large Break**: the buyer's high-volume random-spot view. It prices a declared spot count from the same break composition and bulk threshold as Bid Check.
+- **Named card spot**: one individually identified high-market card removed from every residual category before category EV is calculated.
+- **Residual category spot**: a share of the remaining creature-color or card-type pool after all named card spots are excluded.
 - **Seller Studio**: the seller's planning workspace for deciding whether to run a break, pricing it, checking downside, and producing policy-safe launch assets.
 - **Truth engine**: the shared composition, collation, pricing, evidence, simulation, auction, and fee model used by both workspaces. A seller-authored link supplies assumptions but never overrides buyer-visible evidence.
 - **Bid ceiling**: the greatest hammer price consistent with the buyer's selected risk stance after incremental shipping and any explicitly modeled costs. It is a limit, not a prediction or encouragement to bid.

@@ -51,6 +51,8 @@ describe("Check a Bid setup order", () => {
       bulkThreshold: 2,
       setBulkEnabled: vi.fn(),
       setBulkThreshold: vi.fn(),
+      largeSpots: 120,
+      setLargeSpots: vi.fn(),
     }));
     const setup = container.querySelector(".buyer-setup")!;
     const directSections = Array.from(setup.children);
@@ -60,7 +62,22 @@ describe("Check a Bid setup order", () => {
     expect(directSections[2]).toHaveClass("buyer-options-heading");
     expect(directSections[3]).toHaveClass("bulk-filter-control");
     expect(screen.getByText("1 · BREAK CONTENTS")).toBeInTheDocument();
-    expect(screen.getByText("2 · COLOR")).toBeInTheDocument();
-    expect(screen.getByText("3 · BID OPTIONS")).toBeInTheDocument();
+    expect(screen.getByText("2 · SPOT FORMAT")).toBeInTheDocument();
+    expect(screen.getByText("3 · VALUE FILTER")).toBeInTheDocument();
+  });
+
+  it("offers a third large-break mode with an editable spot count", () => {
+    const setLargeSpots = vi.fn();
+    render(createElement(BuyerSetup, {
+      lines, add: vi.fn(), update: vi.fn(), remove: vi.fn(), result,
+      auction: createAuction(), setAuction: vi.fn(), assignmentMode: "large",
+      setAssignmentMode: vi.fn(), selected: "W", setSelected: vi.fn(),
+      bulkEnabled: true, bulkThreshold: 2, setBulkEnabled: vi.fn(), setBulkThreshold: vi.fn(),
+      largeSpots: 120, setLargeSpots,
+    }));
+    expect(screen.getByRole("button", { name: "Large break" })).toHaveClass("active");
+    expect(screen.getByLabelText("Large break spot count")).toHaveValue("120");
+    expect(screen.getByText("90")).toBeInTheDocument();
+    expect(screen.getByText(/named-card targets/)).toBeInTheDocument();
   });
 });

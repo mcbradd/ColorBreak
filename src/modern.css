@@ -295,6 +295,7 @@ body {
   line-height: 1.4;
 }
 .buyer-assignment-toggle {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   width: min(460px, 100%);
   margin: 14px 0 12px;
   border-radius: 2px;
@@ -382,6 +383,89 @@ body {
 @media (min-width: 720px) {
   .buyer-slot-rail { grid-template-columns: repeat(8, minmax(0, 1fr)); }
   .buyer-slot-select { min-height: 88px; }
+}
+
+.large-break-spot-input {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 132px;
+  align-items: end;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--line-strong);
+  background: #0c0f13;
+}
+.large-break-spot-label span,
+.large-break-spot-label small { display: block; }
+.large-break-spot-label span { font-size: 12px; font-weight: 800; }
+.large-break-spot-label small { margin-top: 4px; color: var(--muted); font-size: 9px; }
+.large-break-spot-input .numeric-input { min-width: 0; }
+.large-break-spot-input input { font-size: 20px; text-align: right; }
+.large-break-spot-input > p { grid-column: 1 / -1; margin: 0; padding-top: 11px; border-top: 1px solid var(--line); color: var(--muted); font-size: 10px; }
+.large-break-spot-input > p b { color: var(--ink); }
+
+.large-break-results { overflow: hidden; border: 1px solid var(--line-strong); border-top: 4px solid var(--accent); background: #0d1014; }
+.large-break-result-head { display: flex; align-items: center; justify-content: space-between; padding: 18px 20px; border-bottom: 1px solid var(--line-strong); }
+.large-break-result-head h2 { margin: 0; font: 800 30px Manrope, sans-serif; letter-spacing: -.04em; }
+.large-break-metrics { display: grid; grid-template-columns: 1fr 1fr; border-bottom: 1px solid var(--line-strong); }
+.large-break-metrics > div { min-width: 0; padding: 22px 20px; }
+.large-break-metrics > div + div { border-left: 1px solid var(--line-strong); }
+.large-break-metrics span,
+.large-break-metrics small,
+.large-break-metrics strong { display: block; }
+.large-break-metrics span { color: #cbd3df; font-size: 10px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; }
+.large-break-metrics strong { margin-top: 8px; color: var(--accent); font: 800 clamp(34px, 6vw, 54px)/1 Manrope, sans-serif; letter-spacing: -.05em; }
+.large-break-metrics small { margin-top: 7px; color: var(--muted); font-size: 9px; }
+.large-break-allocation { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-bottom: 1px solid var(--line-strong); }
+.large-break-allocation > div { padding: 13px 20px; border-right: 1px solid var(--line); }
+.large-break-allocation > div:last-child { border-right: 0; }
+.large-break-allocation span,
+.large-break-allocation b,
+.large-break-allocation small { display: block; }
+.large-break-allocation span { color: var(--muted); font-size: 9px; }
+.large-break-allocation b { margin-top: 4px; font-size: 16px; }
+.large-break-allocation small { margin-top: 2px; color: #707989; font-size: 8px; }
+.large-break-pool-section { border-bottom: 1px solid var(--line-strong); }
+.large-break-section-heading { display: flex; align-items: end; justify-content: space-between; gap: 18px; padding: 22px 20px 13px; }
+.large-break-section-heading h3 { margin: 0; font: 750 20px Manrope, sans-serif; }
+.large-break-section-heading > span { max-width: 230px; color: var(--muted); font-size: 9px; line-height: 1.4; text-align: right; }
+.large-break-card-list { display: grid; grid-template-columns: 1fr 1fr; border-top: 1px solid var(--line); }
+.large-break-card { display: grid; grid-template-columns: 24px 34px minmax(0, 1fr) auto; align-items: center; gap: 9px; min-height: 65px; padding: 8px 14px; border-bottom: 1px solid var(--line); }
+.large-break-card:nth-child(odd) { border-right: 1px solid var(--line); }
+.large-break-rank { color: #687283; font: 700 9px Manrope, sans-serif; }
+.large-break-card img,
+.large-break-card .card-placeholder { width: 30px; height: 42px; border-radius: 2px; object-fit: cover; }
+.large-break-card > div { min-width: 0; }
+.large-break-card strong,
+.large-break-card small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.large-break-card strong { font-size: 10px; }
+.large-break-card small { margin-top: 3px; color: var(--muted); font-size: 8px; }
+.large-break-card-value { text-align: right; }
+.large-break-card-value span { display: block; color: var(--muted); font-size: 7px; text-transform: uppercase; }
+.large-break-card-value b { font-size: 11px; }
+.large-break-overflow { margin: 0; padding: 10px 20px; color: var(--muted); font-size: 9px; }
+.large-break-category-head,
+.large-break-category { display: grid; grid-template-columns: minmax(0, 1fr) 88px 88px; gap: 10px; align-items: center; }
+.large-break-category-head { padding: 8px 20px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); color: #697283; font-size: 8px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; }
+.large-break-category-head span:not(:first-child) { text-align: right; }
+.large-break-category { min-height: 52px; padding: 8px 20px; border-bottom: 1px solid var(--line); }
+.large-break-category:last-child { border-bottom: 0; }
+.large-break-category strong,
+.large-break-category small { display: block; }
+.large-break-category strong { font-size: 11px; }
+.large-break-category small { margin-top: 3px; color: var(--muted); font-size: 8px; }
+.large-break-category > span,
+.large-break-category > b { text-align: right; font-size: 11px; }
+.large-break-category > b { color: var(--accent); }
+
+@media (max-width: 620px) {
+  .large-break-metrics { grid-template-columns: 1fr; }
+  .large-break-metrics > div + div { border-top: 1px solid var(--line-strong); border-left: 0; }
+  .large-break-allocation > div { padding-inline: 11px; }
+  .large-break-card-list { grid-template-columns: 1fr; }
+  .large-break-card:nth-child(odd) { border-right: 0; }
+  .large-break-section-heading { align-items: start; }
+  .large-break-category-head,
+  .large-break-category { grid-template-columns: minmax(0, 1fr) 70px 70px; padding-inline: 12px; }
 }
 
 /* Nested evidence reads as rows within its parent section. */
