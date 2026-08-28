@@ -40,6 +40,6 @@ describe("outcome simulation lifecycle", () => {
   it("does not withhold simulations when analysis is incomplete", () => {
     expect(appSource).not.toContain("Outcome distribution withheld");
     expect(appSource).not.toContain("Range withheld");
-    expect(appSource).toContain("Recommendation and range use incomplete data");
+    expect(appSource).toContain("Some estimates may be low");
   });
 });

@@ -96,6 +96,10 @@ describe("Seller Studio command center", () => {
     const link = screen.getByRole("link", { name: "Enter your cost for Play Booster Box" });
     expect(link).toHaveAttribute("href", "#seller-cost-line-1");
     expect(screen.getByLabelText("My cost basis")).toHaveAttribute("id", "seller-cost-line-1");
-    expect(link.parentElement).toHaveTextContent("cannot calculate break-even bids or profit");
+    const warning = link.closest("details")!;
+    expect(warning).not.toHaveAttribute("open");
+    expect(link.closest("summary")).toHaveTextContent("Needed to calculate break-even and profit");
+    fireEvent.click(link.closest("summary")!);
+    expect(warning).toHaveTextContent("No sealed-market price is available");
   });
 });

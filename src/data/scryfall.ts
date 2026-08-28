@@ -205,6 +205,7 @@ function toPrice(card: ScryfallCard, observedAt: string, fetchedAt = observedAt)
     }),
     rarity: card.rarity,
     typeLine: face?.type_line ?? card.type_line,
+    colors: face?.colors ?? card.colors,
     slot: slotOfCard({
       typeLine: card.type_line,
       colors: card.colors,

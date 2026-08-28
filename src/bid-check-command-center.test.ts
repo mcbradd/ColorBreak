@@ -1,5 +1,5 @@
 import { createElement } from "react";
-import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { calculateBreak } from "./domain/valuation";
 import { SLOT_IDS } from "./domain/types";
@@ -95,10 +95,16 @@ describe("Bid Check command center", () => {
 
     render(createElement(Workspace, { mode: "buyer", exit: vi.fn() }));
 
-    const warningTitle = await screen.findByText("Recommendation and range use incomplete data");
+    const warningTitle = await screen.findByText("Some estimates may be low");
     expect(warningTitle.closest("details")).not.toHaveAttribute("open");
-    expect(warningTitle.closest("summary")).toHaveTextContent("Resolved data only · 1 missing item");
+    expect(warningTitle.closest("summary")).toHaveTextContent("Some prices, pull chances, or pack contents could not be verified.");
+    fireEvent.click(warningTitle.closest("summary")!);
+    expect(screen.getByText(/The estimate still uses all verified information/)).toBeInTheDocument();
+    const technicalSummary = screen.getByText("Technical details").closest("summary")!;
+    expect(technicalSummary).toHaveTextContent("1 issue");
+    expect(technicalSummary.closest("details")).not.toHaveAttribute("open");
     expect(screen.getAllByText("1× foil box topper has no verified card list.").length).toBeGreaterThan(0);
+    expect(screen.queryByText(/Expected impact:/)).not.toBeInTheDocument();
     await waitFor(() => expect(simulateOutcomesAsync).toHaveBeenCalled());
     expect(screen.getByLabelText("Maximum hammer")).not.toHaveTextContent("—");
   });

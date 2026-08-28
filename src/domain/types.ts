@@ -103,6 +103,8 @@ export interface CardPrice {
   rarity?: string;
   /** Front-face Scryfall type line used for large-break residual categories. */
   typeLine?: string;
+  /** Front-face colors used for large-break unlisted-creature spots. */
+  colors?: string[];
   slot: SlotId;
   nonfoil: number | null;
   foil: number | null;

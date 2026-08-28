@@ -1,4 +1,3 @@
-import { SLOT_NAMES } from "./types";
 import type { Contributor, SlotId, ValuationResult } from "./types";
 
 export interface NamedSpot {
@@ -31,6 +30,9 @@ export interface LargeBreakPlan {
 
 export type TopCardSort = "price" | "expected-value";
 
+/** Observed in a 100-spot live character break: 83 named spots and 17 catch-alls. */
+export const DEFAULT_NAMED_SPOT_SHARE = 83 / 100;
+
 export function sortNamedCards<T extends Pick<NamedSpot, "name" | "marketPrice" | "pullEV"> & { pullRateVerified?: boolean }>(cards: T[], sort: TopCardSort): T[] {
   return cards.filter((card) => sort !== "expected-value" || card.pullRateVerified !== false).sort((left, right) => sort === "expected-value"
     ? right.pullEV - left.pullEV || right.marketPrice - left.marketPrice || left.name.localeCompare(right.name)
@@ -42,13 +44,22 @@ const cardKey = (row: Contributor) => `${row.card.id || `${row.card.set}|${row.c
 function categoryFor(row: Contributor): { key: string; label: string } {
   const type = row.card.typeLine ?? "";
   if (/\bCreature\b/i.test(type)) {
-    return { key: `creature-${row.card.slot}`, label: `${SLOT_NAMES[row.card.slot]} creatures` };
+    if (/\bElder Dragon\b/i.test(type)) return { key: "ancient-elder-dragon", label: "Ancient Elder Dragon" };
+    const colors = row.card.colors ?? (/[WUBRG]/.test(row.card.slot) ? [row.card.slot] : row.card.slot === "M" ? ["M"] : []);
+    const color = colors.length > 1 || colors[0] === "M" ? "Multicolor" : ({ W: "White", U: "Blue", B: "Black", R: "Red", G: "Green" } as Record<string, string>)[colors[0]] ?? "Colorless";
+    return { key: `unlisted-${color.toLowerCase()}-creature`, label: `${color} Creature (All Unlisted)` };
   }
-  const cardType = ["Planeswalker", "Battle", "Artifact", "Enchantment", "Instant", "Sorcery", "Land"]
-    .find((candidate) => new RegExp(`\\b${candidate}\\b`, "i").test(type));
-  const labels: Record<string, string> = { Planeswalker: "Planeswalkers", Battle: "Battles", Artifact: "Artifacts", Enchantment: "Enchantments", Instant: "Instants", Sorcery: "Sorceries", Land: "Lands" };
-  const label = cardType ? labels[cardType] : row.card.slot === "L" ? "Lands" : "Other cards";
-  return { key: (cardType ?? (row.card.slot === "L" ? "Land" : "Other")).toLowerCase(), label };
+  if (/\bEquipment\b/i.test(type)) return { key: "equipment", label: "Equipment (All Unlisted)" };
+  if (/\bVehicle\b/i.test(type)) return { key: "vehicle", label: "Vehicle" };
+  if (/\bLand\b/i.test(type)) return /\bLegendary\b/i.test(type)
+    ? { key: "legendary-land", label: "Legendary Land" }
+    : { key: "land", label: "Land (Excluding Legendary)" };
+  if (/\bEnchantment\b/i.test(type)) return { key: "enchantment", label: "Enchantment (Excluding Creature)" };
+  if (/\bInstant\b/i.test(type)) return { key: "instant", label: "Instant" };
+  if (/\bSorcery\b/i.test(type)) return { key: "sorcery", label: "Sorcery" };
+  if (/\bPlaneswalker\b/i.test(type)) return { key: "planeswalker", label: "Planeswalker" };
+  if (/\bArtifact\b/i.test(type)) return { key: "artifact", label: "Artifact (Excluding Creature, Vehicle, Land & Equipment)" };
+  return { key: "other", label: "Other cards" };
 }
 
 function allocateCategorySpots(values: number[], total: number): number[] {
@@ -65,7 +76,7 @@ function allocateCategorySpots(values: number[], total: number): number[] {
   return output;
 }
 
-export function createLargeBreakPlan(result: ValuationResult, spotCount: number, namedShare = .75): LargeBreakPlan {
+export function createLargeBreakPlan(result: ValuationResult, spotCount: number, namedShare = DEFAULT_NAMED_SPOT_SHARE): LargeBreakPlan {
   const safeSpots = Math.max(1, Math.round(spotCount));
   const namedTarget = Math.min(safeSpots, Math.max(0, Math.round(safeSpots * namedShare)));
   const contributors = result.slots.flatMap((slot) => slot.contributors);

@@ -405,7 +405,7 @@ function Status({ result }: { result: ValuationResult }) {
         ? "Product contents, pack odds, card versions, and prices are ready."
         : result.status === "estimated"
           ? "Some product details are estimates, so treat this as a rough answer."
-          : "This result uses only resolved contents and exact card prices. The nearby warning names every missing item and explains how it may change the result."}
+          : "Some values may be low. Open the nearby warning for a short explanation or technical details."}
       label={`Explain ${result.status} data status`}
     >
       {icon}
@@ -815,17 +815,6 @@ export function ValueSummary({ result }: { result: ValuationResult }) {
         <b>=</b>
         <strong>{fmt(result.sellableEV)} used here</strong>
       </p>
-      {result.omissions.length > 0 && (
-        <details className="notice">
-          <summary className="disclosure-summary">
-            <span>{result.omissions.length} data note{result.omissions.length === 1 ? "" : "s"}</span>
-            <DisclosureArrow />
-          </summary>
-          {result.omissions.slice(0, 8).map((item, i) => (
-            <p key={`${item.code}${i}`}>{item.message}</p>
-          ))}
-        </details>
-      )}
     </section>
   );
 }
@@ -928,27 +917,65 @@ function cardPreviewSubtitle(row: Contributor, priceOverride?: number): string {
   return `${fmt(price)} · ${cardTreatmentLabel(row.card, finish)} · ${row.card.set}`;
 }
 
-function IncompleteDataWarning({ analysis, title = "Projection uses incomplete data" }: { analysis: BreakAnalysis; title?: string }) {
+function CompactWarning({
+  title,
+  summary,
+  children,
+  className = "",
+}: {
+  title: ReactNode;
+  summary: string;
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <details className={`compact-warning ${className}`.trim()}>
+      <summary className="disclosure-summary">
+        <ShieldAlert />
+        <span><b>{title}</b><small>{summary}</small></span>
+        <DisclosureArrow />
+      </summary>
+      <div className="compact-warning-details">{children}</div>
+    </details>
+  );
+}
+
+function IncompleteDataWarning({ analysis, title = "Some values may be low" }: { analysis: BreakAnalysis; title?: string }) {
   const omissions = deduplicateOmissions([...analysis.valuation.omissions, ...analysis.outcomeOmissions]
     .filter((item) => item.material));
   if (analysis.valuation.status !== "incomplete" && analysis.outcomeModel.complete !== false) return null;
-  const impact = (code: string) => /price|printing/.test(code)
-    ? "It is counted as $0, so the shown value and outcome range can be too low."
-    : /pull-rate/.test(code)
-      ? "Its price stays visible, but it adds $0 to expected value and is omitted from Rank by EV because the exact chance of opening it is unknown."
-    : /sheet|weight|collation|outcome|model|sealed|product|contents/.test(code)
-      ? "Those pulls are absent from the simulation, so the low, typical, and high results can be too low and the relative value of the spots can change."
-      : "It contributes $0 and no pull chance to this result, so the projection can be too low.";
+  const hasPriceGap = omissions.some((item) => /price|printing/.test(item.code));
+  const hasPullRateGap = omissions.some((item) => /pull-rate/.test(item.code));
+  const hasPackGap = omissions.some((item) => !/price|printing|pull-rate/.test(item.code));
+  const effects = [
+    "The estimate still uses all verified information.",
+    hasPriceGap ? "Cards without a price count as $0." : "",
+    hasPullRateGap ? "Cards with unknown pull chances stay in Rank by Price but are left out of EV." : "",
+    hasPackGap ? "Unverified pack contents are not included." : "",
+    "The real value may be higher.",
+  ].filter(Boolean).join(" ");
+  const technicalMessage = (message: string) => message
+    .replace(/ Its price remains visible, but it is excluded from expected value and Rank by EV until the rate can be verified\.$/, "")
+    .replace(/ Its price stays visible, but it adds \$0 to expected value and is omitted from Rank by EV because the exact chance of opening it is unknown\.$/, "");
   return (
     <details className="incomplete-data-warning">
       <summary className="disclosure-summary">
         <ShieldAlert />
-        <span><b>{title}</b><small>Resolved data only · {omissions.length} missing {omissions.length === 1 ? "item" : "items"}</small></span>
+        <span><b>{title}</b><small>Some prices, pull chances, or pack contents could not be verified.</small></span>
         <DisclosureArrow />
       </summary>
       <div className="incomplete-data-details">
-        <p>The values and outcome ranges shown include only contents and exact card prices ColorBreak could resolve. Missing cards or pull chances could raise or lower the real result and change the shape of the range.</p>
-        {omissions.length > 0 && <ul>{omissions.map((omission, index) => <li key={`${omission.code}-${index}`}><span>{omission.message}</span> <em>Expected impact: {impact(omission.code)}</em></li>)}</ul>}
+        <p>{effects}</p>
+        {omissions.length > 0 && <details className="incomplete-data-technical">
+          <summary className="disclosure-summary">
+            <span><b>Technical details</b><small>{omissions.length} {omissions.length === 1 ? "issue" : "issues"}</small></span>
+            <DisclosureArrow />
+          </summary>
+          <ul>{omissions.map((omission, index) => <li key={`${omission.code}-${index}`}>
+            <span>{technicalMessage(omission.message)}</span>
+            {omission.source && <a href={omission.source} target="_blank" rel="noreferrer">Source</a>}
+          </li>)}</ul>
+        </details>}
       </div>
     </details>
   );
@@ -1389,7 +1416,7 @@ function EvidenceLens({ analysis }: { analysis: BreakAnalysis }) {
       status: plainEvidence(valuation.evidence.contents),
       meaning: "This checks which packs, promos, box toppers, decks, and fixed cards are actually inside the sealed product.",
       matters: "An uncounted promo or topper can hide real value. A pack counted by mistake can make the break look better than it is.",
-      action: "Use the result normally when this is ready. When items are missing, treat the shown value as incomplete and read the named data notes.",
+      action: "Use the result normally when this is ready. If a warning appears, open it for a short explanation or the exact technical details.",
     },
     {
       title: "Pack chances",
@@ -1515,7 +1542,7 @@ export function ChaseConstellation({
         <span><b>Y</b> Market price</span>
         <span className="chase-size-legend"><i />Larger dot adds more to average value</span>
       </div>}
-      <p className="supporting-warning">Top-right cards combine the highest price with the best pull chance. Tap any card image to inspect its price, odds, and printing.</p>
+      <p className="supporting-note">Top-right cards combine the highest price with the best pull chance. Tap any card image to inspect its price, odds, and printing.</p>
     </details>
   );
 }
@@ -1702,6 +1729,7 @@ export function SlotValueDetails({
 export function LargeBreakView({ analysis, lines, spots }: { analysis: BreakAnalysis; lines: BreakLine[]; spots: number }) {
   const result = analysis.valuation;
   const [inspectedCard, setInspectedCard] = useState<Contributor | null>(null);
+  const [excludedCard, setExcludedCard] = useState<Contributor | null>(null);
   const [topCardSort, setTopCardSort] = useState<TopCardSort>("price");
   const plan = useMemo(() => createLargeBreakPlan(result, spots), [result, spots]);
   const rankedNamedCards = useMemo(() => sortNamedCards(plan.namedCards, topCardSort), [plan.namedCards, topCardSort]);
@@ -1726,7 +1754,7 @@ export function LargeBreakView({ analysis, lines, spots }: { analysis: BreakAnal
         <div><span>Category spots</span><b>{plan.categories.reduce((sum, row) => sum + row.spots, 0)}</b><small>{fmt(categoryEV)} pull EV</small></div>
         <div><span>Total pull EV</span><b>{fmt(plan.totalPullEV)}</b><small>Expected across the opening</small></div>
       </div>
-      <IncompleteDataWarning analysis={analysis} title="Spot projections use incomplete data" />
+      <IncompleteDataWarning analysis={analysis} title="Some spot values may be low" />
       <section className="large-break-pool-section">
         <div className="large-break-section-heading large-break-top-heading">
           <div><p className="section-label">NAMED POOL</p><h3>Top cards</h3></div>
@@ -1739,12 +1767,17 @@ export function LargeBreakView({ analysis, lines, spots }: { analysis: BreakAnal
           </div>
         </div>
         <div className="large-break-card-list">
-          {rankedNamedCards.slice(0, 12).map((card, index) => <button type="button" className="large-break-card" key={card.key} onClick={() => setInspectedCard(card.row)} aria-label={`Open ${cardDisplayName(card.row.card, card.row.finish)} card details`}>
-            <span className="large-break-rank">{String(index + 1).padStart(2, "0")}</span>
-            {card.image ? <img src={card.image} alt="" /> : <span className="card-placeholder" />}
-            <div><strong>{card.name}</strong><small>{cardPreviewSubtitle(card.row, card.marketPrice)}</small></div>
-            <div className="large-break-card-value"><span>Pull EV</span><b>{card.pullRateVerified ? fmt(card.pullEV) : "Not used"}</b></div>
-          </button>)}
+          {rankedNamedCards.slice(0, 12).map((card, index) => <div className="large-break-card" key={card.key}>
+            <button type="button" className="large-break-card-main" onClick={() => setInspectedCard(card.row)} aria-label={`Open ${cardDisplayName(card.row.card, card.row.finish)} card details`}>
+              <span className="large-break-rank">{String(index + 1).padStart(2, "0")}</span>
+              {card.image ? <img src={card.image} alt="" /> : <span className="card-placeholder" />}
+              <span className="large-break-card-copy"><strong>{card.name}</strong><small>{cardPreviewSubtitle(card.row, card.marketPrice)}</small></span>
+            </button>
+            <div className="large-break-card-value"><span>Pull EV</span>{card.pullRateVerified
+              ? <button type="button" onClick={() => setInspectedCard(card.row)} aria-label={`Open ${card.name} Pull EV details`}><b>{fmt(card.pullEV)}</b></button>
+              : <button type="button" className="excluded-ev" onClick={() => setExcludedCard(card.row)} aria-label={`Explain why ${card.name} is excluded from Pull EV`}>Excluded</button>}
+            </div>
+          </div>)}
         </div>
         {rankedNamedCards.length > 12 && <p className="large-break-overflow">Showing 12 of {rankedNamedCards.length} individually named spots.</p>}
       </section>
@@ -1757,6 +1790,13 @@ export function LargeBreakView({ analysis, lines, spots }: { analysis: BreakAnal
         </div>)}
       </section>
       <CardInspector row={inspectedCard} status={result.status} threshold={result.threshold} onClose={() => setInspectedCard(null)} />
+      <EvidenceDialog item={excludedCard ? {
+        title: "Excluded from Pull EV",
+        status: cardDisplayName(excludedCard.card, excludedCard.finish),
+        meaning: "An exact pull chance for this printing is not published or independently verifiable.",
+        matters: "Pull EV multiplies price by pull chance. Using an uncertain chance could make this card add an unrealistic amount of value.",
+        action: "Its current price remains in Rank by Price. It will return to Rank by EV when an exact pull rate can be verified.",
+      } : null} onClose={() => setExcludedCard(null)} />
     </section>
   );
 }
@@ -1889,8 +1929,8 @@ export function BuyerView({
         )}
         <OutcomeRange summary={distribution} landed={bid == null ? undefined : landed} compact />
         {simulation.busy && <p className="simulation-state">Checking more possible openings…</p>}
-        {simulation.error && <p className="blocked"><ShieldAlert />{simulation.error}</p>}
-        <IncompleteDataWarning analysis={analysis} title="Recommendation and range use incomplete data" />
+        {simulation.error && <CompactWarning title="Pull ranges unavailable" summary="The recommendation is still shown without the range." className="inline-warning"><p>{simulation.error}</p></CompactWarning>}
+        <IncompleteDataWarning analysis={analysis} title="Some estimates may be low" />
       </section>
       <section className="bid-explorer">
         <header className="disclosure-summary">
@@ -1982,11 +2022,9 @@ function UpsideCandles({ base, bonus, bonusLabel, selectedSlot, selectSlot, useR
   const baseSimulation = useOutcomeSimulation(base, [...SLOT_IDS], buyerLanded);
   const bonusSimulation = useOutcomeSimulation(bonus, [...SLOT_IDS], buyerLanded);
   if (baseSimulation.error || bonusSimulation.error) return (
-    <div className="distribution-unavailable" role="status">
-      <b>Pull ranges unavailable</b>
-      <span>{bonusSimulation.error ?? baseSimulation.error}</span>
-      <small>The buyer-value and seller-profit calculations above are still available.</small>
-    </div>
+    <CompactWarning title="Pull ranges unavailable" summary="Card values and profit are still available." className="distribution-unavailable">
+      <p>{bonusSimulation.error ?? baseSimulation.error}</p>
+    </CompactWarning>
   );
   if (!baseSimulation.result || !bonusSimulation.result) return <p className="calculating"><span />Building pull ranges…</p>;
   const selectedBefore = useRandom ? baseSimulation.result.remainingPool : baseSimulation.result.slotDistributions[selectedSlot];
@@ -2022,7 +2060,17 @@ function UpsideCandles({ base, bonus, bonusLabel, selectedSlot, selectSlot, useR
           <b>{id}</b><small>+{fmt(lift)} rare high</small>
         </button>
       ))}</div>
-      {unpricedOutcomes.length > 0 && <p className="distribution-data-note"><ShieldAlert />{unpricedOutcomes.length} very rare printing{unpricedOutcomes.length === 1 ? " has" : "s have"} no current market price. Its pull chance is preserved and its value is counted as $0, so the shown high end is a conservative known-price floor.</p>}
+      {unpricedOutcomes.length > 0 && <CompactWarning
+        title={`${unpricedOutcomes.length} rare ${unpricedOutcomes.length === 1 ? "card has" : "cards have"} no current price`}
+        summary="The high-end estimate may be low."
+        className="distribution-data-note"
+      >
+        <p>Their pull chances are included, but their value counts as $0.</p>
+        <details className="incomplete-data-technical">
+          <summary className="disclosure-summary"><span><b>Technical details</b><small>{unpricedOutcomes.length} {unpricedOutcomes.length === 1 ? "issue" : "issues"}</small></span><DisclosureArrow /></summary>
+          <ul>{unpricedOutcomes.map((item, index) => <li key={`${item.code}-${index}`}>{item.message}</li>)}</ul>
+        </details>
+      </CompactWarning>}
       <p>Thin line: middle 98% of modeled openings · solid body: middle half · center mark: typical result. Serialized and one-of-one collector outliers are excluded.</p>
     </div>
   );
@@ -2126,7 +2174,9 @@ function SellerScenarioLab({
         <span>Show buyer upside for</span>
         <div>{SLOT_IDS.map((slot) => <button key={slot} className={!useRandom && selectedSlot === slot ? `active slot-${slot}` : `slot-${slot}`} onClick={() => { setUseRandom(false); setSelectedSlot(slot); }}>{slot}</button>)}<button className={useRandom ? "active" : ""} onClick={() => setUseRandom(true)}>Random</button></div>
       </div>
-      <p className="scenario-policy-note"><ShieldAlert />The economics below can model a sales threshold. Whatnot export remains unavailable unless the seller has written approval; a pack disclosed and included before sales does not need that threshold mechanic.</p>
+      <CompactWarning title="Written approval required" summary="Needed before advertising a threshold-triggered pack." className="scenario-policy-note">
+        <p>A fixed pack disclosed before bidding can be included normally. Written Whatnot approval is required only when the pack depends on reaching a sales threshold.</p>
+      </CompactWarning>
       {selected && bonusAnalysis && (
         <>
           <div className="scenario-economics">
@@ -2617,8 +2667,12 @@ function SellerEnticement({
         <div><span>Pull EV added / pack</span><b>{evAdded == null ? "—" : `+${fmt(evAdded)}`}</b></div>
         <div><span>If all {transactionCount} clear {fmt(threshold)}</span><b>{allCost == null ? "—" : `${fmt(allCost)} cost`}</b><small>{allEv == null ? "" : `+${fmt(allEv)} modeled pull EV · ${sellerOutcomeLabel(baseProfitAtAll - (allCost ?? 0))}`}</small></div>
       </div>
-      {selected && !loading && packCost == null && <p className="missing-input-warning"><ShieldAlert /><span><a href="#seller-bonus-cost">Enter your cost for {selected.label}</a>. Its market price is unavailable, so the threshold profit projection cannot subtract the booster expense until you fill this in.</span></p>}
-      <p className="enticement-policy"><ShieldAlert />Threshold-triggered packs require written Whatnot approval before advertising.</p>
+      {selected && !loading && packCost == null && <CompactWarning title={<a href="#seller-bonus-cost" onClick={(event) => event.stopPropagation()}>Enter your cost for {selected.label}</a>} summary="Needed to calculate profit." className="missing-input-warning">
+        <p>No sealed-market price is available, so the booster expense cannot be subtracted until you enter your cost.</p>
+      </CompactWarning>}
+      <CompactWarning title="Written approval required" summary="Needed before advertising threshold-triggered packs." className="enticement-policy">
+        <p>A pack included and disclosed before bidding does not need threshold approval.</p>
+      </CompactWarning>
     </section>
   );
 }
@@ -2719,9 +2773,11 @@ export function SellerView({
         </div>
       </section>
 
-      {missingCostLine && <p className="missing-input-warning"><ShieldAlert /><span><a href={`#seller-cost-${missingCostLine.id}`}>Enter your cost for {missingCostLine.productLabel}</a>. No sealed-market price is available for this product, so ColorBreak cannot calculate break-even bids or profit until this cost is filled in.</span></p>}
+      {missingCostLine && <CompactWarning title={<a href={`#seller-cost-${missingCostLine.id}`} onClick={(event) => event.stopPropagation()}>Enter your cost for {missingCostLine.productLabel}</a>} summary="Needed to calculate break-even and profit." className="missing-input-warning">
+        <p>No sealed-market price is available for this product, so ColorBreak needs your cost instead.</p>
+      </CompactWarning>}
 
-      <IncompleteDataWarning analysis={analysis} title="Seller projections use incomplete card data" />
+      <IncompleteDataWarning analysis={analysis} title="Some seller values may be low" />
 
       <details className="seller-cost-rollout">
         <summary className="disclosure-summary">
@@ -3060,7 +3116,7 @@ export function Workspace({
             <div className="results buyer-results">
               {!lines.length && <section className="buyer-awaiting-break"><span><BarChart3 /></span><h2>Add the sealed product in this break</h2><p>ColorBreak needs the exact set and product name to calculate card values and outcome ranges.</p><button type="button" className="primary" onClick={() => setBuilder(true)}>Choose the sealed product</button></section>}
               {busy && <div className="calculating"><span />Calculating exact contents and prices…</div>}
-              {error && <div className="error"><ShieldAlert />{error}</div>}
+              {error && <CompactWarning title="Couldn’t load this result" summary="Open for details, then try again." className="load-warning"><p>{error}</p></CompactWarning>}
               {analysis && (assignmentMode === "large" ? (
                 <LargeBreakView analysis={analysis} lines={lines} spots={largeSpots} />
               ) : (
@@ -3088,12 +3144,7 @@ export function Workspace({
                   Calculating exact contents and prices…
                 </div>
               )}
-              {error && (
-                <div className="error">
-                  <ShieldAlert />
-                  {error}
-                </div>
-              )}
+              {error && <CompactWarning title="Couldn’t load this result" summary="Open for details, then try again." className="load-warning"><p>{error}</p></CompactWarning>}
               {analysis && !busy && (
                 <SellerView
                   analysis={analysis}
