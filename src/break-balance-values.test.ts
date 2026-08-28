@@ -33,12 +33,14 @@ describe("Break Balance values", () => {
     expect(container.querySelectorAll(".balance-worst")).toHaveLength(8);
     expect(container.querySelectorAll(".balance-ev")).toHaveLength(8);
     expect(container.querySelectorAll(".balance-body")).toHaveLength(8);
-    expect(container.querySelector(".slot-W .balance-best")?.textContent).toBe("$19.0");
-    expect(container.querySelector(".slot-W .balance-worst")?.textContent).toBe("$1.0");
+    expect(container.querySelector(".slot-W .balance-best")?.textContent).toBe("HIGH$19.0");
+    expect(container.querySelector(".slot-W .balance-worst")?.textContent).toBe("LOW$1.0");
     expect(container.querySelector(".slot-W .balance-ev b")?.textContent).toBe("EV$10.0");
-    const onScale = (value: number) => Math.log1p(value) / Math.log1p(20) * 100;
+    const onScale = (value: number) => value / 20 * 100;
     expect(container.querySelector(".slot-W .balance-body")?.getAttribute("style")).toContain(`left: ${onScale(5)}%`);
     expect(container.querySelector(".slot-W .balance-body")?.getAttribute("style")).toContain(`width: ${onScale(14) - onScale(5)}%`);
     expect(container.querySelector(".slot-W .balance-ev")?.getAttribute("style")).toContain(`left: ${onScale(10)}%`);
+    expect(container.querySelectorAll(".balance-axis-track > span")).toHaveLength(5);
+    expect(container.querySelector(".balance-axis-track > span:last-child")?.textContent).toBe("$20.0");
   });
 });

@@ -1202,11 +1202,6 @@ export function BreakBalance({
 }) {
   const rows = result.slots.filter((slot) => remaining.includes(slot.id));
   const distributions = simulation?.slotDistributions;
-  const max = Math.max(...rows.flatMap((slot) => [
-    distributions?.[slot.id].p99 ?? slot.sellableEV,
-    slot.sellableEV,
-  ]), 1);
-  const positionOnScale = (value: number) => Math.log1p(Math.max(0, value)) / Math.log1p(max) * 100;
   const weakest = Math.min(...rows.map((slot) => slot.sellableEV));
   const strongest = Math.max(...rows.map((slot) => slot.sellableEV), 0);
   const balanceTip = (
@@ -1232,6 +1227,15 @@ export function BreakBalance({
       <div className="distribution-unavailable" role="status"><b>Calculating ranges</b><span>The rest of the page remains available while this finishes.</span></div>
     </section>
   );
+  const scaleMax = Math.max(...SLOT_IDS.flatMap((id) => [
+    distributions[id].p99,
+    result.slots.find((slot) => slot.id === id)?.sellableEV ?? 0,
+  ]), 1);
+  const positionOnScale = (value: number) => Math.min(100, Math.max(0, value / scaleMax * 100));
+  const axisTicks = [0, .25, .5, .75, 1].map((fraction) => ({
+    fraction,
+    value: scaleMax * fraction,
+  }));
   return (
     <section className="panel balance-panel">
       <PanelHeading
@@ -1241,8 +1245,14 @@ export function BreakBalance({
         accessory={balanceTip}
       />
       <p className="balance-note">Each remaining slot is equally likely. The card value assigned to each slot is not equal.</p>
-      <p className="balance-scale-note">Compressed dollar scale · practical 1-in-100 range · $0 to {fmtChart(max)}</p>
+      <p className="balance-scale-note">Shared linear scale · practical 1-in-100 maximum excludes the most extreme opening results</p>
       <div className="balance-chart" aria-label="Practical modeled card-value range and pull-rate expected value by color">
+        <div className="balance-axis" aria-hidden="true">
+          <span />
+          <div className="balance-axis-track">
+            {axisTicks.map((tick) => <span key={tick.fraction} style={{ left: `${tick.fraction * 100}%` }}>{fmtChart(tick.value)}</span>)}
+          </div>
+        </div>
         {rows.map((slot) => {
           const distribution = distributions[slot.id];
           const rangeLow = distribution.p01;
@@ -1252,7 +1262,7 @@ export function BreakBalance({
           const bodyHigh = Math.max(bodyLow, Math.min(rangeHigh, Math.max(rangeLow, distribution.p75)));
           const lowPosition = positionOnScale(rangeLow);
           const highPosition = positionOnScale(rangeHigh);
-          const evPosition = positionOnScale(Math.min(rangeHigh, Math.max(rangeLow, expectedValue)));
+          const evPosition = positionOnScale(expectedValue);
           const bodyLowPosition = positionOnScale(bodyLow);
           const bodyHighPosition = positionOnScale(bodyHigh);
           return (
@@ -1263,15 +1273,15 @@ export function BreakBalance({
                 <span className="balance-cap balance-cap-high" style={{ left: `${highPosition}%` }} />
                 <span className="balance-cap balance-cap-low" style={{ left: `${lowPosition}%` }} />
                 <span className="balance-body" style={{ left: `${bodyLowPosition}%`, width: `${Math.max(0, bodyHighPosition - bodyLowPosition)}%` }} />
-                <span className="balance-end balance-best" style={{ left: `${highPosition}%` }}>{fmtChart(rangeHigh)}</span>
-                <span className={`balance-ev ${evPosition < 4 ? "at-low" : ""}`} style={{ left: `${evPosition}%` }}><i /><b><small>EV</small>{fmtChart(expectedValue)}</b></span>
-                <span className="balance-end balance-worst" style={{ left: `${lowPosition}%` }}>{fmtChart(rangeLow)}</span>
+                <span className={`balance-end balance-best ${highPosition > 88 ? "at-right-edge" : ""}`} style={{ left: `${highPosition}%` }}><small>HIGH</small>{fmtChart(rangeHigh)}</span>
+                <span className={`balance-ev ${evPosition < 8 ? "at-left-edge" : evPosition > 88 ? "at-right-edge" : ""}`} style={{ left: `${evPosition}%` }}><i /><b><small>EV</small>{fmtChart(expectedValue)}</b></span>
+                <span className={`balance-end balance-worst ${lowPosition < 12 ? "at-left-edge" : ""}`} style={{ left: `${lowPosition}%` }}><small>LOW</small>{fmtChart(rangeLow)}</span>
               </div>
             </div>
           );
         })}
       </div>
-      <p className="balance-caption"><b>Left</b> rare low result · <strong>white body</strong> middle half of modeled openings · <span>EV marker</span> pull-rate average · <em>right</em> rare high result. About 1 in 100 modeled openings falls beyond either end. Serialized and one-of-one collector outliers are excluded.</p>
+      <p className="balance-caption"><b>Low / high</b> practical 1st-to-99th percentile · <strong>outlined bar</strong> middle half of modeled openings · <span>EV marker</span> pull-rate average. Every slot uses the same linear scale from $0 to {fmtChart(scaleMax)}. Serialized and one-of-one collector outliers are excluded.</p>
     </section>
   );
 }
