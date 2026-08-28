@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cardDisplayName } from "./card-label";
+import { cardDisplayName, cardTreatmentLabel } from "./card-label";
 import type { CardPrice } from "./types";
 
 const card: CardPrice = {
@@ -28,5 +28,11 @@ describe("card display identity", () => {
   it("does not append generic foil after a named foil process", () => {
     expect(cardDisplayName({ ...card, treatments: ["Borderless", "Surge Foil"] }, "foil"))
       .toBe("Nut Collector (Borderless, Surge Foil)");
+  });
+
+  it("describes the exact treatment independently from the card name", () => {
+    expect(cardTreatmentLabel(card, "nonfoil")).toBe("Nonfoil");
+    expect(cardTreatmentLabel({ ...card, treatments: ["Borderless", "Surge Foil"] }, "foil"))
+      .toBe("Borderless, Surge Foil");
   });
 });

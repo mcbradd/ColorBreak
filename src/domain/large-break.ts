@@ -8,6 +8,7 @@ export interface NamedSpot {
   image?: string;
   marketPrice: number;
   pullEV: number;
+  row: Contributor;
 }
 
 export interface CategorySpot {
@@ -29,13 +30,13 @@ export interface LargeBreakPlan {
 
 export type TopCardSort = "price" | "expected-value";
 
-export function sortNamedCards(cards: NamedSpot[], sort: TopCardSort): NamedSpot[] {
+export function sortNamedCards<T extends Pick<NamedSpot, "name" | "marketPrice" | "pullEV">>(cards: T[], sort: TopCardSort): T[] {
   return [...cards].sort((left, right) => sort === "expected-value"
     ? right.pullEV - left.pullEV || right.marketPrice - left.marketPrice || left.name.localeCompare(right.name)
     : right.marketPrice - left.marketPrice || right.pullEV - left.pullEV || left.name.localeCompare(right.name));
 }
 
-const cardKey = (row: Contributor) => row.card.id || `${row.card.set}|${row.card.collectorNumber}`;
+const cardKey = (row: Contributor) => `${row.card.id || `${row.card.set}|${row.card.collectorNumber}`}|${row.finish ?? "nonfoil"}`;
 
 function categoryFor(row: Contributor): { key: string; label: string } {
   const type = row.card.typeLine ?? "";
@@ -76,7 +77,7 @@ export function createLargeBreakPlan(result: ValuationResult, spotCount: number,
       existing.pullEV += row.sellableValue;
       existing.marketPrice = Math.max(existing.marketPrice, marketPrice);
     } else {
-      byCard.set(key, { key, name: row.card.name, set: row.card.set, image: row.card.image, marketPrice, pullEV: row.sellableValue });
+      byCard.set(key, { key, name: row.card.name, set: row.card.set, image: row.card.image, marketPrice, pullEV: row.sellableValue, row });
     }
   }
   // Sparse or incomplete price snapshots can contain fewer valued cards than the

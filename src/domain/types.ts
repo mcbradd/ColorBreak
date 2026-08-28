@@ -113,6 +113,13 @@ export interface CardPrice {
   priceFetchedAt?: string;
   image?: string;
   oracleText?: string;
+  layout?: string;
+  faces?: Array<{
+    name?: string;
+    typeLine?: string;
+    oracleText?: string;
+    image?: string;
+  }>;
 }
 
 export interface ExpectedDraw {

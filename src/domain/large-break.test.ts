@@ -26,6 +26,7 @@ describe("large random break plan", () => {
     ] });
     const plan = createLargeBreakPlan(result, 4, .25);
     expect(plan.namedCards.map((card) => card.name)).toEqual(["Named Dragon"]);
+    expect(plan.namedCards[0].row.card.name).toBe("Named Dragon");
     expect(plan.categories.find((row) => row.label === "Red creatures")?.pullEV).toBe(10);
     expect(plan.categories.find((row) => row.label === "Instants")?.pullEV).toBe(4);
     expect(plan.categories.reduce((sum, row) => sum + row.spots, 0) + plan.namedCards.length).toBe(4);

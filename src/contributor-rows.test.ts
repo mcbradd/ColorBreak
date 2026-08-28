@@ -42,10 +42,11 @@ describe("shared contributor rows", () => {
     const { container } = render(createElement(ContributorRows, { slot, onInspect: inspect }));
 
     const headers = [...container.querySelectorAll(".contributor-columns > span")].map((node) => node.textContent);
-    expect(headers).toEqual(["Card and market price", "Pull odds", "Adds to average"]);
+    expect(headers).toEqual(["Card and exact printing", "Pull odds", "Adds to average"]);
 
     const row = screen.getByRole("button", { name: /Open Helpful Dragon/ });
     expect(row).toHaveTextContent("25.0%");
+    expect(row).toHaveTextContent("$12.00 · Nonfoil · TST");
     expect(row.querySelector(".card-thumbnail")).toHaveStyle({
       backgroundImage: 'url("https://cards.scryfall.io/example.jpg")',
     });

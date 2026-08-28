@@ -75,4 +75,31 @@ describe("card inspector", () => {
     expect(opener).toHaveFocus();
     expect(scrollTo).toHaveBeenCalledWith(0, 240);
   });
+
+  it("flips every printing that supplies distinct front and back faces", () => {
+    const doubleFaced: Contributor = {
+      ...card,
+      card: {
+        ...card.card,
+        layout: "transform",
+        faces: [
+          { name: "Day Face", oracleText: "Day rules", image: "https://example.com/day.jpg" },
+          { name: "Night Face", oracleText: "Night rules", image: "https://example.com/night.jpg" },
+        ],
+      },
+    };
+    render(createElement(CardInspector, {
+      row: doubleFaced,
+      status: "verified",
+      threshold: 2,
+      onClose: vi.fn(),
+    }));
+
+    expect(screen.getByRole("img", { name: "Day Face front face" })).toHaveAttribute("src", "https://example.com/day.jpg");
+    expect(screen.getByText("Day rules")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Flip to Night Face" }));
+    expect(screen.getByRole("img", { name: "Night Face back face" })).toHaveAttribute("src", "https://example.com/night.jpg");
+    expect(screen.getByText("Night rules")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Flip to Day Face" })).toBeInTheDocument();
+  });
 });

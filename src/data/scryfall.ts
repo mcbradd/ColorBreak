@@ -11,7 +11,7 @@ interface ScryfallCard {
   rarity: string;
   type_line: string;
   colors?: string[];
-  card_faces?: Array<{ type_line?: string; colors?: string[]; oracle_text?: string; image_uris?: { normal?: string } }>;
+  card_faces?: Array<{ name?: string; type_line?: string; colors?: string[]; oracle_text?: string; image_uris?: { normal?: string } }>;
   prices?: { usd?: string | null; usd_foil?: string | null; usd_etched?: string | null };
   tcgplayer_id?: number;
   tcgplayer_etched_id?: number;
@@ -34,6 +34,7 @@ interface ScryfallCard {
   flavor_name?: string;
   illustration_id?: string;
   security_stamp?: string;
+  layout?: string;
 }
 interface ScryfallSet { code: string; name: string; released_at: string; set_type: string; digital: boolean }
 
@@ -172,6 +173,12 @@ function toPrice(card: ScryfallCard, observedAt: string, fetchedAt = observedAt)
     illustrationId: card.illustration_id,
     securityStamp: card.security_stamp,
   });
+  const faces = card.card_faces?.map((item) => ({
+    name: item.name,
+    typeLine: item.type_line,
+    oracleText: item.oracle_text,
+    image: item.image_uris?.normal,
+  })).filter((item) => item.image);
   return {
     id: card.id,
     set: card.set.toUpperCase(),
@@ -217,6 +224,8 @@ function toPrice(card: ScryfallCard, observedAt: string, fetchedAt = observedAt)
     priceFetchedAt: fetchedAt,
     image: card.image_uris?.normal ?? face?.image_uris?.normal,
     oracleText: card.oracle_text ?? card.card_faces?.map((item) => item.oracle_text ?? "").join("\n—\n"),
+    layout: card.layout,
+    faces: faces && faces.length > 1 ? faces : undefined,
   };
 }
 

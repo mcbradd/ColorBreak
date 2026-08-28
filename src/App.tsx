@@ -21,6 +21,7 @@ import {
   DollarSign,
   Lock,
   PackagePlus,
+  RotateCw,
   Search,
   ShieldAlert,
   Sparkles,
@@ -45,7 +46,7 @@ import {
 import { recommendBid, solveFinancialCap } from "./domain/buyer-treatment";
 import type { ValueRule } from "./domain/buyer-treatment";
 import { completeCost, sellerPlanStatus } from "./domain/seller-plan";
-import { cardDisplayName } from "./domain/card-label";
+import { cardDisplayName, cardTreatmentLabel } from "./domain/card-label";
 import { simulateOutcomesAsync } from "./domain/simulation-client";
 import type { DistributionSummary, PackOutcomeModel, SimulationResult } from "./domain/simulation";
 import type {
@@ -920,6 +921,12 @@ export function SlotRail({
   );
 }
 
+function cardPreviewSubtitle(row: Contributor, priceOverride?: number): string {
+  const finish = row.finish ?? (row.sellableFoilCopies > 0 ? "foil" : "nonfoil");
+  const price = priceOverride ?? row.marketPrice ?? (finish === "foil" ? row.card.foil : row.card.nonfoil) ?? undefined;
+  return `${fmt(price)} · ${cardTreatmentLabel(row.card, finish)} · ${row.card.set}`;
+}
+
 function IncompleteDataWarning({ analysis, title = "Projection uses incomplete data" }: { analysis: BreakAnalysis; title?: string }) {
   const omissions = [...analysis.valuation.omissions, ...analysis.outcomeOmissions]
     .filter((item) => item.material)
@@ -958,6 +965,9 @@ export function CardInspector({
 }) {
   const dialogRef = useRef<HTMLElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
+  const [faceIndex, setFaceIndex] = useState(0);
+
+  useEffect(() => setFaceIndex(0), [row?.card.id, row?.finish]);
 
   useEffect(() => {
     if (!row) return;
@@ -1004,6 +1014,10 @@ export function CardInspector({
     ? affiliateTemplate?.replace("{card}", encodeURIComponent(row.card.name))
     : undefined;
   const odds = row?.sellablePullProbability ?? 0;
+  const faces = row?.card.faces ?? [];
+  const activeFace = faces[faceIndex];
+  const activeImage = activeFace?.image ?? row?.card.image;
+  const activeOracleText = activeFace?.oracleText ?? row?.card.oracleText;
   return createPortal(
     <AnimatePresence>
       {row && (
@@ -1042,10 +1056,20 @@ export function CardInspector({
             </header>
             <div className="card-inspector-body">
               <div className="card-art">
-                {row.card.image ? (
-                  <img src={row.card.image} alt={`${cardDisplayName(row.card, row.finish)} card`} />
+                {activeImage ? (
+                  <img src={activeImage} alt={`${activeFace?.name ?? row.card.name} ${faces.length > 1 ? (faceIndex === 0 ? "front face" : "back face") : "card"}`} />
                 ) : (
                   <span>Image unavailable</span>
+                )}
+                {faces.length > 1 && (
+                  <button
+                    type="button"
+                    className="flip-card"
+                    onClick={() => setFaceIndex((current) => (current + 1) % faces.length)}
+                    aria-label={`Flip to ${faces[(faceIndex + 1) % faces.length]?.name ?? (faceIndex === 0 ? "back face" : "front face")}`}
+                  >
+                    <RotateCw aria-hidden="true" /> Flip <small>{faceIndex + 1} / {faces.length}</small>
+                  </button>
                 )}
               </div>
               <div className="card-info">
@@ -1081,8 +1105,8 @@ export function CardInspector({
                       : "This uses the product information currently available. Missing details could change it."}
                   </small>
                 </div>
-                {row.card.oracleText && (
-                  <p className="oracle-text">{row.card.oracleText}</p>
+                {activeOracleText && (
+                  <p className="oracle-text">{activeOracleText}</p>
                 )}
                 {affiliateUrl && (
                   <div className="affiliate-action">
@@ -1477,7 +1501,7 @@ export function ChaseConstellation({
               <button key={contributorId(row)} type="button" onClick={() => onInspect(row)}>
                 <b>{index + 1}</b>
                 <CardThumbnail row={row} />
-                <span><strong>{cardDisplayName(row.card, row.finish)}</strong><small>{oddsLabel(row.sellablePullProbability)} chance · {fmt(datum(row).price)}</small></span>
+                <span><strong>{row.card.name}</strong><small>{cardPreviewSubtitle(row, datum(row).price)}</small></span>
                 <em>{fmt(row.sellableValue)}</em>
               </button>
             ))}
@@ -1578,7 +1602,7 @@ export function ContributorRows({
   return (
     <>
       <div className="contributor-columns">
-        <span>Card and market price</span>
+        <span>Card and exact printing</span>
         <span>Pull odds</span>
         <span>Adds to average</span>
       </div>
@@ -1592,8 +1616,8 @@ export function ContributorRows({
         >
           <CardThumbnail row={row} />
           <span className="card-summary">
-            <strong>{cardDisplayName(row.card, row.finish)}</strong>
-            <small>{countedPriceLabel(row)}</small>
+            <strong>{row.card.name}</strong>
+            <small>{cardPreviewSubtitle(row)}</small>
           </span>
           <span className="pull-odds">
             <b>{oddsLabel(row.sellablePullProbability)}</b>
@@ -1675,6 +1699,7 @@ export function SlotValueDetails({
 
 export function LargeBreakView({ analysis, lines, spots }: { analysis: BreakAnalysis; lines: BreakLine[]; spots: number }) {
   const result = analysis.valuation;
+  const [inspectedCard, setInspectedCard] = useState<Contributor | null>(null);
   const [topCardSort, setTopCardSort] = useState<TopCardSort>("price");
   const plan = useMemo(() => createLargeBreakPlan(result, spots), [result, spots]);
   const rankedNamedCards = useMemo(() => sortNamedCards(plan.namedCards, topCardSort), [plan.namedCards, topCardSort]);
@@ -1712,12 +1737,12 @@ export function LargeBreakView({ analysis, lines, spots }: { analysis: BreakAnal
           </div>
         </div>
         <div className="large-break-card-list">
-          {rankedNamedCards.slice(0, 12).map((card, index) => <div className="large-break-card" key={card.key}>
+          {rankedNamedCards.slice(0, 12).map((card, index) => <button type="button" className="large-break-card" key={card.key} onClick={() => setInspectedCard(card.row)} aria-label={`Open ${cardDisplayName(card.row.card, card.row.finish)} card details`}>
             <span className="large-break-rank">{String(index + 1).padStart(2, "0")}</span>
             {card.image ? <img src={card.image} alt="" /> : <span className="card-placeholder" />}
-            <div><strong>{card.name}</strong><small>{card.set} · {fmt(card.marketPrice)} market</small></div>
+            <div><strong>{card.name}</strong><small>{cardPreviewSubtitle(card.row, card.marketPrice)}</small></div>
             <div className="large-break-card-value"><span>Pull EV</span><b>{fmt(card.pullEV)}</b></div>
-          </div>)}
+          </button>)}
         </div>
         {plan.namedCards.length > 12 && <p className="large-break-overflow">Showing 12 of {plan.namedCards.length} individually named spots.</p>}
       </section>
@@ -1729,6 +1754,7 @@ export function LargeBreakView({ analysis, lines, spots }: { analysis: BreakAnal
           <span>{fmt(category.pullEV)}</span><b>{fmt(category.evPerSpot)}</b>
         </div>)}
       </section>
+      <CardInspector row={inspectedCard} status={result.status} threshold={result.threshold} onClose={() => setInspectedCard(null)} />
     </section>
   );
 }

@@ -36,7 +36,7 @@ const FINISH_LABELS: Record<Finish, string> = {
   other: "Premium Foil",
 };
 
-export function cardDisplayName(card: CardPrice, finish: Finish = "nonfoil"): string {
+function treatmentLabels(card: CardPrice, finish: Finish): string[] {
   const variants = card.treatments ?? (card.treatment ? [card.treatment] : []);
   const hasNamedProcess = Boolean(card.treatmentMetadata?.processTags.length) ||
     variants.some((label) => /foil|glossy|invisible ink/i.test(label));
@@ -45,5 +45,15 @@ export function cardDisplayName(card: CardPrice, finish: Finish = "nonfoil"): st
     : FINISH_LABELS[finish];
   const treatments = [...variants, finishLabel].filter((label, index, all): label is string =>
     Boolean(label) && all.indexOf(label) === index);
+  return treatments;
+}
+
+export function cardTreatmentLabel(card: CardPrice, finish: Finish = "nonfoil"): string {
+  const treatments = treatmentLabels(card, finish);
+  return treatments.length ? treatments.join(", ") : "Nonfoil";
+}
+
+export function cardDisplayName(card: CardPrice, finish: Finish = "nonfoil"): string {
+  const treatments = treatmentLabels(card, finish);
   return treatments.length ? `${card.name} (${treatments.join(", ")})` : card.name;
 }

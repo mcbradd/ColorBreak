@@ -113,6 +113,41 @@ describe("exact-printing price module", () => {
     });
   });
 
+  it("retains distinct face art and rules for a double-faced printing", async () => {
+    const observedAt = new Date().toISOString();
+    const doubleFacedCard = {
+      ...card,
+      layout: "modal_dfc",
+      image_uris: undefined,
+      oracle_text: undefined,
+      card_faces: [
+        { name: "Front", type_line: "Creature", oracle_text: "Front rules", image_uris: { normal: "https://cards.scryfall.io/front.jpg" } },
+        { name: "Back", type_line: "Land", oracle_text: "Back rules", image_uris: { normal: "https://cards.scryfall.io/back.jpg" } },
+      ],
+    };
+    vi.stubGlobal("fetch", async (input: string | URL | Request) => {
+      const url = String(input);
+      if (url === "data/prices/index.json") return new Response(JSON.stringify({
+        schemaVersion: 1, provider: "Scryfall", observedAt, generatedAt: observedAt,
+        sets: { ONE: { file: "ONE.json", cards: 1, sha256: "test" } },
+      }));
+      if (url === "data/prices/ONE.json") return new Response(JSON.stringify({
+        schemaVersion: 1, set: "ONE", provider: "Scryfall", observedAt, generatedAt: observedAt, cards: [doubleFacedCard],
+      }));
+      throw new Error(`unexpected request: ${url}`);
+    });
+
+    const result = await loadPrices({ sets: ["ONE"], printings: [{ set: "ONE", collectorNumber: "1" }] });
+    expect(result.cards[0]).toMatchObject({
+      layout: "modal_dfc",
+      image: "https://cards.scryfall.io/front.jpg",
+      faces: [
+        { name: "Front", oracleText: "Front rules", image: "https://cards.scryfall.io/front.jpg" },
+        { name: "Back", oracleText: "Back rules", image: "https://cards.scryfall.io/back.jpg" },
+      ],
+    });
+  });
+
   it("turns a live rate limit into an availability state and retries cleanly on the next calculation", async () => {
     let searches = 0;
     vi.stubGlobal("fetch", async (input: string | URL | Request) => {

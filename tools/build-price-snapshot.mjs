@@ -49,7 +49,11 @@ async function requiredPrintings() {
 }
 
 function compactCard(card) {
+  const meldResultId = card.layout === "meld"
+    ? card.all_parts?.find((part) => part.component === "meld_result")?.id
+    : undefined;
   const faces = card.card_faces?.map((face) => ({
+    ...(face.name ? { name: face.name } : {}),
     ...(face.type_line ? { type_line: face.type_line } : {}),
     ...(face.colors ? { colors: face.colors } : {}),
     ...(face.oracle_text ? { oracle_text: face.oracle_text } : {}),
@@ -63,7 +67,9 @@ function compactCard(card) {
     rarity: card.rarity,
     type_line: card.type_line,
     ...(card.colors ? { colors: card.colors } : {}),
-    ...(faces?.length ? { card_faces: faces } : {}),
+    ...(faces?.length > 1 ? { card_faces: faces } : {}),
+    ...(card.layout ? { layout: card.layout } : {}),
+    ...(meldResultId ? { meld_result_id: meldResultId } : {}),
     prices: {
       usd: card.prices?.usd ?? null,
       usd_foil: card.prices?.usd_foil ?? null,
@@ -180,6 +186,7 @@ async function buildSnapshot(required) {
   const compressed = join(OUTPUT_DIR, ".default-cards.jsonl.gz");
   await downloadBulk(downloadUrl, compressed);
   const cardsBySet = new Map();
+  const meldCardsById = new Map();
   const found = new Set();
   const input = createReadStream(compressed).pipe(createGunzip());
   const lines = createInterface({ input, crlfDelay: Infinity });
@@ -189,6 +196,7 @@ async function buildSnapshot(required) {
     const set = String(card.set ?? "").toUpperCase();
     const collectorNumber = String(card.collector_number ?? "");
     const key = `${set}|${collectorNumber}`;
+    if (card.layout === "meld") meldCardsById.set(card.id, compactCard(card));
     if (!required.has(key)) continue;
     found.add(key);
     const rows = cardsBySet.get(set) ?? [];
@@ -196,6 +204,25 @@ async function buildSnapshot(required) {
     cardsBySet.set(set, rows);
   }
   await rm(compressed, { force: true });
+
+  const asFace = (card) => ({
+    name: card.name,
+    type_line: card.type_line,
+    ...(card.oracle_text ? { oracle_text: card.oracle_text } : {}),
+    ...(card.image_uris?.normal ? { image_uris: { normal: card.image_uris.normal } } : {}),
+  });
+  for (const cards of cardsBySet.values()) {
+    for (const card of cards) {
+      const resultId = card.meld_result_id;
+      if (!resultId || card.id === resultId) {
+        delete card.meld_result_id;
+        continue;
+      }
+      const result = meldCardsById.get(resultId);
+      if (result) card.card_faces = [asFace(card), asFace(result)];
+      delete card.meld_result_id;
+    }
+  }
 
   const generatedAt = new Date().toISOString();
   const observedAt = definition.updated_at;
