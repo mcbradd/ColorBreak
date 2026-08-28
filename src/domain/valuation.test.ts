@@ -120,9 +120,9 @@ describe("calculateBreak", () => {
     expect(chase.pullProbability).toBeCloseTo(0.625);
   });
 
-  it("suppresses buyer verdicts for incomplete results", () => {
+  it("returns a lower-bound buyer verdict for incomplete results", () => {
     const result = calculateBreak({ draws, prices, omissions: [{ code: "missing", message: "topper missing", material: true }] });
-    expect(buyerVerdict(result.slots.find((slot) => slot.id === "G")!, 5, result.status)).toBe("NO VERDICT");
+    expect(buyerVerdict(result.slots.find((slot) => slot.id === "G")!, 5, result.status)).toBe("+EV");
   });
 
   it("does not mislabel a price-source outage as incomplete product contents", () => {

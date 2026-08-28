@@ -82,4 +82,20 @@ describe("Seller Studio command center", () => {
     expect(screen.queryByText(/Buyer card value/i)).not.toBeInTheDocument();
     expect(screen.queryByRole("group", { name: "Color slots" })).not.toBeInTheDocument();
   });
+
+  it("links a missing product cost to that product's cost field", () => {
+    const missingCostLines = [{ ...startingLines[0], marketCost: undefined }];
+    render(createElement(SellerView, {
+      analysis,
+      lines: missingCostLines,
+      add: vi.fn(),
+      remove: vi.fn(),
+      update: vi.fn(),
+    }));
+
+    const link = screen.getByRole("link", { name: "Enter your cost for Play Booster Box" });
+    expect(link).toHaveAttribute("href", "#seller-cost-line-1");
+    expect(screen.getByLabelText("My cost basis")).toHaveAttribute("id", "seller-cost-line-1");
+    expect(link.parentElement).toHaveTextContent("cannot calculate break-even bids or profit");
+  });
 });

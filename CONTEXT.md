@@ -21,8 +21,8 @@ ColorBreak supports two time-sensitive jobs: a buyer deciding whether to bid on 
 - **Target plan**: proposed asks needed to achieve a margin. It is not an actual outcome.
 - **Actual asks**: seller-confirmed asks used to calculate projected profit.
 - **Outcome Fingerprint**: a 20-bin frequency view of modeled outcomes that makes the median, downside, upside, mean, and landed-cost boundary visible together.
-- **Evidence state**: separate claims about product identity, contents, collation, finish, break rules, and price freshness. A material unresolved claim suppresses outcome assertions.
-- **Eligible / Estimated / Incomplete**: decision-confidence states. Incomplete is a disclosed lower bound and suppresses buyer verdicts and probability views.
+- **Evidence state**: separate claims about product identity, contents, collation, finish, break rules, and price freshness. A material unresolved claim adds a specific warning to outcome assertions.
+- **Eligible / Estimated / Incomplete**: decision-confidence states. Incomplete means the result uses only resolved contents and prices; verdicts and probability views remain visible with named warnings about what is missing and how it may affect the result.
 - **Omission**: a named unresolved product, booster, printing, finish, or sheet weight. Material omissions change status to Incomplete.
 - **Bid Check**: the buyer's time-critical workspace for deciding whether to bid and setting a maximum hammer price. It has Prepare and Live states, but they share one saved decision.
 - **Large Break**: the buyer's high-volume random-spot view. It prices a declared spot count from the same break composition and bulk threshold as Bid Check.

@@ -119,6 +119,7 @@ function NumericInput({
   disabled = false,
   ariaLabel,
   live = false,
+  id,
 }: {
   value: number | undefined;
   onCommit: (value: number | undefined) => void;
@@ -126,6 +127,7 @@ function NumericInput({
   disabled?: boolean;
   ariaLabel?: string;
   live?: boolean;
+  id?: string;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [draft, setDraft] = useState(value == null ? "" : String(value));
@@ -157,6 +159,7 @@ function NumericInput({
 
   return (
     <input
+      id={id}
       ref={inputRef}
       type="text"
       inputMode="decimal"
@@ -198,6 +201,7 @@ export function NumberField({
   prefix = "$",
   hint,
   live = false,
+  id,
 }: {
   label: string;
   value: number | undefined;
@@ -205,6 +209,7 @@ export function NumberField({
   prefix?: string;
   hint?: string;
   live?: boolean;
+  id?: string;
 }) {
   return (
     <label className="number-field">
@@ -215,6 +220,7 @@ export function NumberField({
       <div>
         <b>{prefix}</b>
         <NumericInput
+          id={id}
           value={value}
           placeholder="0"
           onCommit={onChange}
@@ -394,7 +400,7 @@ function Status({ result }: { result: ValuationResult }) {
         ? "Product contents, pack odds, card versions, and prices are ready."
         : result.status === "estimated"
           ? "Some product details are estimates, so treat this as a rough answer."
-          : "Some product information is missing. Open Data confidence to see what is affected."}
+          : "This result uses only resolved contents and exact card prices. The nearby warning names every missing item and explains how it may change the result."}
       label={`Explain ${result.status} data status`}
     >
       {icon}
@@ -911,6 +917,28 @@ export function SlotRail({
   );
 }
 
+function IncompleteDataWarning({ analysis, title = "Projection uses incomplete data" }: { analysis: BreakAnalysis; title?: string }) {
+  const omissions = [...analysis.valuation.omissions, ...analysis.outcomeOmissions]
+    .filter((item) => item.material)
+    .filter((item, index, rows) => rows.findIndex((candidate) => candidate.code === item.code && candidate.message === item.message) === index);
+  if (analysis.valuation.status !== "incomplete" && analysis.outcomeModel.complete !== false) return null;
+  const impact = (code: string) => /price|printing/.test(code)
+    ? "It is counted as $0, so the shown value and outcome range can be too low."
+    : /sheet|weight|collation|outcome|model|sealed|product|contents/.test(code)
+      ? "Those pulls are absent from the simulation, so the low, typical, and high results can be too low and the relative value of the spots can change."
+      : "It contributes $0 and no pull chance to this result, so the projection can be too low.";
+  return (
+    <aside className="incomplete-data-warning" role="status">
+      <ShieldAlert />
+      <div>
+        <b>{title}</b>
+        <p>The values and outcome ranges shown include only contents and exact card prices ColorBreak could resolve. Missing cards or pull chances could raise or lower the real result and change the shape of the range.</p>
+        {omissions.length > 0 && <ul>{omissions.map((omission, index) => <li key={`${omission.code}-${index}`}><span>{omission.message}</span> <em>Expected impact: {impact(omission.code)}</em></li>)}</ul>}
+      </div>
+    </aside>
+  );
+}
+
 export function CardInspector({
   row,
   status,
@@ -1082,10 +1110,6 @@ export function useOutcomeSimulation(
   useEffect(() => {
     let current = true;
     let refinementId: number | undefined;
-    if (analysis.outcomeModel.complete === false || analysis.valuation.status === "incomplete") {
-      setState({ busy: false, error: "Outcome distribution withheld because material model inputs are unresolved." });
-      return () => { current = false; };
-    }
     setState((previous) => ({ ...previous, busy: true, error: undefined }));
     const options = {
       seed: key,
@@ -1126,7 +1150,7 @@ export function useOutcomeSimulation(
 }
 
 function OutcomeRange({ summary, landed, compact = false }: { summary?: DistributionSummary; landed?: number; compact?: boolean }) {
-  if (!summary) return <div className="distribution-empty">Distribution unavailable until every material input is resolved.</div>;
+  if (!summary) return <div className="distribution-empty">Calculating the outcome range from the information currently available…</div>;
   const chanceToClear = landed == null
     ? undefined
     : summary.chanceToClearCost ?? summary.fingerprint.filter((value) => value >= landed).length / summary.fingerprint.length;
@@ -1167,15 +1191,14 @@ function OutcomeRange({ summary, landed, compact = false }: { summary?: Distribu
 }
 
 export function BreakBalance({
-  result, model, remaining, simulation,
+  result, remaining, simulation,
 }: {
   result: ValuationResult;
-  model: PackOutcomeModel;
   remaining: SlotId[];
   simulation?: SimulationResult;
 }) {
   const rows = result.slots.filter((slot) => remaining.includes(slot.id));
-  const distributions = model.complete === false ? null : simulation?.slotDistributions;
+  const distributions = simulation?.slotDistributions;
   const max = Math.max(...rows.flatMap((slot) => [
     distributions?.[slot.id].p99 ?? slot.sellableEV,
     slot.sellableEV,
@@ -1194,17 +1217,6 @@ export function BreakBalance({
       <b>{strongest ? `${Math.round(weakest / strongest * 100)}%` : "—"}</b>
       <span>weakest vs strongest</span>
     </Tip>
-  );
-  if (model.complete === false) return (
-    <section className="panel balance-panel">
-      <PanelHeading
-        label="BREAK BALANCE"
-        help="Pull ranges require every material product and pull-rate input. ColorBreak does not invent a range when the model is incomplete."
-        title="Pull ranges unavailable"
-        accessory={balanceTip}
-      />
-      <div className="distribution-unavailable" role="status"><b>Range withheld</b><span>Some material product or pull-rate information is unresolved.</span></div>
-    </section>
   );
   if (!distributions) return (
     <section className="panel balance-panel">
@@ -1337,7 +1349,7 @@ function EvidenceLens({ analysis }: { analysis: BreakAnalysis }) {
       status: plainEvidence(valuation.evidence.collation),
       meaning: "A pack is not filled by picking every card equally. This check describes how often each kind of card can appear.",
       matters: "These chances power the pull odds, typical outcome, and high and low ranges. Bad pack chances can make a correct price produce a wrong answer.",
-      action: "When this is uncertain, ColorBreak hides probability-based guidance. Base a decision only on information that remains clearly available.",
+      action: "When this is uncertain, use the shown range as a partial estimate. Missing pack chances can move the low, typical, and high outcomes in either direction.",
     },
     {
       title: "Card versions",
@@ -1364,8 +1376,8 @@ function EvidenceLens({ analysis }: { analysis: BreakAnalysis }) {
   return (
     <details className="rollout evidence-lens">
       <summary className="disclosure-summary">
-        <span><ShieldAlert /><b>Data confidence</b><small>{analysis.outcomeModel.complete === false ? "Some missing data prevents a full answer" : "All key information is ready"}</small></span>
-        <span className="summary-actions"><span className="summary-help"><span>{ageHours == null ? "Price time unknown" : `Prices ${ageHours < 1 ? "<1" : Math.round(ageHours)}h old`}</span><Tip text="Shows which product details were checked and which are still missing. ColorBreak hides outcome ranges when missing information could change the answer." /></span><DisclosureArrow /></span>
+        <span><ShieldAlert /><b>Data confidence</b><small>{analysis.outcomeModel.complete === false ? "Resolved-only result · exact missing items listed below" : "All key information is ready"}</small></span>
+        <span className="summary-actions"><span className="summary-help"><span>{ageHours == null ? "Price time unknown" : `Prices ${ageHours < 1 ? "<1" : Math.round(ageHours)}h old`}</span><Tip text="Shows which product details were checked, what is missing, and how those gaps may affect the values and outcome ranges shown." /></span><DisclosureArrow /></span>
       </summary>
       <div className="evidence-grid">
         {labels.map((item) => (
@@ -1640,7 +1652,8 @@ export function SlotValueDetails({
   );
 }
 
-export function LargeBreakView({ result, lines, spots }: { result: ValuationResult; lines: BreakLine[]; spots: number }) {
+export function LargeBreakView({ analysis, lines, spots }: { analysis: BreakAnalysis; lines: BreakLine[]; spots: number }) {
+  const result = analysis.valuation;
   const [topCardSort, setTopCardSort] = useState<TopCardSort>("price");
   const plan = useMemo(() => createLargeBreakPlan(result, spots), [result, spots]);
   const rankedNamedCards = useMemo(() => sortNamedCards(plan.namedCards, topCardSort), [plan.namedCards, topCardSort]);
@@ -1657,7 +1670,7 @@ export function LargeBreakView({ result, lines, spots }: { result: ValuationResu
         <Status result={result} />
       </header>
       <div className="large-break-metrics">
-        <div><span>Sealed market value / spot</span><strong>{sealedMarketValue == null ? "—" : fmt(sealedMarketValue / plan.spotCount)}</strong><small>{sealedMarketValue == null ? "Waiting for sealed market prices" : `${fmt(sealedMarketValue)} total sealed value`}</small></div>
+        <div><span>Sealed market value / spot</span><strong>{sealedMarketValue == null ? "—" : fmt(sealedMarketValue / plan.spotCount)}</strong><small>{sealedMarketValue == null ? "A sealed-market price is unavailable; pull EV is still shown" : `${fmt(sealedMarketValue)} total sealed value`}</small></div>
         <div><span>Pull EV / spot</span><strong>{fmt(plan.totalPullEV / plan.spotCount)}</strong><small>{result.threshold > 0 ? `Cards under ${fmt(result.threshold)} ignored as bulk` : "All priced cards included"}</small></div>
       </div>
       <div className="large-break-allocation">
@@ -1665,6 +1678,7 @@ export function LargeBreakView({ result, lines, spots }: { result: ValuationResu
         <div><span>Category spots</span><b>{plan.categories.reduce((sum, row) => sum + row.spots, 0)}</b><small>{fmt(categoryEV)} pull EV</small></div>
         <div><span>Total pull EV</span><b>{fmt(plan.totalPullEV)}</b><small>Expected across the opening</small></div>
       </div>
+      <IncompleteDataWarning analysis={analysis} title="Spot projections use incomplete data" />
       <section className="large-break-pool-section">
         <div className="large-break-section-heading large-break-top-heading">
           <div><p className="section-label">NAMED POOL</p><h3>Top cards</h3></div>
@@ -1694,7 +1708,6 @@ export function LargeBreakView({ result, lines, spots }: { result: ValuationResu
           <span>{fmt(category.pullEV)}</span><b>{fmt(category.evPerSpot)}</b>
         </div>)}
       </section>
-      {result.status === "incomplete" && <p className="blocked"><ShieldAlert />Values are a lower bound. {result.statusReason}</p>}
     </section>
   );
 }
@@ -1739,7 +1752,7 @@ export function BuyerView({
       : valueRule.kind === "coverage"
         ? distribution.p25
         : distribution.mean;
-  const cap = result.status === "incomplete" || valueTarget == null || shipping == null
+  const cap = valueTarget == null || shipping == null
     ? { kind: "unknown-cost" as const }
     : solveFinancialCap({
         valueTarget,
@@ -1779,8 +1792,8 @@ export function BuyerView({
           <div className="verdict-decision">
             <p className="section-label">Recommendation</p>
             <h2 aria-live="polite">{decision}</h2>
-            {bid == null && <p className="decision-reason">Enter the current hammer to compare it with your limit.</p>}
-            {bid != null && shipping == null && <p className="decision-reason">Add only the shipping this purchase adds to your order.</p>}
+            {bid == null && <p className="decision-reason"><a href="#buyer-current-bid">Enter the current auction price</a> to compare it with your maximum hammer.</p>}
+            {bid != null && shipping == null && <p className="decision-reason"><a href="#buyer-added-shipping">Enter the extra shipping charged for this purchase</a>. It affects your landed cost and maximum hammer.</p>}
             {recommendation.action === "bid" && (
               <p className="decision-reason">Current hammer is {fmt(recommendation.room)} below your modeled ceiling.</p>
             )}
@@ -1806,8 +1819,9 @@ export function BuyerView({
           <button aria-pressed={valueRule.kind === "average"} onClick={() => setValueRule({ kind: "average" })}>Chase upside</button>
         </div>
         <div className="bid-inputs">
-          <NumberField label="Current bid" value={bid} onChange={setBid} />
+          <NumberField id="buyer-current-bid" label="Current bid" value={bid} onChange={setBid} />
           <NumberField
+            id="buyer-added-shipping"
             label="Your added shipping"
             value={shipping}
             onChange={setShipping}
@@ -1827,11 +1841,7 @@ export function BuyerView({
         <OutcomeRange summary={distribution} landed={bid == null ? undefined : landed} compact />
         {simulation.busy && <p className="simulation-state">Checking more possible openings…</p>}
         {simulation.error && <p className="blocked"><ShieldAlert />{simulation.error}</p>}
-        {result.status === "incomplete" && (
-          <p className="blocked">
-            <ShieldAlert /> Verdict withheld. {result.statusReason}
-          </p>
-        )}
+        <IncompleteDataWarning analysis={analysis} title="Recommendation and range use incomplete data" />
       </section>
       <section className="bid-explorer">
         <header className="disclosure-summary">
@@ -1842,7 +1852,7 @@ export function BuyerView({
         </header>
         <div className="bid-explorer-body">
           <ValueSummary result={result} />
-          <BreakBalance result={result} model={analysis.outcomeModel} remaining={auction.remaining} simulation={simulation.result} />
+          <BreakBalance result={result} remaining={auction.remaining} simulation={simulation.result} />
           <EvidenceLens analysis={analysis} />
           <SlotValueDetails
             slot={slot}
@@ -2127,6 +2137,7 @@ function LegacySellerView({
   const costsComplete = lines.every(
     (l) => l.myCost != null || l.marketCost != null,
   );
+  const missingCostLine = lines.find((line) => line.myCost == null && line.marketCost == null);
   const marketplace = {
     ...WHATNOT_US,
     commissionRate: commission / 100,
@@ -2209,7 +2220,7 @@ function LegacySellerView({
         <div className="seller-decision-main">
           <div>
             <p className="section-label">RECOMMENDATION</p>
-            <h2>{costsComplete ? planStatusLabel : "ADD PRODUCT COST"}</h2>
+            <h2>{costsComplete ? planStatusLabel : missingCostLine ? <a href={`#seller-cost-${missingCostLine.id}`}>ENTER COST FOR {missingCostLine.productLabel.toUpperCase()}</a> : "ENTER PRODUCT COST"}</h2>
             {costsComplete && <p>Modeled buyer card value is {fmt(Math.abs(planStatus.headroom))} {planStatus.headroom >= 0 ? "above" : "below"} the sales target. Validate demand before launch.</p>}
           </div>
           <strong>{costsComplete ? fmt(targetProfit) : "—"}<small>planned net target</small></strong>
@@ -2227,7 +2238,7 @@ function LegacySellerView({
         <PanelHeading
           label="PROFIT PLAN"
           help="Break-even is the total slot revenue needed to repay product cost, platform fees, packing, and shipping you cover. The sales goal adds your chosen profit margin."
-          title={costsComplete ? <>{fmt(breakEven)} break-even</> : "Waiting for a product price"}
+          title={costsComplete ? <>{fmt(breakEven)} break-even</> : missingCostLine ? <a href={`#seller-cost-${missingCostLine.id}`}>Enter cost for {missingCostLine.productLabel}</a> : "Enter product cost"}
           accessory={<Tip className="market-badge" text="The fee settings used for each sale. You can edit them below when another marketplace charges different fees." label={`Explain the ${marketplace.name} marketplace preset`}>
             <Store />
             {marketplace.name}
@@ -2254,6 +2265,7 @@ function LegacySellerView({
                   <small>{line.marketCost == null ? "Enter your cost to continue" : "TCGplayer market via TCGCSV"}</small>
                 </div>
                 <NumberField
+                  id={`seller-cost-${line.id}`}
                   label="My actual unit cost"
                   value={line.myCost}
                   onChange={(n) => update(line.id, { myCost: n })}
@@ -2543,19 +2555,20 @@ function SellerEnticement({
         <small>One pack per bid over the threshold</small>
       </div>
       <div className="enticement-controls">
-        <label className="compact-select"><span>Booster</span><select aria-label="Bonus booster" value={selectedKey} onChange={(event) => setSelectedKey(event.target.value)}>
+        <label className="compact-select"><span>Booster</span><select id="seller-bonus-booster" aria-label="Bonus booster" value={selectedKey} onChange={(event) => setSelectedKey(event.target.value)}>
           <option value="">Choose a booster</option>
           {products.map((product) => <option key={productRef(product)} value={productRef(product)}>{product.set} · {product.label}</option>)}
         </select></label>
         <NumberField label="Bid threshold" value={threshold} onChange={(value) => setThreshold(value ?? 0)} live />
-        <NumberField label="My booster cost" value={costOverride} onChange={setCostOverride} live />
+        <NumberField id="seller-bonus-cost" label="My booster cost" value={costOverride} onChange={setCostOverride} live />
       </div>
       <div className="enticement-metrics">
         <div><span>Market / pack</span><b>{loading ? "Loading…" : fmt(marketPrice)}</b></div>
-        <div><span>Cost / qualifying bid</span><b>{packCost == null ? "Choose pack" : fmt(packCost)}</b></div>
+        <div><span>Cost / qualifying bid</span><b>{packCost == null ? <a href={selected ? "#seller-bonus-cost" : "#seller-bonus-booster"}>{selected ? "Enter booster cost" : "Choose a booster"}</a> : fmt(packCost)}</b></div>
         <div><span>Pull EV added / pack</span><b>{evAdded == null ? "—" : `+${fmt(evAdded)}`}</b></div>
         <div><span>If all {transactionCount} clear {fmt(threshold)}</span><b>{allCost == null ? "—" : `${fmt(allCost)} cost`}</b><small>{allEv == null ? "" : `+${fmt(allEv)} modeled pull EV · ${sellerOutcomeLabel(baseProfitAtAll - (allCost ?? 0))}`}</small></div>
       </div>
+      {selected && !loading && packCost == null && <p className="missing-input-warning"><ShieldAlert /><span><a href="#seller-bonus-cost">Enter your cost for {selected.label}</a>. Its market price is unavailable, so the threshold profit projection cannot subtract the booster expense until you fill this in.</span></p>}
       <p className="enticement-policy"><ShieldAlert />Threshold-triggered packs require written Whatnot approval before advertising.</p>
     </section>
   );
@@ -2591,6 +2604,7 @@ export function SellerView({
   const transactionCount = 8;
   const acquisition = lines.reduce((total, line) => total + (line.myCost ?? line.marketCost ?? 0) * line.quantity, 0);
   const costsComplete = lines.every((line) => line.myCost != null || line.marketCost != null);
+  const missingCostLine = lines.find((line) => line.myCost == null && line.marketCost == null);
   const otherCosts = labor + tax + giveaways + refundReserve + overhead;
   const shipmentCount = Math.min(transactionCount, Math.max(1, Math.round(shipments)));
   const shipmentCost = (packing + postage) * shipmentCount;
@@ -2642,7 +2656,7 @@ export function SellerView({
               <span className="set-glyph">{line.set}</span>
               <span className="seller-product-name"><strong>{line.productLabel}</strong><small>{line.set}</small></span>
               <div className="seller-market-price"><span>Current market</span><b>{fmt(line.marketCost)}</b></div>
-              <NumberField label="My cost basis" value={line.myCost} onChange={(value) => update(line.id, { myCost: value })} live />
+              <NumberField id={`seller-cost-${line.id}`} label="My cost basis" value={line.myCost} onChange={(value) => update(line.id, { myCost: value })} live />
               <div className="line-controls">
                 <div className="stepper" aria-label={`${line.productLabel} quantity`}>
                   <button disabled={line.quantity <= 1} onClick={() => update(line.id, { quantity: Math.max(1, line.quantity - 1) })}>−</button>
@@ -2655,6 +2669,10 @@ export function SellerView({
           ))}
         </div>
       </section>
+
+      {missingCostLine && <p className="missing-input-warning"><ShieldAlert /><span><a href={`#seller-cost-${missingCostLine.id}`}>Enter your cost for {missingCostLine.productLabel}</a>. No sealed-market price is available for this product, so ColorBreak cannot calculate break-even bids or profit until this cost is filled in.</span></p>}
+
+      <IncompleteDataWarning analysis={analysis} title="Seller projections use incomplete card data" />
 
       <details className="seller-cost-rollout">
         <summary className="disclosure-summary">
@@ -2697,7 +2715,7 @@ export function SellerView({
         <div className="seller-fill-scenarios">
           {scenarios.map((scenario) => <div className={scenario.profit != null && scenario.profit >= 0 ? "positive" : "negative"} key={scenario.sold}>
             <span>{scenario.sold} / 8 sold</span>
-            <b>{scenario.profit == null ? "Add costs" : sellerOutcomeLabel(scenario.profit)}</b>
+            <b>{scenario.profit == null && missingCostLine ? <a href={`#seller-cost-${missingCostLine.id}`}>Enter {missingCostLine.productLabel} cost</a> : scenario.profit == null ? "Enter planned bid" : sellerOutcomeLabel(scenario.profit)}</b>
           </div>)}
         </div>
       </section>
@@ -2991,11 +3009,11 @@ export function Workspace({
               setLargeSpots={setLargeSpots}
             />
             <div className="results buyer-results">
-              {!lines.length && <section className="buyer-awaiting-break"><span><BarChart3 /></span><h2>Evaluation appears here</h2><p>Choose a format, add the sealed products, and ColorBreak calculates immediately.</p></section>}
+              {!lines.length && <section className="buyer-awaiting-break"><span><BarChart3 /></span><h2>Add the sealed product in this break</h2><p>ColorBreak needs the exact set and product name to calculate card values and outcome ranges.</p><button type="button" className="primary" onClick={() => setBuilder(true)}>Choose the sealed product</button></section>}
               {busy && <div className="calculating"><span />Calculating exact contents and prices…</div>}
               {error && <div className="error"><ShieldAlert />{error}</div>}
               {analysis && (assignmentMode === "large" ? (
-                <LargeBreakView result={analysis.valuation} lines={lines} spots={largeSpots} />
+                <LargeBreakView analysis={analysis} lines={lines} spots={largeSpots} />
               ) : (
                 <BuyerView
                   analysis={analysis}

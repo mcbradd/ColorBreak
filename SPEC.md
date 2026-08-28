@@ -5,13 +5,14 @@
 1. Entry offers **Check a bid** and **Build & price** as separate jobs.
 2. Set → product selection is searchable, touch-friendly, and automatically calculates the break.
 3. The first buyer result shows Sellable EV, confidence, slot selection, bid, incremental shipping, and a verdict.
-4. Incomplete data produces **NO VERDICT**. No missing value receives an inferred price.
+4. Incomplete data never hides the verdict, projection, or outcome distribution. Results use only resolved contents and exact prices, show a nearby warning that names each omission and its likely impact, and never infer a missing value.
 5. Market EV, Sellable EV, Known EV, chase share, value without the chase, and top contributors remain available without obstructing the primary decision.
 6. Buyer spot format offers Pick a color, Random remaining, and Large break. Large break accepts 1–500 spots, defaults to 120, and targets 75% individually named high-market cards.
 7. Large break shows sealed market value per spot, pull EV per spot under the shared bulk filter, top named cards switchable between market-price and expected-value ranking, and residual creature-color/card-type EV with named cards excluded.
 8. Buyer setup presents break format first, then break contents and the value filter in one working screen. The latest decision evidence and visualizations remain visible during recalculation and require no disclosure to open.
 9. On a phone viewport, format, color/spot selection, break contents, and bulk-value controls appear before results and fit in the initial landing viewport for a new break. Buying recommendation and limit precede supporting evidence.
 10. The current URL continuously encodes break products, quantities, format, spot/color state, and bulk-value options. Opening or sharing that URL reconstructs the filled-out buyer view.
+11. When a result requires user-entered information, the message names the exact missing value, explains which result it affects, and links directly to the corresponding field.
 
 ## Seller
 

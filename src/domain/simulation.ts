@@ -90,7 +90,6 @@ function sheetSlotBounds(sheet: OutcomeSheet, picks: number, slot: SlotId): { mi
 
 /** Exact marginal low/high values possible for every color slot. */
 export function possibleSlotBounds(model: PackOutcomeModel): SlotBounds {
-  if (model.complete === false) throw new Error("Cannot derive exact bounds from a model with material omissions");
   return Object.fromEntries(SLOT_IDS.map((slot) => {
     const fixed = model.fixed.reduce((sum, card) => sum + (card.slot === slot ? card.value * (card.count ?? 1) : 0), 0);
     let minimum = fixed;
@@ -288,7 +287,6 @@ export function summarizeDistribution(values: readonly number[], landedCost?: nu
 }
 
 export function simulateOutcomes(model: PackOutcomeModel, options: SimulationOptions): SimulationResult {
-  if (model.complete === false) throw new Error("Cannot simulate a model with material omissions");
   if (!Number.isInteger(options.sampleCount) || options.sampleCount <= 0) {
     throw new Error("sampleCount must be a positive integer");
   }

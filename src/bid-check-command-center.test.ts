@@ -78,4 +78,36 @@ describe("Bid Check command center", () => {
     await waitFor(() => expect(within(evidence as HTMLElement).getByText(/Break Balance/)).toBeInTheDocument());
     expect(screen.queryByText("Chase Map")).not.toBeInTheDocument();
   });
+
+  it("shows incomplete projections with the exact omission warning", async () => {
+    const incompleteValuation = calculateBreak({
+      prices: [{ id: "w", set: "TST", collectorNumber: "1", name: "White", slot: "W", nonfoil: 20, foil: null }],
+      draws: [{ set: "TST", collectorNumber: "1", copies: 1, foil: false, source: "fixed" }],
+      threshold: 2,
+      omissions: [{ code: "missing-topper", message: "1× foil box topper has no verified card list.", material: true }],
+    });
+    evaluateBreakAnalysis.mockResolvedValue({
+      ...analysis,
+      valuation: incompleteValuation,
+      outcomeModel: { ...analysis.outcomeModel, complete: false },
+      outcomeOmissions: [{ code: "missing-topper", message: "1× foil box topper has no verified card list.", material: true }],
+    });
+
+    render(createElement(Workspace, { mode: "buyer", exit: vi.fn() }));
+
+    expect(await screen.findByText("Recommendation and range use incomplete data")).toBeInTheDocument();
+    expect(screen.getAllByText("1× foil box topper has no verified card list.").length).toBeGreaterThan(0);
+    await waitFor(() => expect(simulateOutcomesAsync).toHaveBeenCalled());
+    expect(screen.getByLabelText("Maximum hammer")).not.toHaveTextContent("—");
+  });
+
+  it("links missing buyer information to the exact fields", async () => {
+    localStorage.removeItem("colorbreak:buyer:bid");
+    localStorage.removeItem("colorbreak:buyer:shipping");
+    render(createElement(Workspace, { mode: "buyer", exit: vi.fn() }));
+
+    const bidLink = await screen.findByRole("link", { name: "Enter the current auction price" });
+    expect(bidLink).toHaveAttribute("href", "#buyer-current-bid");
+    expect(screen.getByLabelText("Current bid")).toHaveAttribute("id", "buyer-current-bid");
+  });
 });

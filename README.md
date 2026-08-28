@@ -22,7 +22,7 @@ npm run check
 - A break may contain multiple sealed products from multiple sets.
 - Cards go to W/U/B/R/G/M/C/L by the printed color of the front face; lands always go to L.
 - Market EV counts every exactly priced card. Sellable EV applies the user’s price threshold. Known EV is the priced lower bound when source data is incomplete.
-- `verified`, `estimated`, and `incomplete` are behavioral states. An incomplete result never produces a buyer verdict.
+- `verified`, `estimated`, and `incomplete` are confidence states. An incomplete result still produces a buyer verdict and outcome distribution from resolved data, with named warnings explaining what is missing and how the gap may affect the result.
 - Seller fees are assessed per purchase. Packing and seller-covered shipping are assessed per shipment. Buyer-paid shipping is not seller revenue.
 
 ## Data

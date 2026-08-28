@@ -36,4 +36,10 @@ describe("outcome simulation lifecycle", () => {
     expect(appSource).toContain("if (baseSimulation.error || bonusSimulation.error)");
     expect(appSource).toContain("Pull ranges unavailable");
   });
+
+  it("does not withhold simulations when analysis is incomplete", () => {
+    expect(appSource).not.toContain("Outcome distribution withheld");
+    expect(appSource).not.toContain("Range withheld");
+    expect(appSource).toContain("Recommendation and range use incomplete data");
+  });
 });

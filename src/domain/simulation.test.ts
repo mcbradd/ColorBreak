@@ -36,10 +36,12 @@ describe("outcome simulation", () => {
     expect(first.sampleCount).toBe(10_000);
   });
 
-  it("refuses to claim distributions for an incomplete model", () => {
-    expect(() => simulateOutcomes({ ...coinFlipPack, complete: false }, {
+  it("returns a partial distribution for an incomplete model", () => {
+    const result = simulateOutcomes({ ...coinFlipPack, complete: false }, {
       seed: "blocked", sampleCount: 100, remaining: ["W"],
-    })).toThrow("material omissions");
+    });
+    expect(result.slotDistributions.W.mean).toBeGreaterThan(0);
+    expect(result.sampleCount).toBe(100);
   });
 
   it("derives exact possible slot bounds from variants and replacement rules", () => {

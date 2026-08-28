@@ -158,10 +158,9 @@ export function slotOfCard(card: {
   return colors[0] as SlotId;
 }
 
-export type Verdict = "+EV" | "FAIR" | "−EV" | "NO VERDICT";
+export type Verdict = "+EV" | "FAIR" | "−EV";
 
-export function buyerVerdict(slot: SlotValuation, landedCost: number, status: DataStatus): Verdict {
-  if (status === "incomplete") return "NO VERDICT";
+export function buyerVerdict(slot: SlotValuation, landedCost: number, _status: DataStatus): Verdict {
   const net = slot.sellableEV - landedCost;
   const deadband = Math.max(1, landedCost * 0.08);
   return net > deadband ? "+EV" : net < -deadband ? "−EV" : "FAIR";

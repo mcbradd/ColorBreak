@@ -26,7 +26,7 @@ The deployable output is `dist/`. GitHub Pages must receive the built assets plu
 
 ## Experience constraints
 
-Mobile touch is the primary input. Preserve the buyer’s fast path: choose product, enter bid and incremental shipping, then tap each assigned random remaining slot. Pick My Color is alternate mode. Calculation starts on product selection. Keep dense evidence behind progressive disclosure. Materially incomplete data suppresses verdicts and probability views.
+Mobile touch is the primary input. Preserve the buyer’s fast path: choose product, enter bid and incremental shipping, then tap each assigned random remaining slot. Pick My Color is alternate mode. Calculation starts on product selection. Keep dense evidence behind progressive disclosure. Materially incomplete data never suppresses projections, verdicts, or outcome distributions. Show the result using resolved data, place a specific warning beside it, name every missing item in plain language, and explain how the gap may affect the result. If a result needs user input, link the message directly to the exact field.
 
 Maintain keyboard operation, visible focus, reduced-motion behavior, and a usable 320px layout. Slot meaning cannot rely on color alone.
 
