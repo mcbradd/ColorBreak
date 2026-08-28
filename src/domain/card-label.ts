@@ -38,7 +38,11 @@ const FINISH_LABELS: Record<Finish, string> = {
 
 export function cardDisplayName(card: CardPrice, finish: Finish = "nonfoil"): string {
   const variants = card.treatments ?? (card.treatment ? [card.treatment] : []);
-  const finishLabel = finish === "nonfoil" ? undefined : FINISH_LABELS[finish];
+  const hasNamedProcess = Boolean(card.treatmentMetadata?.processTags.length) ||
+    variants.some((label) => /foil|glossy|invisible ink/i.test(label));
+  const finishLabel = finish === "nonfoil" || (finish === "foil" && hasNamedProcess)
+    ? undefined
+    : FINISH_LABELS[finish];
   const treatments = [...variants, finishLabel].filter((label, index, all): label is string =>
     Boolean(label) && all.indexOf(label) === index);
   return treatments.length ? `${card.name} (${treatments.join(", ")})` : card.name;

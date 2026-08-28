@@ -24,4 +24,9 @@ describe("card display identity", () => {
     expect(cardDisplayName({ ...card, treatments: ["Borderless", "Fracture Foil"] }, "fracture"))
       .toBe("Nut Collector (Borderless, Fracture Foil)");
   });
+
+  it("does not append generic foil after a named foil process", () => {
+    expect(cardDisplayName({ ...card, treatments: ["Borderless", "Surge Foil"] }, "foil"))
+      .toBe("Nut Collector (Borderless, Surge Foil)");
+  });
 });
