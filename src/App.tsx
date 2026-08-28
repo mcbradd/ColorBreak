@@ -1257,19 +1257,21 @@ export function BreakBalance({
           const bodyHighPosition = positionOnScale(bodyHigh);
           return (
             <div className={`balance-column slot-${slot.id}`} key={slot.id} aria-label={`${slot.name}: practical range ${fmt(rangeLow)} to ${fmt(rangeHigh)}, pull-rate expected value ${fmt(expectedValue)}, middle half ${fmt(bodyLow)} to ${fmt(bodyHigh)}`}>
-              <span className="balance-whisker" style={{ bottom: `${lowPosition}%`, height: `${Math.max(0, highPosition - lowPosition)}%` }} />
-              <span className="balance-cap balance-cap-high" style={{ bottom: `${highPosition}%` }} />
-              <span className="balance-cap balance-cap-low" style={{ bottom: `${lowPosition}%` }} />
-              <span className="balance-body" style={{ bottom: `${bodyLowPosition}%`, height: `${Math.max(0, bodyHighPosition - bodyLowPosition)}%` }} />
-              <span className="balance-end balance-best" style={{ bottom: `${highPosition}%` }}>{fmtChart(rangeHigh)}</span>
-              <span className={`balance-ev ${evPosition < 4 ? "at-low" : ""}`} style={{ bottom: `${evPosition}%` }}><i /><b><small>EV</small>{fmtChart(expectedValue)}</b></span>
-              <span className="balance-end balance-worst" style={{ bottom: `${lowPosition}%` }}>{fmtChart(rangeLow)}</span>
-              <strong className="balance-slot">{slot.id}</strong>
+              <strong className="balance-slot"><span>{slot.id}</span><small>{slot.name}</small></strong>
+              <div className="balance-track">
+                <span className="balance-whisker" style={{ left: `${lowPosition}%`, width: `${Math.max(0, highPosition - lowPosition)}%` }} />
+                <span className="balance-cap balance-cap-high" style={{ left: `${highPosition}%` }} />
+                <span className="balance-cap balance-cap-low" style={{ left: `${lowPosition}%` }} />
+                <span className="balance-body" style={{ left: `${bodyLowPosition}%`, width: `${Math.max(0, bodyHighPosition - bodyLowPosition)}%` }} />
+                <span className="balance-end balance-best" style={{ left: `${highPosition}%` }}>{fmtChart(rangeHigh)}</span>
+                <span className={`balance-ev ${evPosition < 4 ? "at-low" : ""}`} style={{ left: `${evPosition}%` }}><i /><b><small>EV</small>{fmtChart(expectedValue)}</b></span>
+                <span className="balance-end balance-worst" style={{ left: `${lowPosition}%` }}>{fmtChart(rangeLow)}</span>
+              </div>
             </div>
           );
         })}
       </div>
-      <p className="balance-caption"><b>Bottom</b> rare low result · <strong>white body</strong> middle half of modeled openings · <span>EV marker</span> pull-rate average · <em>top</em> rare high result. About 1 in 100 modeled openings falls beyond either end. Serialized and one-of-one collector outliers are excluded.</p>
+      <p className="balance-caption"><b>Left</b> rare low result · <strong>white body</strong> middle half of modeled openings · <span>EV marker</span> pull-rate average · <em>right</em> rare high result. About 1 in 100 modeled openings falls beyond either end. Serialized and one-of-one collector outliers are excluded.</p>
     </section>
   );
 }
