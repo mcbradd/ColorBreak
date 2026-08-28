@@ -15,6 +15,31 @@ export type Finish =
   | "surge"
   | "textured"
   | "gilded"
+  | "galaxy"
+  | "confetti"
+  | "halo"
+  | "ripple"
+  | "fracture"
+  | "raised"
+  | "neon-ink"
+  | "oil-slick"
+  | "step-and-compleat"
+  | "double-rainbow"
+  | "silver"
+  | "rainbow"
+  | "mana"
+  | "magnified"
+  | "invisible-ink"
+  | "first-place"
+  | "dragon-scale"
+  | "singularity"
+  | "cosmic"
+  | "chocobo-track"
+  | "facet"
+  | "silver-scroll"
+  | "gleaming-gold"
+  | "embossed"
+  | "glossy"
   | "serialized"
   | "other";
 
@@ -55,6 +80,26 @@ export interface CardPrice {
   name: string;
   /** Printing treatment only; base printings omit this. */
   treatment?: string;
+  /** Every visual/printing variant on this exact printing, in display order. */
+  treatments?: string[];
+  /** Unknown-preserving source facets; these dimensions are intentionally composable. */
+  treatmentMetadata?: {
+    rawFrameEffects: string[];
+    rawPromoTypes: string[];
+    finishClasses: string[];
+    styleTags: string[];
+    processTags: string[];
+    attributeTags: string[];
+    unknownTags: string[];
+    borderColor?: string;
+    fullArt: boolean;
+    textless: boolean;
+    variationOf?: string;
+    language?: string;
+    flavorName?: string;
+    illustrationId?: string;
+    securityStamp?: string;
+  };
   rarity?: string;
   /** Front-face Scryfall type line used for large-break residual categories. */
   typeLine?: string;

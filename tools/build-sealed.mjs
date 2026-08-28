@@ -24,6 +24,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { sourceSetCandidates } from "./sealed-source-resolution.mjs";
 import { applySealedContentOverrides } from "./sealed-content-overrides.mjs";
+export { finishForSheet } from "./finish-normalization.mjs";
+import { finishForSheet } from "./finish-normalization.mjs";
 
 const OUT_DIR = fileURLToPath(new URL("../data/sealed/", import.meta.url));
 const OVERRIDES = JSON.parse(readFileSync(fileURLToPath(new URL("../data/sealed-content-overrides.json", import.meta.url)), "utf8"));
@@ -53,16 +55,6 @@ export function expectedPicks(config) {
   return picks;
 }
 
-export function finishForSheet(name, sheet) {
-  const normalized = name.toLowerCase();
-  if (normalized.includes("etched")) return "etched";
-  if (normalized.includes("surge")) return "surge";
-  if (normalized.includes("textured")) return "textured";
-  if (normalized.includes("gilded")) return "gilded";
-  if (normalized.includes("serialized")) return "serialized";
-  if (/neon|galaxy|confetti|halo|ripple|fracture|raised|step.?and.?compleat/.test(normalized)) return "other";
-  return sheet.foil ? "foil" : "nonfoil";
-}
 // @end-pure
 
 // A deck's card list cites uuids and nothing else — `{ count, uuid, isFoil }` — so the

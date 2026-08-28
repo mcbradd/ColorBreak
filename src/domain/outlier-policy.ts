@@ -6,6 +6,6 @@ import type { Finish } from "./types";
  * value so a one-of-one or serialized sale cannot dominate EV or range charts.
  */
 export function isCollectorOutlierFinish(finish: Finish): boolean {
-  return finish === "serialized";
+  return finish === "serialized" || finish === "double-rainbow";
 }
 

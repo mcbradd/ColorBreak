@@ -73,6 +73,46 @@ describe("exact-printing price module", () => {
     });
   });
 
+  it("retains combined appearance metadata and an exact glossy listing", async () => {
+    const observedAt = new Date().toISOString();
+    const variantCard = {
+      ...card,
+      border_color: "borderless",
+      promo_types: ["fracturefoil"],
+      tcgplayer: { prices: { glossy: { market: null, listed: 12.34 } } },
+    };
+    vi.stubGlobal("fetch", async (input: string | URL | Request) => {
+      const url = String(input);
+      if (url === "data/prices/index.json") return new Response(JSON.stringify({
+        schemaVersion: 1, provider: "Scryfall", observedAt, generatedAt: observedAt,
+        sets: { ONE: { file: "ONE.json", cards: 1, sha256: "test" } },
+      }));
+      if (url === "data/prices/ONE.json") return new Response(JSON.stringify({
+        schemaVersion: 1, set: "ONE", provider: "Scryfall", observedAt, generatedAt: observedAt, cards: [variantCard],
+      }));
+      throw new Error(`unexpected request: ${url}`);
+    });
+
+    const result = await loadPrices({ sets: ["ONE"], printings: [{ set: "ONE", collectorNumber: "1" }] });
+    expect(result.cards[0]).toMatchObject({
+      treatment: "Borderless",
+      treatments: ["Borderless", "Showcase", "Fracture Foil"],
+      treatmentMetadata: {
+        rawFrameEffects: ["showcase"],
+        rawPromoTypes: ["fracturefoil"],
+        finishClasses: [],
+        styleTags: ["showcase"],
+        processTags: ["fracturefoil"],
+        attributeTags: [],
+        unknownTags: [],
+        borderColor: "borderless",
+        fullArt: false,
+        textless: false,
+      },
+      listedPrices: { glossy: 12.34 },
+    });
+  });
+
   it("turns a live rate limit into an availability state and retries cleanly on the next calculation", async () => {
     let searches = 0;
     vi.stubGlobal("fetch", async (input: string | URL | Request) => {

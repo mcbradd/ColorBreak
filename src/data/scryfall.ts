@@ -1,5 +1,6 @@
 import type { CardPrice, Omission, SetChoice } from "../domain/types";
 import { slotOfCard } from "../domain/valuation";
+import { printingVariants, treatmentMetadata } from "../domain/card-variant";
 
 interface ScryfallList<T> { data: T[]; has_more?: boolean; next_page?: string; not_found?: unknown[] }
 interface ScryfallCard {
@@ -16,16 +17,23 @@ interface ScryfallCard {
   tcgplayer_etched_id?: number;
   tcgplayer?: {
     observedAt?: string;
-    prices?: Partial<Record<"nonfoil" | "foil" | "etched", { market?: number | null; listed?: number | null }>>;
+    prices?: Partial<Record<"nonfoil" | "foil" | "etched" | "glossy", { market?: number | null; listed?: number | null }>>;
   };
   image_uris?: { normal?: string };
   oracle_text?: string;
   frame_effects?: string[];
   promo_types?: string[];
+  finishes?: string[];
   full_art?: boolean;
   textless?: boolean;
   variation?: boolean;
   border_color?: string;
+  frame?: string;
+  lang?: string;
+  variation_of?: string;
+  flavor_name?: string;
+  illustration_id?: string;
+  security_stamp?: string;
 }
 interface ScryfallSet { code: string; name: string; released_at: string; set_type: string; digital: boolean }
 
@@ -135,25 +143,57 @@ function toPrice(card: ScryfallCard, observedAt: string, fetchedAt = observedAt)
   const nonfoil = scryfallPrices.nonfoil ?? tcgPrices?.nonfoil?.market ?? null;
   const foil = scryfallPrices.foil ?? tcgPrices?.foil?.market ?? null;
   const etched = scryfallPrices.etched ?? tcgPrices?.etched?.market ?? null;
+  const glossy = tcgPrices?.glossy?.market ?? null;
   const quotes = [
-    ["nonfoil", nonfoil], ["foil", foil], ["etched", etched],
+    ["nonfoil", nonfoil], ["foil", foil], ["etched", etched], ["glossy", glossy],
   ].flatMap(([finish, amount]) => typeof amount === "number" ? [{
-    provider: scryfallPrices[finish as "nonfoil" | "foil" | "etched"] == null ? "TCGplayer via TCGCSV" : "Scryfall",
+    provider: finish === "glossy" || scryfallPrices[finish as "nonfoil" | "foil" | "etched"] == null ? "TCGplayer via TCGCSV" : "Scryfall",
     currency: "USD" as const,
-    finish: finish as "nonfoil" | "foil" | "etched",
-    observedAt: scryfallPrices[finish as "nonfoil" | "foil" | "etched"] == null
+    finish: finish as "nonfoil" | "foil" | "etched" | "glossy",
+    observedAt: finish === "glossy" || scryfallPrices[finish as "nonfoil" | "foil" | "etched"] == null
       ? card.tcgplayer?.observedAt ?? observedAt
       : observedAt,
     fetchedAt,
     amount,
     rightsStatus: "public-value-add" as const,
   }] : []);
+  const treatments = printingVariants({
+    frameEffects: card.frame_effects,
+    promoTypes: card.promo_types,
+    fullArt: card.full_art,
+    textless: card.textless,
+    variation: card.variation,
+    borderColor: card.border_color,
+    frame: card.frame,
+    language: card.lang,
+    finishes: card.finishes,
+    variationOf: card.variation_of,
+    flavorName: card.flavor_name,
+    illustrationId: card.illustration_id,
+    securityStamp: card.security_stamp,
+  });
   return {
     id: card.id,
     set: card.set.toUpperCase(),
     collectorNumber: card.collector_number,
     name: card.name,
-    treatment: printingTreatment(card),
+    treatment: treatments[0],
+    treatments: treatments.length ? treatments : undefined,
+    treatmentMetadata: treatmentMetadata({
+      frameEffects: card.frame_effects,
+      promoTypes: card.promo_types,
+      finishes: card.finishes,
+      fullArt: card.full_art,
+      textless: card.textless,
+      variation: card.variation,
+      borderColor: card.border_color,
+      frame: card.frame,
+      language: card.lang,
+      variationOf: card.variation_of,
+      flavorName: card.flavor_name,
+      illustrationId: card.illustration_id,
+      securityStamp: card.security_stamp,
+    }),
     rarity: card.rarity,
     typeLine: face?.type_line ?? card.type_line,
     slot: slotOfCard({
@@ -163,11 +203,12 @@ function toPrice(card: ScryfallCard, observedAt: string, fetchedAt = observedAt)
     }),
     nonfoil,
     foil,
-    prices: { nonfoil, foil, etched },
+    prices: { nonfoil, foil, etched, glossy },
     listedPrices: {
       nonfoil: tcgPrices?.nonfoil?.listed ?? null,
       foil: tcgPrices?.foil?.listed ?? null,
       etched: tcgPrices?.etched?.listed ?? null,
+      glossy: tcgPrices?.glossy?.listed ?? null,
     },
     quotes,
     priceObservedAt: card.tcgplayer?.observedAt && card.tcgplayer.observedAt > observedAt
@@ -177,19 +218,6 @@ function toPrice(card: ScryfallCard, observedAt: string, fetchedAt = observedAt)
     image: card.image_uris?.normal ?? face?.image_uris?.normal,
     oracleText: card.oracle_text ?? card.card_faces?.map((item) => item.oracle_text ?? "").join("\n—\n"),
   };
-}
-
-function printingTreatment(card: ScryfallCard): string | undefined {
-  const effects = new Set(card.frame_effects ?? []);
-  if (effects.has("extendedart")) return "Extended Art";
-  if (effects.has("showcase")) return "Showcase";
-  if (card.textless) return "Textless";
-  if (card.full_art) return "Full Art";
-  if (effects.has("inverted")) return "Inverted";
-  if (effects.has("colorshifted")) return "Colorshifted";
-  if (card.border_color === "borderless" || card.promo_types?.includes("borderless")) return "Borderless";
-  if (card.variation) return "Alternate Art";
-  return undefined;
 }
 
 function loadSnapshotIndex(): Promise<PriceSnapshotIndex | null> {

@@ -73,10 +73,17 @@ function compactCard(card) {
     ...(card.oracle_text ? { oracle_text: card.oracle_text } : {}),
     ...(card.frame_effects?.length ? { frame_effects: card.frame_effects } : {}),
     ...(card.promo_types?.length ? { promo_types: card.promo_types } : {}),
-    ...(card.full_art ? { full_art: true } : {}),
-    ...(card.textless ? { textless: true } : {}),
-    ...(card.variation ? { variation: true } : {}),
-    ...(card.border_color === "borderless" ? { border_color: "borderless" } : {}),
+    ...(card.finishes?.length ? { finishes: card.finishes } : {}),
+    full_art: Boolean(card.full_art),
+    textless: Boolean(card.textless),
+    variation: Boolean(card.variation),
+    ...(card.border_color ? { border_color: card.border_color } : {}),
+    ...(card.frame ? { frame: card.frame } : {}),
+    ...(card.lang ? { lang: card.lang } : {}),
+    ...(card.variation_of ? { variation_of: card.variation_of } : {}),
+    ...(card.flavor_name ? { flavor_name: card.flavor_name } : {}),
+    ...(card.illustration_id ? { illustration_id: card.illustration_id } : {}),
+    ...(card.security_stamp ? { security_stamp: card.security_stamp } : {}),
     ...(card.tcgplayer_id ? { tcgplayer_id: card.tcgplayer_id } : {}),
     ...(card.tcgplayer_etched_id ? { tcgplayer_etched_id: card.tcgplayer_etched_id } : {}),
   };
@@ -97,7 +104,7 @@ async function downloadBulk(url, destination) {
   await pipeline(Readable.fromWeb(response.body), createWriteStream(destination));
 }
 
-const tcgFinish = (subtype) => ({ normal: "nonfoil", foil: "foil", etched: "etched" }[String(subtype).toLowerCase()]);
+const tcgFinish = (subtype) => ({ normal: "nonfoil", foil: "foil", etched: "etched", glossy: "glossy" }[String(subtype).toLowerCase()]);
 
 async function enrichTcgPrices(cardsBySet) {
   const observedAt = new Date().toISOString();
@@ -203,7 +210,13 @@ async function buildSnapshot(required) {
   await rm(staging, { recursive: true, force: true });
   await mkdir(staging, { recursive: true });
   const sets = {};
+  const treatmentCatalog = { frameEffects: new Set(), promoTypes: new Set(), finishClasses: new Set() };
   for (const [set, cards] of [...cardsBySet].sort(([a], [b]) => a.localeCompare(b))) {
+    for (const card of cards) {
+      for (const value of card.frame_effects ?? []) treatmentCatalog.frameEffects.add(value);
+      for (const value of card.promo_types ?? []) treatmentCatalog.promoTypes.add(value);
+      for (const value of card.finishes ?? []) treatmentCatalog.finishClasses.add(value);
+    }
     cards.sort((a, b) => a.collector_number.localeCompare(b.collector_number, undefined, { numeric: true }));
     const file = `${set}.json`;
     const raw = stableJson({ schemaVersion: 1, set, provider: "Scryfall", observedAt, generatedAt, cards });
@@ -220,6 +233,11 @@ async function buildSnapshot(required) {
     requiredPrintings: required.size,
     resolvedPrintings: found.size,
     missing,
+    treatmentCatalog: {
+      frameEffects: [...treatmentCatalog.frameEffects].sort(),
+      promoTypes: [...treatmentCatalog.promoTypes].sort(),
+      finishClasses: [...treatmentCatalog.finishClasses].sort(),
+    },
     sets,
   };
   await writeFile(join(staging, "index.json"), stableJson(index));

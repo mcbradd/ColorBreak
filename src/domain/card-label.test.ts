@@ -19,4 +19,9 @@ describe("card display identity", () => {
     expect(cardDisplayName({ ...card, treatment: "Showcase" }, "foil"))
       .toBe("Nut Collector (Showcase, Foil)");
   });
+
+  it("shows every combined variant once", () => {
+    expect(cardDisplayName({ ...card, treatments: ["Borderless", "Fracture Foil"] }, "fracture"))
+      .toBe("Nut Collector (Borderless, Fracture Foil)");
+  });
 });
