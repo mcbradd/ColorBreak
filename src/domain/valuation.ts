@@ -34,6 +34,7 @@ export function calculateBreak(input: ValuationInput): ValuationResult {
     if (!card) {
       omissions.push({
         code: "missing-printing",
+        dedupeKey: `printing:${draw.set}|${draw.collectorNumber}`,
         message: `${draw.set} ${draw.collectorNumber} is absent from the price source.`,
         expectedCards: draw.copies,
         material: draw.copies >= 0.01,
@@ -54,6 +55,7 @@ export function calculateBreak(input: ValuationInput): ValuationResult {
     if (resolvedPrice == null) {
       omissions.push({
         code: finish === "nonfoil" ? "missing-price" : `missing-${finish}-price`,
+        dedupeKey: `price:${draw.set}|${draw.collectorNumber}|${finish}`,
         message: `${cardDisplayName(card, finish)} has neither a treatment-specific market price nor a listed TCG price for this printing and foil class. Its value is omitted, so the projection may be too low.`,
         expectedCards: draw.copies,
         material: draw.copies >= 0.01,

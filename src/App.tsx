@@ -47,6 +47,7 @@ import { recommendBid, solveFinancialCap } from "./domain/buyer-treatment";
 import type { ValueRule } from "./domain/buyer-treatment";
 import { completeCost, sellerPlanStatus } from "./domain/seller-plan";
 import { cardDisplayName, cardTreatmentLabel } from "./domain/card-label";
+import { deduplicateOmissions } from "./domain/omissions";
 import { simulateOutcomesAsync } from "./domain/simulation-client";
 import type { DistributionSummary, PackOutcomeModel, SimulationResult } from "./domain/simulation";
 import type {
@@ -928,9 +929,8 @@ function cardPreviewSubtitle(row: Contributor, priceOverride?: number): string {
 }
 
 function IncompleteDataWarning({ analysis, title = "Projection uses incomplete data" }: { analysis: BreakAnalysis; title?: string }) {
-  const omissions = [...analysis.valuation.omissions, ...analysis.outcomeOmissions]
-    .filter((item) => item.material)
-    .filter((item, index, rows) => rows.findIndex((candidate) => candidate.code === item.code && candidate.message === item.message) === index);
+  const omissions = deduplicateOmissions([...analysis.valuation.omissions, ...analysis.outcomeOmissions]
+    .filter((item) => item.material));
   if (analysis.valuation.status !== "incomplete" && analysis.outcomeModel.complete !== false) return null;
   const impact = (code: string) => /price|printing/.test(code)
     ? "It is counted as $0, so the shown value and outcome range can be too low."

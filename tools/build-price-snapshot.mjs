@@ -7,6 +7,7 @@ import { pipeline } from "node:stream/promises";
 import { createGunzip } from "node:zlib";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { addTcgListingFallbacks } from "./tcg-listing-prices.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const SEALED_DIR = join(ROOT, "data", "sealed");
@@ -28,19 +29,23 @@ async function requiredPrintings() {
   for (const file of await readdir(SEALED_DIR)) {
     if (!file.endsWith(".json") || file === "index.json") continue;
     const document = JSON.parse(await readFile(join(SEALED_DIR, file), "utf8"));
-    const add = (set, collectorNumber) => {
+    const add = (set, collectorNumber, finish = "nonfoil") => {
       const code = String(set).toUpperCase();
       const number = String(collectorNumber);
-      required.set(`${code}|${number}`, { set: code, collectorNumber: number });
+      const key = `${code}|${number}`;
+      const entry = required.get(key) ?? { set: code, collectorNumber: number, finishes: new Set() };
+      entry.finishes.add(finish);
+      required.set(key, entry);
     };
     for (const product of document.products ?? []) {
-      for (const card of product.fixed ?? []) add(card.set, card.cn);
+      for (const card of product.fixed ?? []) add(card.set, card.cn, card.finish ?? (card.foil ? "foil" : "nonfoil"));
     }
     for (const booster of Object.values(document.boosters ?? {})) {
       for (const sheet of Object.values(booster.sheets ?? {})) {
+        const finish = sheet.finish ?? (sheet.foil ? "foil" : "nonfoil");
         for (const tuple of sheet.cards ?? []) {
-          if (tuple.length === 3) add(tuple[0], tuple[1]);
-          else add(document.set, tuple[0]);
+          if (tuple.length === 3) add(tuple[0], tuple[1], finish);
+          else add(document.set, tuple[0], finish);
         }
       }
     }
@@ -112,14 +117,14 @@ async function downloadBulk(url, destination) {
 
 const tcgFinish = (subtype) => ({ normal: "nonfoil", foil: "foil", etched: "etched", glossy: "glossy" }[String(subtype).toLowerCase()]);
 
-async function enrichTcgPrices(cardsBySet) {
+async function enrichTcgPrices(cardsBySet, required) {
   const observedAt = new Date().toISOString();
   let groups;
   try {
     groups = (await fetchJson("https://tcgcsv.com/tcgplayer/1/groups", { headers: TCGCSV_HEADERS })).results ?? [];
   } catch (error) {
     console.warn(`TCGCSV card-price fallback unavailable: ${error instanceof Error ? error.message : error}`);
-    return;
+    groups = [];
   }
   const groupBySet = new Map(groups.map((group) => [String(group.abbreviation).toUpperCase(), group]));
   for (const [set, cards] of cardsBySet) {
@@ -153,6 +158,16 @@ async function enrichTcgPrices(cardsBySet) {
     }
     await new Promise((resolve) => setTimeout(resolve, 100));
   }
+
+  const cards = [...cardsBySet.values()].flat();
+  const listingFallbacks = await addTcgListingFallbacks(cards, required, {
+    observedAt,
+    delayMs: 75,
+    onError: (card, error) => console.warn(
+      `TCG listing fallback unavailable for ${String(card.set).toUpperCase()} ${card.collector_number}: ${error instanceof Error ? error.message : error}`,
+    ),
+  });
+  if (listingFallbacks) console.log(`Added ${listingFallbacks} listed TCG foil prices omitted by the market-price feeds.`);
 }
 
 async function validateSnapshot(required) {
@@ -231,7 +246,7 @@ async function buildSnapshot(required) {
     throw new Error(`Scryfall default cards omit ${missing.length} required printings: ${missing.slice(0, 20).join(", ")}`);
   }
 
-  await enrichTcgPrices(cardsBySet);
+  await enrichTcgPrices(cardsBySet, required);
 
   const staging = join(OUTPUT_DIR, ".staging");
   await rm(staging, { recursive: true, force: true });

@@ -135,6 +135,7 @@ export interface ExpectedDraw {
 export interface Omission {
   code: string;
   message: string;
+  dedupeKey?: string;
   expectedCards?: number;
   material: boolean;
   source?: string;

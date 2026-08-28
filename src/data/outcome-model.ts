@@ -25,6 +25,7 @@ function pricedCard(
   if (!card) {
     omissions.push({
       code: "missing-printing",
+      dedupeKey: `printing:${set}|${collectorNumber}`,
       message: `${set} ${collectorNumber} is absent from the price source.`,
       material: true,
     });
@@ -43,6 +44,7 @@ function pricedCard(
   if (resolvedPrice == null) {
     omissions.push({
       code: finish === "nonfoil" ? "missing-price" : `missing-${finish}-price`,
+      dedupeKey: `price:${set}|${collectorNumber}|${finish}`,
       message: `${cardDisplayName(card, finish)} has neither a treatment-specific market price nor a listed TCG price for this printing and foil class. Its value is modeled as $0.00, so the outcome range may be too low.`,
       expectedCards: expectedCopies,
       material: expectedCopies >= 0.01,
