@@ -928,14 +928,17 @@ function IncompleteDataWarning({ analysis, title = "Projection uses incomplete d
       ? "Those pulls are absent from the simulation, so the low, typical, and high results can be too low and the relative value of the spots can change."
       : "It contributes $0 and no pull chance to this result, so the projection can be too low.";
   return (
-    <aside className="incomplete-data-warning" role="status">
-      <ShieldAlert />
-      <div>
-        <b>{title}</b>
+    <details className="incomplete-data-warning">
+      <summary>
+        <ShieldAlert />
+        <span><b>{title}</b><small>Resolved data only · {omissions.length} missing {omissions.length === 1 ? "item" : "items"}</small></span>
+        <DisclosureArrow />
+      </summary>
+      <div className="incomplete-data-details">
         <p>The values and outcome ranges shown include only contents and exact card prices ColorBreak could resolve. Missing cards or pull chances could raise or lower the real result and change the shape of the range.</p>
         {omissions.length > 0 && <ul>{omissions.map((omission, index) => <li key={`${omission.code}-${index}`}><span>{omission.message}</span> <em>Expected impact: {impact(omission.code)}</em></li>)}</ul>}
       </div>
-    </aside>
+    </details>
   );
 }
 

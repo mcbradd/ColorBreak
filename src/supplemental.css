@@ -285,13 +285,20 @@ details[open] > .disclosure-summary .disclosure-arrow { transform:rotate(90deg);
 .distribution-unavailable { position:relative; clear:both; margin: 14px 18px 18px; padding: 14px; border: 1px solid #554126; border-radius: 12px; background: #211b13; display: grid; gap: 4px; }
 .distribution-unavailable b { color: #ffd28a; }
 .distribution-unavailable span,.distribution-unavailable small { color: var(--muted); font-size: 11px; line-height: 1.4; }
-.incomplete-data-warning,.missing-input-warning { display:flex; gap:10px; margin:14px 18px; padding:14px; border:1px solid #76562b; border-radius:12px; color:#ffe0a6; background:#261e13; font-size:12px; line-height:1.45; }
-.incomplete-data-warning>svg,.missing-input-warning>svg { flex:0 0 auto; width:18px; height:18px; margin-top:1px; }
-.incomplete-data-warning b { display:block; margin-bottom:3px; color:#ffe0a6; }
-.incomplete-data-warning p { margin:0; color:#ddd1ba; }
+.incomplete-data-warning,.missing-input-warning { margin:14px 18px; border:1px solid #76562b; border-radius:12px; color:#ffe0a6; background:#261e13; font-size:12px; line-height:1.45; }
+.incomplete-data-warning summary { display:flex; align-items:center; gap:10px; min-height:46px; padding:10px 14px; list-style:none; white-space:nowrap; }
+.incomplete-data-warning summary::-webkit-details-marker { display:none; }
+.incomplete-data-warning summary>svg:first-child,.missing-input-warning>svg { flex:0 0 auto; width:18px; height:18px; }
+.incomplete-data-warning summary>span { display:flex; min-width:0; align-items:baseline; gap:8px; overflow:hidden; }
+.incomplete-data-warning b { flex:0 1 auto; overflow:hidden; color:#ffe0a6; text-overflow:ellipsis; }
+.incomplete-data-warning small { flex:0 0 auto; color:#c8b995; }
+.incomplete-data-warning .disclosure-arrow { flex:0 0 auto; margin-left:auto; }
+.incomplete-data-details { padding:0 14px 14px 42px; border-top:1px solid #594327; }
+.incomplete-data-warning p { margin:12px 0 0; color:#ddd1ba; }
 .incomplete-data-warning ul { margin:8px 0 0; padding-left:18px; color:#cfc4ae; }
 .incomplete-data-warning li+li { margin-top:4px; }
 .incomplete-data-warning li em { display:block; color:#e6c98f; font-style:normal; }
+.missing-input-warning { display:flex; gap:10px; padding:14px; }
 .missing-input-warning span { color:#ddd1ba; }
 .decision-reason a,.missing-input-warning a,.enticement-metrics a,.seller-decision-main a,.panel-heading-copy a,.seller-fill-scenarios a { color:inherit; font-weight:700; text-decoration:underline; text-underline-offset:2px; }
 .distribution-data-note { display:flex; align-items:flex-start; gap:8px; margin:12px 0 0 !important; padding:10px 12px; border:1px solid #554126; border-radius:10px; color:#d8c59d !important; background:#211b13; font-size:10px !important; line-height:1.45; }

@@ -95,7 +95,9 @@ describe("Bid Check command center", () => {
 
     render(createElement(Workspace, { mode: "buyer", exit: vi.fn() }));
 
-    expect(await screen.findByText("Recommendation and range use incomplete data")).toBeInTheDocument();
+    const warningTitle = await screen.findByText("Recommendation and range use incomplete data");
+    expect(warningTitle.closest("details")).not.toHaveAttribute("open");
+    expect(warningTitle.closest("summary")).toHaveTextContent("Resolved data only · 1 missing item");
     expect(screen.getAllByText("1× foil box topper has no verified card list.").length).toBeGreaterThan(0);
     await waitFor(() => expect(simulateOutcomesAsync).toHaveBeenCalled());
     expect(screen.getByLabelText("Maximum hammer")).not.toHaveTextContent("—");
