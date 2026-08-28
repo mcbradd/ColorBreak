@@ -929,7 +929,7 @@ function IncompleteDataWarning({ analysis, title = "Projection uses incomplete d
       : "It contributes $0 and no pull chance to this result, so the projection can be too low.";
   return (
     <details className="incomplete-data-warning">
-      <summary>
+      <summary className="disclosure-summary">
         <ShieldAlert />
         <span><b>{title}</b><small>Resolved data only · {omissions.length} missing {omissions.length === 1 ? "item" : "items"}</small></span>
         <DisclosureArrow />
