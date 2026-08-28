@@ -74,9 +74,7 @@ const money = new Intl.NumberFormat("en-US", {
 });
 const fmt = (value: number | undefined) =>
   value == null ? "—" : money.format(value);
-const fmtChart = (value: number) => value >= 100
-  ? `$${Math.round(value)}`
-  : value >= 10 ? `$${value.toFixed(1)}` : `$${value.toFixed(value > 0 && value < 1 ? 2 : 1)}`;
+const fmtChart = (value: number) => `$${value.toFixed(2)}`;
 const oddsLabel = (probability: number) =>
   probability >= 0.9995
     ? "100%"
@@ -106,10 +104,15 @@ const plainEvidence = (value: string) => ({
   unknown: "Not set",
 }[value] ?? value.replaceAll("-", " "));
 
-function countedMarketLabel(row: Contributor): string {
+function countedPriceLabel(row: Contributor): string {
   const finish = row.finish ?? (row.sellableFoilCopies > 0 ? "foil" : "nonfoil");
   const price = row.marketPrice ?? (finish === "foil" ? row.card.foil : row.card.nonfoil);
-  return price == null ? "Price unavailable" : `${fmt(price)} ${finish}`;
+  if (price == null) return "Price unavailable";
+  return row.priceBasis === "listed-tcg"
+    ? `${fmt(price)} listed TCG price`
+    : row.priceBasis === "same-printing-foil-market"
+      ? `${fmt(price)} same-printing foil market price`
+    : `${fmt(price)} ${finish} market price`;
 }
 
 function NumericInput({
@@ -1273,9 +1276,12 @@ export function BreakBalance({
                 <span className="balance-cap balance-cap-high" style={{ left: `${highPosition}%` }} />
                 <span className="balance-cap balance-cap-low" style={{ left: `${lowPosition}%` }} />
                 <span className="balance-body" style={{ left: `${bodyLowPosition}%`, width: `${Math.max(0, bodyHighPosition - bodyLowPosition)}%` }} />
-                <span className={`balance-end balance-best ${highPosition > 88 ? "at-right-edge" : ""}`} style={{ left: `${highPosition}%` }}><small>HIGH</small>{fmtChart(rangeHigh)}</span>
-                <span className={`balance-ev ${evPosition < 8 ? "at-left-edge" : evPosition > 88 ? "at-right-edge" : ""}`} style={{ left: `${evPosition}%` }}><i /><b><small>EV</small>{fmtChart(expectedValue)}</b></span>
-                <span className={`balance-end balance-worst ${lowPosition < 12 ? "at-left-edge" : ""}`} style={{ left: `${lowPosition}%` }}><small>LOW</small>{fmtChart(rangeLow)}</span>
+                <span className="balance-ev-marker" style={{ left: `${evPosition}%` }} />
+                <div className="balance-values">
+                  <div className="balance-worst"><small>LOW</small>{fmtChart(rangeLow)}</div>
+                  <div className="balance-ev"><small>EV</small>{fmtChart(expectedValue)}</div>
+                  <div className="balance-best"><small>HIGH</small>{fmtChart(rangeHigh)}</div>
+                </div>
               </div>
             </div>
           );
@@ -1582,12 +1588,12 @@ export function ContributorRows({
           className="card-row contributor-card"
           key={`${row.card.id}|${row.finish ?? "nonfoil"}`}
           onClick={() => onInspect(row)}
-          aria-label={`Open ${cardDisplayName(row.card, row.finish)}: ${oddsLabel(row.sellablePullProbability)} pull odds, ${countedMarketLabel(row)} market price, adds ${fmt(row.sellableValue)} to the average`}
+          aria-label={`Open ${cardDisplayName(row.card, row.finish)}: ${oddsLabel(row.sellablePullProbability)} pull odds, ${countedPriceLabel(row)}, adds ${fmt(row.sellableValue)} to the average`}
         >
           <CardThumbnail row={row} />
           <span className="card-summary">
             <strong>{cardDisplayName(row.card, row.finish)}</strong>
-            <small>{countedMarketLabel(row)} market</small>
+            <small>{countedPriceLabel(row)}</small>
           </span>
           <span className="pull-odds">
             <b>{oddsLabel(row.sellablePullProbability)}</b>

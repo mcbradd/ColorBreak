@@ -4,15 +4,11 @@ import { loadCorrections, loadSealed } from "./sealed";
 import type { BoosterSheet, SealedDocument } from "./sealed";
 import { isCollectorOutlierFinish } from "../domain/outlier-policy";
 import { cardDisplayName } from "../domain/card-label";
+import { resolveCardPrice } from "../domain/card-price";
 
 export interface OutcomeModelResult {
   model: PackOutcomeModel;
   omissions: Omission[];
-}
-
-function exactValue(card: CardPrice, finish: Finish): number | null {
-  return card.prices?.[finish]
-    ?? (finish === "foil" ? card.foil : finish === "nonfoil" ? card.nonfoil : null);
 }
 
 function pricedCard(
@@ -43,11 +39,11 @@ function pricedCard(
     });
     return { id: `${card.id}:${finish}`, slot: card.slot, value: 0, weight };
   }
-  const value = exactValue(card, finish);
-  if (value == null) {
+  const resolvedPrice = resolveCardPrice(card, finish);
+  if (resolvedPrice == null) {
     omissions.push({
       code: finish === "nonfoil" ? "missing-price" : `missing-${finish}-price`,
-      message: `${cardDisplayName(card, finish)} has no market price; no proxy was substituted.`,
+      message: `${cardDisplayName(card, finish)} has neither a treatment-specific market price nor a listed TCG price for this printing and foil class. Its value is modeled as $0.00, so the outcome range may be too low.`,
       expectedCards: expectedCopies,
       material: expectedCopies >= 0.01,
     });
@@ -56,6 +52,7 @@ function pricedCard(
     // their odds. Zero is an explicit lower bound, never a finish-price proxy.
     return { id: `${card.id}:${finish}`, slot: card.slot, value: 0, weight };
   }
+  const value = resolvedPrice.amount;
   return { id: `${card.id}:${finish}`, slot: card.slot, value: value >= threshold ? value : 0, weight };
 }
 

@@ -12,6 +12,12 @@ interface ScryfallCard {
   colors?: string[];
   card_faces?: Array<{ type_line?: string; colors?: string[]; oracle_text?: string; image_uris?: { normal?: string } }>;
   prices?: { usd?: string | null; usd_foil?: string | null; usd_etched?: string | null };
+  tcgplayer_id?: number;
+  tcgplayer_etched_id?: number;
+  tcgplayer?: {
+    observedAt?: string;
+    prices?: Partial<Record<"nonfoil" | "foil" | "etched", { market?: number | null; listed?: number | null }>>;
+  };
   image_uris?: { normal?: string };
   oracle_text?: string;
   frame_effects?: string[];
@@ -120,16 +126,24 @@ export async function loadSets(): Promise<SetChoice[]> {
 
 function toPrice(card: ScryfallCard, observedAt: string, fetchedAt = observedAt): CardPrice {
   const face = card.card_faces?.[0];
-  const nonfoil = card.prices?.usd ? Number(card.prices.usd) : null;
-  const foil = card.prices?.usd_foil ? Number(card.prices.usd_foil) : null;
-  const etched = card.prices?.usd_etched ? Number(card.prices.usd_etched) : null;
+  const tcgPrices = card.tcgplayer?.prices;
+  const scryfallPrices = {
+    nonfoil: card.prices?.usd ? Number(card.prices.usd) : null,
+    foil: card.prices?.usd_foil ? Number(card.prices.usd_foil) : null,
+    etched: card.prices?.usd_etched ? Number(card.prices.usd_etched) : null,
+  };
+  const nonfoil = scryfallPrices.nonfoil ?? tcgPrices?.nonfoil?.market ?? null;
+  const foil = scryfallPrices.foil ?? tcgPrices?.foil?.market ?? null;
+  const etched = scryfallPrices.etched ?? tcgPrices?.etched?.market ?? null;
   const quotes = [
     ["nonfoil", nonfoil], ["foil", foil], ["etched", etched],
   ].flatMap(([finish, amount]) => typeof amount === "number" ? [{
-    provider: "Scryfall",
+    provider: scryfallPrices[finish as "nonfoil" | "foil" | "etched"] == null ? "TCGplayer via TCGCSV" : "Scryfall",
     currency: "USD" as const,
     finish: finish as "nonfoil" | "foil" | "etched",
-    observedAt,
+    observedAt: scryfallPrices[finish as "nonfoil" | "foil" | "etched"] == null
+      ? card.tcgplayer?.observedAt ?? observedAt
+      : observedAt,
     fetchedAt,
     amount,
     rightsStatus: "public-value-add" as const,
@@ -150,8 +164,15 @@ function toPrice(card: ScryfallCard, observedAt: string, fetchedAt = observedAt)
     nonfoil,
     foil,
     prices: { nonfoil, foil, etched },
+    listedPrices: {
+      nonfoil: tcgPrices?.nonfoil?.listed ?? null,
+      foil: tcgPrices?.foil?.listed ?? null,
+      etched: tcgPrices?.etched?.listed ?? null,
+    },
     quotes,
-    priceObservedAt: observedAt,
+    priceObservedAt: card.tcgplayer?.observedAt && card.tcgplayer.observedAt > observedAt
+      ? card.tcgplayer.observedAt
+      : observedAt,
     priceFetchedAt: fetchedAt,
     image: card.image_uris?.normal ?? face?.image_uris?.normal,
     oracleText: card.oracle_text ?? card.card_faces?.map((item) => item.oracle_text ?? "").join("\n—\n"),

@@ -5,7 +5,7 @@
 1. Entry offers **Check a bid** and **Build & price** as separate jobs.
 2. Set → product selection is searchable, touch-friendly, and automatically calculates the break.
 3. The first buyer result shows Sellable EV, confidence, slot selection, bid, incremental shipping, and a verdict.
-4. Incomplete data never hides the verdict, projection, or outcome distribution. Results use only resolved contents and exact prices, show a nearby warning that names each omission and its likely impact, and never infer a missing value.
+4. Incomplete data never hides the verdict, projection, or outcome distribution. Results use only resolved contents and prices, show a nearby warning that names each omission and its likely impact, and never infer a missing value. If a premium treatment has no treatment-specific market observation, the same printing's listed TCG foil price is used and labeled; prices never cross printings or foil classes.
 5. Market EV, Sellable EV, Known EV, chase share, value without the chase, and top contributors remain available without obstructing the primary decision.
 6. Buyer spot format offers Pick a color, Random remaining, and Large break. Large break accepts 1–500 spots, defaults to 120, and targets 75% individually named high-market cards.
 7. Large break shows sealed market value per spot, pull EV per spot under the shared bulk filter, top named cards switchable between market-price and expected-value ranking, and residual creature-color/card-type EV with named cards excluded.
@@ -28,7 +28,7 @@
 2. Sourced corrections override upstream metadata and remain reviewable in `data/corrections.json`.
 3. Cross-set packs, guaranteed cards, deck contents, and box toppers resolve as cards or become named material omissions.
 4. Confidence is `verified`, `estimated`, or `incomplete` and is computed, not editorial.
-5. Card prices are exact to printing and finish. Cached prices expire after six hours.
+5. Card prices are exact to printing. Treatment-specific market prices are preferred; a same-printing listed TCG foil price may fill a premium-treatment gap and must be labeled. Cached prices expire after six hours.
 
 ## Platform and quality
 

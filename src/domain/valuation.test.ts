@@ -54,7 +54,7 @@ describe("calculateBreak", () => {
     expect(result.omissions[0].code).toBe("missing-foil-price");
   });
 
-  it("uses the exact requested finish and never substitutes a different premium finish", () => {
+  it("prefers the exact finish and falls back to the same printing's listed TCG foil price", () => {
     const exactPrices: CardPrice[] = [{
       ...prices[0],
       prices: { nonfoil: 20, foil: 40, etched: 17 },
@@ -65,13 +65,19 @@ describe("calculateBreak", () => {
     });
     expect(etched.marketEV).toBe(17);
 
-    const missing = calculateBreak({
+    const listedFallback = calculateBreak({
       prices: exactPrices,
       draws: [{ set: "TST", collectorNumber: "1", copies: 1, finish: "surge", foil: true, source: "surge-slot" }],
     });
-    expect(missing.marketEV).toBe(0);
-    expect(missing.status).toBe("incomplete");
-    expect(missing.omissions[0].code).toBe("missing-surge-price");
+    expect(listedFallback.marketEV).toBe(40);
+    expect(listedFallback.status).toBe("verified");
+    expect(listedFallback.omissions).toHaveLength(0);
+    expect(listedFallback.evidence.finish).toBe("class-only");
+    expect(listedFallback.slots.find((slot) => slot.id === "G")?.contributors[0]).toEqual(expect.objectContaining({
+      finish: "surge",
+      marketPrice: 40,
+      priceBasis: "same-printing-foil-market",
+    }));
   });
 
   it("keeps printing finishes separate so each contributor has its own price and pull rate", () => {
@@ -123,6 +129,31 @@ describe("calculateBreak", () => {
   it("returns a lower-bound buyer verdict for incomplete results", () => {
     const result = calculateBreak({ draws, prices, omissions: [{ code: "missing", message: "topper missing", material: true }] });
     expect(buyerVerdict(result.slots.find((slot) => slot.id === "G")!, 5, result.status)).toBe("+EV");
+  });
+
+  it.each(["surge", "textured", "gilded", "other"] as const)(
+    "uses the same-printing listed foil price for a new %s treatment",
+    (finish) => {
+      const result = calculateBreak({
+        prices: [{ ...prices[0], prices: { nonfoil: 20, foil: 40 } }],
+        draws: [{ set: "TST", collectorNumber: "1", copies: 1, finish, foil: true, source: `${finish}-slot` }],
+      });
+
+      expect(result.marketEV).toBe(40);
+      expect(result.status).toBe("verified");
+      expect(result.slots.find((slot) => slot.id === "G")?.contributors[0]?.priceBasis).toBe("same-printing-foil-market");
+    },
+  );
+
+  it("uses an exact-printing listed TCG price when no market observation exists", () => {
+    const result = calculateBreak({
+      prices: [{ ...prices[0], foil: null, prices: { foil: null }, listedPrices: { foil: 18.25 } }],
+      draws: [{ set: "TST", collectorNumber: "1", copies: 1, finish: "foil", foil: true, source: "new-release" }],
+    });
+
+    expect(result.marketEV).toBe(18.25);
+    expect(result.status).toBe("verified");
+    expect(result.slots.find((slot) => slot.id === "G")?.contributors[0]?.priceBasis).toBe("listed-tcg");
   });
 
   it("does not mislabel a price-source outage as incomplete product contents", () => {

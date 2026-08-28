@@ -33,7 +33,7 @@ npm run check
 - Scryfall live lookup: globally throttled recovery path for a printing absent from the snapshot; it is not the primary page-load path.
 - tcgcsv: best-effort sealed market cost. The seller can always enter actual cost.
 
-Unresolved contents and exact-finish prices are surfaced as named omissions; they are never silently replaced with a proxy.
+Unresolved contents and prices are surfaced as named omissions. For premium treatments on new releases, a missing treatment-specific market observation uses the same printing's listed TCG foil price and labels that basis; prices never cross printings or foil classes.
 Price-source availability is reported separately from product-content completeness, so a transient remote failure cannot make an otherwise exact product look structurally incomplete.
 
 ## Structure

@@ -46,6 +46,33 @@ describe("exact-printing price module", () => {
     expect(calls).toEqual(["data/prices/index.json", "data/prices/ONE.json"]);
   });
 
+  it("retains an exact TCG listing when a new printing has no market observation", async () => {
+    const observedAt = new Date().toISOString();
+    const newReleaseCard = {
+      ...card,
+      prices: { usd: null, usd_foil: null, usd_etched: null },
+      tcgplayer: { prices: { foil: { market: null, listed: 19.21 } } },
+    };
+    vi.stubGlobal("fetch", async (input: string | URL | Request) => {
+      const url = String(input);
+      if (url === "data/prices/index.json") return new Response(JSON.stringify({
+        schemaVersion: 1, provider: "Scryfall", observedAt, generatedAt: observedAt,
+        sets: { ONE: { file: "ONE.json", cards: 1, sha256: "test" } },
+      }));
+      if (url === "data/prices/ONE.json") return new Response(JSON.stringify({
+        schemaVersion: 1, set: "ONE", provider: "Scryfall", observedAt, generatedAt: observedAt, cards: [newReleaseCard],
+      }));
+      throw new Error(`unexpected request: ${url}`);
+    });
+
+    const result = await loadPrices({ sets: ["ONE"], printings: [{ set: "ONE", collectorNumber: "1" }] });
+
+    expect(result.cards[0]).toMatchObject({
+      foil: null,
+      listedPrices: { foil: 19.21 },
+    });
+  });
+
   it("turns a live rate limit into an availability state and retries cleanly on the next calculation", async () => {
     let searches = 0;
     vi.stubGlobal("fetch", async (input: string | URL | Request) => {

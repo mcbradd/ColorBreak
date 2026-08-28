@@ -62,6 +62,7 @@ export interface CardPrice {
   nonfoil: number | null;
   foil: number | null;
   prices?: Partial<Record<Finish, number | null>>;
+  listedPrices?: Partial<Record<Finish, number | null>>;
   quotes?: PriceQuote[];
   priceObservedAt?: string;
   priceFetchedAt?: string;
@@ -91,6 +92,7 @@ export interface Contributor {
   card: CardPrice;
   finish?: Finish;
   marketPrice?: number;
+  priceBasis?: "exact-market" | "same-printing-foil-market" | "listed-tcg";
   copies: number;
   sellableCopies: number;
   marketValue: number;

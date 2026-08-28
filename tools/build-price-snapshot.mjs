@@ -13,6 +13,7 @@ const SEALED_DIR = join(ROOT, "data", "sealed");
 const OUTPUT_DIR = join(ROOT, "data", "prices");
 const USER_AGENT = "ColorBreak/4.0 (+https://mcbradd.github.io/ColorBreak/)";
 const CHECK_ONLY = process.argv.includes("--check");
+const TCGCSV_HEADERS = { Accept: "application/json", "User-Agent": USER_AGENT };
 
 function stableJson(value) {
   return `${JSON.stringify(value)}\n`;
@@ -76,12 +77,15 @@ function compactCard(card) {
     ...(card.textless ? { textless: true } : {}),
     ...(card.variation ? { variation: true } : {}),
     ...(card.border_color === "borderless" ? { border_color: "borderless" } : {}),
+    ...(card.tcgplayer_id ? { tcgplayer_id: card.tcgplayer_id } : {}),
+    ...(card.tcgplayer_etched_id ? { tcgplayer_etched_id: card.tcgplayer_etched_id } : {}),
   };
 }
 
-async function fetchJson(url) {
+async function fetchJson(url, init = {}) {
   const response = await fetch(url, {
-    headers: { Accept: "application/json;q=0.9,*/*;q=0.8", "User-Agent": USER_AGENT },
+    ...init,
+    headers: { Accept: "application/json;q=0.9,*/*;q=0.8", "User-Agent": USER_AGENT, ...init.headers },
   });
   if (!response.ok) throw new Error(`${url}: HTTP ${response.status}`);
   return response.json();
@@ -91,6 +95,51 @@ async function downloadBulk(url, destination) {
   const response = await fetch(url, { headers: { "User-Agent": USER_AGENT } });
   if (!response.ok || !response.body) throw new Error(`${url}: HTTP ${response.status}`);
   await pipeline(Readable.fromWeb(response.body), createWriteStream(destination));
+}
+
+const tcgFinish = (subtype) => ({ normal: "nonfoil", foil: "foil", etched: "etched" }[String(subtype).toLowerCase()]);
+
+async function enrichTcgPrices(cardsBySet) {
+  const observedAt = new Date().toISOString();
+  let groups;
+  try {
+    groups = (await fetchJson("https://tcgcsv.com/tcgplayer/1/groups", { headers: TCGCSV_HEADERS })).results ?? [];
+  } catch (error) {
+    console.warn(`TCGCSV card-price fallback unavailable: ${error instanceof Error ? error.message : error}`);
+    return;
+  }
+  const groupBySet = new Map(groups.map((group) => [String(group.abbreviation).toUpperCase(), group]));
+  for (const [set, cards] of cardsBySet) {
+    const group = groupBySet.get(set);
+    const productIds = new Set(cards.flatMap((card) => [card.tcgplayer_id, card.tcgplayer_etched_id]).filter(Boolean));
+    if (!group || !productIds.size) continue;
+    try {
+      const response = await fetch(`https://tcgcsv.com/tcgplayer/1/${group.groupId}/prices`, { headers: TCGCSV_HEADERS });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const records = (await response.json()).results ?? [];
+      const byProduct = new Map();
+      for (const record of records) {
+        if (!productIds.has(record.productId)) continue;
+        const finish = tcgFinish(record.subTypeName);
+        if (!finish) continue;
+        const prices = byProduct.get(record.productId) ?? {};
+        prices[finish] = {
+          market: typeof record.marketPrice === "number" ? record.marketPrice : null,
+          listed: typeof record.lowPrice === "number" ? record.lowPrice : null,
+        };
+        byProduct.set(record.productId, prices);
+      }
+      for (const card of cards) {
+        const regular = byProduct.get(card.tcgplayer_id) ?? {};
+        const etched = byProduct.get(card.tcgplayer_etched_id) ?? {};
+        const prices = { ...regular, ...(etched.etched ? { etched: etched.etched } : {}) };
+        if (Object.keys(prices).length) card.tcgplayer = { observedAt, prices };
+      }
+    } catch (error) {
+      console.warn(`TCGCSV ${set} card-price fallback unavailable: ${error instanceof Error ? error.message : error}`);
+    }
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
 }
 
 async function validateSnapshot(required) {
@@ -147,6 +196,8 @@ async function buildSnapshot(required) {
   if (missing.length) {
     throw new Error(`Scryfall default cards omit ${missing.length} required printings: ${missing.slice(0, 20).join(", ")}`);
   }
+
+  await enrichTcgPrices(cardsBySet);
 
   const staging = join(OUTPUT_DIR, ".staging");
   await rm(staging, { recursive: true, force: true });

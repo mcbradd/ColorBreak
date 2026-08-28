@@ -11,7 +11,7 @@ ColorBreak supports two time-sensitive jobs: a buyer deciding whether to bid on 
 - **Remaining pool**: the unassigned color slots available to the next auction.
 - **Product line**: set, sealed product, quantity, and optional acquisition cost.
 - **Color slot**: W, U, B, R, G, M, C, or L. Classification uses front-face printed color; lands always belong to L.
-- **Market EV**: expected value of every resolved card at its exact-finish market price.
+- **Market EV**: expected value of every resolved card at its exact-printing price. A treatment-specific market observation is preferred; until one exists for a premium treatment, the same printing's listed TCG foil price is used and labeled.
 - **Counted EV**: expected value from card finishes at or above the user’s “Ignore bulk under” threshold. The threshold is a value filter, not a liquidity claim.
   _Avoid_: Sellable EV
 - **Known EV**: priced value that is safe to claim after unresolved contents are omitted. It equals Market EV when the result is complete.
@@ -38,7 +38,7 @@ ColorBreak supports two time-sensitive jobs: a buyer deciding whether to bid on 
 
 ## Source policy
 
-MTGJSON provides versioned sealed products and collation. Scryfall provides exact-printing metadata, images, and current price observations. A daily build-time TCGCSV snapshot provides a sealed-product market reference; the seller can override it with their actual acquisition cost. `data/corrections.json` contains narrow, sourced product facts from authoritative sources and takes precedence over upstream sealed metadata. No adapter may silently substitute finishes, guess missing contents, or drop a foreign-set printing.
+MTGJSON provides versioned sealed products and collation. Scryfall provides exact-printing metadata, images, and current price observations. A daily build-time TCGCSV snapshot provides a sealed-product market reference; the seller can override it with their actual acquisition cost. `data/corrections.json` contains narrow, sourced product facts from authoritative sources and takes precedence over upstream sealed metadata. A premium treatment without its own market observation may use the same printing's listed TCG foil price, with that basis shown to the user. No adapter may cross printings or foil classes, guess missing contents, or drop a foreign-set printing.
 
 ## Experience laws
 

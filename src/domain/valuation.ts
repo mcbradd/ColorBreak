@@ -4,6 +4,7 @@ import type {
 } from "./types";
 import { isCollectorOutlierFinish } from "./outlier-policy";
 import { cardDisplayName } from "./card-label";
+import { resolveCardPrice } from "./card-price";
 
 export interface ValuationInput {
   draws: ExpectedDraw[];
@@ -49,20 +50,20 @@ export function calculateBreak(input: ValuationInput): ValuationResult {
       });
       continue;
     }
-    const price = card.prices?.[finish]
-      ?? (finish === "foil" ? card.foil : finish === "nonfoil" ? card.nonfoil : null);
-    if (price == null) {
+    const resolvedPrice = resolveCardPrice(card, finish);
+    if (resolvedPrice == null) {
       omissions.push({
         code: finish === "nonfoil" ? "missing-price" : `missing-${finish}-price`,
-        message: `${cardDisplayName(card, finish)} has no market price; no proxy was substituted.`,
+        message: `${cardDisplayName(card, finish)} has neither a treatment-specific market price nor a listed TCG price for this printing and foil class. Its value is omitted, so the projection may be too low.`,
         expectedCards: draw.copies,
         material: draw.copies >= 0.01,
       });
       continue;
     }
+    const price = resolvedPrice.amount;
     const contributorKey = `${card.id}|${finish}`;
     const existing = byCard.get(contributorKey) ?? {
-      card, finish, marketPrice: price, copies: 0, sellableCopies: 0, marketValue: 0, sellableValue: 0,
+      card, finish, marketPrice: price, priceBasis: resolvedPrice.basis, copies: 0, sellableCopies: 0, marketValue: 0, sellableValue: 0,
       foilCopies: 0, sellableFoilCopies: 0, pullProbability: 0,
       sellablePullProbability: 0,
     };
@@ -115,11 +116,12 @@ export function calculateBreak(input: ValuationInput): ValuationResult {
   const priceOmission = omissions.some((item) => item.material && (
     item.code === "missing-printing" || item.code.includes("price")
   ));
+  const usedClassPrice = contributors.some((row) => row.priceBasis !== "exact-market");
   const evidence: EvidenceState = input.evidence ?? {
     productIdentity: sourceStatus === "incomplete" && structuralOmission ? "ambiguous" : "aggregate-identified",
     contents: sourceStatus === "incomplete" && structuralOmission ? "unresolved" : "mtgjson-structured",
     collation: sourceStatus === "incomplete" && structuralOmission ? "unresolved" : sourceStatus === "estimated" ? "unvalidated" : "weighted-upstream",
-    finish: priceOmission ? "unresolved" : "exact",
+    finish: priceOmission ? "unresolved" : usedClassPrice ? "class-only" : "exact",
     breakRules: "preset",
   };
   return {
@@ -129,7 +131,9 @@ export function calculateBreak(input: ValuationInput): ValuationResult {
     threshold,
     status,
     statusReason: status === "verified"
-      ? "Product contents, collation, and exact-finish prices resolved."
+      ? usedClassPrice
+        ? "Product contents and collation are resolved. A same-printing foil market price or listed TCG price is used where no treatment-specific market price exists."
+        : "Product contents, collation, and exact-finish prices resolved."
       : status === "estimated"
         ? "Product contents are known, but at least one collation rule is modeled."
         : priceUnavailable && !structuralOmission
