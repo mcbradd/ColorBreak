@@ -8,6 +8,7 @@ export interface NamedSpot {
   image?: string;
   marketPrice: number;
   pullEV: number;
+  pullRateVerified: boolean;
   row: Contributor;
 }
 
@@ -30,8 +31,8 @@ export interface LargeBreakPlan {
 
 export type TopCardSort = "price" | "expected-value";
 
-export function sortNamedCards<T extends Pick<NamedSpot, "name" | "marketPrice" | "pullEV">>(cards: T[], sort: TopCardSort): T[] {
-  return [...cards].sort((left, right) => sort === "expected-value"
+export function sortNamedCards<T extends Pick<NamedSpot, "name" | "marketPrice" | "pullEV"> & { pullRateVerified?: boolean }>(cards: T[], sort: TopCardSort): T[] {
+  return cards.filter((card) => sort !== "expected-value" || card.pullRateVerified !== false).sort((left, right) => sort === "expected-value"
     ? right.pullEV - left.pullEV || right.marketPrice - left.marketPrice || left.name.localeCompare(right.name)
     : right.marketPrice - left.marketPrice || right.pullEV - left.pullEV || left.name.localeCompare(right.name));
 }
@@ -68,8 +69,9 @@ export function createLargeBreakPlan(result: ValuationResult, spotCount: number,
   const safeSpots = Math.max(1, Math.round(spotCount));
   const namedTarget = Math.min(safeSpots, Math.max(0, Math.round(safeSpots * namedShare)));
   const contributors = result.slots.flatMap((slot) => slot.contributors);
+  const priceCandidates = [...contributors, ...(result.priceOnlyContributors ?? [])];
   const byCard = new Map<string, NamedSpot>();
-  for (const row of contributors) {
+  for (const row of priceCandidates) {
     const key = cardKey(row);
     const existing = byCard.get(key);
     const marketPrice = row.marketPrice ?? (row.finish === "foil" ? row.card.foil : row.card.nonfoil) ?? 0;
@@ -77,7 +79,7 @@ export function createLargeBreakPlan(result: ValuationResult, spotCount: number,
       existing.pullEV += row.sellableValue;
       existing.marketPrice = Math.max(existing.marketPrice, marketPrice);
     } else {
-      byCard.set(key, { key, name: row.card.name, set: row.card.set, image: row.card.image, marketPrice, pullEV: row.sellableValue, row });
+      byCard.set(key, { key, name: row.card.name, set: row.card.set, image: row.card.image, marketPrice, pullEV: row.sellableValue, pullRateVerified: row.pullRateVerified !== false, row });
     }
   }
   // Sparse or incomplete price snapshots can contain fewer valued cards than the

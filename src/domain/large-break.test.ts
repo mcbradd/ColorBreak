@@ -14,6 +14,16 @@ describe("large random break plan", () => {
     expect(cards.map((card) => card.name)).toEqual(["Expensive Chase", "Frequent Hit"]);
   });
 
+  it("keeps unverifiable chases in price ranking and removes them from EV ranking", () => {
+    const cards = [
+      { key: "uncertain", name: "Unverifiable Chase", set: "TST", marketPrice: 1000, pullEV: 0, pullRateVerified: false },
+      { key: "known", name: "Verified Hit", set: "TST", marketPrice: 100, pullEV: 5, pullRateVerified: true },
+    ];
+
+    expect(sortNamedCards(cards, "price").map((card) => card.name)).toEqual(["Unverifiable Chase", "Verified Hit"]);
+    expect(sortNamedCards(cards, "expected-value").map((card) => card.name)).toEqual(["Verified Hit"]);
+  });
+
   it("removes named cards from residual creature and card-type EV", () => {
     const result = calculateBreak({ threshold: 2, prices: [
       { id: "named", set: "TST", collectorNumber: "1", name: "Named Dragon", typeLine: "Legendary Creature — Dragon", slot: "R", nonfoil: 50, foil: null },

@@ -154,6 +154,7 @@ export interface Contributor {
   sellableFoilCopies: number;
   pullProbability: number;
   sellablePullProbability: number;
+  pullRateVerified?: boolean;
 }
 
 export interface SlotValuation {
@@ -175,6 +176,7 @@ export interface ValuationResult {
   status: DataStatus;
   statusReason: string;
   slots: SlotValuation[];
+  priceOnlyContributors?: Contributor[];
   omissions: Omission[];
   pricedAt: string;
   dataVersion: string;

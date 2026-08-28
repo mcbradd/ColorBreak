@@ -1,11 +1,12 @@
-import type { Finish } from "./types";
+import type { CardPrice, Finish } from "./types";
+import { hasUnverifiablePullRate } from "./pull-rate-confidence";
 
 /**
- * Scarcity-defined collectibles do not describe a repeatable buyer outcome.
- * Keep their pull mass in the collation model, but assign them no decision
- * value so a one-of-one or serialized sale cannot dominate EV or range charts.
+ * A market price is not enough to value a pull when the exact per-card chance
+ * is unpublished. Keep the pull mass in the collation model, but assign it no
+ * decision value so an imported estimate cannot dominate EV or range charts.
  */
-export function isCollectorOutlierFinish(finish: Finish): boolean {
-  return finish === "serialized" || finish === "double-rainbow";
+export function isCollectorOutlier(card: CardPrice, finish: Finish): boolean {
+  return hasUnverifiablePullRate(card, finish);
 }
 

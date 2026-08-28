@@ -2,7 +2,7 @@ import type { CardPrice, Finish, Omission } from "../domain/types";
 import type { OutcomeCard, OutcomePack, PackOutcomeModel } from "../domain/simulation";
 import { loadCorrections, loadSealed } from "./sealed";
 import type { BoosterSheet, SealedDocument } from "./sealed";
-import { isCollectorOutlierFinish } from "../domain/outlier-policy";
+import { isCollectorOutlier } from "../domain/outlier-policy";
 import { cardDisplayName } from "../domain/card-label";
 import { resolveCardPrice } from "../domain/card-price";
 
@@ -31,12 +31,13 @@ function pricedCard(
     });
     return null;
   }
-  if (isCollectorOutlierFinish(finish)) {
+  if (isCollectorOutlier(card, finish)) {
     omissions.push({
-      code: "collector-outlier-excluded",
-      message: `${cardDisplayName(card, finish)} is retained in its pull slot but excluded from buyer decision ranges.`,
+      code: "unverifiable-pull-rate",
+      dedupeKey: `pull-rate:${card.set}|${card.collectorNumber}|${finish}`,
+      message: `${cardDisplayName(card, finish)} is retained in its pull slot but valued at $0 in the outcome range because its exact pull rate cannot be verified. Its market price remains visible in Rank by Price.`,
       expectedCards: expectedCopies,
-      material: false,
+      material: true,
     });
     return { id: `${card.id}:${finish}`, slot: card.slot, value: 0, weight };
   }

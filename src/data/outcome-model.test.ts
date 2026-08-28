@@ -90,11 +90,11 @@ describe("sealed product outcome model", () => {
     const result = await outcomeModelForProduct(serializedDocument, "pack", 1, [{
       ...prices[0], prices: { serialized: 50_000 },
     }], 2);
-    expect(result.model.complete).toBe(true);
+    expect(result.model.complete).toBe(false);
     expect(result.model.packs[0].sheets.serialized.cards[0].value).toBe(0);
     expect(result.omissions).toContainEqual(expect.objectContaining({
-      code: "collector-outlier-excluded",
-      material: false,
+      code: "unverifiable-pull-rate",
+      material: true,
     }));
     vi.unstubAllGlobals();
   });

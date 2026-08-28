@@ -100,17 +100,18 @@ describe("calculateBreak", () => {
     expect(rows[1].pullProbability).toBeCloseTo(.01);
   });
 
-  it("excludes serialized collector outliers from decision value without blocking the break", () => {
+  it("keeps serialized collector outliers price-visible while warning that their EV is unverifiable", () => {
     const result = calculateBreak({
       prices: [{ ...prices[0], prices: { serialized: 50_000 } }],
       draws: [{ set: "TST", collectorNumber: "1", copies: .0001, finish: "serialized", foil: true, source: "serialized-slot" }],
     });
     expect(result.marketEV).toBe(0);
     expect(result.sellableEV).toBe(0);
-    expect(result.status).toBe("verified");
+    expect(result.status).toBe("incomplete");
+    expect(result.priceOnlyContributors).toHaveLength(1);
     expect(result.omissions).toContainEqual(expect.objectContaining({
-      code: "collector-outlier-excluded",
-      material: false,
+      code: "unverifiable-pull-rate",
+      material: true,
     }));
   });
 
@@ -129,6 +130,26 @@ describe("calculateBreak", () => {
   it("returns a lower-bound buyer verdict for incomplete results", () => {
     const result = calculateBreak({ draws, prices, omissions: [{ code: "missing", message: "topper missing", material: true }] });
     expect(buyerVerdict(result.slots.find((slot) => slot.id === "G")!, 5, result.status)).toBe("+EV");
+  });
+
+  it("keeps an unverifiable-rate chase available by price while excluding it from EV", () => {
+    const result = calculateBreak({
+      prices: [{
+        ...prices[0], set: "EOE", collectorNumber: "382", foil: 1200,
+        treatmentMetadata: {
+          rawFrameEffects: [], rawPromoTypes: ["headliner"], finishClasses: ["foil"], styleTags: [],
+          processTags: ["singularityfoil"], attributeTags: ["headliner"], unknownTags: [],
+          fullArt: true, textless: true,
+        },
+      }],
+      draws: [{ set: "EOE", collectorNumber: "382", copies: .002, pullProbability: .002, finish: "singularity", foil: true, source: "collector" }],
+    });
+
+    expect(result.marketEV).toBe(0);
+    expect(result.sellableEV).toBe(0);
+    expect(result.priceOnlyContributors).toHaveLength(1);
+    expect(result.priceOnlyContributors[0]).toEqual(expect.objectContaining({ marketPrice: 1200, sellableValue: 0 }));
+    expect(result.omissions).toContainEqual(expect.objectContaining({ code: "unverifiable-pull-rate", material: true }));
   });
 
   it.each(["surge", "textured", "gilded", "other"] as const)(

@@ -934,6 +934,8 @@ function IncompleteDataWarning({ analysis, title = "Projection uses incomplete d
   if (analysis.valuation.status !== "incomplete" && analysis.outcomeModel.complete !== false) return null;
   const impact = (code: string) => /price|printing/.test(code)
     ? "It is counted as $0, so the shown value and outcome range can be too low."
+    : /pull-rate/.test(code)
+      ? "Its price stays visible, but it adds $0 to expected value and is omitted from Rank by EV because the exact chance of opening it is unknown."
     : /sheet|weight|collation|outcome|model|sealed|product|contents/.test(code)
       ? "Those pulls are absent from the simulation, so the low, typical, and high results can be too low and the relative value of the spots can change."
       : "It contributes $0 and no pull chance to this result, so the projection can be too low.";
@@ -1741,10 +1743,10 @@ export function LargeBreakView({ analysis, lines, spots }: { analysis: BreakAnal
             <span className="large-break-rank">{String(index + 1).padStart(2, "0")}</span>
             {card.image ? <img src={card.image} alt="" /> : <span className="card-placeholder" />}
             <div><strong>{card.name}</strong><small>{cardPreviewSubtitle(card.row, card.marketPrice)}</small></div>
-            <div className="large-break-card-value"><span>Pull EV</span><b>{fmt(card.pullEV)}</b></div>
+            <div className="large-break-card-value"><span>Pull EV</span><b>{card.pullRateVerified ? fmt(card.pullEV) : "Not used"}</b></div>
           </button>)}
         </div>
-        {plan.namedCards.length > 12 && <p className="large-break-overflow">Showing 12 of {plan.namedCards.length} individually named spots.</p>}
+        {rankedNamedCards.length > 12 && <p className="large-break-overflow">Showing 12 of {rankedNamedCards.length} individually named spots.</p>}
       </section>
       <section className="large-break-pool-section">
         <div className="large-break-section-heading"><div><p className="section-label">RESIDUAL POOL</p><h3>Creature colors & card types</h3></div><span>Individually named cards excluded</span></div>

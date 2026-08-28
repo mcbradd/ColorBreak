@@ -159,6 +159,8 @@ function toPrice(card: ScryfallCard, observedAt: string, fetchedAt = observedAt)
     rightsStatus: "public-value-add" as const,
   }] : []);
   const treatments = printingVariants({
+    set: card.set,
+    collectorNumber: card.collector_number,
     frameEffects: card.frame_effects,
     promoTypes: card.promo_types,
     fullArt: card.full_art,

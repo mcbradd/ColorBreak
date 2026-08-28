@@ -15,6 +15,19 @@ describe("printing variant normalization", () => {
       .toEqual(["Retro Frame", "Phyrexian Language"]);
   });
 
+  it("labels fictional-script chase printings as treatments rather than foreign cards", () => {
+    expect(printingVariants({ set: "HOC", collectorNumber: "96", language: "dw" }))
+      .toContain("Dwarvish Script");
+    expect(printingVariants({ set: "LTC", collectorNumber: "408", language: "qya" }))
+      .toContain("Elven Ring Script");
+    expect(printingVariants({ set: "LTC", collectorNumber: "409", language: "qya" }))
+      .toContain("Dwarven Ring Script");
+    expect(printingVariants({ set: "LTC", collectorNumber: "410", language: "qya" }))
+      .toContain("Human Ring Script");
+    expect(printingVariants({ set: "LTC", collectorNumber: "409z", language: "qya" }))
+      .toContain("Dwarven Ring Script");
+  });
+
   it("covers every registered special appearance and foiling process", () => {
     for (const [key, label] of Object.entries(PROMO_VARIANT_LABELS)) {
       expect(printingVariants({ promoTypes: [key] }), key).toContain(label);

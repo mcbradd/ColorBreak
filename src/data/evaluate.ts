@@ -6,6 +6,7 @@ import { expectedDraws, loadSealed } from "./sealed";
 import type { SealedDocument } from "./sealed";
 import { loadPrices } from "./scryfall";
 import type { PriceAvailability } from "./scryfall";
+import { pullRateOmissions } from "../domain/pull-rate-confidence";
 
 function genericPackDraws(set: string, cards: CardPrice[], packs: number): ExpectedDraw[] {
   const byRarity = new Map<string, CardPrice[]>();
@@ -74,13 +75,14 @@ export async function evaluateBreakAnalysis(lines: BreakLine[], threshold: numbe
     const setCards = prices.filter((card) => card.set === line.set);
     return genericPackDraws(line.set, setCards, (line.packCount ?? 1) * line.quantity);
   });
+  const rateOmissions = pullRateOmissions(draws, prices);
   const valuation = calculateBreak({
     draws,
     prices,
     threshold,
     sourceStatus: lineResults.some((result) => result.status === "incomplete") ? "incomplete"
       : lineResults.some((result) => result.status === "estimated") ? "estimated" : "verified",
-    omissions: [...lineResults.flatMap((result) => result.omissions), ...priceResult.omissions],
+    omissions: [...lineResults.flatMap((result) => result.omissions), ...priceResult.omissions, ...rateOmissions],
     pricedAt: prices.map((card) => card.priceObservedAt).filter((value): value is string => Boolean(value)).sort()[0],
     dataVersion: `${lines.map((line) => `${line.set}:${line.productKey}:${line.quantity}`).join("|")}@${prices.map((card) => card.priceObservedAt).filter(Boolean).sort()[0] ?? "unpriced"}`,
   });

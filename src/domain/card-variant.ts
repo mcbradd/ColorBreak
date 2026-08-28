@@ -3,6 +3,8 @@
  * a card can be borderless, a named showcase treatment, and a special foil at once.
  */
 export interface PrintingVariantInput {
+  set?: string;
+  collectorNumber?: string;
   frameEffects?: string[];
   promoTypes?: string[];
   fullArt?: boolean;
@@ -155,6 +157,8 @@ export function printingVariants(input: PrintingVariantInput): string[] {
   if (input.textless) add("Textless");
   if (input.variation) add("Alternate Art");
   if (input.language === "ph") add("Phyrexian Language");
+  if (input.language === "dw") add("Dwarvish Script");
+  if (input.language === "qya") add(({ "408": "Elven Ring Script", "408z": "Elven Ring Script", "409": "Dwarven Ring Script", "409z": "Dwarven Ring Script", "410": "Human Ring Script", "410z": "Human Ring Script" } as Record<string, string>)[input.collectorNumber ?? ""] ?? "Quenya Script");
   for (const promoType of input.promoTypes ?? []) {
     if (promoType === "borderless" || NON_VISUAL_PROMO_TYPES.has(promoType)) continue;
     add(PROMO_VARIANT_LABELS[promoType] ?? humanizeUnknown(promoType));
