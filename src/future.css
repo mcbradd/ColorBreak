@@ -500,6 +500,7 @@ input {
 @media (max-width: 700px) {
   body { font-size: 17px; }
   :where(
+    div, header, main, section, article, nav, footer,
     p, span, small, label, a, button, input, select, textarea, summary,
     li, dt, dd, th, td, b, strong, em
   ) { font-size: max(17px, 1em) !important; }

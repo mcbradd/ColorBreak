@@ -21,6 +21,7 @@ describe("modern interface system", () => {
     expect(future).toMatch(/\.page,[\s\S]*?width:\s*100%/);
     expect(future).toMatch(/border-radius:\s*0\s*!important/);
     expect(future).toMatch(/@media \(max-width: 700px\)[\s\S]*?font-size:\s*max\(17px, 1em\)\s*!important/);
+    expect(future).toMatch(/div, header, main, section, article, nav, footer/);
     expect(future).not.toMatch(/#[0-9a-f]{2}(?:1[0-9a-f]|2[0-9a-f])[0-9a-f]{2}\s*;\s*\/\*\s*earth/i);
   });
 });
