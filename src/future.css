@@ -672,10 +672,11 @@ input {
   .workspace-title .eyebrow { display: block !important; font-size: 17px !important; }
   .seller-section-heading h2 { font-size: 17px !important; }
   :where(
-    div, details, header, main, section, article, nav, footer,
+    div, header, main, section, article, nav, footer,
     p, span, small, label, a, button, input, select, textarea, summary,
     li, dt, dd, th, td, b, strong, em
   ) { font-size: max(17px, 1em) !important; }
+  details { font-size: max(17px, 1em) !important; }
   button,
   input,
   select,
