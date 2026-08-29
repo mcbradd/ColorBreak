@@ -2949,12 +2949,14 @@ function SellerEnticement({
 export function SellerView({
   analysis,
   lines,
+  transactionCount,
   add,
   update,
   remove,
 }: {
   analysis: BreakAnalysis;
   lines: BreakLine[];
+  transactionCount: number;
   add: () => void;
   update: (id: string, patch: Partial<BreakLine>) => void;
   remove: (id: string) => void;
@@ -2962,7 +2964,7 @@ export function SellerView({
   const [buyerShipping, setBuyerShipping] = useState(5);
   const [packing, setPacking] = useState(2);
   const [postage, setPostage] = useState(0);
-  const [shipments, setShipments] = useState(8);
+  const [shipments, setShipments] = useState(transactionCount);
   const [mailingMethod, setMailingMethod] = useState("whatnot-label");
   const [labor, setLabor] = useState(0);
   const [tax, setTax] = useState(0);
@@ -2973,9 +2975,10 @@ export function SellerView({
   const [processing, setProcessing] = useState(WHATNOT_US.processingRate * 100);
   const [processingFlat, setProcessingFlat] = useState(WHATNOT_US.processingFlat);
   const [plannedBidOverride, setPlannedBidOverride] = useState<number>();
-  const transactionCount = 8;
-  const acquisition = lines.reduce((total, line) => total + (line.myCost ?? line.marketCost ?? 0) * line.quantity, 0);
-  const costsComplete = lines.every((line) => line.myCost != null || line.marketCost != null);
+  const [marketEstimatesAccepted, setMarketEstimatesAccepted] = useState(false);
+  const marketEstimateLines = lines.filter((line) => line.myCost == null && line.marketCost != null);
+  const acquisition = lines.reduce((total, line) => total + (line.myCost ?? (marketEstimatesAccepted ? line.marketCost : undefined) ?? 0) * line.quantity, 0);
+  const costsComplete = lines.every((line) => line.myCost != null || (marketEstimatesAccepted && line.marketCost != null));
   const missingCostLine = lines.find((line) => line.myCost == null && line.marketCost == null);
   const otherCosts = labor + tax + giveaways + refundReserve + overhead;
   const shipmentCount = Math.min(transactionCount, Math.max(1, Math.round(shipments)));
@@ -3013,7 +3016,8 @@ export function SellerView({
       - otherCosts;
   };
   const allSoldProfit = plannedBid == null ? 0 : profitAt(plannedBid, transactionCount);
-  const scenarios = [8, 6, 4].map((sold) => ({ sold, profit: plannedBid == null ? undefined : profitAt(plannedBid, sold) }));
+  const scenarios = [...new Set([transactionCount, Math.max(1, Math.ceil(transactionCount * (transactionCount >= 20 ? .85 : .75))), Math.max(1, Math.ceil(transactionCount * (transactionCount >= 20 ? .7 : .5)))])]
+    .map((sold) => ({ sold, profit: plannedBid == null || !costsComplete ? undefined : profitAt(plannedBid, sold) }));
 
   return (
     <section className="seller-command-center">
@@ -3036,6 +3040,11 @@ export function SellerView({
         </div>
       </section>
 
+      {marketEstimateLines.length > 0 && <section className={`cost-basis-policy ${marketEstimatesAccepted ? "accepted" : ""}`} aria-label="Cost basis policy">
+        <div><InformationLabel>COST BASIS</InformationLabel><h3>{marketEstimatesAccepted ? "Market estimates accepted" : "Actual costs are still blank"}</h3><p>{marketEstimateLines.length} product{marketEstimateLines.length === 1 ? "" : "s"} can use current sealed-market prices as estimates. Break-even remains blocked until you explicitly accept them or enter actual costs.</p></div>
+        <button type="button" className={marketEstimatesAccepted ? "quiet" : "primary"} onClick={() => setMarketEstimatesAccepted((accepted) => !accepted)}>{marketEstimatesAccepted ? "Stop using estimates" : `Use ${marketEstimateLines.length} market estimates`}</button>
+      </section>}
+
       {missingCostLine && <CompactWarning title={<a href={`#seller-cost-${missingCostLine.id}`} onClick={(event) => event.stopPropagation()}>Enter your cost for {missingCostLine.productLabel}</a>} summary="Needed to calculate break-even and profit." className="missing-input-warning">
         <p>No sealed-market price is available for this product, so ColorBreak needs your cost instead.</p>
       </CompactWarning>}
@@ -3044,7 +3053,7 @@ export function SellerView({
 
       <details className="seller-cost-rollout">
         <summary className="disclosure-summary">
-          <span><strong>Costs &amp; platform fees</strong><small>{fmt(completeOverhead)} base cost · {marketplace.name} · {shipmentCount} shipments</small></span>
+          <span><strong>Costs &amp; platform fees</strong><small>{costsComplete ? `${fmt(completeOverhead)} base cost` : "Cost basis incomplete"} · {marketplace.name} · {shipmentCount} expected combined shipments</small></span>
           <DisclosureArrow />
         </summary>
         <div className="seller-cost-grid">
@@ -3060,7 +3069,7 @@ export function SellerView({
           <NumberField label="Buyer shipping at checkout" value={buyerShipping} onChange={(value) => setBuyerShipping(value ?? 0)} live />
           <NumberField label="Packaging / shipment" value={packing} onChange={(value) => setPacking(value ?? 0)} live />
           <NumberField label="Postage / shipment" value={postage} onChange={(value) => setPostage(value ?? 0)} live />
-          <NumberField label="Shipments" value={shipments} onChange={(value) => setShipments(value ?? 1)} live />
+          <NumberField label={`Expected combined shipments (up to ${transactionCount})`} value={shipments} onChange={(value) => setShipments(value ?? 1)} live />
           <NumberField label="Labor" value={labor} onChange={(value) => setLabor(value ?? 0)} live />
           <NumberField label="Tax on fees / permits" value={tax} onChange={(value) => setTax(value ?? 0)} live />
           <NumberField label="Giveaways" value={giveaways} onChange={(value) => setGiveaways(value ?? 0)} live />
@@ -3077,13 +3086,13 @@ export function SellerView({
         <div className="seller-break-even">
           <span>Break-even bid</span>
           <strong>{fmt(breakEvenBid)}</strong>
-          <small>per spot · all 8 sold</small>
+          <small>per spot · all {transactionCount} sold</small>
         </div>
         <NumberField label="Planned bid per spot" value={plannedBid} onChange={setPlannedBidOverride} live />
         <div className="seller-fill-scenarios">
           {scenarios.map((scenario) => <div className={scenario.profit != null && scenario.profit >= 0 ? "positive" : "negative"} key={scenario.sold}>
-            <span>{scenario.sold} / 8 sold</span>
-            <b>{scenario.profit == null && missingCostLine ? <a href={`#seller-cost-${missingCostLine.id}`}>Enter {missingCostLine.productLabel} cost</a> : scenario.profit == null ? "Enter planned bid" : sellerOutcomeLabel(scenario.profit)}</b>
+            <span>{scenario.sold} / {transactionCount} sold</span>
+            <b>{scenario.profit == null && !costsComplete ? missingCostLine ? <a href={`#seller-cost-${missingCostLine.id}`}>Enter {missingCostLine.productLabel} cost</a> : "Choose cost basis" : scenario.profit == null ? "Enter planned bid" : sellerOutcomeLabel(scenario.profit)}</b>
           </div>)}
         </div>
       </section>
@@ -3422,6 +3431,7 @@ export function Workspace({
                 <SellerView
                   analysis={analysis}
                   lines={lines}
+                  transactionCount={assignmentMode === "large" ? largeSpots : 8}
                   add={() => setBuilder(true)}
                   update={update}
                   remove={(id) => setLines((rows) => rows.filter((row) => row.id !== id))}

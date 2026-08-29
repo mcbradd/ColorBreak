@@ -34,6 +34,7 @@ function Harness() {
   return createElement(SellerView, {
     analysis,
     lines,
+    transactionCount: 8,
     add: vi.fn(),
     remove: (id: string) => setLines((current) => current.filter((line) => line.id !== id)),
     update: (id: string, patch: Partial<BreakLine>) => setLines((current) => current.map((line) => line.id === id ? { ...line, ...patch } : line)),
@@ -52,6 +53,8 @@ describe("Seller Studio command center", () => {
   it("turns one entered bid into immediate full and partial-fill profit scenarios", () => {
     render(createElement(Harness));
 
+    fireEvent.click(screen.getByRole("button", { name: "Use 1 market estimates" }));
+
     const studio = screen.getByRole("region", { name: "Seller break economics" });
     expect(within(studio).getByText("$16.77")).toBeInTheDocument();
     const plannedBid = within(studio).getByLabelText("Planned bid per spot");
@@ -62,10 +65,13 @@ describe("Seller Studio command center", () => {
     expect(within(screen.getByText("4 / 8 sold").parentElement!).getByText("Loss $38.50")).toBeInTheDocument();
   });
 
-  it("uses market price until the seller supplies their actual cost basis", () => {
+  it("uses market price only after the seller explicitly accepts it as an estimate", () => {
     render(createElement(Harness));
 
     expect(screen.getByText("Current market").parentElement).toHaveTextContent("$100.00");
+    expect(screen.getByRole("region", { name: "Seller break economics" })).toHaveTextContent("Choose cost basis");
+    fireEvent.click(screen.getByRole("button", { name: "Use 1 market estimates" }));
+    expect(screen.getByRole("region", { name: "Seller break economics" })).toHaveTextContent("$16.77");
     const cost = screen.getByLabelText("My cost basis");
     fireEvent.change(cost, { target: { value: "80" } });
     expect(screen.getByRole("region", { name: "Seller break economics" })).toHaveTextContent("$13.97");
@@ -88,6 +94,7 @@ describe("Seller Studio command center", () => {
     render(createElement(SellerView, {
       analysis,
       lines: missingCostLines,
+      transactionCount: 8,
       add: vi.fn(),
       remove: vi.fn(),
       update: vi.fn(),
@@ -101,5 +108,22 @@ describe("Seller Studio command center", () => {
     expect(link.closest("summary")).toHaveTextContent("Needed to calculate break-even and profit");
     fireEvent.click(link.closest("summary")!);
     expect(warning).toHaveTextContent("No sealed-market price is available");
+  });
+
+  it("inherits a 100-spot break and uses 100, 85, and 70 sold scenarios", () => {
+    render(createElement(SellerView, {
+      analysis,
+      lines: [{ ...startingLines[0], myCost: 100 }],
+      transactionCount: 100,
+      add: vi.fn(),
+      remove: vi.fn(),
+      update: vi.fn(),
+    }));
+
+    const studio = screen.getByRole("region", { name: "Seller break economics" });
+    expect(studio).toHaveTextContent("per spot · all 100 sold");
+    expect(studio).toHaveTextContent("100 / 100 sold");
+    expect(studio).toHaveTextContent("85 / 100 sold");
+    expect(studio).toHaveTextContent("70 / 100 sold");
   });
 });

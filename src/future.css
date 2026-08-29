@@ -583,6 +583,12 @@ input {
 }
 .seller-product-line > .quantity-control { min-width: 0; }
 .seller-product-line > .remove-line { width: 44px; height: 44px; }
+.cost-basis-policy { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 18px; padding: 16px 0; border-block: var(--rule); }
+.cost-basis-policy h3,
+.cost-basis-policy p { margin: 0; }
+.cost-basis-policy h3 { color: var(--warning); font: 850 22px/1.1 Manrope; }
+.cost-basis-policy.accepted h3 { color: var(--safe); }
+.cost-basis-policy p { max-width: 720px; margin-top: 6px; color: var(--muted); line-height: 1.45; }
 .assignment-landmarks,
 .assignment-cohorts,
 .data-readiness { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-top: var(--rule); border-left: var(--rule); }
@@ -666,7 +672,7 @@ input {
   .workspace-title .eyebrow { display: block !important; font-size: 17px !important; }
   .seller-section-heading h2 { font-size: 17px !important; }
   :where(
-    div, header, main, section, article, nav, footer,
+    div, details, header, main, section, article, nav, footer,
     p, span, small, label, a, button, input, select, textarea, summary,
     li, dt, dd, th, td, b, strong, em
   ) { font-size: max(17px, 1em) !important; }
@@ -752,6 +758,8 @@ input {
   .seller-command-center .disclosure-summary a { width: auto; max-width: 100%; }
   .seller-section-heading { display: grid; grid-template-columns: 1fr; gap: 10px; }
   .seller-add-products { width: 100%; justify-content: center; }
+  .cost-basis-policy { grid-template-columns: 1fr; }
+  .cost-basis-policy button { width: 100%; justify-content: center; }
   .seller-fill-scenarios { grid-template-columns: 1fr; }
   .seller-fill-scenarios > div { min-height: 64px; }
   .seller-fill-scenarios a { white-space: normal; overflow-wrap: anywhere; }
