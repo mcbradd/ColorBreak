@@ -1054,7 +1054,7 @@ function CompactWarning({
   );
 }
 
-function IncompleteDataWarning({ analysis, title = "Some values may be low" }: { analysis: BreakAnalysis; title?: string }) {
+function IncompleteDataWarning({ analysis, title = "Some values may be low", id, open, onOpenChange }: { analysis: BreakAnalysis; title?: string; id?: string; open?: boolean; onOpenChange?: (open: boolean) => void }) {
   const omissions = deduplicateOmissions([...analysis.valuation.omissions, ...analysis.outcomeOmissions]
     .filter((item) => item.material));
   if (analysis.valuation.status !== "incomplete" && analysis.outcomeModel.complete !== false) return null;
@@ -1072,7 +1072,7 @@ function IncompleteDataWarning({ analysis, title = "Some values may be low" }: {
     .replace(/ Its price remains visible, but it is excluded from expected value and Rank by EV until the rate can be verified\.$/, "")
     .replace(/ Its price stays visible, but it adds \$0 to expected value and is omitted from Rank by EV because the exact chance of opening it is unknown\.$/, "");
   return (
-    <details className="incomplete-data-warning">
+    <details id={id} className="incomplete-data-warning" open={open} onToggle={(event) => onOpenChange?.(event.currentTarget.open)}>
       <summary className="disclosure-summary">
         <ShieldAlert />
         <span><b>{title}</b><small>Some prices, pull chances, or pack contents could not be verified.</small></span>
@@ -1080,7 +1080,7 @@ function IncompleteDataWarning({ analysis, title = "Some values may be low" }: {
       </summary>
       <div className="incomplete-data-details">
         <p>{effects}</p>
-        {omissions.length > 0 && <details className="incomplete-data-technical">
+        {omissions.length > 0 && <details className="incomplete-data-technical" open={open}>
           <summary className="disclosure-summary">
             <span><b>Technical details</b><small>{omissions.length} {omissions.length === 1 ? "issue" : "issues"}</small></span>
             <DisclosureArrow />
@@ -1924,6 +1924,7 @@ export function LargeBreakView({
   const [haircut, setHaircut] = useState(0);
   const [namedLimit, setNamedLimit] = useState(10);
   const [categoryLimit, setCategoryLimit] = useState(5);
+  const [blockersOpen, setBlockersOpen] = useState(false);
   const plan = useMemo(() => createLargeBreakPlan(result, spots), [result, spots]);
   const assignment = useMemo(() => summarizeAssignmentValues(plan), [plan]);
   const rankedNamedCards = useMemo(() => sortNamedCards(plan.namedCards, topCardSort), [plan.namedCards, topCardSort]);
@@ -1938,7 +1939,7 @@ export function LargeBreakView({
   const liquidFactor = Math.max(0, 1 - haircut / 100);
   const liquidMean = assignment.mean * liquidFactor;
   const belowCost = allIn == null ? undefined : assignment.values.filter((value) => value * liquidFactor < allIn).length;
-  const materialOmissions = [...result.omissions, ...analysis.outcomeOmissions].filter((item) => item.material);
+  const materialOmissions = deduplicateOmissions([...result.omissions, ...analysis.outcomeOmissions].filter((item) => item.material));
   const coverageReady = result.status === "verified" && analysis.outcomeModel.complete && materialOmissions.length === 0;
   const comparison = !coverageReady
     ? "CANNOT CLASSIFY PRICE"
@@ -1960,13 +1961,13 @@ export function LargeBreakView({
         <div className="large-break-decision-copy">
           <InformationLabel>ONE-SPOT EV CHECK</InformationLabel>
           <h2>{comparison}</h2>
-          {!coverageReady ? <p>The model is incomplete, so ColorBreak will not turn this partial estimate into a price judgment. Review the named blockers below.</p> : allIn == null ? <p>Enter the current bid for one random spot. This compares cost with modeled average value; it is not a guaranteed return.</p> : <p><b>{fmt(allIn)}</b> all-in is <b>{fmt(Math.abs(liquidMean - allIn))}</b> {allIn <= liquidMean ? "below" : "above"} the {fmt(liquidMean)} modeled mean.</p>}
+          {!coverageReady ? <><p>The model is incomplete, so ColorBreak will not turn this partial estimate into a price judgment.</p><button type="button" className="review-blockers" onClick={() => { setBlockersOpen(true); requestAnimationFrame(() => document.getElementById("large-break-blockers")?.scrollIntoView({ behavior: "smooth", block: "start" })); }}>Review all {materialOmissions.length} model blockers ↓</button></> : allIn == null ? <p>Enter the current bid for one random spot. This compares cost with modeled average value; it is not a guaranteed return.</p> : <p><b>{fmt(allIn)}</b> all-in is <b>{fmt(Math.abs(liquidMean - allIn))}</b> {allIn <= liquidMean ? "below" : "above"} the {fmt(liquidMean)} modeled mean.</p>}
         </div>
         <div className="large-break-cost-fields">
           <NumberField id="large-break-bid" label="Bid for one spot" value={bid} onChange={setBid} />
           <NumberField id="large-break-shipping" label="Allocated shipping" value={shipping} onChange={setShipping} />
           <NumberField id="large-break-tax" label="Estimated tax" value={tax} onChange={setTax} />
-          <label className="large-break-haircut"><span>Expected resale realization</span><div><input type="number" inputMode="numeric" min="0" max="100" value={100 - haircut} onChange={(event) => setHaircut(Math.max(0, 100 - Math.min(100, Number(event.target.value) || 0)))} /><b>%</b></div></label>
+          <label className="large-break-haircut"><span>Listed card value you expect to recover</span><div><input aria-label="Percent of listed card value you expect to recover" type="number" inputMode="numeric" min="0" max="100" value={100 - haircut} onChange={(event) => setHaircut(Math.max(0, 100 - Math.min(100, Number(event.target.value) || 0)))} /><b>%</b></div><small>After selling fees and typical discounts</small></label>
         </div>
         <div className="large-break-cost-equation">
           <span>One-spot bid {fmt(bid)}</span><b>+</b><span>shipping {fmt(shipping ?? 0)}</span><b>+</b><span>tax {fmt(tax ?? 0)}</span><b>=</b><strong>{fmt(allIn)} total paid</strong>
@@ -1977,6 +1978,7 @@ export function LargeBreakView({
           <div><InformationLabel>100-ASSIGNMENT VALUE SHAPE</InformationLabel><h3>Average value is not the typical assignment</h3></div>
           {belowCost != null && <strong>{belowCost} of {assignment.values.length} assignments have modeled average value below your cost</strong>}
         </div>
+        <p className="assignment-rules"><b>How assignments work:</b> each card belongs to one assignment only. The 83 named assignments collect every eligible printing of that card or character; the 17 category assignments collect the remaining cards by color and type. A spot can receive multiple cards when they are opened—or none when its cards are not opened.</p>
         <div className="assignment-value-strip" aria-hidden="true">
           {assignment.values.map((value, index) => <i key={`${value}-${index}`} style={{ "--assignment-height": `${Math.max(3, value / maxAssignment * 100)}%` } as CSSProperties} />)}
         </div>
@@ -2008,7 +2010,7 @@ export function LargeBreakView({
         <div><span>Category spots</span><b>{plan.categories.length}</b><small>{fmt(categoryEV)} pull EV</small></div>
         <div><span>Total modeled EV</span><b>{fmt(plan.totalPullEV)}</b><small>Across {totalOpenings} openings</small></div>
       </div>
-      <IncompleteDataWarning analysis={analysis} title="Some spot values may be low" />
+      <IncompleteDataWarning analysis={analysis} title="Some spot values may be low" id="large-break-blockers" open={blockersOpen} onOpenChange={setBlockersOpen} />
       <section className="large-break-pool-section">
         <div className="large-break-section-heading large-break-top-heading">
           <div><InformationLabel>NAMED POOL</InformationLabel><h3>Top cards & characters</h3></div>
@@ -3018,7 +3020,7 @@ export function SellerView({
       <section className="seller-contents" aria-labelledby="seller-contents-heading">
         <div className="seller-section-heading">
           <div><InformationLabel>1 · BREAK</InformationLabel><h2 id="seller-contents-heading">Contents &amp; cost basis</h2></div>
-          <button className="quiet" onClick={add}><PackagePlus />Add</button>
+          <button className="primary seller-add-products" onClick={add}><PackagePlus />Add products</button>
         </div>
         <div className="seller-product-lines">
           {lines.map((line) => (
@@ -3027,14 +3029,8 @@ export function SellerView({
               <span className="seller-product-name"><strong>{line.productLabel}</strong><small>{line.set}</small></span>
               <div className="seller-market-price"><span>Current market</span><b>{fmt(line.marketCost)}</b></div>
               <NumberField id={`seller-cost-${line.id}`} label="My cost basis" value={line.myCost} onChange={(value) => update(line.id, { myCost: value })} live />
-              <div className="line-controls">
-                <div className="stepper" aria-label={`${line.productLabel} quantity`}>
-                  <button disabled={line.quantity <= 1} onClick={() => update(line.id, { quantity: Math.max(1, line.quantity - 1) })}>−</button>
-                  <b>{line.quantity}</b>
-                  <button onClick={() => update(line.id, { quantity: line.quantity + 1 })}>+</button>
-                </div>
-                <button className="remove-line" aria-label={`Remove ${line.productLabel} from break`} onClick={() => remove(line.id)}><Trash2 /></button>
-              </div>
+              <QuantityControl line={line} update={(quantity) => update(line.id, { quantity })} />
+              <button className="remove-line" aria-label={`Remove ${line.productLabel} from break`} onClick={() => remove(line.id)}><Trash2 /></button>
             </div>
           ))}
         </div>
@@ -3212,6 +3208,7 @@ export function Workspace({
 }) {
   const legacy = useMemo(() => decodeLegacySearch(location.search), []);
   const sharedBuyer = useMemo(() => decodeBuyerShare(location.search), []);
+  const isSharedBreak = legacy.length > 0;
   const firstResultTracked = useRef(false);
   const calculationStarted = useRef(Date.now());
   const [lines, setLines] = useState<BreakLine[]>(() =>
@@ -3361,9 +3358,13 @@ export function Workspace({
             <h1>{mode === "buyer" ? assignmentMode === "large" ? "Large Break" : "Bid Check" : "Seller Studio"}</h1>
           </div>
         </header>
+        {mode === "buyer" && isSharedBreak && lines.length > 0 && <aside className="shared-calculation-notice" aria-label="Shared calculation details">
+          <Lock />
+          <span><b>SHARED CALCULATION · USD · MODEL v4</b><small>Original link unchanged. Editing makes a local copy · {lines.length} products / {lines.reduce((total, line) => total + line.quantity * Math.max(1, line.packCount ?? 1), 0)} openings · Prices observed {analysis?.priceAvailability.observedAt ? new Date(analysis.priceAvailability.observedAt).toLocaleString() : "loading"}</small></span>
+        </aside>}
         {mode === "buyer" ? (
           <>
-          {lines.length > 0 && <div className="mobile-stage-nav" aria-label="Large Break sections"><a href="#buyer-large-result">Decision</a><a href="#buyer-break-setup">Edit break</a></div>}
+          {lines.length > 0 && <div className="mobile-stage-nav" aria-label="Large Break sections"><a href="#buyer-large-result">Decision</a><a href="#buyer-break-setup">{isSharedBreak ? "Customize a copy" : "Edit break"}</a></div>}
           <div className={`bid-check-workbench ${lines.length ? "has-break" : "is-empty"}`}>
             <BuyerSetup
               lines={lines}

@@ -29,6 +29,7 @@ describe("large break card list", () => {
 
     expect(screen.getByText("Jace")).toBeInTheDocument();
     expect(screen.getByText("Named assignments").nextElementSibling).toHaveTextContent("1");
+    expect(document.querySelector(".assignment-rules")).toHaveTextContent("each card belongs to one assignment only");
   });
 
   it("renders each residual category as one indivisible slot", () => {
@@ -191,6 +192,9 @@ describe("large break card list", () => {
     } as BreakAnalysis;
 
     render(createElement(LargeBreakView, { analysis, lines: [], spots: 18 }));
+    fireEvent.click(screen.getByRole("button", { name: /Review all \d+ model blockers/i }));
+    expect(document.querySelector(".incomplete-data-technical")).toHaveAttribute("open");
+    expect(document.querySelector(".incomplete-data-technical")).toHaveTextContent("1 issue");
     fireEvent.click(screen.getByRole("button", { name: "Price" }));
     const excluded = screen.getByRole("button", { name: /Explain why Sothera.*excluded from Pull EV/i });
     expect(excluded).toHaveTextContent("Excluded");
