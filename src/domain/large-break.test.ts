@@ -1,8 +1,24 @@
 import { describe, expect, it } from "vitest";
-import { CATCH_ALL_SPOTS, createLargeBreakPlan, sortNamedCards } from "./large-break";
+import { CATCH_ALL_SPOTS, createLargeBreakPlan, sortNamedCards, summarizeAssignmentValues } from "./large-break";
 import { calculateBreak } from "./valuation";
 
 describe("large random break plan", () => {
+  it("summarizes the deterministic assignment-value distribution", () => {
+    const summary = summarizeAssignmentValues({
+      spotCount: 4,
+      namedTarget: 2,
+      namedCards: [{ pullEV: 1 }, { pullEV: 3 }] as never,
+      categories: [{ pullEV: 5 }, { pullEV: 7 }] as never,
+      totalPullEV: 16,
+    });
+    expect(summary.values).toEqual([1, 3, 5, 7]);
+    expect(summary.median).toBe(4);
+    expect(summary.mean).toBe(4);
+    expect(summary.namedAverage).toBe(2);
+    expect(summary.categoryAverage).toBe(6);
+    expect(summary.categoryShare).toBe(.75);
+  });
+
   it("reserves all 17 observed catch-all slots and fills the rest with top-value identities", () => {
     const prices = Array.from({ length: 110 }, (_, index) => ({
       id: `card-${index}`,

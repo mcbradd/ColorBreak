@@ -79,7 +79,7 @@ describe("buyer bid persistence", () => {
     fireEvent.click(screen.getByRole("button", { name: /Bid Check/ }));
 
     expect(await screen.findByRole("heading", { name: "Bid Check" })).toBeInTheDocument();
-    expect(screen.getByText("0 products")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "0 lines · 0 openings" })).toBeInTheDocument();
     expect(screen.queryByText("Play Booster Box")).not.toBeInTheDocument();
   });
 

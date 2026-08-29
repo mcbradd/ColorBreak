@@ -28,7 +28,7 @@ describe("large break card list", () => {
     render(createElement(LargeBreakView, { analysis, lines: [], spots: 18 }));
 
     expect(screen.getByText("Jace")).toBeInTheDocument();
-    expect(screen.getByText("Top-value spots").nextElementSibling).toHaveTextContent("1");
+    expect(screen.getByText("Named assignments").nextElementSibling).toHaveTextContent("1");
   });
 
   it("renders each residual category as one indivisible slot", () => {
@@ -52,6 +52,7 @@ describe("large break card list", () => {
 
     render(createElement(LargeBreakView, { analysis, lines: [], spots: 18 }));
 
+    fireEvent.click(screen.getByRole("button", { name: /Show all \d+ category assignments/ }));
     expect(screen.getByText("Instant")).toBeInTheDocument();
     expect(screen.getByText("1 remaining card")).toBeInTheDocument();
     expect(screen.getByText("Slot EV")).toBeInTheDocument();
@@ -141,6 +142,7 @@ describe("large break card list", () => {
 
     render(createElement(LargeBreakView, { analysis, lines: [], spots: 32 }));
 
+    fireEvent.click(screen.getByRole("button", { name: /more named assignments/ }));
     expect(screen.getByRole("button", { name: "Show cards in Card 14 slot" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Show cards in Jace slot" }));
     expect(screen.getByRole("button", { name: "Open Jace Beleren card details" })).toBeInTheDocument();
@@ -162,6 +164,7 @@ describe("large break card list", () => {
 
     render(createElement(LargeBreakView, { analysis, lines: [], spots: 17 }));
 
+    fireEvent.click(screen.getByRole("button", { name: /Show all \d+ category assignments/ }));
     fireEvent.click(screen.getByRole("button", { name: "Show cards in Instant slot" }));
     const card = screen.getByRole("button", { name: "Open Lightning Bolt card details" });
     fireEvent.click(card);
@@ -188,6 +191,7 @@ describe("large break card list", () => {
     } as BreakAnalysis;
 
     render(createElement(LargeBreakView, { analysis, lines: [], spots: 18 }));
+    fireEvent.click(screen.getByRole("button", { name: "Price" }));
     const excluded = screen.getByRole("button", { name: /Explain why Sothera.*excluded from Pull EV/i });
     expect(excluded).toHaveTextContent("Excluded");
     fireEvent.click(excluded);

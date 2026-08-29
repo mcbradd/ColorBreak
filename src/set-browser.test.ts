@@ -36,7 +36,7 @@ describe("Add Product set browser", () => {
 
   it("shows the full set catalog instead of only the latest eight sets", async () => {
     render(createElement(Workspace, { mode: "buyer", exit: vi.fn() }));
-    fireEvent.click(screen.getByRole("button", { name: /Add a product/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Add products/i }));
 
     expect(await screen.findByRole("button", { name: /Oldest Alpha/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Set 12/ })).toBeInTheDocument();
@@ -44,7 +44,7 @@ describe("Add Product set browser", () => {
 
   it("sorts the catalog by release date or alphabetically from quick tabs", async () => {
     render(createElement(Workspace, { mode: "buyer", exit: vi.fn() }));
-    fireEvent.click(screen.getByRole("button", { name: /Add a product/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Add products/i }));
     const dialog = await screen.findByRole("dialog", { name: "Add product" });
     const setButtons = () => within(dialog).getAllByRole("button", { name: /Oldest Alpha|Set \d+/ });
 
@@ -57,7 +57,7 @@ describe("Add Product set browser", () => {
 
   it("filters immediately by either set code or set name", async () => {
     render(createElement(Workspace, { mode: "buyer", exit: vi.fn() }));
-    fireEvent.click(screen.getByRole("button", { name: /Add a product/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Add products/i }));
     const dialog = await screen.findByRole("dialog", { name: "Add product" });
     const search = within(dialog).getByRole("textbox", { name: "Search sets by name or code" });
 

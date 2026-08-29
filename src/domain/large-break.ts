@@ -28,7 +28,52 @@ export interface LargeBreakPlan {
   totalPullEV: number;
 }
 
+export interface AssignmentValueSummary {
+  values: number[];
+  p10: number;
+  median: number;
+  mean: number;
+  p90: number;
+  namedAverage: number;
+  categoryAverage: number;
+  namedShare: number;
+  categoryShare: number;
+  topOneShare: number;
+  topTenShare: number;
+}
+
 export type TopCardSort = "price" | "expected-value";
+
+const percentile = (sorted: number[], fraction: number) => {
+  if (!sorted.length) return 0;
+  const index = (sorted.length - 1) * fraction;
+  const lower = Math.floor(index), upper = Math.ceil(index);
+  if (lower === upper) return sorted[lower];
+  return sorted[lower] + (sorted[upper] - sorted[lower]) * (index - lower);
+};
+
+export function summarizeAssignmentValues(plan: LargeBreakPlan): AssignmentValueSummary {
+  const named = plan.namedCards.map((row) => row.pullEV);
+  const categories = plan.categories.map((row) => row.pullEV);
+  const values = [...named, ...categories].sort((left, right) => left - right);
+  const total = values.reduce((sum, value) => sum + value, 0);
+  const namedTotal = named.reduce((sum, value) => sum + value, 0);
+  const categoryTotal = categories.reduce((sum, value) => sum + value, 0);
+  const descending = [...values].sort((left, right) => right - left);
+  return {
+    values,
+    p10: percentile(values, .1),
+    median: percentile(values, .5),
+    mean: total / Math.max(1, values.length),
+    p90: percentile(values, .9),
+    namedAverage: namedTotal / Math.max(1, named.length),
+    categoryAverage: categoryTotal / Math.max(1, categories.length),
+    namedShare: namedTotal / Math.max(1, total),
+    categoryShare: categoryTotal / Math.max(1, total),
+    topOneShare: (descending[0] ?? 0) / Math.max(1, total),
+    topTenShare: descending.slice(0, 10).reduce((sum, value) => sum + value, 0) / Math.max(1, total),
+  };
+}
 
 /** The 17 catch-all listings used by the observed live character-break format. */
 export const CATCH_ALL_SPOTS = [

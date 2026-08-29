@@ -7,11 +7,11 @@ ColorBreak is a decision instrument, not a dashboard. It should feel fast, calm,
 ## Hierarchy
 
 1. Launch a decision: “Should I bid?” or “Should I run it?” The entry is an appliance launcher, never a marketing hero.
-2. Define the break with set, product, and quantity.
+2. Define the break with set, product, and quantity. A ColorBreak link or compact product list is the fastest path for a multi-product break: parse, resolve to canonical catalog items, review, then apply as one transaction.
 3. Show the task’s answer: buyer verdict or seller target plan.
 4. Reveal evidence: EV definitions, confidence, risk, contributors, and omissions.
 
-Mobile uses full-width sections and a bottom-sheet picker. Desktop adds a sticky composition column; it does not add a denser information model.
+Mobile uses full-width sections and a bottom-sheet composer. When a break exists, the decision precedes setup and a two-action stage rail jumps between “Decision” and “Edit break.” Desktop keeps setup and decision visible together; it does not add a denser information model.
 Every empty, incomplete, and calculated state names the next useful action. Returning users may resume saved work explicitly; starting a Bid Check always begins clean unless they choose Resume.
 On phone layouts, 17px is the absolute minimum for readable text, including labels, captions, badges, chart annotations, and secondary evidence. Density must yield to legibility; layouts expand or scroll instead of shrinking type.
 
@@ -27,8 +27,11 @@ On phone layouts, 17px is the absolute minimum for readable text, including labe
 
 ## Interaction
 
-- Touch targets are at least 40px where space permits.
-- Product selection calculates immediately.
+- Touch targets are at least 44px and primary actions, quantity controls, and numeric inputs are at least 48px on mobile.
+- “Add products” is the one unmistakable blank-state action. Manual selection stays open for repeated additions; pasted links and lists are resolved and reviewed in bulk before changing the break.
+- Quantity supports large direct numeric entry as well as full-size −/+ controls.
+- Product selection calculates immediately after the composer is committed.
+- Large Break leads with the one-spot decision, all-in cost, model readiness, and the shape of value across assignments. It never classifies a price or invents profit odds when material model coverage is incomplete.
 - Sheets animate from the bottom on mobile and become centered dialogs on larger screens.
 - Hover may enrich desktop use but cannot reveal required controls.
 - Respect `prefers-reduced-motion`.

@@ -37,6 +37,7 @@ import { sealedMarketPrice } from "./data/sealed-prices";
 import { createAuction, toggleSlotTaken } from "./domain/auction";
 import type { AuctionState } from "./domain/auction";
 import { decodeLegacySearch } from "./domain/legacy";
+import { mergeBreakLines, parseBreakImport } from "./domain/break-import";
 import { createBreakShareUrl, decodeBuyerShare, type AssignmentMode } from "./domain/share-url";
 import {
   calculateProfit,
@@ -65,7 +66,7 @@ import { SLOT_IDS, SLOT_NAMES } from "./domain/types";
 import { useMobileInputViewport } from "./mobile-input-viewport";
 import { track } from "./analytics";
 import { chaseMapLayout } from "./constellation-layout";
-import { createLargeBreakPlan, sortNamedCards } from "./domain/large-break";
+import { createLargeBreakPlan, sortNamedCards, summarizeAssignmentValues } from "./domain/large-break";
 import type { TopCardSort } from "./domain/large-break";
 
 type Mode = "home" | "buyer" | "seller";
@@ -485,11 +486,13 @@ function Home({ choose }: { choose: (mode: Mode, fresh?: boolean) => void }) {
 function Builder({
   open,
   onClose,
-  onAdd,
+  lines,
+  onApply,
 }: {
   open: boolean;
   onClose: () => void;
-  onAdd: (line: BreakLine) => void;
+  lines: BreakLine[];
+  onApply: (lines: BreakLine[], settings?: { assignmentMode: AssignmentMode; largeSpots?: number; bulkEnabled?: boolean; bulkThreshold?: number }) => void;
 }) {
   const [sets, setSets] = useState<SetChoice[]>([]);
   const [query, setQuery] = useState("");
@@ -499,6 +502,13 @@ function Builder({
   const [selected, setSelected] = useState<SetChoice>();
   const [products, setProducts] = useState<ProductChoice[]>([]);
   const [loading, setLoading] = useState(false);
+  const [draft, setDraft] = useState<BreakLine[]>([]);
+  const [composerMode, setComposerMode] = useState<"search" | "paste" | "review">("search");
+  const [importSource, setImportSource] = useState("");
+  const [importRows, setImportRows] = useState<Array<{ source: string; line?: BreakLine; error?: string }>>([]);
+  const [importErrors, setImportErrors] = useState<string[]>([]);
+  const [importing, setImporting] = useState(false);
+  const [importSettings, setImportSettings] = useState<{ assignmentMode: AssignmentMode; largeSpots?: number; bulkEnabled?: boolean; bulkThreshold?: number }>();
   useEffect(() => {
     if (open)
       catalogSets().then((rows) =>
@@ -517,8 +527,15 @@ function Builder({
       setSelected(undefined);
       setQuery("");
       setSetSort("release");
+      setComposerMode("search");
+      setImportSource("");
+      setImportRows([]);
+      setImportErrors([]);
+      setImportSettings(undefined);
+    } else {
+      setDraft(lines);
     }
-  }, [open]);
+  }, [open, lines]);
   useEffect(() => {
     if (!open) return;
     const previous = document.activeElement as HTMLElement | null;
@@ -556,20 +573,76 @@ function Builder({
         || left.name.localeCompare(right.name)
       : left.name.localeCompare(right.name)
         || left.released.localeCompare(right.released));
-  const add = (product: ProductChoice) => {
-    onAdd({
+  const choiceLine = (product: ProductChoice, quantity = 1): BreakLine => ({
       id: crypto.randomUUID(),
       set: product.set,
       productKey: product.sealedKey
         ? `sealed:${product.sealedKey}`
         : product.key,
       productLabel: product.label,
-      quantity: 1,
+      quantity,
       packCount: product.packCount,
       tcgId: product.tcgId,
     });
+  const add = (product: ProductChoice) => {
+    setDraft((rows) => mergeBreakLines([...rows, choiceLine(product)]));
+    setSelected(undefined);
+    setQuery("");
+  };
+  const normalizeProduct = (value: string) => value.toLocaleLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  const resolveImport = async () => {
+    setImporting(true);
+    setImportRows([]);
+    setImportErrors([]);
+    try {
+      const parsed = parseBreakImport(importSource);
+      if (parsed.kind === "list" && parsed.errors.length) {
+        setImportErrors(parsed.errors);
+        return;
+      }
+      const sourceRows = parsed.kind === "url"
+        ? parsed.lines.map((line) => ({ source: `${line.set} · ${line.productKey} · ${line.quantity}`, set: line.set, product: line.productKey.replace(/^sealed:/, ""), quantity: line.quantity }))
+        : parsed.lines;
+      if (parsed.kind === "url") {
+        const shared = decodeBuyerShare(new URL(importSource).search);
+        setImportSettings({ assignmentMode: shared.assignmentMode, largeSpots: shared.largeSpots, bulkEnabled: shared.bulkEnabled, bulkThreshold: shared.bulkThreshold });
+      } else setImportSettings(undefined);
+      const resolved = await Promise.all(sourceRows.map(async (row) => {
+        const choices = await productsForSet(row.set);
+        const wanted = normalizeProduct(row.product.replace(/^sealed:/, ""));
+        const exact = choices.find((choice) => {
+          const key = normalizeProduct(choice.sealedKey ?? choice.key);
+          const label = normalizeProduct(choice.label);
+          return key === wanted || label === wanted;
+        });
+        const fuzzy = exact ?? choices.find((choice) => {
+          const label = normalizeProduct(choice.label);
+          return label.includes(wanted) || wanted.includes(label);
+        });
+        return fuzzy
+          ? { source: row.source, line: choiceLine(fuzzy, row.quantity) }
+          : { source: row.source, error: `No exact ${row.set} product matched “${row.product}”.` };
+      }));
+      setImportRows(resolved);
+      setComposerMode("review");
+    } catch (error) {
+      setImportErrors([error instanceof Error ? error.message : String(error)]);
+    } finally {
+      setImporting(false);
+    }
+  };
+  const applyImport = () => {
+    const additions = importRows.flatMap((row) => row.line ? [row.line] : []);
+    if (importRows.some((row) => row.error) || !additions.length) return;
+    const next = mergeBreakLines([...draft, ...additions]);
+    setDraft(next);
+    onApply(next, importSettings);
+    setComposerMode("search");
+    setImportSource("");
+    setImportRows([]);
     onClose();
   };
+  const totalOpenings = draft.reduce((total, line) => total + line.quantity * Math.max(1, line.packCount ?? 1), 0);
   const groupedProducts = products.reduce<Record<string, ProductChoice[]>>(
     (groups, product) => {
       (groups[product.category] ??= []).push(product);
@@ -601,18 +674,40 @@ function Builder({
             <header>
               <button
                 className="icon-button"
-                onClick={selected ? () => setSelected(undefined) : onClose}
-                aria-label={selected ? "Back" : "Close"}
+                onClick={selected ? () => setSelected(undefined) : composerMode !== "search" ? () => setComposerMode("search") : onClose}
+                aria-label={selected || composerMode !== "search" ? "Back" : "Close"}
               >
-                {selected ? <ArrowLeft /> : <X />}
+                {selected || composerMode !== "search" ? <ArrowLeft /> : <X />}
               </button>
               <div>
                 <small>ADD TO BREAK</small>
-                <h2>{selected ? selected.name : "Choose a set"}</h2>
+                <h2>{composerMode === "paste" ? "Paste a break" : composerMode === "review" ? "Review matches" : selected ? selected.name : "Add products"}</h2>
               </div>
             </header>
-            {!selected ? (
+            <div className="composer-status" aria-live="polite">
+              <span><b>{draft.length}</b> product line{draft.length === 1 ? "" : "s"}</span>
+              <span><b>{totalOpenings}</b> opening{totalOpenings === 1 ? "" : "s"}</span>
+            </div>
+            {composerMode === "paste" ? (
+              <section className="break-import">
+                <p>Paste a ColorBreak link or one product per line.</p>
+                <code>SPM | Play Booster Pack | 10</code>
+                <textarea autoFocus value={importSource} onChange={(event) => setImportSource(event.target.value)} placeholder="Paste link or product list" aria-label="Break link or product list" />
+                {importErrors.length > 0 && <ul className="import-errors">{importErrors.map((error) => <li key={error}>{error}</li>)}</ul>}
+                <button className="primary import-review-action" disabled={!importSource.trim() || importing} onClick={resolveImport}>{importing ? "Checking products…" : "Review products"}</button>
+              </section>
+            ) : composerMode === "review" ? (
+              <section className="import-review">
+                <div className="import-review-summary"><b>{importRows.filter((row) => row.line).length} matched</b><span>{importRows.filter((row) => row.error).length} need attention</span></div>
+                {importRows.map((row, index) => <div className={`import-review-row ${row.error ? "has-error" : "is-ready"}`} key={`${row.source}-${index}`}>
+                  <small>Source</small><span>{row.source}</span>
+                  {row.line ? <><small>Canonical product</small><strong>{row.line.set} · {row.line.productLabel}</strong><b>{row.line.quantity} × {row.line.packCount && row.line.packCount > 1 ? `${row.line.packCount} packs` : "opening"}</b></> : <p>{row.error}</p>}
+                </div>)}
+                <button className="primary import-apply-action" disabled={!importRows.length || importRows.some((row) => row.error)} onClick={applyImport}>Add {importRows.length} product line{importRows.length === 1 ? "" : "s"}</button>
+              </section>
+            ) : !selected ? (
               <>
+                <button type="button" className="paste-break-action" onClick={() => setComposerMode("paste")}><PackagePlus />Paste list or break link</button>
                 <div className="set-browser-tools">
                   <div className="set-sort-tabs" role="group" aria-label="Sort sets">
                     <button aria-pressed={setSort === "release"} onClick={() => setSetSort("release")}>Release date</button>
@@ -687,6 +782,10 @@ function Builder({
                 )}
               </>
             )}
+            <footer className="composer-actions">
+              <button type="button" className="quiet" onClick={onClose}>Cancel</button>
+              <button type="button" className="primary" disabled={!draft.length} onClick={() => { onApply(draft); onClose(); }}>Done · {draft.length} line{draft.length === 1 ? "" : "s"}</button>
+            </footer>
           </motion.section>
         </motion.div>
       )}
@@ -703,9 +802,35 @@ function EmptyBreak({ add }: { add: () => void }) {
       <h2>What’s being opened?</h2>
       <p>Pick the sealed products once. ColorBreak calculates automatically.</p>
       <button className="primary" onClick={add}>
-        <PackagePlus size={18} /> Add a product
+        <PackagePlus size={18} /> Add products
       </button>
     </section>
+  );
+}
+
+function QuantityControl({ line, update }: { line: BreakLine; update: (quantity: number) => void }) {
+  const unit = line.packCount && line.packCount > 1 ? "products" : "openings";
+  return (
+    <label className="quantity-control">
+      <span>Quantity</span>
+      <div>
+        <button type="button" disabled={line.quantity <= 1} aria-label={`Decrease ${line.productLabel} quantity`} onClick={() => update(Math.max(1, line.quantity - 1))}>−</button>
+        <input
+          type="number"
+          inputMode="numeric"
+          min={1}
+          max={999}
+          value={line.quantity}
+          aria-label={`${line.productLabel} quantity in ${unit}`}
+          onFocus={(event) => event.currentTarget.select()}
+          onChange={(event) => {
+            const value = Number.parseInt(event.target.value, 10);
+            if (Number.isFinite(value) && value >= 1 && value <= 999) update(value);
+          }}
+        />
+        <button type="button" aria-label={`Increase ${line.productLabel} quantity`} onClick={() => update(Math.min(999, line.quantity + 1))}>+</button>
+      </div>
+    </label>
   );
 }
 
@@ -724,53 +849,45 @@ export function Composition({
   headingLabel?: string;
   showHelp?: boolean;
 }) {
+  const [expanded, setExpanded] = useState(lines.length <= 4);
+  useEffect(() => {
+    if (lines.length <= 4) setExpanded(true);
+  }, [lines.length]);
+  const totalOpenings = lines.reduce((total, line) => total + line.quantity * Math.max(1, line.packCount ?? 1), 0);
+  const rows = lines.map((line) => (
+    <div className="line" key={line.id}>
+      <span className="set-glyph">{line.set}</span>
+      <span className="line-identity">
+        <strong>{line.productLabel}</strong>
+        <small>{line.set} · {line.packCount && line.packCount > 1 ? `${line.packCount} openings each` : "1 opening each"}</small>
+      </span>
+      <div className="line-controls">
+        <QuantityControl line={line} update={(quantity) => update(line.id, { quantity })} />
+        <button
+          className="remove-line"
+          aria-label={`Remove ${line.productLabel} from break`}
+          title="Remove from break"
+          onClick={() => remove(line.id)}
+        >
+          <Trash2 />
+        </button>
+      </div>
+    </div>
+  ));
   return (
     <section className="composition panel">
       <PanelHeading
         label={headingLabel}
         help={showHelp ? "The sealed products and quantities being opened in this break. Changing any line immediately recalculates card contents, prices, color value, and possible opening values." : undefined}
-        title={<>{lines.length} product{lines.length === 1 ? "" : "s"}</>}
-        accessory={<button className="quiet" onClick={add}>
-          <PackagePlus /> Add a product
+        title={<>{lines.length} line{lines.length === 1 ? "" : "s"} · {totalOpenings} opening{totalOpenings === 1 ? "" : "s"}</>}
+        accessory={<button className={lines.length ? "quiet" : "primary composition-add-primary"} onClick={add}>
+          <PackagePlus /> Add products
         </button>}
       />
-      {lines.map((line) => (
-        <div className="line" key={line.id}>
-          <span className="set-glyph">{line.set}</span>
-          <span>
-            <strong>{line.productLabel}</strong>
-            <small>{line.set}</small>
-          </span>
-          <div className="line-controls">
-            <div className="stepper" aria-label={`${line.productLabel} quantity`}>
-              <button
-                disabled={line.quantity <= 1}
-                aria-label={`Decrease ${line.productLabel} quantity`}
-                onClick={() =>
-                  update(line.id, { quantity: Math.max(1, line.quantity - 1) })
-                }
-              >
-                −
-              </button>
-              <b>{line.quantity}</b>
-              <button
-                aria-label={`Increase ${line.productLabel} quantity`}
-                onClick={() => update(line.id, { quantity: line.quantity + 1 })}
-              >
-                +
-              </button>
-            </div>
-            <button
-              className="remove-line"
-              aria-label={`Remove ${line.productLabel} from break`}
-              title="Remove from break"
-              onClick={() => remove(line.id)}
-            >
-              <Trash2 />
-            </button>
-          </div>
-        </div>
-      ))}
+      {lines.length > 4 ? <details className="composition-roster" open={expanded} onToggle={(event) => setExpanded(event.currentTarget.open)}>
+        <summary className="disclosure-summary"><span>{expanded ? "Hide product editor" : `Review ${lines.length} product lines`}</span><b>{totalOpenings} openings</b><DisclosureArrow /></summary>
+        <div>{rows}</div>
+      </details> : rows}
     </section>
   );
 }
@@ -1781,13 +1898,34 @@ function LargeBreakSlotCards({
   );
 }
 
-export function LargeBreakView({ analysis, lines, spots }: { analysis: BreakAnalysis; lines: BreakLine[]; spots: number }) {
+export function LargeBreakView({
+  analysis,
+  lines,
+  spots,
+  bid,
+  setBid,
+  shipping,
+  setShipping,
+}: {
+  analysis: BreakAnalysis;
+  lines: BreakLine[];
+  spots: number;
+  bid: number | undefined;
+  setBid: (value: number | undefined) => void;
+  shipping: number | undefined;
+  setShipping: (value: number | undefined) => void;
+}) {
   const result = analysis.valuation;
   const [inspectedCard, setInspectedCard] = useState<Contributor | null>(null);
   const [excludedCard, setExcludedCard] = useState<Contributor | null>(null);
-  const [topCardSort, setTopCardSort] = useState<TopCardSort>("price");
+  const [topCardSort, setTopCardSort] = useState<TopCardSort>("expected-value");
   const [openSlot, setOpenSlot] = useState<string | null>(null);
+  const [tax, setTax] = useState<number | undefined>(0);
+  const [haircut, setHaircut] = useState(0);
+  const [namedLimit, setNamedLimit] = useState(10);
+  const [categoryLimit, setCategoryLimit] = useState(5);
   const plan = useMemo(() => createLargeBreakPlan(result, spots), [result, spots]);
+  const assignment = useMemo(() => summarizeAssignmentValues(plan), [plan]);
   const rankedNamedCards = useMemo(() => sortNamedCards(plan.namedCards, topCardSort), [plan.namedCards, topCardSort]);
   const completeSealedValue = lines.every((line) => line.marketCost != null);
   const sealedMarketValue = completeSealedValue
@@ -1795,20 +1933,80 @@ export function LargeBreakView({ analysis, lines, spots }: { analysis: BreakAnal
     : undefined;
   const namedEV = plan.namedCards.reduce((sum, card) => sum + card.pullEV, 0);
   const categoryEV = plan.categories.reduce((sum, category) => sum + category.pullEV, 0);
+  const totalOpenings = lines.reduce((sum, line) => sum + line.quantity * Math.max(1, line.packCount ?? 1), 0);
+  const allIn = bid == null ? undefined : bid + (shipping ?? 0) + (tax ?? 0);
+  const liquidFactor = Math.max(0, 1 - haircut / 100);
+  const liquidMean = assignment.mean * liquidFactor;
+  const belowCost = allIn == null ? undefined : assignment.values.filter((value) => value * liquidFactor < allIn).length;
+  const materialOmissions = [...result.omissions, ...analysis.outcomeOmissions].filter((item) => item.material);
+  const coverageReady = result.status === "verified" && analysis.outcomeModel.complete && materialOmissions.length === 0;
+  const comparison = !coverageReady
+    ? "CANNOT CLASSIFY PRICE"
+    : allIn == null
+      ? "ENTER ONE-SPOT BID"
+      : allIn < liquidMean * .95
+        ? "BELOW MODELED MEAN"
+        : allIn > liquidMean * 1.05
+          ? "ABOVE MODELED MEAN"
+          : "NEAR MODELED MEAN";
+  const maxAssignment = Math.max(1, ...assignment.values);
   return (
     <section className="large-break-results" aria-label="Large break spot value">
       <header className="large-break-result-head">
         <div><InformationLabel>LARGE RANDOM BREAK</InformationLabel><h2>{plan.spotCount} spots</h2></div>
         <Status result={result} />
       </header>
+      <section className={`large-break-decision ${coverageReady ? "is-ready" : "is-blocked"}`} aria-label="One-spot price check">
+        <div className="large-break-decision-copy">
+          <InformationLabel>ONE-SPOT EV CHECK</InformationLabel>
+          <h2>{comparison}</h2>
+          {!coverageReady ? <p>The model is incomplete, so ColorBreak will not turn this partial estimate into a price judgment. Review the named blockers below.</p> : allIn == null ? <p>Enter the current bid for one random spot. This compares cost with modeled average value; it is not a guaranteed return.</p> : <p><b>{fmt(allIn)}</b> all-in is <b>{fmt(Math.abs(liquidMean - allIn))}</b> {allIn <= liquidMean ? "below" : "above"} the {fmt(liquidMean)} modeled mean.</p>}
+        </div>
+        <div className="large-break-cost-fields">
+          <NumberField id="large-break-bid" label="Bid for one spot" value={bid} onChange={setBid} />
+          <NumberField id="large-break-shipping" label="Allocated shipping" value={shipping} onChange={setShipping} />
+          <NumberField id="large-break-tax" label="Estimated tax" value={tax} onChange={setTax} />
+          <label className="large-break-haircut"><span>Expected resale realization</span><div><input type="number" inputMode="numeric" min="0" max="100" value={100 - haircut} onChange={(event) => setHaircut(Math.max(0, 100 - Math.min(100, Number(event.target.value) || 0)))} /><b>%</b></div></label>
+        </div>
+        <div className="large-break-cost-equation">
+          <span>One-spot bid {fmt(bid)}</span><b>+</b><span>shipping {fmt(shipping ?? 0)}</span><b>+</b><span>tax {fmt(tax ?? 0)}</span><b>=</b><strong>{fmt(allIn)} total paid</strong>
+        </div>
+      </section>
+      <section className="assignment-overview" aria-label="Modeled value across the assigned spots">
+        <div className="assignment-overview-heading">
+          <div><InformationLabel>100-ASSIGNMENT VALUE SHAPE</InformationLabel><h3>Average value is not the typical assignment</h3></div>
+          {belowCost != null && <strong>{belowCost} of {assignment.values.length} assignments have modeled average value below your cost</strong>}
+        </div>
+        <div className="assignment-value-strip" aria-hidden="true">
+          {assignment.values.map((value, index) => <i key={`${value}-${index}`} style={{ "--assignment-height": `${Math.max(3, value / maxAssignment * 100)}%` } as CSSProperties} />)}
+        </div>
+        <div className="assignment-landmarks">
+          <div><span>Lower tenth</span><b>{fmt(assignment.p10 * liquidFactor)}</b><small>10 of 100 assignments are at or below this modeled average</small></div>
+          <div><span>Middle assignment</span><b>{fmt(assignment.median * liquidFactor)}</b><small>Half are lower and half are higher</small></div>
+          <div><span>Mean</span><b>{fmt(liquidMean)}</b><small>Total modeled value ÷ {assignment.values.length}</small></div>
+          <div><span>Upper tenth</span><b>{fmt(assignment.p90 * liquidFactor)}</b><small>10 of 100 assignments are at or above this modeled average</small></div>
+        </div>
+        <p className="assignment-limitation"><ShieldAlert />These figures compare the modeled average value of the {assignment.values.length} assigned spots. Realized opening ranges remain unavailable until every product has a complete pull model; ColorBreak does not invent a chance of profit.</p>
+        <div className="assignment-cohorts">
+          <div><span>{plan.namedCards.length} named assignments</span><b>{fmt(assignment.namedAverage * liquidFactor)} average</b><small>{Math.round(assignment.namedShare * 100)}% of modeled value</small></div>
+          <div><span>{plan.categories.length} category assignments</span><b>{fmt(assignment.categoryAverage * liquidFactor)} average</b><small>{Math.round(assignment.categoryShare * 100)}% of modeled value</small></div>
+          <div><span>Concentration</span><b>Top 10 hold {Math.round(assignment.topTenShare * 100)}%</b><small>Top assignment holds {Math.round(assignment.topOneShare * 100)}%</small></div>
+        </div>
+      </section>
+      <section className="data-readiness" aria-label="Data readiness">
+        <div><span>Pack contents</span><b>{analysis.outcomeModel.complete ? `${totalOpenings}/${totalOpenings} modeled` : "Partial"}</b><small>{analysis.outcomeModel.complete ? "Outcome model complete" : "One or more products lack a complete outcome model"}</small></div>
+        <div><span>Pull rates</span><b>{materialOmissions.length ? `${materialOmissions.length} blockers` : "Ready"}</b><small>{materialOmissions[0]?.message ?? "Included EV uses verified pull-rate evidence"}</small></div>
+        <div><span>Card prices</span><b>{analysis.priceAvailability.status}</b><small>{analysis.priceAvailability.observedAt ? `Observed ${new Date(analysis.priceAvailability.observedAt).toLocaleDateString()}` : analysis.priceAvailability.message}</small></div>
+        <div><span>Sealed prices</span><b>{completeSealedValue ? `${lines.length}/${lines.length} products` : `${lines.filter((line) => line.marketCost != null).length}/${lines.length} products`}</b><small>{completeSealedValue ? "All references available" : "Missing references do not silently become $0"}</small></div>
+      </section>
       <div className="large-break-metrics">
         <div><span>Sealed market value / spot</span><strong>{sealedMarketValue == null ? "—" : fmt(sealedMarketValue / plan.spotCount)}</strong><small>{sealedMarketValue == null ? "A sealed-market price is unavailable; pull EV is still shown" : `${fmt(sealedMarketValue)} total sealed value`}</small></div>
-        <div><span>Pull EV / spot</span><strong>{fmt(plan.totalPullEV / plan.spotCount)}</strong><small>{result.threshold > 0 ? `Cards under ${fmt(result.threshold)} ignored as bulk` : "All priced cards included"}</small></div>
+        <div><span>Modeled mean / assignment</span><strong>{fmt(plan.totalPullEV / plan.spotCount)}</strong><small>{result.threshold > 0 ? `Cards under ${fmt(result.threshold)} ignored as bulk` : "All priced cards included"}</small></div>
       </div>
       <div className="large-break-allocation">
-        <div><span>Top-value spots</span><b>{plan.namedCards.length}</b><small>{fmt(namedEV)} pull EV</small></div>
+        <div><span>Named assignments</span><b>{plan.namedCards.length}</b><small>{fmt(namedEV)} modeled EV</small></div>
         <div><span>Category spots</span><b>{plan.categories.length}</b><small>{fmt(categoryEV)} pull EV</small></div>
-        <div><span>Total pull EV</span><b>{fmt(plan.totalPullEV)}</b><small>Expected across the opening</small></div>
+        <div><span>Total modeled EV</span><b>{fmt(plan.totalPullEV)}</b><small>Across {totalOpenings} openings</small></div>
       </div>
       <IncompleteDataWarning analysis={analysis} title="Some spot values may be low" />
       <section className="large-break-pool-section">
@@ -1823,7 +2021,7 @@ export function LargeBreakView({ analysis, lines, spots }: { analysis: BreakAnal
           </div>
         </div>
         <div className="large-break-card-list">
-          {rankedNamedCards.map((card, index) => {
+          {rankedNamedCards.slice(0, namedLimit).map((card, index) => {
             const slotKey = `named:${card.key}`;
             const isOpen = openSlot === slotKey;
             return <div className={`large-break-card large-break-slot ${isOpen ? "open" : ""}`} key={card.key}>
@@ -1839,11 +2037,13 @@ export function LargeBreakView({ analysis, lines, spots }: { analysis: BreakAnal
             {isOpen && <LargeBreakSlotCards rows={card.cards} onInspect={setInspectedCard} />}
           </div>})}
         </div>
+        {rankedNamedCards.length > namedLimit && <button type="button" className="show-more-assignments" onClick={() => setNamedLimit(rankedNamedCards.length)}>Show {rankedNamedCards.length - namedLimit} more named assignments</button>}
+        {namedLimit > 10 && <button type="button" className="show-more-assignments" onClick={() => setNamedLimit(10)}>Show top 10 only</button>}
       </section>
       <section className="large-break-pool-section">
         <div className="large-break-section-heading"><div><InformationLabel>RESIDUAL POOL</InformationLabel><h3>Creature colors & card types</h3></div><span>Top-value named spots excluded</span></div>
         <div className="large-break-category-head"><span>Slot</span><span>Slot EV</span></div>
-        {plan.categories.map((category) => {
+        {plan.categories.slice(0, categoryLimit).map((category) => {
           const slotKey = `category:${category.key}`;
           const isOpen = openSlot === slotKey;
           return <div className={`large-break-category large-break-slot ${isOpen ? "open" : ""}`} key={category.key}>
@@ -1853,6 +2053,8 @@ export function LargeBreakView({ analysis, lines, spots }: { analysis: BreakAnal
           <b>{fmt(category.pullEV)}</b>
           {isOpen && <LargeBreakSlotCards rows={category.cards} onInspect={setInspectedCard} />}
         </div>})}
+        {plan.categories.length > categoryLimit && <button type="button" className="show-more-assignments" onClick={() => setCategoryLimit(plan.categories.length)}>Show all {plan.categories.length} category assignments</button>}
+        {categoryLimit > 5 && <button type="button" className="show-more-assignments" onClick={() => setCategoryLimit(5)}>Show first 5 categories</button>}
       </section>
       <CardInspector row={inspectedCard} status={result.status} threshold={result.threshold} onClose={() => setInspectedCard(null)} />
       <EvidenceDialog item={excludedCard ? {
@@ -2963,7 +3165,7 @@ export function BuyerSetup({
   setLargeSpots: (spots: number) => void;
 }) {
   return (
-    <section className="buyer-setup" aria-label="Bid setup">
+    <section id="buyer-break-setup" className="buyer-setup" aria-label="Bid setup">
       <SlotRail
         result={result}
         auction={auction}
@@ -3160,7 +3362,9 @@ export function Workspace({
           </div>
         </header>
         {mode === "buyer" ? (
-          <div className="bid-check-workbench">
+          <>
+          {lines.length > 0 && <div className="mobile-stage-nav" aria-label="Large Break sections"><a href="#buyer-large-result">Decision</a><a href="#buyer-break-setup">Edit break</a></div>}
+          <div className={`bid-check-workbench ${lines.length ? "has-break" : "is-empty"}`}>
             <BuyerSetup
               lines={lines}
               add={() => setBuilder(true)}
@@ -3180,12 +3384,12 @@ export function Workspace({
               largeSpots={largeSpots}
               setLargeSpots={setLargeSpots}
             />
-            <div className="results buyer-results">
-              {!lines.length && <section className="buyer-awaiting-break"><span><BarChart3 /></span><h2>Add the sealed product in this break</h2><p>ColorBreak needs the exact set and product name to calculate card values and outcome ranges.</p><button type="button" className="primary" onClick={() => setBuilder(true)}>Choose the sealed product</button></section>}
+            <div id="buyer-large-result" className="results buyer-results">
+              {!lines.length && <section className="buyer-awaiting-break"><span><BarChart3 /></span><h2>Your decision appears here</h2><p><b>1</b> Add every product · <b>2</b> Enter the spot price · <b>3</b> Compare value and risk.</p></section>}
               {busy && <div className="calculating"><span />Calculating exact contents and prices…</div>}
               {error && <CompactWarning title="Couldn’t load this result" summary="Open for details, then try again." className="load-warning"><p>{error}</p></CompactWarning>}
               {analysis && (assignmentMode === "large" ? (
-                <LargeBreakView analysis={analysis} lines={lines} spots={largeSpots} />
+                <LargeBreakView analysis={analysis} lines={lines} spots={largeSpots} bid={buyerBid} setBid={setBuyerBid} shipping={buyerShipping} setShipping={setBuyerShipping} />
               ) : (
                 <BuyerView
                   analysis={analysis}
@@ -3201,6 +3405,7 @@ export function Workspace({
               ))}
             </div>
           </div>
+          </>
         ) : !lines.length ? (
           <EmptyBreak add={() => setBuilder(true)} />
         ) : (
@@ -3227,9 +3432,16 @@ export function Workspace({
       <Builder
         open={builder}
         onClose={() => setBuilder(false)}
-        onAdd={(line) => {
-          setLines((rows) => [...rows, line]);
-          track("break_created", { mode, productCount: lines.length + 1 });
+        lines={lines}
+        onApply={(nextLines, settings) => {
+          setLines(nextLines);
+          if (settings) {
+            setAssignmentMode(settings.assignmentMode);
+            if (settings.largeSpots != null) setLargeSpots(settings.largeSpots);
+            if (settings.bulkEnabled != null) setBulkEnabled(settings.bulkEnabled);
+            if (settings.bulkThreshold != null) setBulkThreshold(settings.bulkThreshold);
+          }
+          track("break_created", { mode, productCount: nextLines.length });
         }}
       />
     </>
