@@ -15,12 +15,13 @@ Mobile uses full-width sections and a bottom-sheet picker. Desktop adds a sticky
 
 ## Visual language
 
-- Near-black canvas, flat graphite sections, restrained rules, and almost no shadow.
-- Acid green is the primary decision/action accent; violet distinguishes seller planning.
+- Near-black canvas, full-width working surfaces, exposed rules, and no decorative shadow.
+- Electric acid is the primary decision/action accent. Cyan identifies information, magenta adds directional energy, and violet distinguishes seller planning. Warning states use electric yellow instead of brown or earth tones.
 - Manrope carries display and numeric emphasis; DM Sans carries interface copy.
-- Geometry is crisp: square or 2px corners by default. Curves are reserved for data points, toggles, and physical card art. Motion is short and functional.
+- Geometry is cut and square. Interface controls, panels, badges, data marks, sheets, and dialogs use zero-radius corners; only physical card art retains its real-world silhouette. Motion is short, linear, and functional.
 - W/U/B/R/G/M/C/L colors live in slot chips and indicators. Every slot also has a letter and name, so color is never the sole signal.
 - Positive and negative states always include text, not only green or red.
+- `InformationLabel` is the sole component for eyebrow, step, and context labels. Shared primitives draw from the tokens in `future.css`; local variants extend the primitive instead of redefining it.
 
 ## Interaction
 
@@ -33,4 +34,4 @@ Mobile uses full-width sections and a bottom-sheet picker. Desktop adds a sticky
 
 ## Restraint
 
-Do not add decorative charts, persistent data tables, animated counters, card art walls, or extra modes to the first screen. A number is prominent only when it answers the current task.
+Do not add decorative charts, persistent data tables, animated counters, card art walls, ornamental gradients, glass effects, pill badges, nested cards, or extra modes to the first screen. A number is prominent only when it answers the current task.

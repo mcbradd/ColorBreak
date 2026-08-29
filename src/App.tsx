@@ -353,11 +353,19 @@ export function Tip({
   );
 }
 
-function SectionLabel({ children, text }: { children: ReactNode; text: string }) {
+function InformationLabel({
+  children,
+  help,
+  className = "",
+}: {
+  children: ReactNode;
+  help?: string;
+  className?: string;
+}) {
   return (
-    <p className="section-label">
+    <p className={`section-label information-label ${className}`.trim()}>
       <span>{children}</span>
-      <Tip text={text} />
+      {help && <Tip text={help} />}
     </p>
   );
 }
@@ -377,9 +385,7 @@ function PanelHeading({
 }) {
   return (
     <header className="panel-heading">
-      {help
-        ? <SectionLabel text={help}>{label}</SectionLabel>
-        : <p className="section-label">{label}</p>}
+      <InformationLabel help={help}>{label}</InformationLabel>
       <div className="panel-heading-main">
         <div className="panel-heading-copy">
           <h2>{title}</h2>
@@ -425,7 +431,7 @@ function Home({ choose }: { choose: (mode: Mode) => void }) {
         <span>COLORBREAK</span>
       </div>
       <section className="hero">
-        <p className="eyebrow">MTG COLOR BREAK INTELLIGENCE</p>
+        <InformationLabel>MTG COLOR BREAK INTELLIGENCE</InformationLabel>
         <h1>
           Know the break.
           <br />
@@ -435,6 +441,11 @@ function Home({ choose }: { choose: (mode: Mode) => void }) {
           Accurate product contents, color-slot value, and real marketplace
           economics—without the spreadsheet.
         </p>
+        <div className="hero-signals" aria-label="ColorBreak capabilities">
+          <span><b>01</b> Exact-printing value</span>
+          <span><b>02</b> Modeled outcome range</span>
+          <span><b>03</b> Marketplace-aware limits</span>
+        </div>
       </section>
       <section className="mode-grid">
         <button
@@ -632,9 +643,9 @@ function Builder({
                     />
                   </label>
                 </div>
-                <p className="section-label">
+                <InformationLabel>
                   {visible.length} {query ? "MATCHING SETS" : "SETS"}
-                </p>
+                </InformationLabel>
                 <div className="choice-list">
                   {visible.map((set) => (
                     <button key={set.code} onClick={() => setSelected(set)}>
@@ -661,9 +672,9 @@ function Builder({
                   <div className="product-groups">
                     {Object.entries(groupedProducts).map(([category, rows]) => (
                       <section key={category}>
-                        <p className="section-label">
+                        <InformationLabel>
                           {category.toUpperCase()}
-                        </p>
+                        </InformationLabel>
                         {rows!.map((product) => (
                           <button
                             key={product.key}
@@ -844,7 +855,7 @@ export function SlotRail({
     <section className="buyer-slot-control" aria-labelledby="buyer-color-heading">
       <div className="buyer-slot-heading">
         <div>
-          <p className="section-label">1 · BREAK FORMAT</p>
+          <InformationLabel>1 · BREAK FORMAT</InformationLabel>
           <h2 id="buyer-color-heading">{assignmentMode === "pick" ? "Choose your color" : assignmentMode === "random" ? "Mark colors already taken" : "Set the random spot count"}</h2>
           <p>{assignmentMode === "large" ? "For top-value cards and the 17 catch-all spots." : "Tap a color. Use × for colors already taken."}</p>
         </div>
@@ -1087,7 +1098,7 @@ export function CardInspector({
           >
             <header>
               <div>
-                <p className="section-label">CARD DETAILS</p>
+                <InformationLabel>CARD DETAILS</InformationLabel>
                 <h2 id="card-inspector-title">{cardDisplayName(row.card, row.finish)}</h2>
               </div>
               <button
@@ -1399,7 +1410,7 @@ function EvidenceDialog({ item, onClose }: { item: EvidenceExplanation | null; o
     <div className="scrim evidence-scrim" onPointerDown={onClose}>
       <section className="evidence-dialog" role="dialog" aria-modal="true" aria-labelledby="evidence-dialog-title" onPointerDown={(event) => event.stopPropagation()}>
         <header>
-          <div><p className="section-label">WHY THIS MATTERS</p><h2 id="evidence-dialog-title">{item.title}</h2></div>
+          <div><InformationLabel>WHY THIS MATTERS</InformationLabel><h2 id="evidence-dialog-title">{item.title}</h2></div>
           <button ref={closeRef} className="icon-button" onClick={onClose} aria-label="Close explanation"><X /></button>
         </header>
         <div className="evidence-explanation">
@@ -1801,7 +1812,7 @@ export function LargeBreakView({ analysis, lines, spots }: { analysis: BreakAnal
   return (
     <section className="large-break-results" aria-label="Large break spot value">
       <header className="large-break-result-head">
-        <div><p className="section-label">LARGE RANDOM BREAK</p><h2>{plan.spotCount} spots</h2></div>
+        <div><InformationLabel>LARGE RANDOM BREAK</InformationLabel><h2>{plan.spotCount} spots</h2></div>
         <Status result={result} />
       </header>
       <div className="large-break-metrics">
@@ -1816,7 +1827,7 @@ export function LargeBreakView({ analysis, lines, spots }: { analysis: BreakAnal
       <IncompleteDataWarning analysis={analysis} title="Some spot values may be low" />
       <section className="large-break-pool-section">
         <div className="large-break-section-heading large-break-top-heading">
-          <div><p className="section-label">NAMED POOL</p><h3>Top cards & characters</h3></div>
+          <div><InformationLabel>NAMED POOL</InformationLabel><h3>Top cards & characters</h3></div>
           <div className="top-card-sort" role="group" aria-label="Rank top spots by">
             <span>Rank by</span>
             <div>
@@ -1844,7 +1855,7 @@ export function LargeBreakView({ analysis, lines, spots }: { analysis: BreakAnal
         </div>
       </section>
       <section className="large-break-pool-section">
-        <div className="large-break-section-heading"><div><p className="section-label">RESIDUAL POOL</p><h3>Creature colors & card types</h3></div><span>Top-value named spots excluded</span></div>
+        <div className="large-break-section-heading"><div><InformationLabel>RESIDUAL POOL</InformationLabel><h3>Creature colors & card types</h3></div><span>Top-value named spots excluded</span></div>
         <div className="large-break-category-head"><span>Slot</span><span>Slot EV</span></div>
         {plan.categories.map((category) => {
           const slotKey = `category:${category.key}`;
@@ -1947,7 +1958,7 @@ export function BuyerView({
         </div>
         <div className="verdict-head">
           <div className="verdict-decision">
-            <p className="section-label">Recommendation</p>
+            <InformationLabel>Recommendation</InformationLabel>
             <h2 aria-live="polite">{decision}</h2>
             {bid == null && <p className="decision-reason"><a href="#buyer-current-bid">Enter the current auction price</a> to compare it with your maximum hammer.</p>}
             {bid != null && shipping == null && <p className="decision-reason"><a href="#buyer-added-shipping">Enter the extra shipping charged for this purchase</a>. It affects your landed cost and maximum hammer.</p>}
@@ -2386,7 +2397,7 @@ function LegacySellerView({
         </div>
         <div className="seller-decision-main">
           <div>
-            <p className="section-label">RECOMMENDATION</p>
+            <InformationLabel>RECOMMENDATION</InformationLabel>
             <h2>{costsComplete ? planStatusLabel : missingCostLine ? <a href={`#seller-cost-${missingCostLine.id}`}>ENTER COST FOR {missingCostLine.productLabel.toUpperCase()}</a> : "ENTER PRODUCT COST"}</h2>
             {costsComplete && <p>Modeled buyer card value is {fmt(Math.abs(planStatus.headroom))} {planStatus.headroom >= 0 ? "above" : "below"} the sales target. Validate demand before launch.</p>}
           </div>
@@ -2604,9 +2615,9 @@ function LegacySellerView({
           className={`panel profit ${profit.profit >= targetProfit ? "positive" : "negative"}`}
         >
           <header className="profit-heading">
-            <SectionLabel text="Shows what you would keep after the entered sale prices, fees, product costs, packing, and shipping you cover.">
+            <InformationLabel help="Shows what you would keep after the entered sale prices, fees, product costs, packing, and shipping you cover.">
               ACTUAL OUTCOME
-            </SectionLabel>
+            </InformationLabel>
           </header>
           <h2>{fmt(profit.profit)} profit</h2>
           <div className="metric-row profit-metrics">
@@ -2718,7 +2729,7 @@ function SellerEnticement({
   return (
     <section className="seller-enticement" aria-label="Enticement">
       <div className="seller-section-heading">
-        <div><p className="section-label">4 · ENTICEMENT</p><h2>Bonus pack threshold</h2></div>
+        <div><InformationLabel>4 · ENTICEMENT</InformationLabel><h2>Bonus pack threshold</h2></div>
         <small>One pack per bid over the threshold</small>
       </div>
       <div className="enticement-controls">
@@ -2818,7 +2829,7 @@ export function SellerView({
     <section className="seller-command-center">
       <section className="seller-contents" aria-labelledby="seller-contents-heading">
         <div className="seller-section-heading">
-          <div><p className="section-label">1 · BREAK</p><h2 id="seller-contents-heading">Contents &amp; cost basis</h2></div>
+          <div><InformationLabel>1 · BREAK</InformationLabel><h2 id="seller-contents-heading">Contents &amp; cost basis</h2></div>
           <button className="quiet" onClick={add}><PackagePlus />Add</button>
         </div>
         <div className="seller-product-lines">
@@ -2987,7 +2998,7 @@ export function BuyerSetup({
         showHelp={false}
       />
       <div className="buyer-options-heading">
-        <p className="section-label">3 · VALUE FILTER</p>
+        <InformationLabel>3 · VALUE FILTER</InformationLabel>
         <h2>Set what counts as value</h2>
       </div>
       <BulkFilterControl
