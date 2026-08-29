@@ -13,6 +13,7 @@ ColorBreak is a decision instrument, not a dashboard. It should feel fast, calm,
 
 Mobile uses full-width sections and a bottom-sheet picker. Desktop adds a sticky composition column; it does not add a denser information model.
 Every empty, incomplete, and calculated state names the next useful action. Returning users may resume saved work explicitly; starting a Bid Check always begins clean unless they choose Resume.
+On phone layouts, 17px is the absolute minimum for readable text, including labels, captions, badges, chart annotations, and secondary evidence. Density must yield to legibility; layouts expand or scroll instead of shrinking type.
 
 ## Visual language
 

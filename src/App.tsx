@@ -430,7 +430,7 @@ function Home({ choose }: { choose: (mode: Mode, fresh?: boolean) => void }) {
           <span className="brand-mark"><Sparkles /></span>
           <span>COLORBREAK</span>
         </div>
-        <span className="engine-ready"><i /> VALUE ENGINE READY</span>
+        <span className="engine-ready" aria-label="Value engine ready"><i /> READY</span>
       </header>
       <section className="launcher-intro">
         <InformationLabel>Decision launcher</InformationLabel>

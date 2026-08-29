@@ -493,6 +493,32 @@ input {
   .sheet { inset: 0; width: 100%; max-height: 100dvh; }
 }
 
+/*
+ * Phone typography contract: 17px is the absolute floor for readable text.
+ * Layouts must expand or scroll; type must never shrink to solve density.
+ */
+@media (max-width: 700px) {
+  body { font-size: 17px; }
+  :where(
+    p, span, small, label, a, button, input, select, textarea, summary,
+    li, dt, dd, th, td, b, strong, em
+  ) { font-size: max(17px, 1em) !important; }
+  button,
+  input,
+  select,
+  textarea { min-height: 48px; }
+  .information-label { line-height: 1.35; letter-spacing: .1em; }
+  .engine-ready { letter-spacing: .08em; }
+  .mode-card { min-height: 178px; }
+  .mode-copy strong { font-size: 26px !important; }
+  .mode-copy p { line-height: 1.45; }
+  .bid-live-decision .ev-orb .max-hammer { font-size: 38px !important; }
+  .large-break-metrics strong,
+  .upside-callout b,
+  .seller-break-even strong { font-size: 30px !important; }
+  .launcher-footer { line-height: 1.5; }
+}
+
 @media (prefers-reduced-motion: no-preference) {
   .mode-card,
   .primary,
