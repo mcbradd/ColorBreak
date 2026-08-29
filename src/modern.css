@@ -453,7 +453,7 @@ body {
 .large-break-card-value .excluded-ev:hover,.large-break-card-value .excluded-ev:focus-visible { color: #151006; background: #ffd087; outline: 0; }
 .large-break-overflow { margin: 0; padding: 10px 20px; color: var(--muted); font-size: 9px; }
 .large-break-category-head,
-.large-break-category { display: grid; grid-template-columns: minmax(0, 1fr) 88px 88px; gap: 10px; align-items: center; }
+.large-break-category { display: grid; grid-template-columns: minmax(0, 1fr) 88px; gap: 10px; align-items: center; }
 .large-break-category-head { padding: 8px 20px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); color: #697283; font-size: 8px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; }
 .large-break-category-head span:not(:first-child) { text-align: right; }
 .large-break-category { min-height: 52px; padding: 8px 20px; border-bottom: 1px solid var(--line); }
@@ -477,7 +477,7 @@ body {
   .top-card-sort { align-items: flex-end; flex-direction: column; gap: 4px; }
   .top-card-sort button { min-height: 28px; padding-inline: 8px; }
   .large-break-category-head,
-  .large-break-category { grid-template-columns: minmax(0, 1fr) 70px 70px; padding-inline: 12px; }
+  .large-break-category { grid-template-columns: minmax(0, 1fr) 70px; padding-inline: 12px; }
 }
 
 /* Nested evidence reads as rows within its parent section. */

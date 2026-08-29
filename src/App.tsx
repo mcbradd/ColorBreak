@@ -846,7 +846,7 @@ export function SlotRail({
         <div>
           <p className="section-label">1 · BREAK FORMAT</p>
           <h2 id="buyer-color-heading">{assignmentMode === "pick" ? "Choose your color" : assignmentMode === "random" ? "Mark colors already taken" : "Set the random spot count"}</h2>
-          <p>{assignmentMode === "large" ? "For named-card, creature-color, and card-type spots." : "Tap a color. Use × for colors already taken."}</p>
+          <p>{assignmentMode === "large" ? "For top-value cards and the 17 catch-all spots." : "Tap a color. Use × for colors already taken."}</p>
         </div>
       </div>
       <div className="assignment-toggle buyer-assignment-toggle" role="group" aria-label="Break assignment mode">
@@ -862,7 +862,7 @@ export function SlotRail({
         <div className="large-break-spot-input">
           <div className="large-break-spot-label"><span>Random spots</span><small>Usually 100–200</small></div>
           <NumericInput value={largeSpots} onCommit={(value) => setLargeSpots(Math.max(1, Math.min(500, Math.round(value ?? 1))))} ariaLabel="Large break spot count" live />
-          <p><b>{Math.round(largeSpots * .75)}</b> named-card targets · <b>{largeSpots - Math.round(largeSpots * .75)}</b> residual category spots</p>
+          <p><b>17</b> catch-all spots · remaining spots use top-value cards, with characters grouped by name</p>
         </div>
       ) : <><div className="buyer-slot-rail" role="group" aria-label="Color slots">
         {SLOT_IDS.map((id) => {
@@ -1750,15 +1750,15 @@ export function LargeBreakView({ analysis, lines, spots }: { analysis: BreakAnal
         <div><span>Pull EV / spot</span><strong>{fmt(plan.totalPullEV / plan.spotCount)}</strong><small>{result.threshold > 0 ? `Cards under ${fmt(result.threshold)} ignored as bulk` : "All priced cards included"}</small></div>
       </div>
       <div className="large-break-allocation">
-        <div><span>Named card spots</span><b>{plan.namedCards.length}</b><small>{fmt(namedEV)} pull EV</small></div>
-        <div><span>Category spots</span><b>{plan.categories.reduce((sum, row) => sum + row.spots, 0)}</b><small>{fmt(categoryEV)} pull EV</small></div>
+        <div><span>Top-value spots</span><b>{plan.namedCards.length}</b><small>{fmt(namedEV)} pull EV</small></div>
+        <div><span>Category spots</span><b>{plan.categories.length}</b><small>{fmt(categoryEV)} pull EV</small></div>
         <div><span>Total pull EV</span><b>{fmt(plan.totalPullEV)}</b><small>Expected across the opening</small></div>
       </div>
       <IncompleteDataWarning analysis={analysis} title="Some spot values may be low" />
       <section className="large-break-pool-section">
         <div className="large-break-section-heading large-break-top-heading">
-          <div><p className="section-label">NAMED POOL</p><h3>Top cards</h3></div>
-          <div className="top-card-sort" role="group" aria-label="Rank top cards by">
+          <div><p className="section-label">NAMED POOL</p><h3>Top cards & characters</h3></div>
+          <div className="top-card-sort" role="group" aria-label="Rank top spots by">
             <span>Rank by</span>
             <div>
               <button type="button" aria-pressed={topCardSort === "price"} onClick={() => setTopCardSort("price")}>Price</button>
@@ -1779,14 +1779,14 @@ export function LargeBreakView({ analysis, lines, spots }: { analysis: BreakAnal
             </div>
           </div>)}
         </div>
-        {rankedNamedCards.length > 12 && <p className="large-break-overflow">Showing 12 of {rankedNamedCards.length} individually named spots.</p>}
+        {rankedNamedCards.length > 12 && <p className="large-break-overflow">Showing 12 of {rankedNamedCards.length} top-value spots.</p>}
       </section>
       <section className="large-break-pool-section">
-        <div className="large-break-section-heading"><div><p className="section-label">RESIDUAL POOL</p><h3>Creature colors & card types</h3></div><span>Individually named cards excluded</span></div>
-        <div className="large-break-category-head"><span>Slot group</span><span>Group EV</span><span>EV / spot</span></div>
+        <div className="large-break-section-heading"><div><p className="section-label">RESIDUAL POOL</p><h3>Creature colors & card types</h3></div><span>Top-value named spots excluded</span></div>
+        <div className="large-break-category-head"><span>Slot</span><span>Slot EV</span></div>
         {plan.categories.map((category) => <div className="large-break-category" key={category.key}>
-          <div><strong>{category.label}</strong><small>{category.cardCount} remaining cards · {category.spots} spot{category.spots === 1 ? "" : "s"}</small></div>
-          <span>{fmt(category.pullEV)}</span><b>{fmt(category.evPerSpot)}</b>
+          <div><strong>{category.label}</strong><small>{category.cardCount} remaining card{category.cardCount === 1 ? "" : "s"}</small></div>
+          <b>{fmt(category.pullEV)}</b>
         </div>)}
       </section>
       <CardInspector row={inspectedCard} status={result.status} threshold={result.threshold} onClose={() => setInspectedCard(null)} />

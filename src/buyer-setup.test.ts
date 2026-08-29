@@ -77,7 +77,6 @@ describe("Check a Bid setup order", () => {
     }));
     expect(screen.getByRole("button", { name: "Large break" })).toHaveClass("active");
     expect(screen.getByLabelText("Large break spot count")).toHaveValue("120");
-    expect(screen.getByText("90")).toBeInTheDocument();
-    expect(screen.getByText(/named-card targets/)).toBeInTheDocument();
+    expect(screen.getByText(/remaining spots use top-value cards/i)).toHaveTextContent("17 catch-all spots");
   });
 });
