@@ -63,6 +63,7 @@ describe("mobile input viewport", () => {
     });
     expect(document.documentElement.style.getPropertyValue("--visual-viewport-height"))
       .toBe("360px");
+    expect(document.documentElement).toHaveClass("keyboard-open");
   });
 
   it("restores the exact pre-keyboard view after the keyboard closes", () => {
@@ -80,6 +81,7 @@ describe("mobile input viewport", () => {
     viewport.height = 844;
     viewport.dispatchEvent(new Event("resize"));
     vi.runAllTimers();
+    expect(document.documentElement).not.toHaveClass("keyboard-open");
     expect(scrollTo).toHaveBeenCalledWith({
       behavior: "auto",
       left: 12,
@@ -110,9 +112,39 @@ describe("mobile input viewport", () => {
     reveal.mockClear();
 
     top = -300;
+    viewport.offsetTop = 56;
     viewport.dispatchEvent(new Event("scroll"));
     vi.runAllTimers();
 
     expect(reveal).not.toHaveBeenCalled();
+    expect(document.documentElement.style.getPropertyValue("--visual-viewport-top"))
+      .toBe("56px");
+  });
+
+  it("treats a sticky composer action rail as keyboard occlusion", () => {
+    const sheet = document.createElement("section");
+    sheet.className = "sheet";
+    const input = document.createElement("input");
+    const reveal = vi.fn();
+    input.scrollIntoView = reveal;
+    input.getBoundingClientRect = () => ({
+      top: 270, bottom: 320, left: 0, right: 200, width: 200, height: 50,
+      x: 0, y: 270, toJSON: () => ({}),
+    });
+    const footer = document.createElement("footer");
+    footer.className = "composer-actions";
+    footer.getBoundingClientRect = () => ({
+      top: 300, bottom: 360, left: 0, right: 390, width: 390, height: 60,
+      x: 0, y: 300, toJSON: () => ({}),
+    });
+    sheet.append(input, footer);
+    document.body.append(sheet);
+
+    input.focus();
+    viewport.height = 360;
+    viewport.dispatchEvent(new Event("resize"));
+    vi.runAllTimers();
+
+    expect(reveal).toHaveBeenCalled();
   });
 });

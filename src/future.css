@@ -25,6 +25,8 @@
   --warning: #ffd400;
   --focus: #ffffff;
   --space-page: clamp(12px, 2.4vw, 36px);
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
   --rule: 1px solid var(--line);
   font-family: "DM Sans", Inter, system-ui, sans-serif;
   background: var(--canvas);
@@ -640,8 +642,8 @@ input {
 
 @media (max-width: 520px) {
   :root { --space-page: 10px; }
-  nav { height: 52px; }
-  .home.page { padding-block: 8px 14px; }
+  nav { height: auto; min-height: calc(52px + var(--safe-top)); padding-top: var(--safe-top); }
+  .home.page { min-height: var(--visual-viewport-height, 100dvh); padding-top: max(8px, var(--safe-top)); padding-bottom: max(14px, var(--safe-bottom)); }
   .launcher-bar { min-height: 42px; }
   .engine-ready { font-size: 7px; }
   .launcher-intro { gap: 8px; padding-block: 18px; }
@@ -663,7 +665,7 @@ input {
   .information-label { font-size: 9px; }
   .panel > .panel-heading,
   .panel-heading { padding-inline: 12px; }
-  .sheet { inset: 0; width: 100%; max-height: 100dvh; }
+  .sheet { inset: 0; width: 100%; height: var(--visual-viewport-height, 100dvh); max-height: var(--visual-viewport-height, 100dvh); padding-bottom: var(--safe-bottom); }
 }
 
 /*
@@ -827,7 +829,7 @@ input {
   .mobile-stage-nav {
     position: sticky;
     z-index: 20;
-    top: 52px;
+    top: calc(52px + var(--safe-top));
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
     margin: -1px 0 10px;
@@ -837,6 +839,35 @@ input {
   .mobile-stage-nav a { display: grid; place-items: center; min-height: 48px; color: var(--ink); text-decoration: none; font-weight: 850; }
   .mobile-stage-nav a + a { border-left: var(--rule); }
   .mobile-stage-nav a:first-child { color: var(--accent); }
+}
+
+/*
+ * Mobile Chrome/iOS keyboard contract. When the visual viewport collapses,
+ * keep the focused field and its transaction action in the same visible pane.
+ */
+.keyboard-open .sheet > header {
+  min-height: 56px;
+  padding-block: 6px;
+}
+.keyboard-open .sheet > header .icon-button { width: 48px; height: 48px; }
+.keyboard-open .composer-status { display: none; }
+.keyboard-open .break-import { gap: 8px; padding: 8px 12px; }
+.keyboard-open .break-import > p,
+.keyboard-open .break-import > code { display: none; }
+.keyboard-open .break-import textarea {
+  min-height: 72px;
+  height: clamp(72px, calc(var(--visual-viewport-height, 100dvh) - 174px), 150px);
+  resize: none;
+}
+.keyboard-open .composer-actions {
+  padding-top: 6px;
+  padding-bottom: max(6px, var(--safe-bottom));
+}
+.keyboard-open .composer-actions button { min-height: 48px; }
+.keyboard-open .sheet { scroll-padding-block: 72px calc(90px + var(--safe-bottom)); }
+.keyboard-open :is(input, textarea, select, [contenteditable="true"]) {
+  scroll-margin-top: 72px;
+  scroll-margin-bottom: calc(90px + var(--safe-bottom));
 }
 
 @media (prefers-reduced-motion: no-preference) {

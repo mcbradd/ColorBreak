@@ -56,8 +56,17 @@ export function installMobileInputViewport() {
     revealTimer = window.setTimeout(() => {
       if (!session || document.activeElement !== session.element) return;
       const rect = session.element.getBoundingClientRect();
-      const safeTop = viewportTop() + 20;
-      const safeBottom = viewportTop() + viewportHeight() - 20;
+      const sheet = session.element.closest(".sheet");
+      const stickyHeader = sheet?.querySelector<HTMLElement>(":scope > header");
+      const stickyActions = sheet?.querySelector<HTMLElement>(".composer-actions");
+      const safeTop = Math.max(
+        viewportTop() + 20,
+        (stickyHeader?.getBoundingClientRect().bottom ?? 0) + 12,
+      );
+      const safeBottom = Math.min(
+        viewportTop() + viewportHeight() - 20,
+        (stickyActions?.getBoundingClientRect().top ?? Number.POSITIVE_INFINITY) - 12,
+      );
       if (rect.top < safeTop || rect.bottom > safeBottom) {
         session.element.scrollIntoView?.({
           behavior: "smooth",
@@ -73,6 +82,7 @@ export function installMobileInputViewport() {
     const saved = session;
     session = null;
     root.classList.remove("input-focus-active");
+    root.classList.remove("keyboard-open");
     saved.scrollParents.forEach(({ element, left, top }) => {
       element.scrollTo?.({ behavior: "auto", left, top });
     });
@@ -120,9 +130,13 @@ export function installMobileInputViewport() {
     previousViewportHeight = nextHeight;
     syncViewport();
     if (keyboardOpened && session && document.activeElement === session.element) {
+      root.classList.add("keyboard-open");
       revealFocused();
     } else if (keyboardClosed && session && !editableTarget(document.activeElement)) {
+      root.classList.remove("keyboard-open");
       requestRestore();
+    } else if (keyboardClosed) {
+      root.classList.remove("keyboard-open");
     }
   };
   const onViewportScroll = () => {
@@ -151,6 +165,7 @@ export function installMobileInputViewport() {
     viewport?.removeEventListener("scroll", onViewportScroll);
     window.removeEventListener("orientationchange", onOrientationChange);
     root.classList.remove("input-focus-active");
+    root.classList.remove("keyboard-open");
     root.style.removeProperty("--visual-viewport-height");
     root.style.removeProperty("--visual-viewport-top");
   };

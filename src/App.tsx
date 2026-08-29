@@ -697,7 +697,6 @@ function Builder({
                 <code>SPM | Play Booster Pack | 10</code>
                 <textarea autoFocus value={importSource} onChange={(event) => setImportSource(event.target.value)} placeholder="Paste link or product list" aria-label="Break link or product list" />
                 {importErrors.length > 0 && <ul className="import-errors">{importErrors.map((error) => <li key={error}>{error}</li>)}</ul>}
-                <button className="primary import-review-action" disabled={!importSource.trim() || importing} onClick={resolveImport}>{importing ? "Checking products…" : "Review products"}</button>
               </section>
             ) : composerMode === "review" ? (
               <section className="import-review">
@@ -792,6 +791,8 @@ function Builder({
                     ? `Resolve ${importIssueCount} line${importIssueCount === 1 ? "" : "s"} to continue`
                     : `${importSettings ? "Replace with" : "Add"} ${importMatched.length} lines · ${importOpeningCount} openings`}
                 </button>
+              ) : composerMode === "paste" ? (
+                <button type="button" className="primary" disabled={!importSource.trim() || importing} onClick={resolveImport}>{importing ? "Checking products…" : "Review products"}</button>
               ) : (
                 <button type="button" className="primary" disabled={!draft.length} onClick={() => { onApply(draft); onClose(); }}>Done · {draft.length} line{draft.length === 1 ? "" : "s"}</button>
               )}
