@@ -87,6 +87,32 @@ describe("large break card list", () => {
     expect(screen.getByRole("dialog", { name: "Named Dragon" })).toBeInTheDocument();
   });
 
+  it("shows the compact-list price in the card details panel when it comes from a listed-price fallback", () => {
+    const valuation = calculateBreak({
+      threshold: 2,
+      prices: [{
+        id: "listed-foil", set: "TST", collectorNumber: "1", name: "Listed Foil", slot: "R",
+        nonfoil: null, foil: null, prices: { foil: null }, listedPrices: { foil: 18.25 },
+      }],
+      draws: [{ set: "TST", collectorNumber: "1", copies: 1, finish: "foil", foil: true, source: "test" }],
+    });
+    const analysis = {
+      valuation,
+      outcomeModel: { cacheKey: "test", complete: true, packs: [], fixed: [] },
+      outcomeOmissions: [],
+      priceAvailability: { status: "available", source: "snapshot" },
+    } as BreakAnalysis;
+
+    render(createElement(LargeBreakView, { analysis, lines: [], spots: 18 }));
+    fireEvent.click(screen.getByRole("button", { name: "Show cards in Listed Foil slot" }));
+    const compactCard = screen.getByRole("button", { name: "Open Listed Foil (Foil) card details" });
+    expect(compactCard).toHaveTextContent("$18.25 · Foil · TST");
+    fireEvent.click(compactCard);
+
+    const dialog = screen.getByRole("dialog", { name: "Listed Foil (Foil)" });
+    expect(dialog).toHaveTextContent("Selected finish price$18.25");
+  });
+
   it("lists every named slot and opens every card assigned to a selected slot", () => {
     const prices = Array.from({ length: 14 }, (_, index) => ({
       id: `card-${index}`,

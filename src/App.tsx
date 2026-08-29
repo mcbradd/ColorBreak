@@ -1043,6 +1043,22 @@ export function CardInspector({
     ? affiliateTemplate?.replace("{card}", encodeURIComponent(row.card.name))
     : undefined;
   const odds = row?.sellablePullProbability ?? 0;
+  const selectedFinish = row?.finish ?? (row && row.sellableFoilCopies > 0 ? "foil" : "nonfoil");
+  const selectedPrice = row
+    ? row.marketPrice ?? (selectedFinish === "foil" ? row.card.foil : row.card.nonfoil) ?? undefined
+    : undefined;
+  const selectedPriceSource = row?.priceBasis === "listed-tcg"
+    ? "Exact-printing listed TCG price"
+    : row?.priceBasis === "same-printing-foil-market"
+      ? "Same-printing foil market price"
+      : "Exact-printing market price";
+  const baseSelectedPrice = row
+    ? selectedFinish === "foil" ? row.card.foil : selectedFinish === "nonfoil" ? row.card.nonfoil : undefined
+    : undefined;
+  const showSelectedFinishPrice = Boolean(row && (
+    selectedFinish !== "nonfoil"
+    || selectedPrice !== (baseSelectedPrice ?? undefined)
+  ));
   const faces = row?.card.faces ?? [];
   const activeFace = faces[faceIndex];
   const activeImage = activeFace?.image ?? row?.card.image;
@@ -1123,6 +1139,11 @@ export function CardInspector({
                     <strong>{fmt(row.card.foil ?? undefined)}</strong>
                   </div>
                 </div>
+                {showSelectedFinishPrice && <div className="card-stat selected-finish-price">
+                  <span>Selected finish price</span>
+                  <strong>{fmt(selectedPrice)}</strong>
+                  <small>{row ? `${cardTreatmentLabel(row.card, selectedFinish)} · ${selectedPriceSource}` : selectedPriceSource}</small>
+                </div>}
                 <div className="card-stat">
                   <span>Average copies per break</span>
                   <strong>
