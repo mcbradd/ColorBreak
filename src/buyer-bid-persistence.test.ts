@@ -7,7 +7,7 @@ import type { BreakAnalysis } from "./data/evaluate";
 const evaluateBreakAnalysis = vi.hoisted(() => vi.fn());
 vi.mock("./data/evaluate", () => ({ evaluateBreakAnalysis }));
 
-import { Workspace } from "./App";
+import { App, Workspace } from "./App";
 
 const valuation = calculateBreak({
   prices: [{ id: "w", set: "TST", collectorNumber: "1", name: "White", slot: "W", nonfoil: 20, foil: null }],
@@ -70,5 +70,15 @@ describe("buyer bid persistence", () => {
     render(createElement(Workspace, { mode: "buyer", exit: vi.fn() }));
     expect(await screen.findByLabelText("Current bid")).toHaveValue("12.5");
     expect(screen.getByLabelText("Your added shipping")).toHaveValue("4.25");
+  });
+
+  it("starts with empty break contents when Bid Check is opened from the base page", async () => {
+    render(createElement(App));
+
+    fireEvent.click(screen.getByRole("button", { name: /Bid Check/ }));
+
+    expect(await screen.findByRole("heading", { name: "Bid Check" })).toBeInTheDocument();
+    expect(screen.getByText("0 products")).toBeInTheDocument();
+    expect(screen.queryByText("Play Booster Box")).not.toBeInTheDocument();
   });
 });

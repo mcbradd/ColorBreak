@@ -3005,16 +3005,18 @@ export function BuyerSetup({
 export function Workspace({
   mode,
   exit,
+  startFresh = false,
 }: {
   mode: "buyer" | "seller";
   exit: () => void;
+  startFresh?: boolean;
 }) {
   const legacy = useMemo(() => decodeLegacySearch(location.search), []);
   const sharedBuyer = useMemo(() => decodeBuyerShare(location.search), []);
   const firstResultTracked = useRef(false);
   const calculationStarted = useRef(Date.now());
   const [lines, setLines] = useState<BreakLine[]>(() =>
-      storedLines(mode, legacy),
+      startFresh && mode === "buyer" ? [] : storedLines(mode, legacy),
     ),
     [builder, setBuilder] = useState(false),
     [analysis, setAnalysis] = useState<BreakAnalysis>(),
@@ -3247,7 +3249,9 @@ export function App() {
         ? "buyer"
         : "home";
   const [mode, setMode] = useState<Mode>(initial);
+  const [startFreshBuyer, setStartFreshBuyer] = useState(false);
   const choose = (next: Mode) => {
+    setStartFreshBuyer(next === "buyer" && mode === "home");
     setMode(next);
     history.replaceState(
       null,
@@ -3267,7 +3271,11 @@ export function App() {
         {mode === "home" ? (
           <Home choose={choose} />
         ) : (
-          <Workspace mode={mode} exit={() => choose("home")} />
+          <Workspace
+            mode={mode}
+            exit={() => choose("home")}
+            startFresh={mode === "buyer" && startFreshBuyer}
+          />
         )}
       </motion.div>
     </AnimatePresence>
