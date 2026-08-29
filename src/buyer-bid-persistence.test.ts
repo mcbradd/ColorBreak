@@ -73,6 +73,7 @@ describe("buyer bid persistence", () => {
   });
 
   it("starts with empty break contents when Bid Check is opened from the base page", async () => {
+    history.replaceState(null, "", "/");
     render(createElement(App));
 
     fireEvent.click(screen.getByRole("button", { name: /Bid Check/ }));
@@ -80,5 +81,14 @@ describe("buyer bid persistence", () => {
     expect(await screen.findByRole("heading", { name: "Bid Check" })).toBeInTheDocument();
     expect(screen.getByText("0 products")).toBeInTheDocument();
     expect(screen.queryByText("Play Booster Box")).not.toBeInTheDocument();
+  });
+
+  it("offers an explicit one-tap resume for the last buyer setup", async () => {
+    history.replaceState(null, "", "/");
+    render(createElement(App));
+
+    fireEvent.click(screen.getByRole("button", { name: /Resume 1 product/ }));
+
+    expect(await screen.findByText("Play Booster Box")).toBeInTheDocument();
   });
 });

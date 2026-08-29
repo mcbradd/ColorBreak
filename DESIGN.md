@@ -6,12 +6,13 @@ ColorBreak is a decision instrument, not a dashboard. It should feel fast, calm,
 
 ## Hierarchy
 
-1. Choose a job: buyer or seller.
+1. Launch a decision: “Should I bid?” or “Should I run it?” The entry is an appliance launcher, never a marketing hero.
 2. Define the break with set, product, and quantity.
 3. Show the task’s answer: buyer verdict or seller target plan.
 4. Reveal evidence: EV definitions, confidence, risk, contributors, and omissions.
 
 Mobile uses full-width sections and a bottom-sheet picker. Desktop adds a sticky composition column; it does not add a denser information model.
+Every empty, incomplete, and calculated state names the next useful action. Returning users may resume saved work explicitly; starting a Bid Check always begins clean unless they choose Resume.
 
 ## Visual language
 

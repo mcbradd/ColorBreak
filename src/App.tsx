@@ -420,78 +420,64 @@ function Status({ result }: { result: ValuationResult }) {
   );
 }
 
-function Home({ choose }: { choose: (mode: Mode) => void }) {
+function Home({ choose }: { choose: (mode: Mode, fresh?: boolean) => void }) {
   const supportUrl = import.meta.env.VITE_SUPPORT_URL as string | undefined;
+  const recentBuyer = storedLines("buyer", []);
   return (
     <main className="home page">
-      <div className="brand">
-        <span className="brand-mark">
-          <Sparkles />
-        </span>
-        <span>COLORBREAK</span>
-      </div>
-      <section className="hero">
-        <InformationLabel>MTG COLOR BREAK INTELLIGENCE</InformationLabel>
-        <h1>
-          Know the break.
-          <br />
-          <em>Make the call.</em>
-        </h1>
-        <p>
-          Accurate product contents, color-slot value, and real marketplace
-          economics—without the spreadsheet.
-        </p>
-        <div className="hero-signals" aria-label="ColorBreak capabilities">
-          <span><b>01</b> Exact-printing value</span>
-          <span><b>02</b> Modeled outcome range</span>
-          <span><b>03</b> Marketplace-aware limits</span>
+      <header className="launcher-bar">
+        <div className="brand">
+          <span className="brand-mark"><Sparkles /></span>
+          <span>COLORBREAK</span>
         </div>
+        <span className="engine-ready"><i /> VALUE ENGINE READY</span>
+      </header>
+      <section className="launcher-intro">
+        <InformationLabel>Decision launcher</InformationLabel>
+        <h1>What do you need to decide?</h1>
+        <p>Choose the job. Add what’s being opened. Get a clear answer.</p>
       </section>
-      <section className="mode-grid">
+      <section className="mode-grid" aria-label="Choose a job">
         <button
           className="mode-card buyer-card"
-          onClick={() => choose("buyer")}
+          aria-label="Bid Check — should I bid?"
+          onClick={() => choose("buyer", true)}
         >
-          <span className="mode-icon">
-            <DollarSign />
+          <span className="mode-number">01</span>
+          <span className="mode-copy">
+            <small>BUYING A COLOR SLOT</small>
+            <strong>Should I bid?</strong>
+            <p>Pick the product and your color, then enter the current price.</p>
           </span>
-          <span>
-            <small>BUYER · SUB-10 SECOND MODE</small>
-            <strong>Bid Check</strong>
-            <p>Prepare a limit, then make one clear call before the clock runs out.</p>
-          </span>
+          <span className="mode-output"><small>YOUR ANSWER</small><b>Maximum hammer</b><span>Bid · Stop · Pass</span></span>
           <ChevronRight />
         </button>
         <button
           className="mode-card seller-card"
+          aria-label="Seller Studio — should I run it?"
           onClick={() => choose("seller")}
         >
-          <span className="mode-icon">
-            <Store />
+          <span className="mode-number">02</span>
+          <span className="mode-copy">
+            <small>PLANNING A BREAK</small>
+            <strong>Should I run it?</strong>
+            <p>Add products and costs. ColorBreak builds the viable plan.</p>
           </span>
-          <span>
-            <small>SELLER · PLAN TO LAUNCH</small>
-            <strong>Seller Studio</strong>
-            <p>See complete-cost economics first, then build a launch-ready plan.</p>
-          </span>
+          <span className="mode-output"><small>YOUR ANSWER</small><b>Run decision</b><span>Asks · Fill · Profit</span></span>
           <ChevronRight />
         </button>
       </section>
-      <p className="source-note">
-        Prices by Scryfall · Product data by MTGJSON · No login required
-      </p>
-      <p className="source-note source-links">
-        <a href="/methodology.html">Methodology</a> ·{" "}
-        <a href="/privacy.html">Privacy</a>
-        {supportUrl && (
-          <>
-            {" "}·{" "}
-            <a href={supportUrl} rel="noreferrer" target="_blank">
-              Support ColorBreak
-            </a>
-          </>
-        )}
-      </p>
+      {recentBuyer.length > 0 && (
+        <button className="resume-action" onClick={() => choose("buyer", false)}>
+          <RotateCw />
+          <span><small>LAST BUYER SETUP</small><strong>Resume {recentBuyer.length} product{recentBuyer.length === 1 ? "" : "s"}</strong></span>
+          <ChevronRight />
+        </button>
+      )}
+      <footer className="launcher-footer">
+        <span>Exact-printing prices · Modeled pull ranges · No login</span>
+        <span><a href="/methodology.html">Methodology</a> · <a href="/privacy.html">Privacy</a>{supportUrl && <> · <a href={supportUrl} rel="noreferrer" target="_blank">Support</a></>}</span>
+      </footer>
     </main>
   );
 }
@@ -3261,8 +3247,8 @@ export function App() {
         : "home";
   const [mode, setMode] = useState<Mode>(initial);
   const [startFreshBuyer, setStartFreshBuyer] = useState(false);
-  const choose = (next: Mode) => {
-    setStartFreshBuyer(next === "buyer" && mode === "home");
+  const choose = (next: Mode, fresh = next === "buyer" && mode === "home") => {
+    setStartFreshBuyer(fresh);
     setMode(next);
     history.replaceState(
       null,
