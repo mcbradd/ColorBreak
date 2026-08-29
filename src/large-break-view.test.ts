@@ -77,12 +77,13 @@ describe("large break card list", () => {
       priceAvailability: { status: "available", source: "snapshot" },
     } as BreakAnalysis;
 
-    render(createElement(LargeBreakView, { analysis, lines: [], spots: 18 }));
+    const { container } = render(createElement(LargeBreakView, { analysis, lines: [], spots: 18 }));
     const slot = screen.getByRole("button", { name: "Show cards in Named Dragon slot" });
     expect(slot).toHaveTextContent("$50.00 · Nonfoil · TST");
     fireEvent.click(slot);
     const entry = screen.getByRole("button", { name: "Open Named Dragon card details" });
     expect(entry).toHaveTextContent("$50.00 · Nonfoil · TST");
+    expect(container.querySelector(".large-break-slot-cards .card-thumbnail")).toBeEmptyDOMElement();
     fireEvent.click(entry);
     expect(screen.getByRole("dialog", { name: "Named Dragon" })).toBeInTheDocument();
   });

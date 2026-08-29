@@ -1632,7 +1632,7 @@ function CardThumbnail({ row }: { row: Contributor }) {
       style={{ backgroundImage: row.card.image ? `url("${row.card.image}")` : undefined }}
       aria-hidden="true"
     >
-      {row.card.name.slice(0, 1)}
+      {row.card.image ? null : row.card.name.slice(0, 1)}
     </span>
   );
 }
