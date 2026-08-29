@@ -9,6 +9,7 @@ export interface NamedSpot {
   pullEV: number;
   pullRateVerified: boolean;
   row: Contributor;
+  cards: Contributor[];
 }
 
 export interface CategorySpot {
@@ -16,6 +17,7 @@ export interface CategorySpot {
   label: string;
   pullEV: number;
   cardCount: number;
+  cards: Contributor[];
 }
 
 export interface LargeBreakPlan {
@@ -132,6 +134,7 @@ export function createLargeBreakPlan(result: ValuationResult, spotCount: number)
     const existing = byCard.get(key);
     const marketPrice = row.marketPrice ?? (row.finish === "foil" ? row.card.foil : row.card.nonfoil) ?? 0;
     if (existing) {
+      existing.cards.push(row);
       existing.pullEV += row.sellableValue;
       existing.pullRateVerified = existing.pullRateVerified && row.pullRateVerified !== false;
       if (marketPrice > existing.marketPrice) {
@@ -141,7 +144,7 @@ export function createLargeBreakPlan(result: ValuationResult, spotCount: number)
         existing.row = row;
       }
     } else {
-      byCard.set(key, { key, name: identity.name, set: row.card.set, image: row.card.image, marketPrice, pullEV: row.sellableValue, pullRateVerified: row.pullRateVerified !== false, row });
+      byCard.set(key, { key, name: identity.name, set: row.card.set, image: row.card.image, marketPrice, pullEV: row.sellableValue, pullRateVerified: row.pullRateVerified !== false, row, cards: [row] });
     }
   }
   const rankedCards = [...byCard.values()]
@@ -150,24 +153,27 @@ export function createLargeBreakPlan(result: ValuationResult, spotCount: number)
   const namedTarget = Math.max(0, safeSpots - categoryCount);
   const namedCards = rankedCards.slice(0, namedTarget);
   const namedKeys = new Set(namedCards.map((card) => card.key));
-  const grouped = new Map<string, { key: string; label: string; pullEV: number; cards: Set<string> }>(
-    CATCH_ALL_SPOTS.map((category) => [category.key, { ...category, pullEV: 0, cards: new Set<string>() }]),
+  const contributorRows = new Set(contributors);
+  const grouped = new Map<string, { key: string; label: string; pullEV: number; identities: Set<string>; cards: Contributor[] }>(
+    CATCH_ALL_SPOTS.map((category) => [category.key, { ...category, pullEV: 0, identities: new Set<string>(), cards: [] }]),
   );
-  for (const row of contributors) {
+  for (const row of priceCandidates) {
     const identity = cardSlotIdentity(row);
     if (namedKeys.has(identity.key)) continue;
     const category = categoryFor(row);
     const group = grouped.get(category.key);
     if (!group) continue;
-    group.pullEV += row.sellableValue;
-    group.cards.add(identity.key);
+    if (contributorRows.has(row)) group.pullEV += row.sellableValue;
+    group.identities.add(identity.key);
+    group.cards.push(row);
   }
   const categoryRows = CATCH_ALL_SPOTS.map((category) => grouped.get(category.key)!);
   const categories = categoryRows.slice(0, categoryCount).map((row) => ({
     key: row.key,
     label: row.label,
     pullEV: row.pullEV,
-    cardCount: row.cards.size,
+    cardCount: row.identities.size,
+    cards: row.cards,
   }));
   return { spotCount: safeSpots, namedTarget, namedCards, categories, totalPullEV: result.sellableEV };
 }

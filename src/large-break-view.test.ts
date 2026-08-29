@@ -78,10 +78,67 @@ describe("large break card list", () => {
     } as BreakAnalysis;
 
     render(createElement(LargeBreakView, { analysis, lines: [], spots: 18 }));
+    const slot = screen.getByRole("button", { name: "Show cards in Named Dragon slot" });
+    expect(slot).toHaveTextContent("$50.00 · Nonfoil · TST");
+    fireEvent.click(slot);
     const entry = screen.getByRole("button", { name: "Open Named Dragon card details" });
     expect(entry).toHaveTextContent("$50.00 · Nonfoil · TST");
     fireEvent.click(entry);
     expect(screen.getByRole("dialog", { name: "Named Dragon" })).toBeInTheDocument();
+  });
+
+  it("lists every named slot and opens every card assigned to a selected slot", () => {
+    const prices = Array.from({ length: 14 }, (_, index) => ({
+      id: `card-${index}`,
+      set: "TST",
+      collectorNumber: String(index + 1),
+      name: `Card ${String(index + 1).padStart(2, "0")}`,
+      typeLine: "Artifact",
+      slot: "C" as const,
+      nonfoil: 100 - index,
+      foil: null,
+    }));
+    prices.push({ id: "jace-one", set: "TST", collectorNumber: "20", name: "Jace Beleren", typeLine: "Legendary Planeswalker — Jace", slot: "U", nonfoil: 200, foil: null });
+    prices.push({ id: "jace-two", set: "TST", collectorNumber: "21", name: "Jace, Architect of Thought", typeLine: "Legendary Planeswalker — Jace", slot: "U", nonfoil: 190, foil: null });
+    const valuation = calculateBreak({
+      threshold: 0,
+      prices,
+      draws: prices.map((card) => ({ set: card.set, collectorNumber: card.collectorNumber, copies: 1, foil: false, source: "test" })),
+    });
+    const analysis = {
+      valuation,
+      outcomeModel: { cacheKey: "test", complete: true, packs: [], fixed: [] },
+      outcomeOmissions: [],
+      priceAvailability: { status: "available", source: "snapshot" },
+    } as BreakAnalysis;
+
+    render(createElement(LargeBreakView, { analysis, lines: [], spots: 32 }));
+
+    expect(screen.getByRole("button", { name: "Show cards in Card 14 slot" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Show cards in Jace slot" }));
+    expect(screen.getByRole("button", { name: "Open Jace Beleren card details" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Open Jace, Architect of Thought card details" })).toBeInTheDocument();
+  });
+
+  it("lists residual-slot cards and opens them in the shared card panel", () => {
+    const valuation = calculateBreak({
+      threshold: 0,
+      prices: [{ id: "bolt", set: "TST", collectorNumber: "1", name: "Lightning Bolt", typeLine: "Instant", slot: "R", nonfoil: 4, foil: null }],
+      draws: [{ set: "TST", collectorNumber: "1", copies: 1, foil: false, source: "test" }],
+    });
+    const analysis = {
+      valuation,
+      outcomeModel: { cacheKey: "test", complete: true, packs: [], fixed: [] },
+      outcomeOmissions: [],
+      priceAvailability: { status: "available", source: "snapshot" },
+    } as BreakAnalysis;
+
+    render(createElement(LargeBreakView, { analysis, lines: [], spots: 17 }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Show cards in Instant slot" }));
+    const card = screen.getByRole("button", { name: "Open Lightning Bolt card details" });
+    fireEvent.click(card);
+    expect(screen.getByRole("dialog", { name: "Lightning Bolt" })).toBeInTheDocument();
   });
 
   it("explains why an unverifiable chase is excluded from Pull EV", () => {

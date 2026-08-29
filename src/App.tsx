@@ -1726,11 +1726,49 @@ export function SlotValueDetails({
   );
 }
 
+function LargeBreakSlotCards({
+  rows,
+  onInspect,
+}: {
+  rows: Contributor[];
+  onInspect: (row: Contributor) => void;
+}) {
+  const sortedRows = [...rows].sort((left, right) =>
+    (right.marketPrice ?? right.card.foil ?? right.card.nonfoil ?? 0)
+      - (left.marketPrice ?? left.card.foil ?? left.card.nonfoil ?? 0)
+      || left.card.name.localeCompare(right.card.name),
+  );
+  return (
+    <div className="large-break-slot-cards">
+      <div className="contributor-columns">
+        <span>Card and exact printing</span>
+        <span>Pull odds</span>
+        <span>Adds to average</span>
+      </div>
+      {sortedRows.length ? sortedRows.map((row) => (
+        <button
+          type="button"
+          className="card-row contributor-card"
+          key={`${row.card.id}|${row.finish ?? "nonfoil"}`}
+          onClick={() => onInspect(row)}
+          aria-label={`Open ${cardDisplayName(row.card, row.finish)} card details`}
+        >
+          <CardThumbnail row={row} />
+          <span className="card-summary"><strong>{row.card.name}</strong><small>{cardPreviewSubtitle(row)}</small></span>
+          <span className="pull-odds"><b>{oddsLabel(row.sellablePullProbability)}</b></span>
+          <span className="ev-contribution"><b>{fmt(row.sellableValue)}</b></span>
+        </button>
+      )) : <p className="no-contributors">No priced cards are assigned to this slot.</p>}
+    </div>
+  );
+}
+
 export function LargeBreakView({ analysis, lines, spots }: { analysis: BreakAnalysis; lines: BreakLine[]; spots: number }) {
   const result = analysis.valuation;
   const [inspectedCard, setInspectedCard] = useState<Contributor | null>(null);
   const [excludedCard, setExcludedCard] = useState<Contributor | null>(null);
   const [topCardSort, setTopCardSort] = useState<TopCardSort>("price");
+  const [openSlot, setOpenSlot] = useState<string | null>(null);
   const plan = useMemo(() => createLargeBreakPlan(result, spots), [result, spots]);
   const rankedNamedCards = useMemo(() => sortNamedCards(plan.namedCards, topCardSort), [plan.namedCards, topCardSort]);
   const completeSealedValue = lines.every((line) => line.marketCost != null);
@@ -1767,27 +1805,36 @@ export function LargeBreakView({ analysis, lines, spots }: { analysis: BreakAnal
           </div>
         </div>
         <div className="large-break-card-list">
-          {rankedNamedCards.slice(0, 12).map((card, index) => <div className="large-break-card" key={card.key}>
-            <button type="button" className="large-break-card-main" onClick={() => setInspectedCard(card.row)} aria-label={`Open ${cardDisplayName(card.row.card, card.row.finish)} card details`}>
+          {rankedNamedCards.map((card, index) => {
+            const slotKey = `named:${card.key}`;
+            const isOpen = openSlot === slotKey;
+            return <div className={`large-break-card large-break-slot ${isOpen ? "open" : ""}`} key={card.key}>
+            <button type="button" className="large-break-card-main" onClick={() => setOpenSlot(isOpen ? null : slotKey)} aria-expanded={isOpen} aria-label={`${isOpen ? "Hide" : "Show"} cards in ${card.name} slot`}>
               <span className="large-break-rank">{String(index + 1).padStart(2, "0")}</span>
               {card.image ? <img src={card.image} alt="" /> : <span className="card-placeholder" />}
-              <span className="large-break-card-copy"><strong>{card.name}</strong><small>{cardPreviewSubtitle(card.row, card.marketPrice)}</small></span>
+              <span className="large-break-card-copy"><strong>{card.name}</strong><small>{card.cards.length} card{card.cards.length === 1 ? "" : "s"} · {cardPreviewSubtitle(card.row, card.marketPrice)}</small></span>
             </button>
             <div className="large-break-card-value"><span>Pull EV</span>{card.pullRateVerified
-              ? <button type="button" onClick={() => setInspectedCard(card.row)} aria-label={`Open ${card.name} Pull EV details`}><b>{fmt(card.pullEV)}</b></button>
+              ? <b>{fmt(card.pullEV)}</b>
               : <button type="button" className="excluded-ev" onClick={() => setExcludedCard(card.row)} aria-label={`Explain why ${card.name} is excluded from Pull EV`}>Excluded</button>}
             </div>
-          </div>)}
+            {isOpen && <LargeBreakSlotCards rows={card.cards} onInspect={setInspectedCard} />}
+          </div>})}
         </div>
-        {rankedNamedCards.length > 12 && <p className="large-break-overflow">Showing 12 of {rankedNamedCards.length} top-value spots.</p>}
       </section>
       <section className="large-break-pool-section">
         <div className="large-break-section-heading"><div><p className="section-label">RESIDUAL POOL</p><h3>Creature colors & card types</h3></div><span>Top-value named spots excluded</span></div>
         <div className="large-break-category-head"><span>Slot</span><span>Slot EV</span></div>
-        {plan.categories.map((category) => <div className="large-break-category" key={category.key}>
-          <div><strong>{category.label}</strong><small>{category.cardCount} remaining card{category.cardCount === 1 ? "" : "s"}</small></div>
+        {plan.categories.map((category) => {
+          const slotKey = `category:${category.key}`;
+          const isOpen = openSlot === slotKey;
+          return <div className={`large-break-category large-break-slot ${isOpen ? "open" : ""}`} key={category.key}>
+          <button type="button" className="large-break-category-main" onClick={() => setOpenSlot(isOpen ? null : slotKey)} aria-expanded={isOpen} aria-label={`${isOpen ? "Hide" : "Show"} cards in ${category.label} slot`}>
+            <strong>{category.label}</strong><small>{category.cardCount} remaining card{category.cardCount === 1 ? "" : "s"}</small>
+          </button>
           <b>{fmt(category.pullEV)}</b>
-        </div>)}
+          {isOpen && <LargeBreakSlotCards rows={category.cards} onInspect={setInspectedCard} />}
+        </div>})}
       </section>
       <CardInspector row={inspectedCard} status={result.status} threshold={result.threshold} onClose={() => setInspectedCard(null)} />
       <EvidenceDialog item={excludedCard ? {

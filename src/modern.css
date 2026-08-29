@@ -435,6 +435,7 @@ body {
 .top-card-sort button[aria-pressed="true"] { color: #11160b; background: var(--accent); }
 .large-break-card-list { display: grid; grid-template-columns: 1fr 1fr; border-top: 1px solid var(--line); }
 .large-break-card { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: stretch; gap: 9px; min-height: 65px; padding: 0 14px 0 0; border-bottom: 1px solid var(--line); }
+.large-break-card.open { grid-column: 1 / -1; border-right: 0; }
 .large-break-card:nth-child(odd) { border-right: 1px solid var(--line); }
 .large-break-card-main { display: grid; grid-template-columns: 24px 34px minmax(0, 1fr); align-items: center; gap: 9px; min-width: 0; padding: 8px 0 8px 14px; border: 0; color: inherit; background: transparent; text-align: left; cursor: pointer; }
 .large-break-rank { color: #687283; font: 700 9px Manrope, sans-serif; }
@@ -451,12 +452,19 @@ body {
 .large-break-card-value button { margin: 2px -5px -3px 0; padding: 3px 5px; border: 0; border-radius: 5px; color: inherit; background: transparent; cursor: pointer; }
 .large-break-card-value .excluded-ev { color: #ffd087; background: #372d1e; font-size: 9px; font-weight: 800; }
 .large-break-card-value .excluded-ev:hover,.large-break-card-value .excluded-ev:focus-visible { color: #151006; background: #ffd087; outline: 0; }
-.large-break-overflow { margin: 0; padding: 10px 20px; color: var(--muted); font-size: 9px; }
+.large-break-slot-cards { grid-column: 1 / -1; min-width: 0; padding: 0 14px 10px; border-top: 1px solid var(--line); background: #0a0d12; }
+.large-break-slot-cards .contributor-columns { padding-top: 10px; }
+.large-break-slot-cards .contributor-card:last-child { border-bottom: 0; }
 .large-break-category-head,
 .large-break-category { display: grid; grid-template-columns: minmax(0, 1fr) 88px; gap: 10px; align-items: center; }
 .large-break-category-head { padding: 8px 20px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); color: #697283; font-size: 8px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; }
 .large-break-category-head span:not(:first-child) { text-align: right; }
 .large-break-category { min-height: 52px; padding: 8px 20px; border-bottom: 1px solid var(--line); }
+.large-break-category.open { background: #0f131a; }
+.large-break-category-main { min-width: 0; padding: 4px 0; border: 0; color: inherit; background: transparent; text-align: left; cursor: pointer; }
+.large-break-category-main:hover strong,
+.large-break-category-main:focus-visible strong { color: var(--accent); }
+.large-break-category-main:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
 .large-break-category:last-child { border-bottom: 0; }
 .large-break-category strong,
 .large-break-category small { display: block; }
