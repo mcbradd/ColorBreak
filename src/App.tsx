@@ -643,6 +643,9 @@ function Builder({
     onClose();
   };
   const totalOpenings = draft.reduce((total, line) => total + line.quantity * Math.max(1, line.packCount ?? 1), 0);
+  const importMatched = importRows.flatMap((row) => row.line ? [row.line] : []);
+  const importOpeningCount = importMatched.reduce((total, line) => total + line.quantity * Math.max(1, line.packCount ?? 1), 0);
+  const importIssueCount = importRows.filter((row) => row.error).length;
   const groupedProducts = products.reduce<Record<string, ProductChoice[]>>(
     (groups, product) => {
       (groups[product.category] ??= []).push(product);
@@ -685,8 +688,8 @@ function Builder({
               </div>
             </header>
             <div className="composer-status" aria-live="polite">
-              <span><b>{draft.length}</b> product line{draft.length === 1 ? "" : "s"}</span>
-              <span><b>{totalOpenings}</b> opening{totalOpenings === 1 ? "" : "s"}</span>
+              <span><small>Current break</small><b>{draft.length}</b> product line{draft.length === 1 ? "" : "s"}</span>
+              <span><small>Current break</small><b>{totalOpenings}</b> opening{totalOpenings === 1 ? "" : "s"}</span>
             </div>
             {composerMode === "paste" ? (
               <section className="break-import">
@@ -703,7 +706,6 @@ function Builder({
                   <small>Source</small><span>{row.source}</span>
                   {row.line ? <><small>Canonical product</small><strong>{row.line.set} · {row.line.productLabel}</strong><b>{row.line.quantity} × {row.line.packCount && row.line.packCount > 1 ? `${row.line.packCount} packs` : "opening"}</b></> : <p>{row.error}</p>}
                 </div>)}
-                <button className="primary import-apply-action" disabled={!importRows.length || importRows.some((row) => row.error)} onClick={applyImport}>{importSettings ? "Replace break with" : "Add"} {importRows.length} product line{importRows.length === 1 ? "" : "s"}</button>
               </section>
             ) : !selected ? (
               <>
@@ -784,7 +786,15 @@ function Builder({
             )}
             <footer className="composer-actions">
               <button type="button" className="quiet" onClick={onClose}>Cancel</button>
-              <button type="button" className="primary" disabled={!draft.length} onClick={() => { onApply(draft); onClose(); }}>Done · {draft.length} line{draft.length === 1 ? "" : "s"}</button>
+              {composerMode === "review" ? (
+                <button type="button" className="primary" disabled={!importRows.length || importIssueCount > 0} onClick={applyImport}>
+                  {importIssueCount > 0
+                    ? `Resolve ${importIssueCount} line${importIssueCount === 1 ? "" : "s"} to continue`
+                    : `${importSettings ? "Replace with" : "Add"} ${importMatched.length} lines · ${importOpeningCount} openings`}
+                </button>
+              ) : (
+                <button type="button" className="primary" disabled={!draft.length} onClick={() => { onApply(draft); onClose(); }}>Done · {draft.length} line{draft.length === 1 ? "" : "s"}</button>
+              )}
             </footer>
           </motion.section>
         </motion.div>
@@ -1973,7 +1983,7 @@ export function LargeBreakView({
           <span>One-spot bid {fmt(bid)}</span><b>+</b><span>shipping {fmt(shipping ?? 0)}</span><b>+</b><span>tax {fmt(tax ?? 0)}</span><b>=</b><strong>{fmt(allIn)} total paid</strong>
         </div>
       </section>
-      <section className="assignment-overview" aria-label="Modeled value across the assigned spots">
+      <section id="buyer-large-assignments" className="assignment-overview" aria-label="Modeled value across the assigned spots">
         <div className="assignment-overview-heading">
           <div><InformationLabel>100-ASSIGNMENT VALUE SHAPE</InformationLabel><h3>Average value is not the typical assignment</h3></div>
           {belowCost != null && <strong>{belowCost} of {assignment.values.length} assignments have modeled average value below your cost</strong>}
@@ -3403,7 +3413,7 @@ export function Workspace({
         </aside>}
         {mode === "buyer" ? (
           <>
-          {lines.length > 0 && <div className="mobile-stage-nav" aria-label="Large Break sections"><a href="#buyer-large-result">Decision</a><a href="#buyer-break-setup">{isSharedBreak ? "Customize a copy" : "Edit break"}</a></div>}
+          {lines.length > 0 && <div className="mobile-stage-nav" aria-label="Large Break sections"><a href="#buyer-large-result">Decision</a>{assignmentMode === "large" && <a href="#buyer-large-assignments">Assignments</a>}<a href="#buyer-break-setup">{isSharedBreak ? "Customize" : "Edit break"}</a></div>}
           <div className={`bid-check-workbench ${lines.length ? "has-break" : "is-empty"}`}>
             <BuyerSetup
               lines={lines}

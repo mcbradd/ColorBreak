@@ -829,13 +829,14 @@ input {
     z-index: 20;
     top: 52px;
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
     margin: -1px 0 10px;
     border: var(--rule);
     background: #080b10;
   }
   .mobile-stage-nav a { display: grid; place-items: center; min-height: 48px; color: var(--ink); text-decoration: none; font-weight: 850; }
-  .mobile-stage-nav a:first-child { border-right: var(--rule); color: var(--accent); }
+  .mobile-stage-nav a + a { border-left: var(--rule); }
+  .mobile-stage-nav a:first-child { color: var(--accent); }
 }
 
 @media (prefers-reduced-motion: no-preference) {
