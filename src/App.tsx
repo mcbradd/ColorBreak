@@ -634,7 +634,7 @@ function Builder({
   const applyImport = () => {
     const additions = importRows.flatMap((row) => row.line ? [row.line] : []);
     if (importRows.some((row) => row.error) || !additions.length) return;
-    const next = mergeBreakLines([...draft, ...additions]);
+    const next = importSettings ? mergeBreakLines(additions) : mergeBreakLines([...draft, ...additions]);
     setDraft(next);
     onApply(next, importSettings);
     setComposerMode("search");
@@ -703,7 +703,7 @@ function Builder({
                   <small>Source</small><span>{row.source}</span>
                   {row.line ? <><small>Canonical product</small><strong>{row.line.set} · {row.line.productLabel}</strong><b>{row.line.quantity} × {row.line.packCount && row.line.packCount > 1 ? `${row.line.packCount} packs` : "opening"}</b></> : <p>{row.error}</p>}
                 </div>)}
-                <button className="primary import-apply-action" disabled={!importRows.length || importRows.some((row) => row.error)} onClick={applyImport}>Add {importRows.length} product line{importRows.length === 1 ? "" : "s"}</button>
+                <button className="primary import-apply-action" disabled={!importRows.length || importRows.some((row) => row.error)} onClick={applyImport}>{importSettings ? "Replace break with" : "Add"} {importRows.length} product line{importRows.length === 1 ? "" : "s"}</button>
               </section>
             ) : !selected ? (
               <>
@@ -2003,7 +2003,7 @@ export function LargeBreakView({
       </section>
       <div className="large-break-metrics">
         <div><span>Sealed market value / spot</span><strong>{sealedMarketValue == null ? "—" : fmt(sealedMarketValue / plan.spotCount)}</strong><small>{sealedMarketValue == null ? "A sealed-market price is unavailable; pull EV is still shown" : `${fmt(sealedMarketValue)} total sealed value`}</small></div>
-        <div><span>Modeled mean / assignment</span><strong>{fmt(plan.totalPullEV / plan.spotCount)}</strong><small>{result.threshold > 0 ? `Cards under ${fmt(result.threshold)} ignored as bulk` : "All priced cards included"}</small></div>
+        <div><span>Modeled mean / assignment</span><strong>{fmt(plan.totalPullEV / plan.spotCount)}</strong><small>{result.threshold > 0 ? `Only model-approved cards at or above ${fmt(result.threshold)} included · ${materialOmissions.length} blockers excluded` : `Only cards with usable prices and model-approved pull inputs included · ${materialOmissions.length} blockers excluded`}</small></div>
       </div>
       <div className="large-break-allocation">
         <div><span>Named assignments</span><b>{plan.namedCards.length}</b><small>{fmt(namedEV)} modeled EV</small></div>
@@ -2870,7 +2870,7 @@ function SellerEnticement({
         setProducts(packs);
         setSelectedKey((current) => packs.some((product) => productRef(product) === current)
           ? current
-          : (packs[0] ? productRef(packs[0]) : ""));
+          : "");
       })
       .catch(() => { if (!cancelled) setProducts([]); });
     return () => { cancelled = true; };
@@ -2976,6 +2976,8 @@ export function SellerView({
   const [processingFlat, setProcessingFlat] = useState(WHATNOT_US.processingFlat);
   const [plannedBidOverride, setPlannedBidOverride] = useState<number>();
   const [marketEstimatesAccepted, setMarketEstimatesAccepted] = useState(false);
+  const [productsOpen, setProductsOpen] = useState(false);
+  const totalOpenings = lines.reduce((total, line) => total + line.quantity * Math.max(1, line.packCount ?? 1), 0);
   const marketEstimateLines = lines.filter((line) => line.myCost == null && line.marketCost != null);
   const acquisition = lines.reduce((total, line) => total + (line.myCost ?? (marketEstimatesAccepted ? line.marketCost : undefined) ?? 0) * line.quantity, 0);
   const costsComplete = lines.every((line) => line.myCost != null || (marketEstimatesAccepted && line.marketCost != null));
@@ -3026,18 +3028,28 @@ export function SellerView({
           <div><InformationLabel>1 · BREAK</InformationLabel><h2 id="seller-contents-heading">Contents &amp; cost basis</h2></div>
           <button className="primary seller-add-products" onClick={add}><PackagePlus />Add products</button>
         </div>
-        <div className="seller-product-lines">
-          {lines.map((line) => (
-            <div className="seller-product-line" key={line.id}>
-              <span className="set-glyph">{line.set}</span>
-              <span className="seller-product-name"><strong>{line.productLabel}</strong><small>{line.set}</small></span>
-              <div className="seller-market-price"><span>Current market</span><b>{fmt(line.marketCost)}</b></div>
-              <NumberField id={`seller-cost-${line.id}`} label="My cost basis" value={line.myCost} onChange={(value) => update(line.id, { myCost: value })} live />
-              <QuantityControl line={line} update={(quantity) => update(line.id, { quantity })} />
-              <button className="remove-line" aria-label={`Remove ${line.productLabel} from break`} onClick={() => remove(line.id)}><Trash2 /></button>
-            </div>
-          ))}
+        <div className="seller-break-reconciliation" aria-label="Seller break composition summary">
+          <strong>{lines.length} lines · {totalOpenings} openings · {transactionCount} spots</strong>
+          <span>{costsComplete ? "Cost basis ready" : "Cost basis incomplete"}</span>
         </div>
+        <details className="seller-cost-rollout seller-product-ledger" open={productsOpen} onToggle={(event) => setProductsOpen(event.currentTarget.open)}>
+          <summary className="disclosure-summary">
+            <span><strong>{productsOpen ? "Hide product ledger" : "Edit products & costs"}</strong><small>{lines.length} lines · quantities and actual acquisition costs</small></span>
+            <DisclosureArrow />
+          </summary>
+          <div className="seller-product-lines">
+            {lines.map((line) => (
+              <div className="seller-product-line" key={line.id}>
+                <span className="set-glyph">{line.set}</span>
+                <span className="seller-product-name"><strong>{line.productLabel}</strong><small>{line.set}</small></span>
+                <div className="seller-market-price"><span>Current market</span><b>{fmt(line.marketCost)}</b></div>
+                <NumberField id={`seller-cost-${line.id}`} label="My cost basis" value={line.myCost} onChange={(value) => update(line.id, { myCost: value })} live />
+                <QuantityControl line={line} update={(quantity) => update(line.id, { quantity })} />
+                <button className="remove-line" aria-label={`Remove ${line.productLabel} from break`} onClick={() => remove(line.id)}><Trash2 /></button>
+              </div>
+            ))}
+          </div>
+        </details>
       </section>
 
       {marketEstimateLines.length > 0 && <section className={`cost-basis-policy ${marketEstimatesAccepted ? "accepted" : ""}`} aria-label="Cost basis policy">
@@ -3045,7 +3057,7 @@ export function SellerView({
         <button type="button" className={marketEstimatesAccepted ? "quiet" : "primary"} onClick={() => setMarketEstimatesAccepted((accepted) => !accepted)}>{marketEstimatesAccepted ? "Stop using estimates" : `Use ${marketEstimateLines.length} market estimates`}</button>
       </section>}
 
-      {missingCostLine && <CompactWarning title={<a href={`#seller-cost-${missingCostLine.id}`} onClick={(event) => event.stopPropagation()}>Enter your cost for {missingCostLine.productLabel}</a>} summary="Needed to calculate break-even and profit." className="missing-input-warning">
+      {missingCostLine && <CompactWarning title={<a href={`#seller-cost-${missingCostLine.id}`} onClick={(event) => { event.stopPropagation(); setProductsOpen(true); }}>Enter your cost for {missingCostLine.productLabel}</a>} summary="Needed to calculate break-even and profit." className="missing-input-warning">
         <p>No sealed-market price is available for this product, so ColorBreak needs your cost instead.</p>
       </CompactWarning>}
 
@@ -3092,7 +3104,7 @@ export function SellerView({
         <div className="seller-fill-scenarios">
           {scenarios.map((scenario) => <div className={scenario.profit != null && scenario.profit >= 0 ? "positive" : "negative"} key={scenario.sold}>
             <span>{scenario.sold} / {transactionCount} sold</span>
-            <b>{scenario.profit == null && !costsComplete ? missingCostLine ? <a href={`#seller-cost-${missingCostLine.id}`}>Enter {missingCostLine.productLabel} cost</a> : "Choose cost basis" : scenario.profit == null ? "Enter planned bid" : sellerOutcomeLabel(scenario.profit)}</b>
+            <b>{scenario.profit == null && !costsComplete ? missingCostLine ? <a href={`#seller-cost-${missingCostLine.id}`} onClick={() => setProductsOpen(true)}>Enter {missingCostLine.productLabel} cost</a> : "Choose cost basis" : scenario.profit == null ? "Enter planned bid" : sellerOutcomeLabel(scenario.profit)}</b>
           </div>)}
         </div>
       </section>
@@ -3241,6 +3253,13 @@ export function Workspace({
       return sharedBuyer.selectedSlot ?? "W";
     }),
     [busy, setBusy] = useState(false);
+  const [importUndo, setImportUndo] = useState<{
+    lines: BreakLine[];
+    assignmentMode: AssignmentMode;
+    largeSpots: number;
+    bulkEnabled: boolean;
+    bulkThreshold: number;
+  }>();
   const threshold = mode === "seller" ? 0 : bulkEnabled ? bulkThreshold : 0;
   useEffect(() => {
     try {
@@ -3367,6 +3386,17 @@ export function Workspace({
             <h1>{mode === "buyer" ? assignmentMode === "large" ? "Large Break" : "Bid Check" : "Seller Studio"}</h1>
           </div>
         </header>
+        {importUndo && <aside className="import-undo" aria-live="polite">
+          <span><b>Break updated</b><small>{lines.length} lines · review complete</small></span>
+          <button type="button" className="quiet" onClick={() => {
+            setLines(importUndo.lines);
+            setAssignmentMode(importUndo.assignmentMode);
+            setLargeSpots(importUndo.largeSpots);
+            setBulkEnabled(importUndo.bulkEnabled);
+            setBulkThreshold(importUndo.bulkThreshold);
+            setImportUndo(undefined);
+          }}>Undo</button>
+        </aside>}
         {mode === "buyer" && isSharedBreak && lines.length > 0 && <aside className="shared-calculation-notice" aria-label="Shared calculation details">
           <Lock />
           <span><b>SHARED CALCULATION · USD · MODEL v4</b><small>Original link unchanged. Editing makes a local copy · {lines.length} products / {lines.reduce((total, line) => total + line.quantity * Math.max(1, line.packCount ?? 1), 0)} openings · Prices observed {analysis?.priceAvailability.observedAt ? new Date(analysis.priceAvailability.observedAt).toLocaleString() : "loading"}</small></span>
@@ -3445,6 +3475,7 @@ export function Workspace({
         onClose={() => setBuilder(false)}
         lines={lines}
         onApply={(nextLines, settings) => {
+          setImportUndo({ lines, assignmentMode, largeSpots, bulkEnabled, bulkThreshold });
           setLines(nextLines);
           if (settings) {
             setAssignmentMode(settings.assignmentMode);
