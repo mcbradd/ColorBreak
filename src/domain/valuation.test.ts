@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buyerVerdict, calculateBreak, slotOfCard } from "./valuation";
+import { buyerVerdict, calculateBreak, decisionEligibility, DECISION_FRESHNESS_MS, slotOfCard } from "./valuation";
 import type { CardPrice, ExpectedDraw } from "./types";
 
 const prices: CardPrice[] = [
@@ -202,5 +202,48 @@ describe("slotOfCard", () => {
     expect(slotOfCard({ colors: ["W", "U"], typeLine: "Creature" })).toBe("M");
     expect(slotOfCard({ colors: [], typeLine: "Artifact" })).toBe("C");
     expect(slotOfCard({ colors: ["G"], typeLine: "Land Creature" })).toBe("L");
+  });
+});
+
+describe("decisionEligibility", () => {
+  const observedAt = "2026-08-29T12:00:00.000Z";
+  const now = Date.parse(observedAt);
+  const fresh = () => calculateBreak({ draws, prices, pricedAt: observedAt, priceSource: "published snapshot" });
+
+  it("allows a complete snapshot at exactly six hours and blocks it one millisecond later", () => {
+    expect(decisionEligibility(fresh(), now + DECISION_FRESHNESS_MS)).toMatchObject({
+      status: "eligible", blockerCount: 0, reason: "fresh-complete",
+    });
+    expect(decisionEligibility(fresh(), now + DECISION_FRESHNESS_MS + 1)).toMatchObject({
+      status: "stale", blockerCount: 1, reason: "stale-price-snapshot", observedAt, observedSource: "published snapshot",
+    });
+  });
+
+  it.each([undefined, "not-a-date"])("fails closed when the price timestamp is %p", (pricedAt) => {
+    const result = fresh();
+    (result as { pricedAt?: string }).pricedAt = pricedAt;
+    expect(decisionEligibility(result, now)).toMatchObject({
+      status: "unavailable",
+      reason: pricedAt ? "invalid-price-timestamp" : "missing-price-timestamp",
+    });
+  });
+
+  it("reports every material omission as an action blocker even with a fresh snapshot", () => {
+    const result = calculateBreak({
+      draws, prices, pricedAt: observedAt,
+      omissions: [
+        { code: "missing-sheet-weight", dedupeKey: "sheet:rare", message: "Rare sheet has unresolved weights.", material: true },
+        { code: "missing-price", dedupeKey: "price:TST|9", message: "TST 9 has no exact price.", material: true },
+        { code: "missing-booster", dedupeKey: "booster:bonus", message: "Bonus booster is unresolved.", material: true },
+      ],
+    });
+    expect(decisionEligibility(result, now)).toEqual(expect.objectContaining({
+      status: "material-incomplete", blockerCount: 3, reason: "material-omissions",
+      affectedGroups: expect.arrayContaining([
+        expect.objectContaining({ id: "sheet:rare" }),
+        expect.objectContaining({ id: "price:TST|9" }),
+        expect.objectContaining({ id: "booster:bonus" }),
+      ]),
+    }));
   });
 });

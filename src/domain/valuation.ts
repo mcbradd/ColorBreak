@@ -1,6 +1,6 @@
 import { SLOT_IDS, SLOT_NAMES } from "./types";
 import type {
-  CardPrice, Contributor, DataStatus, EvidenceState, ExpectedDraw, Finish, Omission, SlotId, SlotValuation, ValuationResult,
+  CardPrice, Contributor, DataStatus, DecisionEligibility, EvidenceState, ExpectedDraw, Finish, Omission, SlotId, SlotValuation, ValuationResult,
 } from "./types";
 import { isCollectorOutlier } from "./outlier-policy";
 import { cardDisplayName } from "./card-label";
@@ -13,6 +13,7 @@ export interface ValuationInput {
   threshold?: number;
   sourceStatus?: DataStatus;
   pricedAt?: string;
+  priceSource?: string;
   dataVersion?: string;
   evidence?: EvidenceState;
 }
@@ -164,8 +165,74 @@ export function calculateBreak(input: ValuationInput): ValuationResult {
     priceOnlyContributors,
     omissions,
     pricedAt: input.pricedAt ?? new Date().toISOString(),
+    priceSource: input.priceSource,
     dataVersion: input.dataVersion ?? "unknown",
     evidence,
+  };
+}
+
+/** Published price observations are actionable for exactly six hours. */
+export const DECISION_FRESHNESS_MS = 6 * 60 * 60 * 1000;
+
+/**
+ * Classifies whether a valuation can drive a buyer or seller decision.  This is
+ * intentionally independent from presentation: callers must gate action,
+ * sharing, export, and analytics on `status === "eligible"`.
+ */
+export function decisionEligibility(
+  valuation: Pick<ValuationResult, "status" | "omissions" | "pricedAt" | "priceSource">,
+  now: number | Date = Date.now(),
+  freshnessThresholdMs = DECISION_FRESHNESS_MS,
+): DecisionEligibility {
+  const observedAt = valuation.pricedAt;
+  const observedSource = valuation.priceSource;
+  const currentTime = now instanceof Date ? now.getTime() : now;
+  const observedTime = Date.parse(observedAt ?? "");
+  const materialOmissions = valuation.omissions.filter((omission) => omission.material);
+  const groups = [...new Map(materialOmissions.map((omission) => {
+    const id = omission.dedupeKey ?? omission.source ?? omission.code;
+    return [id, { id, label: omission.message, directionallyUsable: false }] as const;
+  })).values()];
+
+  if (materialOmissions.length || valuation.status === "incomplete") {
+    return {
+      status: "material-incomplete",
+      blockerCount: Math.max(1, groups.length),
+      affectedGroups: groups,
+      observedAt,
+      observedSource,
+      freshnessThresholdMs,
+      reason: "material-omissions",
+    };
+  }
+  if (!observedAt) {
+    return {
+      status: "unavailable", blockerCount: 1, affectedGroups: groups, observedSource,
+      freshnessThresholdMs, reason: "missing-price-timestamp",
+    };
+  }
+  if (!Number.isFinite(observedTime) || !Number.isFinite(currentTime)) {
+    return {
+      status: "unavailable", blockerCount: 1, affectedGroups: groups, observedAt, observedSource,
+      freshnessThresholdMs, reason: "invalid-price-timestamp",
+    };
+  }
+  const ageMs = Math.max(0, currentTime - observedTime);
+  if (ageMs > freshnessThresholdMs) {
+    return {
+      status: "stale", blockerCount: 1, affectedGroups: groups, observedAt, observedSource, ageMs,
+      freshnessThresholdMs, reason: "stale-price-snapshot",
+    };
+  }
+  if (valuation.status !== "verified") {
+    return {
+      status: "unavailable", blockerCount: 1, affectedGroups: groups, observedAt, observedSource, ageMs,
+      freshnessThresholdMs, reason: "unavailable-source-status",
+    };
+  }
+  return {
+    status: "eligible", blockerCount: 0, affectedGroups: [], observedAt, observedSource, ageMs,
+    freshnessThresholdMs, reason: "fresh-complete",
   };
 }
 

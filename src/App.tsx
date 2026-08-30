@@ -47,6 +47,7 @@ import {
 import { recommendBid, solveFinancialCap } from "./domain/buyer-treatment";
 import type { ValueRule } from "./domain/buyer-treatment";
 import { completeCost, sellerPlanStatus } from "./domain/seller-plan";
+import { decisionEligibility } from "./domain/valuation";
 import { cardDisplayName, cardTreatmentLabel } from "./domain/card-label";
 import { deduplicateOmissions } from "./domain/omissions";
 import { simulateOutcomesAsync } from "./domain/simulation-client";
@@ -424,6 +425,19 @@ function Status({ result }: { result: ValuationResult }) {
 function Home({ choose }: { choose: (mode: Mode, fresh?: boolean) => void }) {
   const supportUrl = import.meta.env.VITE_SUPPORT_URL as string | undefined;
   const recentBuyer = storedLines("buyer", []);
+  const [cleared, setCleared] = useState(false);
+  const clearDevice = async () => {
+    for (const storage of [localStorage, sessionStorage]) {
+      for (let index = storage.length - 1; index >= 0; index -= 1) {
+        const key = storage.key(index);
+        if (key?.startsWith("colorbreak:")) storage.removeItem(key);
+      }
+    }
+    const names = await caches.keys();
+    await Promise.all(names.filter((name) => name.startsWith("colorbreak-")).map((name) => caches.delete(name)));
+    history.replaceState(null, "", location.pathname);
+    setCleared(true);
+  };
   return (
     <main className="home page">
       <header className="launcher-bar">
@@ -436,7 +450,7 @@ function Home({ choose }: { choose: (mode: Mode, fresh?: boolean) => void }) {
       <section className="launcher-intro">
         <InformationLabel>Decision launcher</InformationLabel>
         <h1>What do you need to decide?</h1>
-        <p>Choose the job. Add what’s being opened. Get a clear answer.</p>
+        <p>For Magic: The Gathering break buyers and sellers: set a bid ceiling or build a profitable slot plan from the exact boxes being opened. Results are modeled, not guaranteed.</p>
       </section>
       <section className="mode-grid" aria-label="Choose a job">
         <button
@@ -479,6 +493,8 @@ function Home({ choose }: { choose: (mode: Mode, fresh?: boolean) => void }) {
         <span>Exact-printing prices · Modeled pull ranges · No login</span>
         <span><a href="/methodology.html">Methodology</a> · <a href="/privacy.html">Privacy</a>{supportUrl && <> · <a href={supportUrl} rel="noreferrer" target="_blank">Support</a></>}</span>
       </footer>
+      <button type="button" className="quiet" onClick={() => void clearDevice()}>Clear this device’s ColorBreak data</button>
+      {cleared && <p role="status">ColorBreak data cleared from this device.</p>}
     </main>
   );
 }
@@ -1927,6 +1943,7 @@ export function LargeBreakView({
   setShipping: (value: number | undefined) => void;
 }) {
   const result = analysis.valuation;
+  const eligibility = decisionEligibility(result);
   const [inspectedCard, setInspectedCard] = useState<Contributor | null>(null);
   const [excludedCard, setExcludedCard] = useState<Contributor | null>(null);
   const [topCardSort, setTopCardSort] = useState<TopCardSort>("expected-value");
@@ -2103,6 +2120,7 @@ export function BuyerView({
   setShipping: (value: number | undefined) => void;
 }) {
   const result = analysis.valuation;
+  const eligibility = decisionEligibility(result);
   const [inspectedCard, setInspectedCard] = useState<Contributor | null>(null);
   const [valueRule, setValueRule] = useState<ValueRule>({ kind: "median" });
   const slot = result.slots.find((row) => row.id === selected)!;
@@ -2121,7 +2139,7 @@ export function BuyerView({
       : valueRule.kind === "coverage"
         ? distribution.p25
         : distribution.mean;
-  const cap = valueTarget == null || shipping == null
+  const cap = eligibility.status !== "eligible" || valueTarget == null || shipping == null
     ? { kind: "unknown-cost" as const }
     : solveFinancialCap({
         valueTarget,
@@ -2131,7 +2149,9 @@ export function BuyerView({
         addedCost: () => shipping,
       });
   const recommendation = recommendBid(bid, cap);
-  const decision = bid == null
+  const decision = eligibility.status !== "eligible"
+    ? eligibility.status === "material-incomplete" ? `LIMIT UNAVAILABLE — ${eligibility.blockerCount} MATERIAL OMISSIONS` : "LIMIT UNAVAILABLE"
+    : bid == null
     ? "ENTER BID"
     : shipping == null
       ? "ADD SHIPPING"
@@ -2161,22 +2181,23 @@ export function BuyerView({
           <div className="verdict-decision">
             <InformationLabel>Recommendation</InformationLabel>
             <h2 aria-live="polite">{decision}</h2>
-            {bid == null && <p className="decision-reason"><a href="#buyer-current-bid">Enter the current auction price</a> to compare it with your maximum hammer.</p>}
+            {eligibility.status !== "eligible" && <div className="decision-reason"><p>{eligibility.status === "stale" ? `Latest published snapshot; reload to check publication status. Observed ${eligibility.observedAt ? new Date(eligibility.observedAt).toLocaleString() : "unknown"} from ${eligibility.observedSource ?? "the published snapshot"}.` : "This result has material blockers, so ColorBreak will not recommend a bid limit."}</p>{eligibility.affectedGroups.length > 0 && <details><summary className="disclosure-summary">Review affected groups<DisclosureArrow /></summary><ul>{eligibility.affectedGroups.map((group) => <li key={group.id}>{group.label}</li>)}</ul></details>}</div>}
+            {eligibility.status === "eligible" && bid == null && <p className="decision-reason"><a href="#buyer-current-bid">Enter the current auction price</a> to compare it with your maximum hammer.</p>}
             {bid != null && shipping == null && <p className="decision-reason"><a href="#buyer-added-shipping">Enter the extra shipping charged for this purchase</a>. It affects your landed cost and maximum hammer.</p>}
-            {recommendation.action === "bid" && (
+            {eligibility.status === "eligible" && recommendation.action === "bid" && (
               <p className="decision-reason">Current hammer is {fmt(recommendation.room)} below your modeled ceiling.</p>
             )}
-            {recommendation.action === "stop" && (
+            {eligibility.status === "eligible" && recommendation.action === "stop" && (
               <p className="decision-reason">The current hammer has reached your modeled ceiling.</p>
             )}
-            {recommendation.action === "pass" && (
+            {eligibility.status === "eligible" && recommendation.action === "pass" && (
               <p className="decision-reason">Current hammer is {fmt(Math.abs(recommendation.room))} beyond your modeled ceiling.</p>
             )}
           </div>
           <div className="ev-orb">
-            <small><span>Your max hammer</span></small>
-            <strong className="max-hammer" aria-label="Maximum hammer" aria-live="polite">{cap.kind === "cap" ? fmt(cap.amount) : "—"}</strong>
-            <span>{ruleLabel} limit</span>
+            <small><span>{eligibility.status === "eligible" ? "Your max hammer" : "Limit unavailable"}</span></small>
+            <strong className="max-hammer" aria-label="Maximum hammer" aria-live="polite">{eligibility.status === "eligible" && cap.kind === "cap" ? fmt(cap.amount) : "—"}</strong>
+            <span>{eligibility.status === "eligible" ? `${ruleLabel} limit` : "No action recommendation"}</span>
             <strong aria-label="Typical card value" aria-live="polite">{simulation.busy && !distribution ? "Checking…" : fmt(distribution?.median ?? fallbackMean)}</strong>
             {distribution?.median === 0 && <em>Usually no card above the bulk filter</em>}
             <span>Average {fmt(distribution?.mean ?? fallbackMean)}</span>
@@ -2475,7 +2496,7 @@ function SellerScenarioLab({
   );
 }
 
-function LegacySellerView({
+function SellerPlanArchive({
   analysis,
   lines,
   update,
@@ -3255,8 +3276,12 @@ export function Workspace({
     [bulkThreshold, setBulkThreshold] = useState(() => sharedBuyer.bulkThreshold ?? 2),
     [bulkEnabled, setBulkEnabled] = useState(() => sharedBuyer.bulkEnabled ?? true),
     [assignmentMode, setAssignmentMode] = useState<AssignmentMode>(() => sharedBuyer.assignmentMode),
-    [buyerBid, setBuyerBid] = useState<number | undefined>(() => storedBuyerNumber("bid")),
-    [buyerShipping, setBuyerShipping] = useState<number | undefined>(() => storedBuyerNumber("shipping")),
+    [buyerBid, setBuyerBid] = useState<number | undefined>(() => {
+      const value = sessionStorage.getItem("colorbreak:buyer:bid"); return value == null ? undefined : Number(value);
+    }),
+    [buyerShipping, setBuyerShipping] = useState<number | undefined>(() => {
+      const value = sessionStorage.getItem("colorbreak:buyer:shipping"); return value == null ? undefined : Number(value);
+    }),
     [largeSpots, setLargeSpots] = useState<number>(() => {
       return sharedBuyer.largeSpots ?? storedBuyerNumber("large-spots") ?? 120;
     }),
@@ -3284,20 +3309,20 @@ export function Workspace({
   }, [auction]);
   useEffect(() => {
     try {
-      if (buyerBid == null) localStorage.removeItem("colorbreak:buyer:bid");
-      else localStorage.setItem("colorbreak:buyer:bid", String(buyerBid));
+      if (buyerBid == null) sessionStorage.removeItem("colorbreak:buyer:bid");
+      else sessionStorage.setItem("colorbreak:buyer:bid", String(buyerBid));
     } catch { /* optional */ }
   }, [buyerBid]);
   useEffect(() => {
     try {
-      if (buyerShipping == null) localStorage.removeItem("colorbreak:buyer:shipping");
-      else localStorage.setItem("colorbreak:buyer:shipping", String(buyerShipping));
+      if (buyerShipping == null) sessionStorage.removeItem("colorbreak:buyer:shipping");
+      else sessionStorage.setItem("colorbreak:buyer:shipping", String(buyerShipping));
     } catch { /* optional */ }
   }, [buyerShipping]);
   useEffect(() => {
     try { localStorage.setItem("colorbreak:buyer:large-spots", String(largeSpots)); } catch { /* optional */ }
   }, [largeSpots]);
-  const sharedHref = createBreakShareUrl(location.href, {
+  const sharedHref = createBreakShareUrl(`${location.origin}${location.pathname}#buyer`, {
     lines,
     assignmentMode,
     selectedSlot,
@@ -3307,8 +3332,8 @@ export function Workspace({
     largeSpots,
   });
   useEffect(() => {
-    history.replaceState(null, "", sharedHref);
-  }, [sharedHref]);
+    if (location.search) history.replaceState(null, "", `${location.pathname}#buyer`);
+  }, []);
   useEffect(() => {
     if (!lines.length) {
       setAnalysis(undefined);
@@ -3379,20 +3404,21 @@ export function Workspace({
           COLORBREAK
         </button>
         <div className="nav-actions">
-          <button
+          {lines.length > 0 && <button
             className="icon-button"
             onClick={share}
-            title="Copy public break link"
+            title="Copy public break link — includes composition, assignment, remaining slots, and filters; excludes bid, shipping, costs, and actuals."
+            aria-label="Copy public break link"
           >
             <Copy />
-          </button>
+          </button>}
         </div>
       </nav>
       <main className="workspace page">
         <header className="workspace-title">
           <div>
             <p className="eyebrow">
-              {mode === "buyer" ? assignmentMode === "large" ? "BUYER · LARGE RANDOM MODE" : "BUYER · SUB-10 SECOND MODE" : "SELLER · PLAN TO LAUNCH"}
+              {mode === "buyer" ? assignmentMode === "large" ? "BUYER · LARGE RANDOM MODE" : "BUYER · FAST BID CHECK" : "SELLER · PLAN TO LAUNCH"}
             </p>
             <h1>{mode === "buyer" ? assignmentMode === "large" ? "Large Break" : "Bid Check" : "Seller Studio"}</h1>
           </div>
@@ -3520,6 +3546,7 @@ export function App() {
       "",
       next === "home" ? location.pathname : `#${next}`,
     );
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
   };
   return (
     <AnimatePresence mode="wait">

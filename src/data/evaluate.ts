@@ -84,6 +84,7 @@ export async function evaluateBreakAnalysis(lines: BreakLine[], threshold: numbe
       : lineResults.some((result) => result.status === "estimated") ? "estimated" : "verified",
     omissions: [...lineResults.flatMap((result) => result.omissions), ...priceResult.omissions, ...rateOmissions],
     pricedAt: prices.map((card) => card.priceObservedAt).filter((value): value is string => Boolean(value)).sort()[0],
+    priceSource: priceResult.availability.source,
     dataVersion: `${lines.map((line) => `${line.set}:${line.productKey}:${line.quantity}`).join("|")}@${prices.map((card) => card.priceObservedAt).filter(Boolean).sort()[0] ?? "unpriced"}`,
   });
   const outcomeResults = await Promise.all(lineResults.map((result, index) => {

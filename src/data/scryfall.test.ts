@@ -148,7 +148,7 @@ describe("exact-printing price module", () => {
     });
   });
 
-  it("turns a live rate limit into an availability state and retries cleanly on the next calculation", async () => {
+  it("never turns a snapshot miss into a live request", async () => {
     let searches = 0;
     vi.stubGlobal("fetch", async (input: string | URL | Request) => {
       const url = String(input);
@@ -165,14 +165,10 @@ describe("exact-printing price module", () => {
     expect(unavailable.availability.status).toBe("unavailable");
     expect(unavailable.omissions[0].code).toBe("price-source-unavailable");
 
-    await Promise.resolve();
-    const recovered = await loadPrices({ sets: ["ONE"], fullSets: ["ONE"] });
-    expect(recovered.cards).toHaveLength(1);
-    expect(recovered.availability).toMatchObject({ status: "available", source: "live" });
-    expect(searches).toBe(2);
+    expect(searches).toBe(0);
   });
 
-  it("uses an exact batched lookup only for a printing absent from the snapshot", async () => {
+  it("reports an exact-printing snapshot miss without a batched lookup", async () => {
     const requests: Array<{ url: string; method?: string }> = [];
     const observedAt = new Date().toISOString();
     vi.stubGlobal("fetch", async (input: string | URL | Request, init?: RequestInit) => {
@@ -190,8 +186,9 @@ describe("exact-printing price module", () => {
     });
 
     const result = await loadPrices({ sets: ["ONE"], printings: [{ set: "ONE", collectorNumber: "1" }] });
-    expect(result.cards).toHaveLength(1);
-    expect(result.availability.source).toBe("mixed");
-    expect(requests.at(-1)).toEqual({ url: "https://api.scryfall.com/cards/collection", method: "POST" });
+    expect(result.cards).toHaveLength(0);
+    expect(result.availability.source).toBe("snapshot");
+    expect(result.omissions[0].code).toBe("price-source-unavailable");
+    expect(requests.some((request) => request.url.includes("api.scryfall.com"))).toBe(false);
   });
 });

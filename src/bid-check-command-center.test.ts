@@ -40,8 +40,8 @@ describe("Bid Check command center", () => {
       tcgId: 1,
       marketCost: 100,
     }]));
-    localStorage.setItem("colorbreak:buyer:bid", "9");
-    localStorage.setItem("colorbreak:buyer:shipping", "3");
+    sessionStorage.setItem("colorbreak:buyer:bid", "9");
+    sessionStorage.setItem("colorbreak:buyer:shipping", "3");
     evaluateBreakAnalysis.mockResolvedValue(analysis);
     simulateOutcomesAsync.mockResolvedValue({
       seed: "test",
@@ -54,6 +54,7 @@ describe("Bid Check command center", () => {
   afterEach(() => {
     cleanup();
     localStorage.clear();
+    sessionStorage.clear();
     evaluateBreakAnalysis.mockReset();
     simulateOutcomesAsync.mockReset();
   });
@@ -106,12 +107,13 @@ describe("Bid Check command center", () => {
     expect(screen.getAllByText("1× foil box topper has no verified card list.").length).toBeGreaterThan(0);
     expect(screen.queryByText(/Expected impact:/)).not.toBeInTheDocument();
     await waitFor(() => expect(simulateOutcomesAsync).toHaveBeenCalled());
-    expect(screen.getByLabelText("Maximum hammer")).not.toHaveTextContent("—");
+    expect(screen.getByText(/LIMIT UNAVAILABLE/)).toBeInTheDocument();
+    expect(screen.getByLabelText("Maximum hammer")).toHaveTextContent("—");
   });
 
   it("links missing buyer information to the exact fields", async () => {
-    localStorage.removeItem("colorbreak:buyer:bid");
-    localStorage.removeItem("colorbreak:buyer:shipping");
+    sessionStorage.removeItem("colorbreak:buyer:bid");
+    sessionStorage.removeItem("colorbreak:buyer:shipping");
     render(createElement(Workspace, { mode: "buyer", exit: vi.fn() }));
 
     const bidLink = await screen.findByRole("link", { name: "Enter the current auction price" });

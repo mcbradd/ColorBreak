@@ -181,8 +181,40 @@ export interface ValuationResult {
   priceOnlyContributors?: Contributor[];
   omissions: Omission[];
   pricedAt: string;
+  /** Where the price observation that controls freshness came from. */
+  priceSource?: string;
   dataVersion: string;
   evidence: EvidenceState;
+}
+
+export type DecisionEligibilityStatus = "eligible" | "stale" | "material-incomplete" | "unavailable";
+
+/** A named omission that prevents a decision from being actionable. */
+export interface DecisionAffectedGroup {
+  id: string;
+  label: string;
+  directionallyUsable: boolean;
+}
+
+/**
+ * Engine-owned decision gate. UI, sharing, export, and analytics must consume
+ * this value rather than independently interpreting valuation status or age.
+ */
+export interface DecisionEligibility {
+  status: DecisionEligibilityStatus;
+  blockerCount: number;
+  affectedGroups: DecisionAffectedGroup[];
+  observedAt?: string;
+  observedSource?: string;
+  ageMs?: number;
+  freshnessThresholdMs: number;
+  reason:
+    | "fresh-complete"
+    | "stale-price-snapshot"
+    | "material-omissions"
+    | "missing-price-timestamp"
+    | "invalid-price-timestamp"
+    | "unavailable-source-status";
 }
 
 export interface Transaction {

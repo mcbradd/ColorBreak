@@ -74,7 +74,8 @@ export interface PriceLoadResult {
   omissions: Omission[];
 }
 
-const SNAPSHOT_STALE_MS = 72 * 60 * 60 * 1000;
+/** Buyer decisions are actionable only inside the published six-hour contract. */
+const SNAPSHOT_STALE_MS = 6 * 60 * 60 * 1000;
 const LIVE_INTERVAL_MS = 140;
 const liveSetCache = new Map<string, Promise<CardPrice[]>>();
 const snapshotSetCache = new Map<string, Promise<CardPrice[] | null>>();
@@ -315,22 +316,14 @@ export async function loadPrices(request: PriceLoadRequest): Promise<PriceLoadRe
   const missingPrintings = printings.filter((item) => !foundKeys.has(`${item.set}|${item.collectorNumber}`));
   const missingWholeSets = sets.filter((set) =>
     fullSets.has(set) || (!snapshotSets.has(set) && !printings.some((item) => item.set === set)));
+  // The app is intentionally local-first: snapshot misses are blockers, not an
+  // undisclosed request to Scryfall. Refreshes happen in reviewed build data.
   const failures: string[] = [];
-  let liveCards: CardPrice[] = [];
-
-  if (missingPrintings.length) {
-    try { liveCards.push(...await loadLivePrintings(missingPrintings)); }
-    catch (error) { failures.push(error instanceof Error ? error.message : String(error)); }
-  }
-  for (const set of missingWholeSets) {
-    try { liveCards.push(...await loadLiveSet(set)); }
-    catch (error) { failures.push(error instanceof Error ? error.message : String(error)); }
-  }
-  liveCards = uniqueCards(liveCards);
-  const combined = uniqueCards([...cards, ...liveCards]);
+  const liveCards: CardPrice[] = [];
+  const combined = uniqueCards(cards);
   const resolvedKeys = new Set(combined.map((card) => `${card.set}|${card.collectorNumber}`));
   const unresolvedCount = [...requestedKeys].filter((key) => !resolvedKeys.has(key)).length;
-  const omissions: Omission[] = failures.length || unresolvedCount ? [{
+  const omissions: Omission[] = failures.length || unresolvedCount || missingWholeSets.length ? [{
     code: "price-source-unavailable",
     message: failures[0] ?? `${unresolvedCount} exact printing prices are temporarily unavailable.`,
     expectedCards: unresolvedCount || undefined,
@@ -349,7 +342,7 @@ export async function loadPrices(request: PriceLoadRequest): Promise<PriceLoadRe
   const message = status === "available"
     ? `Exact-printing prices loaded from the ${source === "snapshot" ? "published snapshot" : source}.`
     : status === "stale"
-      ? "Exact-printing prices are available, but the published snapshot is older than 72 hours."
+      ? "Latest published snapshot is older than six hours; reload to check publication status."
       : status === "partial"
         ? "Some exact-printing prices could not be loaded; values are a lower bound."
         : "Exact-printing prices are temporarily unavailable; product contents remain intact.";
