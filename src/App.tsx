@@ -70,6 +70,8 @@ import { useMobileInputViewport } from "./mobile-input-viewport";
 import { track } from "./analytics";
 import { chaseMapLayout } from "./constellation-layout";
 import { runtimeReleaseContext, buyerDecisionPresentation, type ReleaseContext } from "./release-context";
+import { manualBudgetCap } from "./domain/manual-budget";
+import { READY_EXAMPLES, readyExampleLine } from "./data/ready-examples";
 import { createLargeBreakPlan, sortNamedCards, summarizeAssignmentValues } from "./domain/large-break";
 import type { TopCardSort } from "./domain/large-break";
 import {
@@ -507,7 +509,7 @@ function Status({ result }: { result: ValuationResult }) {
   );
 }
 
-function Home({ choose, buildId }: { choose: (mode: Mode, fresh?: boolean) => void; buildId?: string }) {
+function Home({ choose, buildId }: { choose: (mode: Mode, fresh?: boolean, ready?: boolean) => void; buildId?: string }) {
   const supportUrl = import.meta.env.VITE_SUPPORT_URL as string | undefined;
   const recentBuyer = readSessionLines("buyer");
   const recentSeller = readSessionLines("seller");
@@ -614,6 +616,8 @@ export function Builder({
   const [products, setProducts] = useState<ProductChoice[]>([]);
   const [readiness, setReadiness] = useState<Record<string, DecisionReadiness>>({});
   const [readyOnly, setReadyOnly] = useState(false);
+  const [readyRows, setReadyRows] = useState<Array<{ product: ProductChoice; readiness: DecisionReadiness }>>([]);
+  const [readyChecking, setReadyChecking] = useState(false);
   const [loading, setLoading] = useState(false);
   const [draft, setDraft] = useState<BreakLine[]>([]);
   const [composerMode, setComposerMode] = useState<"search" | "paste" | "review">("search");
@@ -628,6 +632,16 @@ export function Builder({
       catalogSets().then((rows) =>
         setSets(rows.sort((a, b) => b.released.localeCompare(a.released))),
       );
+  }, [open]);
+  useEffect(() => {
+    if (!open) return;
+    let active = true;
+    setReadyChecking(true);
+    void Promise.all(READY_EXAMPLES.map(async (example) => {
+      const product = (await productsForSet(example.set)).find((item) => item.sealedKey === example.productKey);
+      return product ? { product, readiness: await readinessForProduct(product) } : undefined;
+    })).then((rows) => { if (active) setReadyRows(rows.filter((row): row is { product: ProductChoice; readiness: DecisionReadiness } => Boolean(row))); }).finally(() => { if (active) setReadyChecking(false); });
+    return () => { active = false; };
   }, [open]);
   useEffect(() => {
     if (!selected) { selectionRequest.current += 1; return; }
@@ -823,6 +837,12 @@ export function Builder({
               </section>
             ) : !selected ? (
               <>
+                <section className="ready-now-list" aria-labelledby="ready-now-heading">
+                  <InformationLabel>READY NOW</InformationLabel><h3 id="ready-now-heading">Verified modeled ceilings</h3>
+                  <p className="data-status-legend">Ready = verified contents + fresh prices. Stale = prices older than six hours. Incomplete = missing contents or exact prices. Unavailable = evidence cannot be verified.</p>
+                  {readyChecking ? <p role="status">Checking data…</p> : readyRows.filter((row) => row.readiness.eligibility === "ready").map(({ product, readiness }) => <button type="button" className="ready-now-row" key={product.key} onClick={() => add(product)}><span><strong>{product.label}</strong><small>{product.setName ?? product.set} · {new Date(readiness.priceObservedAt ?? "").toLocaleString()} · published snapshot</small></span><span>Ready</span></button>)}
+                  {!readyChecking && !readyRows.some((row) => row.readiness.eligibility === "ready") && <p>No verified modeled ceilings are available in this snapshot.</p>}
+                </section>
                 <button type="button" className="paste-break-action" onClick={() => setComposerMode("paste")}><PackagePlus />Paste list or break link</button>
                 <div className="set-browser-tools">
                   <div className="set-sort-tabs" role="group" aria-label="Sort sets">
@@ -1991,6 +2011,7 @@ export function LargeBreakView({
   setBid,
   shipping,
   setShipping,
+  onChooseReady,
 }: {
   analysis: BreakAnalysis;
   lines: BreakLine[];
@@ -1999,6 +2020,7 @@ export function LargeBreakView({
   setBid: (value: number | undefined) => void;
   shipping: number | undefined;
   setShipping: (value: number | undefined) => void;
+  onChooseReady?: () => void;
 }) {
   const result = analysis.valuation;
   const eligibility = decisionEligibility(result);
@@ -2166,6 +2188,7 @@ export function BuyerView({
   setBid,
   shipping,
   setShipping,
+  onChooseReady,
 }: {
   analysis: BreakAnalysis;
   auction: AuctionState;
@@ -2176,6 +2199,7 @@ export function BuyerView({
   setBid: (value: number | undefined) => void;
   shipping: number | undefined;
   setShipping: (value: number | undefined) => void;
+  onChooseReady?: () => void;
 }) {
   const result = analysis.valuation;
   const eligibility = decisionEligibility(result);
@@ -2186,6 +2210,11 @@ export function BuyerView({
   const [resolvedOnlyRequested, setResolvedOnlyRequested] = useState(false);
   const [reconfirmedAt, setReconfirmedAt] = useState<number>();
   const [reconfirmedInput, setReconfirmedInput] = useState<string>();
+  const [manualMode, setManualMode] = useState(false);
+  const [manualTarget, setManualTarget] = useState<number>();
+  const [manualShipping, setManualShipping] = useState<number>();
+  const [manualHammer, setManualHammer] = useState<number>();
+  const manual = manualBudgetCap(manualTarget, manualShipping, manualHammer);
   const slot = result.slots.find((row) => row.id === selected)!;
   const landed = (bid ?? 0) + (shipping ?? 0);
   const simulation = useOutcomeSimulation(analysis, auction.remaining, bid == null ? undefined : landed);
@@ -2241,6 +2270,14 @@ export function BuyerView({
       ? "75% coverage"
       : "Average outcome";
   const decisionKicker = `${breakLabel ? `${breakLabel} · ` : ""}Manual auction check · ${assignmentMode === "random" ? `${auction.remaining.length} random colors` : `${SLOT_NAMES[selected]} slot`}`;
+  if (manualMode) return <section className="bid-live-decision manual-budget-cap" aria-label="Manual budget cap">
+    <div className="decision-kicker"><span>BUYER-ENTERED BUDGET</span><span className="decision-evidence evidence-incomplete">Not modeled</span></div>
+    <div className="verdict-head"><div className="verdict-decision"><InformationLabel>Manual budget cap — not a ColorBreak modeled ceiling</InformationLabel><h2 aria-live="polite">{manual?.recommendation ?? "SET YOUR CAP"}</h2><p className="decision-reason">Uses the value target you entered; ColorBreak did not verify this product's current contents/prices.</p></div><div className="ev-orb"><small>Manual maximum hammer</small><strong className="max-hammer" aria-label="Manual maximum hammer">{manual ? fmt(manual.maximumHammer) : "—"}</strong><span>max(0, value target − shipping)</span></div></div>
+    <div className="bid-inputs"><NumberField id="manual-value-target" label="My conservative value target" value={manualTarget} onChange={setManualTarget} /><NumberField id="manual-added-shipping" label="Added shipping" value={manualShipping} onChange={setManualShipping} /></div>
+    <div className="bid-inputs"><NumberField id="manual-current-hammer" label="Optional: current hammer" value={manualHammer} onChange={setManualHammer} /></div>
+    {manual?.landedCost != null && <div className="delta"><span>Landed cost <b>{fmt(manual.landedCost)}</b></span><span>Compared with your cap <b>{fmt(manual.maximumHammer)}</b></span></div>}
+    <button type="button" className="quiet" onClick={() => setManualMode(false)}>Back to product check</button>
+  </section>;
   return (
     <>
       <section
@@ -2255,7 +2292,7 @@ export function BuyerView({
           <div className="verdict-decision">
             <InformationLabel>Recommendation</InformationLabel>
             <h2 aria-live="polite">{decision}</h2>
-            {!releasePresentation.canShowDecision && <div className="decision-reason"><p><strong>A ceiling is not available yet.</strong> This product needs complete, current data before ColorBreak can calculate one. Observed {eligibility.observedAt ? new Date(eligibility.observedAt).toLocaleString() : "unknown"} from {eligibility.observedSource ?? "the price snapshot"}.</p></div>}
+            {!releasePresentation.canShowDecision && <div className="decision-reason buyer-recovery-choice"><p><strong>{eligibility.status === "stale" ? "Price evidence is stale." : eligibility.status === "material-incomplete" ? "Contents or exact prices are incomplete." : "Required evidence is unavailable."}</strong> {eligibility.status === "material-incomplete" && eligibility.affectedGroups.length ? eligibility.affectedGroups.map((item) => item.label).join(" ") : ""} Observed {eligibility.observedAt ? new Date(eligibility.observedAt).toLocaleString() : "unknown"} from {eligibility.observedSource ?? "the price snapshot"}. The modeled ceiling is withheld.</p><div className="buyer-recovery-actions"><button type="button" className="quiet" onClick={onChooseReady}>Choose a ready product</button><button type="button" className="quiet" onClick={() => setManualMode(true)}>Use manual budget cap</button></div></div>}
             {releasePresentation.canShowDecision && (eligibility.status === "eligible" || (eligibility.status === "material-incomplete" && resolvedOnlyRequested && scoped)) && !reconfirmed && <p className="decision-reason"><button type="button" className="quiet" onClick={() => { setReconfirmedInput(decisionInput); setReconfirmedAt(Date.now()); }}>Reconfirm current bid</button> Reconfirm after changing bid, shipping, slot, or risk stance. Confirmation expires after one minute.</p>}
             {releasePresentation.canShowDecision && eligibility.status === "eligible" && bid == null && <p className="decision-reason"><a href="#buyer-current-bid">Enter the current auction price</a> to compare it with your maximum hammer.</p>}
             {bid != null && shipping == null && <p className="decision-reason"><a href="#buyer-added-shipping">Enter the extra shipping charged for this purchase</a>. It affects your landed cost and maximum hammer.</p>}
@@ -2278,11 +2315,11 @@ export function BuyerView({
             <span>Average {fmt(distribution?.mean ?? fallbackMean)}</span>
           </div>
         </div>
-        <div className="value-rule" role="group" aria-label="Risk stance">
+        {eligibility.status === "eligible" && <div className="value-rule" role="group" aria-label="Risk stance">
           <button aria-pressed={valueRule.kind === "coverage"} onClick={() => setValueRule({ kind: "coverage", coverage: .75 })}>Protect downside</button>
           <button aria-pressed={valueRule.kind === "median"} onClick={() => setValueRule({ kind: "median" })}>Balanced</button>
           <button aria-pressed={valueRule.kind === "average"} onClick={() => setValueRule({ kind: "average" })}>Chase upside</button>
-        </div>
+        </div>}
         <div className="bid-inputs">
           <NumberField id="buyer-current-bid" label={eligibility.status === "eligible" ? "Current bid" : "Optional: compare your current all-in cost"} value={bid} onChange={setBid} />
           <NumberField
@@ -2326,7 +2363,6 @@ export function BuyerView({
           />
         </div>
       </section>
-      {!releasePresentation.canShowDecision && <NextSteps reason="This product has stale or incomplete data, so its ceiling cannot be calculated yet." />}
       <CardInspector
         row={inspectedCard}
         status={result.status}
@@ -3502,10 +3538,12 @@ export function Workspace({
   mode,
   exit,
   startFresh = false,
+  startReady = false,
 }: {
   mode: "buyer" | "seller";
   exit: () => void;
   startFresh?: boolean;
+  startReady?: boolean;
 }) {
   const legacy = useMemo(() => decodeLegacySearch(location.search), []);
   const sharedBuyer = useMemo(() => decodeBuyerShare(location.search), []);
@@ -3548,6 +3586,7 @@ export function Workspace({
     bulkThreshold: number;
   }>();
   const threshold = mode === "seller" ? 0 : bulkEnabled ? bulkThreshold : 0;
+  useEffect(() => { if (mode === "buyer" && startReady) setLines([readyExampleLine()]); }, [mode, startReady]);
   useEffect(() => { if (cleanupLegacyStorage()) setLegacyNotice(true); }, []);
   useEffect(() => {
     try {
@@ -3808,6 +3847,7 @@ export function Workspace({
                   setBid={setBuyerBid}
                   shipping={buyerShipping}
                   setShipping={setBuyerShipping}
+                  onChooseReady={() => setLines([readyExampleLine()])}
                 />
               ))}
             </div>
@@ -3869,8 +3909,10 @@ export function App({ releaseContext = runtimeReleaseContext }: { releaseContext
         : "home";
   const [mode, setMode] = useState<Mode>(initial);
   const [startFreshBuyer, setStartFreshBuyer] = useState(false);
-  const choose = (next: Mode, fresh = next === "buyer" && mode === "home") => {
+  const [startReadyBuyer, setStartReadyBuyer] = useState(false);
+  const choose = (next: Mode, fresh = next === "buyer" && mode === "home", ready = false) => {
     setStartFreshBuyer(fresh);
+    setStartReadyBuyer(ready);
     setMode(next);
     history.replaceState(
       null,
@@ -3900,6 +3942,7 @@ export function App({ releaseContext = runtimeReleaseContext }: { releaseContext
             mode={mode}
             exit={() => choose("home")}
             startFresh={mode === "buyer" && startFreshBuyer}
+            startReady={mode === "buyer" && startReadyBuyer}
           />
         )}
       </motion.div>

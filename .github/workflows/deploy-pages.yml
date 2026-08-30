@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
   schedule:
-    - cron: "41 11 * * *"
+    - cron: "41 */6 * * *"
   workflow_dispatch:
 
 permissions:
@@ -29,6 +29,8 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci
+      - name: Refresh the published price snapshot for the six-hour buyer rule
+        run: npm run data:prices
       - name: Verify committed price snapshots
         run: npm run check:prices && npm run check:sealed-prices
       - name: Test and build
