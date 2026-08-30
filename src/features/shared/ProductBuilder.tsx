@@ -9,7 +9,7 @@ import {
 } from "react";
 import type { CSSProperties, ReactNode, RefObject } from "react";
 import { createPortal } from "react-dom";
-import { AnimatePresence, motion } from "motion/react";
+import { motion } from "motion/react";
 import {
   ArrowLeft,
   BadgeCheck,
@@ -281,9 +281,10 @@ export function Builder({
   );
   const visibleProducts = Object.fromEntries(Object.entries(groupedProducts).map(([category, rows]) => [category, rows.filter((product) => !readyOnly || readiness[product.key]?.eligibility === "ready")]));
   const readyCount = products.filter((product) => readiness[product.key]?.eligibility === "ready").length;
+  // Unmount before the ownership hook restores focus: no exit animation may
+  // leave an active dialog exposed alongside the active workspace.
+  if (!open) return null;
   return createPortal(
-    <AnimatePresence>
-      {open && (
         <motion.div
           className="scrim"
           initial={{ opacity: 0 }}
@@ -436,9 +437,7 @@ export function Builder({
               )}
             </footer>
           </motion.section>
-        </motion.div>
-      )}
-    </AnimatePresence>, document.body,
+        </motion.div>, document.body,
   );
 }
 

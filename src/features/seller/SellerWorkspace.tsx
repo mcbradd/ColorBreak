@@ -10,7 +10,7 @@ import { createBreakShareUrl, decodeBuyerShare } from "../../domain/share-url";
 import type { BreakLine } from "../../domain/types";
 import { cleanupLegacyStorage, readSessionDraft, writeSessionLines } from "../../persistence";
 import { Builder, EmptyBreak } from "../shared/ProductBuilder";
-import { CompactWarning } from "../buyer/BuyerVisuals";
+import { CompactWarning } from "../shared/Feedback";
 import { SellerView } from "./SellerView";
 
 /** Owns seller composition and analysis state; it never hydrates buyer decisions. */
