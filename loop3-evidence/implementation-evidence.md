@@ -21,4 +21,8 @@ Run on 2026-08-30 before merge:
 - Root MJS tests: passed (29 node tests plus 6 root Vitest tests).
 - Deploy-path smoke: passed (2 tests).
 
-The production deployment and live check must be appended after the `main` workflow completes.
+## Published verification
+
+`54238ece6507d439160f867f17263afbf1ff80a8` was published to `main` and GitHub Actions run `33291159746` completed successfully. The final Pages artifact release manifest reports `appCommitSha` `54238ece6507d439160f867f17263afbf1ff80a8` and manifest ID `10c5cafa2e94956edcbbb4c4e1abcde693a7af6376441f55451edf71be0b6a55`.
+
+Live checks on 2026-08-30 returned HTTP 200 for `/ColorBreak/`, `privacy.html`, `methodology.html`, `sw.js`, and `data/release-manifest.json`; the deployed JavaScript contains the public-demo notice. As expected for the deliberately narrowed Pages demo, those responses do **not** send CSP, `X-Content-Type-Options`, or `Permissions-Policy`. That is the documented reason it cannot be presented as a production/commercial host.
