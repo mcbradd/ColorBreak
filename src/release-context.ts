@@ -11,7 +11,7 @@ export const analysisOnlyReleaseContext: ReleaseContext = Object.freeze({ postur
  * the safe public posture; a decision-ready host must inject its own context. */
 export const runtimeReleaseContext: ReleaseContext = typeof __COLORBREAK_RELEASE_POSTURE__ !== "undefined"
   ? Object.freeze({ posture: __COLORBREAK_RELEASE_POSTURE__ })
-  : Object.freeze({ posture: "decision-ready" });
+  : analysisOnlyReleaseContext;
 export const decisionReadyReleaseContext: ReleaseContext = Object.freeze({ posture: "decision-ready" });
 
 export function buyerDecisionPresentation(
@@ -23,5 +23,20 @@ export function buyerDecisionPresentation(
     canShowDecision: allowed,
     heading: allowed ? undefined : "ANALYSIS ONLY — NO BID DECISION",
     maxHammer: allowed ? undefined : "—",
+  } as const;
+}
+
+/** Shared public-release language.  A release posture is the single authority
+ * for both buyer and seller claims, rather than scattered UI checks. */
+export function releasePresentation(context: ReleaseContext) {
+  const analysisOnly = context.posture !== "decision-ready";
+  return {
+    analysisOnly,
+    buyerScope: analysisOnly
+      ? "Practice analysis — historical/modelled values, not current bid evidence"
+      : "Decision evidence",
+    sellerScope: analysisOnly
+      ? "Practice plan only — no launch decision"
+      : "Seller plan",
   } as const;
 }

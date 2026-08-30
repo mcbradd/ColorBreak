@@ -58,7 +58,7 @@ describe("Bid Check command center", () => {
   });
 
   it("keeps the live decision and its controls in one primary surface", async () => {
-    render(createElement(Workspace, { mode: "buyer", exit: vi.fn() }));
+    render(createElement(Workspace, { mode: "buyer", exit: vi.fn(), releaseContext: { posture: "decision-ready" } }));
 
     const decision = await screen.findByRole("region", { name: "Live bid decision" });
     expect(within(decision).getByLabelText("Current bid")).toHaveValue("");
@@ -69,7 +69,7 @@ describe("Bid Check command center", () => {
   });
 
   it("keeps supporting analysis immediately available without a disclosure", async () => {
-    render(createElement(Workspace, { mode: "buyer", exit: vi.fn() }));
+    render(createElement(Workspace, { mode: "buyer", exit: vi.fn(), releaseContext: { posture: "decision-ready" } }));
     await screen.findByRole("region", { name: "Live bid decision" });
 
     const evidence = screen.getByText("Decision evidence").closest("section");
@@ -92,7 +92,7 @@ describe("Bid Check command center", () => {
       outcomeOmissions: [{ code: "missing-topper", message: "1× foil box topper has no verified card list.", material: true }],
     });
 
-    render(createElement(Workspace, { mode: "buyer", exit: vi.fn() }));
+    render(createElement(Workspace, { mode: "buyer", exit: vi.fn(), releaseContext: { posture: "decision-ready" } }));
 
     const warningTitle = await screen.findByText("Some estimates may be low");
     expect(warningTitle.closest("details")).not.toHaveAttribute("open");
@@ -112,7 +112,7 @@ describe("Bid Check command center", () => {
   it("links missing buyer information to the exact fields", async () => {
     sessionStorage.removeItem("colorbreak:buyer:bid");
     sessionStorage.removeItem("colorbreak:buyer:shipping");
-    render(createElement(Workspace, { mode: "buyer", exit: vi.fn() }));
+    render(createElement(Workspace, { mode: "buyer", exit: vi.fn(), releaseContext: { posture: "decision-ready" } }));
 
     const bidLink = await screen.findByRole("link", { name: "Enter the current auction price" });
     expect(bidLink).toHaveAttribute("href", "#buyer-current-bid");

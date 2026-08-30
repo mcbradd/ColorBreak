@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
+import { validatePublicConfig } from "./tools/public-config.mjs";
 
 export default defineConfig(({ mode }) => ({
   base: "./",
@@ -11,6 +12,12 @@ export default defineConfig(({ mode }) => ({
     __COLORBREAK_RELEASE_POSTURE__: JSON.stringify("analysis-only"),
   },
   plugins: [
+    {
+      name: "colorbreak-public-config",
+      config() {
+        if (mode !== "test") validatePublicConfig(process.env);
+      },
+    },
     react(),
     {
       name: "colorbreak-static-data",

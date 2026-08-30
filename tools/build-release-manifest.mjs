@@ -68,11 +68,16 @@ export async function scanReleaseAssets(outputDir) {
     json: /["'](?:assetUrl|imageUrl|scriptUrl)["']\s*:\s*["'](https?:\/\/[^"']+)/gi,
   };
   const approved = new Set([
-    "https://cards.scryfall.io",
     "https://mcbradd.github.io",
     ...((process.env.COLORBREAK_APPROVED_EXTERNAL_ORIGINS ?? "").split(",").filter(Boolean)),
   ]);
   const files = await filesWithin(outputDir);
+  const index = await readFile(join(outputDir, "index.html"), "utf8");
+  const csp = index.match(/Content-Security-Policy[^>]*content="([^"]*)/i)?.[1]
+    ?? index.match(/content="([^"]*)"[^>]*Content-Security-Policy/i)?.[1];
+  if (!csp) throw new Error("Release artifact is missing a Content-Security-Policy");
+  const imgSource = csp.split(";").find((directive) => directive.trim().startsWith("img-src"));
+  if (!imgSource || /https?:/i.test(imgSource)) throw new Error("Release CSP img-src must not permit remote origins");
   const findings = [];
   for (const file of files) {
     if (!/\.(?:html|css|js|mjs|json|svg|webmanifest)$/i.test(file)) continue;

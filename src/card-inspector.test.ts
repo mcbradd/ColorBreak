@@ -65,7 +65,7 @@ describe("card inspector", () => {
     expect(dialog.parentElement?.parentElement).toBe(document.body);
     expect(screen.getByText("36.0%")).toBeInTheDocument();
     expect(screen.getByText("$24.50")).toBeInTheDocument();
-    expect(screen.getByRole("img", { name: "Mobile Chase card" })).toHaveAttribute("src", "https://example.com/card.jpg");
+    expect(screen.getByRole("img", { name: "Mobile Chase card image unavailable" })).toBeInTheDocument();
 
     fireEvent.pointerDown(dialog.parentElement!);
 
@@ -95,10 +95,10 @@ describe("card inspector", () => {
       onClose: vi.fn(),
     }));
 
-    expect(screen.getByRole("img", { name: "Day Face front face" })).toHaveAttribute("src", "https://example.com/day.jpg");
+    expect(screen.getByRole("img", { name: "Day Face card image unavailable" })).toBeInTheDocument();
     expect(screen.getByText("Day rules")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Flip to Night Face" }));
-    expect(screen.getByRole("img", { name: "Night Face back face" })).toHaveAttribute("src", "https://example.com/night.jpg");
+    expect(screen.getByRole("img", { name: "Night Face card image unavailable" })).toBeInTheDocument();
     expect(screen.getByText("Night rules")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Flip to Day Face" })).toBeInTheDocument();
   });

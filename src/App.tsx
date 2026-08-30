@@ -68,7 +68,7 @@ import { SLOT_IDS, SLOT_NAMES } from "./domain/types";
 import { useMobileInputViewport } from "./mobile-input-viewport";
 import { track } from "./analytics";
 import { chaseMapLayout } from "./constellation-layout";
-import { buyerDecisionPresentation, decisionReadyReleaseContext, type ReleaseContext } from "./release-context";
+import { analysisOnlyReleaseContext, buyerDecisionPresentation, releasePresentation, type ReleaseContext } from "./release-context";
 import { createLargeBreakPlan, sortNamedCards, summarizeAssignmentValues } from "./domain/large-break";
 import type { TopCardSort } from "./domain/large-break";
 import {
@@ -526,37 +526,37 @@ function Home({ choose }: { choose: (mode: Mode, fresh?: boolean) => void }) {
         <span className="engine-ready" aria-label="Catalog is analysis-only"><i /> DEMO · ANALYSIS ONLY</span>
       </header>
       <section className="launcher-intro">
-        <InformationLabel>Decision launcher</InformationLabel>
-        <h1>What do you need to decide?</h1>
-        <p>For Magic: The Gathering break buyers and sellers: set a bid ceiling or build a viable slot-plan scenario from the exact boxes being opened. Results are modeled, not guaranteed.</p>
+        <InformationLabel>Practice/demo build — no bid or launch decision</InformationLabel>
+        <h1>Explore a break composition</h1>
+        <p>Explore modeled card-value outcomes and rehearse a slot plan from the boxes being opened. This published demo is not current market evidence.</p>
       </section>
       <section className="mode-grid" aria-label="Choose a job">
         <button
           className="mode-card buyer-card"
-          aria-label="Bid Check — should I bid?"
+          aria-label="Bid Check — practice composition exploration"
           onClick={() => choose("buyer", true)}
         >
           <span className="mode-number">01</span>
           <span className="mode-copy">
             <small>BUYING A COLOR SLOT</small>
           <strong>Explore a bid</strong>
-            <p>Analysis-only — bid caps are temporarily unavailable in this published catalog.</p>
+            <p>Practice analysis — see how modeled outcomes work. This demo does not provide bid caps.</p>
           </span>
           <span className="mode-output"><small>CATALOG POSTURE</small><b>Analysis only</b><span>Check catalog · no bid cap</span></span>
           <ChevronRight />
         </button>
         <button
           className="mode-card seller-card"
-          aria-label="Seller Studio — should I run it?"
+          aria-label="Seller slot-plan rehearsal"
           onClick={() => choose("seller")}
         >
           <span className="mode-number">02</span>
           <span className="mode-copy">
             <small>PLANNING A BREAK</small>
-            <strong>Should I run it?</strong>
-            <p>Add products and costs. ColorBreak builds the viable plan.</p>
+            <strong>Rehearse a slot plan</strong>
+            <p>Add products and costs to explore rehearsal maths, not a launch recommendation.</p>
           </span>
-          <span className="mode-output"><small>YOUR ANSWER</small><b>Economics decision</b><span>Costs · scenarios · demand gate</span></span>
+          <span className="mode-output"><small>PRACTICE OUTPUT</small><b>Slot-plan rehearsal</b><span>Costs · scenarios · assumptions</span></span>
           <ChevronRight />
         </button>
       </section>
@@ -917,8 +917,8 @@ function EmptyBreak({ add }: { add: () => void }) {
       <span>
         <PackagePlus />
       </span>
-      <h2>What’s being opened?</h2>
-      <p>Pick the sealed products once. ColorBreak calculates automatically.</p>
+      <h2>Start a practice plan</h2>
+      <p>This sandbox rehearses composition and slot-plan maths only. Add products, then review the practice plan.</p>
       <button className="primary" onClick={add}>
         <PackagePlus size={18} /> Add products
       </button>
@@ -1258,7 +1258,6 @@ export function CardInspector({
   ));
   const faces = row?.card.faces ?? [];
   const activeFace = faces[faceIndex];
-  const activeImage = activeFace?.image ?? row?.card.image;
   const activeOracleText = activeFace?.oracleText ?? row?.card.oracleText;
   return createPortal(
     <AnimatePresence>
@@ -1298,11 +1297,7 @@ export function CardInspector({
             </header>
             <div className="card-inspector-body">
               <div className="card-art">
-                {activeImage ? (
-                  <img src={activeImage} alt={`${activeFace?.name ?? row.card.name} ${faces.length > 1 ? (faceIndex === 0 ? "front face" : "back face") : "card"}`} />
-                ) : (
-                  <span>Image unavailable</span>
-                )}
+                <PublicCardPlaceholder name={activeFace?.name ?? row.card.name} />
                 {faces.length > 1 && (
                   <button
                     type="button"
@@ -1806,16 +1801,12 @@ function slotProfile(slot: SlotValuation) {
   return "DIVERSIFIED";
 }
 
+function PublicCardPlaceholder({ name, className = "card-placeholder" }: { name: string; className?: string }) {
+  return <span className={className} role="img" aria-label={`${name} card image unavailable`}>{name.slice(0, 1)}</span>;
+}
+
 function CardThumbnail({ row }: { row: Contributor }) {
-  return (
-    <span
-      className="card-thumbnail"
-      style={{ backgroundImage: row.card.image ? `url("${row.card.image}")` : undefined }}
-      aria-hidden="true"
-    >
-      {row.card.image ? null : row.card.name.slice(0, 1)}
-    </span>
-  );
+  return <PublicCardPlaceholder name={row.card.name} className="card-thumbnail" />;
 }
 
 export function ContributorRows({
@@ -2097,7 +2088,7 @@ export function LargeBreakView({
             return <div className={`large-break-card large-break-slot ${isOpen ? "open" : ""}`} key={card.key}>
             <button type="button" className="large-break-card-main" onClick={() => setOpenSlot(isOpen ? null : slotKey)} aria-expanded={isOpen} aria-label={`${isOpen ? "Hide" : "Show"} cards in ${card.name} slot`}>
               <span className="large-break-rank">{String(index + 1).padStart(2, "0")}</span>
-              {card.image ? <img src={card.image} alt="" /> : <span className="card-placeholder" />}
+              <PublicCardPlaceholder name={card.name} />
               <span className="large-break-card-copy"><strong>{card.name}</strong><small>{card.cards.length} card{card.cards.length === 1 ? "" : "s"} · {cardPreviewSubtitle(card.row, card.marketPrice)}</small></span>
             </button>
             <div className="large-break-card-value"><span>Pull EV</span>{card.pullRateVerified
@@ -2149,7 +2140,7 @@ export function BuyerView({
   shipping,
   setShipping,
   onChooseDecisionReady,
-  releaseContext = decisionReadyReleaseContext,
+  releaseContext = analysisOnlyReleaseContext,
 }: {
   analysis: BreakAnalysis;
   auction: AuctionState;
@@ -2235,7 +2226,7 @@ export function BuyerView({
       >
         <div className="decision-kicker">
           <span title={decisionKicker}>{decisionKicker}</span>
-          <span className={`decision-evidence evidence-${result.status}`}>{result.status === "verified" ? "Data ready" : result.status}</span>
+          <span className={`decision-evidence evidence-${result.status}`}>{releaseContext.posture === "analysis-only" ? "Practice analysis" : result.status === "verified" ? "Data ready" : result.status}</span>
         </div>
         <div className="verdict-head">
           <div className="verdict-decision">
@@ -2297,8 +2288,8 @@ export function BuyerView({
       <section className="bid-explorer">
         <header className="disclosure-summary">
           <span>
-            <strong>Decision evidence</strong>
-            <small>Break value, Break Balance, data quality, and ranked cards · updated live</small>
+            <strong>{releaseContext.posture === "analysis-only" ? "Practice analysis" : "Decision evidence"}</strong>
+            <small>{releaseContext.posture === "analysis-only" ? "Historical/modelled values, data completeness, and snapshot age — not current bid evidence" : "Break value, Break Balance, data quality, and ranked cards"}</small>
           </span>
         </header>
         <div className="bid-explorer-body">
@@ -2675,14 +2666,14 @@ function SellerPlanArchive({
     <>
       <section className={`panel seller-primary-decision seller-${costsComplete ? planStatus.kind : "incomplete"}`}>
         <div className="decision-kicker">
-          <span>V2 SELLER DECISION</span>
-          <span>Economics check · no fill prediction</span>
+          <span>PRACTICE PLAN</span>
+          <span>Rehearsal maths · no fill or launch prediction</span>
         </div>
         <div className="seller-decision-main">
           <div>
-            <InformationLabel>RECOMMENDATION</InformationLabel>
-            <h2>{costsComplete ? planStatusLabel : missingCostLine ? <a href={`#seller-cost-${missingCostLine.id}`}>ENTER COST FOR {missingCostLine.productLabel.toUpperCase()}</a> : "ENTER PRODUCT COST"}</h2>
-            {costsComplete && <p>Modeled buyer card value is {fmt(Math.abs(planStatus.headroom))} {planStatus.headroom >= 0 ? "above" : "below"} the sales target. Validate demand before launch.</p>}
+            <InformationLabel>PRACTICE ESTIMATE</InformationLabel>
+            <h2>{costsComplete ? "REHEARSAL TARGETS" : missingCostLine ? <a href={`#seller-cost-${missingCostLine.id}`}>ENTER COST FOR {missingCostLine.productLabel.toUpperCase()}</a> : "ENTER PRODUCT COST"}</h2>
+            {costsComplete && <p>Modeled buyer card value is {fmt(Math.abs(planStatus.headroom))} {planStatus.headroom >= 0 ? "above" : "below"} the practice sales target. This is not a launch recommendation.</p>}
           </div>
           <strong>{costsComplete ? fmt(targetProfit) : "—"}<small>planned net target</small></strong>
         </div>
@@ -3046,6 +3037,7 @@ export function SellerView({
   add,
   update,
   remove,
+  releaseContext = analysisOnlyReleaseContext,
 }: {
   analysis: BreakAnalysis;
   lines: BreakLine[];
@@ -3053,7 +3045,9 @@ export function SellerView({
   add: () => void;
   update: (id: string, patch: Partial<BreakLine>) => void;
   remove: (id: string) => void;
+  releaseContext?: ReleaseContext;
 }) {
+  const publicPresentation = releasePresentation(releaseContext);
   const [draft, setDraft] = useState<SellerPlanDraft>(readSellerPlanDraft);
   const setPlan = (patch: Partial<SellerPlanDraft>) => setDraft((current) => ({ ...current, ...patch }));
   useEffect(() => { writeSellerPlanDraft(draft); }, [draft]);
@@ -3139,6 +3133,7 @@ export function SellerView({
   );
   return (
     <section className="seller-command-center">
+      <aside className="shared-calculation-notice" aria-label="Practice plan boundary"><span><b>{publicPresentation.sellerScope}</b><small>Costs, targets, and scenarios below are rehearsal maths only.</small></span></aside>
       <section className="seller-contents" aria-labelledby="seller-contents-heading">
         <div className="seller-section-heading">
           <div><InformationLabel>1 · BREAK</InformationLabel><h2 id="seller-contents-heading">Contents &amp; cost basis</h2></div>
@@ -3367,7 +3362,7 @@ export function Workspace({
   mode,
   exit,
   startFresh = false,
-  releaseContext = decisionReadyReleaseContext,
+  releaseContext = analysisOnlyReleaseContext,
 }: {
   mode: "buyer" | "seller";
   exit: () => void;
@@ -3609,13 +3604,13 @@ export function Workspace({
         <header className="workspace-title">
           <div>
             <p className="eyebrow">
-              {mode === "buyer" ? assignmentMode === "large" ? "BUYER · LARGE RANDOM MODE" : "BUYER · FAST BID CHECK" : "SELLER · PLAN TO LAUNCH"}
+              {mode === "buyer" ? assignmentMode === "large" ? "BUYER · PRACTICE EXPLORATION" : "BUYER · PRACTICE ANALYSIS" : "SELLER · PRACTICE PLAN"}
             </p>
             <h1>{mode === "buyer" ? assignmentMode === "large" ? "Large Break" : "Bid Check" : "Seller Studio"}</h1>
           </div>
         </header>
         {importUndo && <aside className="import-undo" aria-live="polite">
-          <span><b>Break updated</b><small>{lines.length} lines · review complete</small></span>
+          <span><b>Break updated</b><small>{lines.length} lines · practice composition updated</small></span>
           <button type="button" className="quiet" onClick={() => {
             setLines(importUndo.lines);
             setAssignmentMode(importUndo.assignmentMode);
@@ -3695,6 +3690,7 @@ export function Workspace({
                   add={() => setBuilder(true)}
                   update={update}
                   remove={(id) => setLines((rows) => rows.filter((row) => row.id !== id))}
+                  releaseContext={releaseContext}
                 />
               )}
           </div>
@@ -3720,7 +3716,7 @@ export function Workspace({
   );
 }
 
-export function App({ releaseContext = decisionReadyReleaseContext }: { releaseContext?: ReleaseContext } = {}) {
+export function App({ releaseContext = analysisOnlyReleaseContext }: { releaseContext?: ReleaseContext } = {}) {
   useMobileInputViewport();
   const hasSharedBreak = decodeLegacySearch(location.search).length > 0;
   const initial: Mode =
