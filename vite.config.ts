@@ -23,7 +23,7 @@ export default defineConfig({
         // that generated output so a repeat build cannot fail with EEXIST.
         await rm(resolve(output, "data"), { recursive: true, force: true });
         await cp(resolve(root, "data"), resolve(output, "data"), { recursive: true });
-        execFileSync(process.execPath, [resolve(root, "tools/build-release-manifest.mjs"), output], { stdio: "inherit" });
+        execFileSync(process.execPath, [resolve(root, "tools/build-release.mjs"), output], { stdio: "inherit" });
       },
     },
   ],

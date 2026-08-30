@@ -72,6 +72,7 @@ import { createLargeBreakPlan, sortNamedCards, summarizeAssignmentValues } from 
 import type { TopCardSort } from "./domain/large-break";
 import { canonicalCompositionFingerprint } from "./domain/canonical-composition";
 import { useDecisionConfirmation } from "./domain/decision-confirmation";
+import { decisionFingerprint } from "./features/buyer/decision-state";
 import {
   cleanupLegacyStorage,
   defaultSellerPlanDraft,
@@ -2166,7 +2167,13 @@ export function BuyerView({
       : valueRule.kind === "coverage"
         ? distribution.p25
         : distribution.mean;
-  const decisionInput = `${canonicalCompositionFingerprint(lines ?? [])}|${selected}|${assignmentMode}|${auction.remaining.join("")}|${bid ?? ""}|${shipping ?? ""}|${valueRule.kind}|${valueRule.kind === "coverage" ? valueRule.coverage : ""}|${eligibility.observedAt ?? ""}|${eligibility.affectedGroups.map((group) => group.id).join("|")}`;
+  const decisionInput = decisionFingerprint({
+    lines, selected, assignmentMode, remaining: auction.remaining, bid, shipping,
+    risk: `${valueRule.kind}:${valueRule.kind === "coverage" ? valueRule.coverage : ""}`,
+    omissionIds: eligibility.affectedGroups.map((group) => group.id),
+    valuationVersion: result.status, priceSource: eligibility.observedSource,
+    observedAt: eligibility.observedAt, distribution: valueTarget ?? "pending",
+  });
   const { confirmation, reconfirm } = useDecisionConfirmation(decisionInput);
   const reconfirmed = confirmation != null;
   const scoped = valueTarget == null || shipping == null ? undefined : resolvedOnlyLimit(valueTarget, shipping, eligibility);
@@ -2208,13 +2215,13 @@ export function BuyerView({
       >
         <div className="decision-kicker">
           <span>{breakLabel ? `${breakLabel} · ` : ""}Manual auction check · {assignmentMode === "random" ? `${auction.remaining.length} random colors` : `${SLOT_NAMES[selected]} slot`}</span>
-          <span className={`decision-evidence evidence-${result.status}`}>{result.status === "verified" ? "Data ready" : result.status}</span>
+          <span className={`decision-evidence evidence-${result.status}`}>{eligibility.status === "eligible" ? "Contents verified · decision data current" : result.status === "verified" ? "Contents verified · prices stale" : "Analysis available · no decision data"}</span>
         </div>
         <div className="verdict-head">
           <div className="verdict-decision">
             <InformationLabel>Recommendation</InformationLabel>
             <h2 aria-live="polite">{decision}</h2>
-            {eligibility.status !== "eligible" && <div className="decision-reason"><p><strong>No bid decision is available.</strong> {availability.detail} Observed {eligibility.observedAt ? new Date(eligibility.observedAt).toLocaleString() : "unknown"} from {eligibility.observedSource ?? "the published snapshot"}.</p>{unavailable && onChooseDecisionReady && <button type="button" className="primary" onClick={onChooseDecisionReady}>Practice analysis with this product</button>}{eligibility.affectedGroups.length > 0 && <details><summary className="disclosure-summary">Why this is unavailable<DisclosureArrow /></summary><p>Policy threshold: {eligibility.freshnessThresholdMs / 36e5} hours.</p><ul>{eligibility.affectedGroups.map((group) => <li key={group.id}>{group.label}</li>)}</ul></details>}{eligibility.status === "material-incomplete" && !resolvedOnlyRequested && eligibility.resolvedOnlyAvailable && <button type="button" className="quiet" onClick={() => setResolvedOnlyRequested(true)}>Calculate resolved-only limit</button>}{eligibility.status === "material-incomplete" && resolvedOnlyRequested && scoped && <p><strong>CONSERVATIVE · INCOMPLETE LIMIT</strong> uses only resolved exact-printing values. It is not a full break recommendation.</p>}</div>}
+            {eligibility.status !== "eligible" && <div className="decision-reason"><p><strong>No bid decision is available.</strong> {availability.detail} Observed {eligibility.observedAt ? new Date(eligibility.observedAt).toLocaleString() : "unknown"} from {eligibility.observedSource ?? "the published snapshot"}. The modeled range below remains practice analysis; editing products cannot refresh published prices.</p>{eligibility.affectedGroups.length > 0 && <details><summary className="disclosure-summary">Why this is unavailable<DisclosureArrow /></summary><p>Policy threshold: {eligibility.freshnessThresholdMs / 36e5} hours.</p><ul>{eligibility.affectedGroups.map((group) => <li key={group.id}>{group.label}</li>)}</ul></details>}{eligibility.status === "material-incomplete" && !resolvedOnlyRequested && eligibility.resolvedOnlyAvailable && <button type="button" className="quiet" onClick={() => setResolvedOnlyRequested(true)}>Calculate resolved-only limit</button>}{eligibility.status === "material-incomplete" && resolvedOnlyRequested && scoped && <p><strong>CONSERVATIVE · INCOMPLETE LIMIT</strong> uses only resolved exact-printing values. It is not a full break recommendation.</p>}</div>}
             {(eligibility.status === "eligible" || scopedEligible) && !reconfirmed && <p className="decision-reason"><button type="button" className="quiet" onClick={reconfirm}>Reconfirm current inputs</button> Reconfirm after changing bid, shipping, slot, risk stance, or break composition. Confirmation expires after one minute.</p>}
             {eligibility.status === "eligible" && bid == null && <p className="decision-reason"><a href="#buyer-current-bid">Enter the current auction price</a> to compare it with your maximum hammer.</p>}
             {bid != null && shipping == null && <p className="decision-reason"><a href="#buyer-added-shipping">Enter the extra shipping charged for this purchase</a>. It affects your landed cost and maximum hammer.</p>}

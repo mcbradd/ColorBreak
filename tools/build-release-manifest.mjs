@@ -57,7 +57,7 @@ function sourceMetadata(path, parsed) {
   return { observationTimestamp: null, sourceVersion: null };
 }
 
-export async function buildReleaseManifest({ outputDir = resolve(ROOT, "dist"), root = ROOT, buildTimestamp = generatedAt() } = {}) {
+export async function buildReleaseManifest({ outputDir = resolve(ROOT, "dist"), root = ROOT, buildTimestamp = generatedAt(), releaseContext } = {}) {
   const dataDir = join(outputDir, "data");
   const files = (await filesWithin(dataDir)).filter((file) => relative(outputDir, file).replaceAll("\\", "/") !== RELEASE_MANIFEST_PATH);
   const dataFiles = await Promise.all(files.sort().map(async (file) => {
@@ -67,21 +67,22 @@ export async function buildReleaseManifest({ outputDir = resolve(ROOT, "dist"), 
     try { parsed = JSON.parse(bytes.toString("utf8")); } catch { /* Non-JSON data is still hashable. */ }
     return { path, sha256: sha256(bytes), ...sourceMetadata(path, parsed) };
   }));
+  const context = releaseContext ?? { posture: "analysis-only", appCommitSha: commitSha(root), observedAt: dataFiles.find((file) => file.path === "data/prices/index.json")?.observationTimestamp ?? null, reviewEvidence: null };
+  if (!['analysis-only', 'decision-ready'].includes(context.posture)) throw new Error("Release context has an invalid posture");
+  if (context.posture === "decision-ready" && (!context.verified || !context.reviewEvidence)) throw new Error("Decision-ready manifest requires verified in-process release context");
   const manifest = {
     schemaVersion: 1,
     id: "",
-    appCommitSha: commitSha(root),
+    appCommitSha: context.appCommitSha,
     buildTimestamp,
     runtime: { node: process.version, tool: "tools/build-release-manifest.mjs" },
     eligibilityFreshnessMs: ELIGIBILITY_FRESHNESS_MS,
-  // Pages always remains analysis-only. A future production gate may pass this
-  // value only after it has independently validated the reviewed artifact.
-  releasePosture: process.env.COLORBREAK_VALIDATED_RELEASE_POSTURE === "decision-ready"
-    ? "decision-ready"
-    : "analysis-only",
+    releasePosture: context.posture,
+    reviewedObservation: context.observedAt,
+    reviewEvidence: context.reviewEvidence,
     dataFiles,
   };
-  const canonical = JSON.stringify({ ...manifest, id: undefined });
+  const canonical = JSON.stringify({ schemaVersion: manifest.schemaVersion, policyVersion: 1, appCommitSha: manifest.appCommitSha, eligibilityFreshnessMs: manifest.eligibilityFreshnessMs, releasePosture: manifest.releasePosture, reviewedObservation: manifest.reviewedObservation, reviewEvidence: manifest.reviewEvidence, dataFiles: manifest.dataFiles });
   manifest.id = sha256(canonical);
   const outputPath = join(outputDir, RELEASE_MANIFEST_PATH);
   await writeFile(outputPath, `${JSON.stringify(manifest, null, 2)}\n`);

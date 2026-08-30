@@ -1,4 +1,6 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap');
+/* Deliberately system-only: Pages is an analysis demo with no remote font request. */
+:root{--ui-font:system-ui,-apple-system,"Segoe UI",sans-serif}
+.brand,.wordmark,.hero h1,.workspace-title h1,.mode-card strong,.panel h2,.empty h2,.set-glyph,.ev-orb strong,.slot span,.sheet header h2,.card-inspector h2,.card-stat strong,.primary-stat strong,.outcome-landmarks b,.assignment-slots button span,.balance-column>b{font-family:var(--ui-font)!important}
 
 /* Intrinsic-size guards keep long product names and currency values inside a 320px viewport. */
 .panel .metric-row{grid-template-columns:repeat(3,minmax(0,1fr))}.panel .metric-row>div{min-width:0;padding-left:10px;padding-right:10px}.composition .line>span:nth-child(2){min-width:0}.composition .line strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}

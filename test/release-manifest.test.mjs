@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import { buildReleaseManifest, ELIGIBILITY_FRESHNESS_MS } from "../tools/build-release-manifest.mjs";
+import { forbiddenRemoteAsset } from "../tools/scan-release-assets.mjs";
 
 const hash = (value) => createHash("sha256").update(value).digest("hex");
 
@@ -40,9 +41,26 @@ test("manifest stays analysis-only until a validated production gate explicitly 
   t.after(() => rm(outputDir, { recursive: true, force: true }));
   await mkdir(join(outputDir, "data", "prices"), { recursive: true });
   await writeFile(join(outputDir, "data", "prices", "index.json"), JSON.stringify({ observedAt: "2026-08-29T12:00:00.000Z" }));
-  const previous = process.env.COLORBREAK_RELEASE_POSTURE;
-  process.env.COLORBREAK_RELEASE_POSTURE = "decision-ready";
+  const previous = process.env.COLORBREAK_VALIDATED_RELEASE_POSTURE;
+  process.env.COLORBREAK_VALIDATED_RELEASE_POSTURE = "decision-ready";
   const manifest = await buildReleaseManifest({ outputDir, root: outputDir, buildTimestamp: "2026-08-29T12:01:00.000Z" });
-  if (previous == null) delete process.env.COLORBREAK_RELEASE_POSTURE; else process.env.COLORBREAK_RELEASE_POSTURE = previous;
+  if (previous == null) delete process.env.COLORBREAK_VALIDATED_RELEASE_POSTURE; else process.env.COLORBREAK_VALIDATED_RELEASE_POSTURE = previous;
   assert.equal(manifest.releasePosture, "analysis-only");
+});
+
+test("manifest identity ignores build clock and runtime but binds stable release inputs", async (t) => {
+  const outputDir = await mkdtemp(join(tmpdir(), "colorbreak-release-id-"));
+  t.after(() => rm(outputDir, { recursive: true, force: true }));
+  await mkdir(join(outputDir, "data", "prices"), { recursive: true });
+  await writeFile(join(outputDir, "data", "prices", "index.json"), JSON.stringify({ observedAt: "2026-08-29T12:00:00.000Z" }));
+  const first = await buildReleaseManifest({ outputDir, root: outputDir, buildTimestamp: "2026-08-29T13:00:00.000Z" });
+  const second = await buildReleaseManifest({ outputDir, root: outputDir, buildTimestamp: "2026-08-30T13:00:00.000Z" });
+  assert.equal(first.id, second.id);
+  await writeFile(join(outputDir, "data", "prices", "index.json"), JSON.stringify({ observedAt: "2026-08-29T12:00:01.000Z" }));
+  assert.notEqual(first.id, (await buildReleaseManifest({ outputDir, root: outputDir })).id);
+});
+
+test("release asset scanner permits local references and rejects remote fonts and CSS", () => {
+  assert.equal(forbiddenRemoteAsset("@import './local.css'; .x{background:url(data:image/svg+xml,x)}"), null);
+  for (const sample of ["https://fonts.googleapis.com/css", "url(https://fonts.gstatic.com/a)", "@import url('https://example.test/a.css')", ".x{background:url(https://example.test/a.png)}"]) assert.ok(forbiddenRemoteAsset(sample));
 });
