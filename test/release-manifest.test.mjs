@@ -34,3 +34,15 @@ test("release manifest inventories deployed data with reproducible hashes and ob
   assert.equal(written.id, manifest.id);
   assert.ok(!written.dataFiles.some((file) => file.path === "data/release-manifest.json"));
 });
+
+test("manifest stays analysis-only until a validated production gate explicitly sets its posture", async (t) => {
+  const outputDir = await mkdtemp(join(tmpdir(), "colorbreak-release-posture-"));
+  t.after(() => rm(outputDir, { recursive: true, force: true }));
+  await mkdir(join(outputDir, "data", "prices"), { recursive: true });
+  await writeFile(join(outputDir, "data", "prices", "index.json"), JSON.stringify({ observedAt: "2026-08-29T12:00:00.000Z" }));
+  const previous = process.env.COLORBREAK_RELEASE_POSTURE;
+  process.env.COLORBREAK_RELEASE_POSTURE = "decision-ready";
+  const manifest = await buildReleaseManifest({ outputDir, root: outputDir, buildTimestamp: "2026-08-29T12:01:00.000Z" });
+  if (previous == null) delete process.env.COLORBREAK_RELEASE_POSTURE; else process.env.COLORBREAK_RELEASE_POSTURE = previous;
+  assert.equal(manifest.releasePosture, "analysis-only");
+});

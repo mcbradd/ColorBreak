@@ -1242,7 +1242,6 @@ export function CardInspector({
   ));
   const faces = row?.card.faces ?? [];
   const activeFace = faces[faceIndex];
-  const activeImage = activeFace?.image ?? row?.card.image;
   const activeOracleText = activeFace?.oracleText ?? row?.card.oracleText;
   return createPortal(
     <AnimatePresence>
@@ -1282,11 +1281,7 @@ export function CardInspector({
             </header>
             <div className="card-inspector-body">
               <div className="card-art">
-                {activeImage ? (
-                  <img src={activeImage} alt={`${activeFace?.name ?? row.card.name} ${faces.length > 1 ? (faceIndex === 0 ? "front face" : "back face") : "card"}`} />
-                ) : (
-                  <span>Image unavailable</span>
-                )}
+                <span>Card artwork is unavailable in this privacy-preserving demo.</span>
                 {faces.length > 1 && (
                   <button
                     type="button"
@@ -1794,10 +1789,9 @@ function CardThumbnail({ row }: { row: Contributor }) {
   return (
     <span
       className="card-thumbnail"
-      style={{ backgroundImage: row.card.image ? `url("${row.card.image}")` : undefined }}
       aria-hidden="true"
     >
-      {row.card.image ? null : row.card.name.slice(0, 1)}
+      {row.card.name.slice(0, 1)}
     </span>
   );
 }
@@ -2081,7 +2075,7 @@ export function LargeBreakView({
             return <div className={`large-break-card large-break-slot ${isOpen ? "open" : ""}`} key={card.key}>
             <button type="button" className="large-break-card-main" onClick={() => setOpenSlot(isOpen ? null : slotKey)} aria-expanded={isOpen} aria-label={`${isOpen ? "Hide" : "Show"} cards in ${card.name} slot`}>
               <span className="large-break-rank">{String(index + 1).padStart(2, "0")}</span>
-              {card.image ? <img src={card.image} alt="" /> : <span className="card-placeholder" />}
+              <span className="card-placeholder" aria-label="Card artwork unavailable" />
               <span className="large-break-card-copy"><strong>{card.name}</strong><small>{card.cards.length} card{card.cards.length === 1 ? "" : "s"} · {cardPreviewSubtitle(card.row, card.marketPrice)}</small></span>
             </button>
             <div className="large-break-card-value"><span>Pull EV</span>{card.pullRateVerified

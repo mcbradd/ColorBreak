@@ -3,7 +3,8 @@ import { execFileSync } from "node:child_process";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import react from "@vitejs/plugin-react";
-import { defineConfig } from "vite";
+import { defineConfig, loadEnv } from "vite";
+import { validatePublicConfig } from "./tools/public-config.mjs";
 
 export default defineConfig({
   base: "./",
@@ -11,6 +12,9 @@ export default defineConfig({
     react(),
     {
       name: "colorbreak-static-data",
+      configResolved(config) {
+        validatePublicConfig(loadEnv(config.mode, config.root, ""));
+      },
       async closeBundle() {
         const root = fileURLToPath(new URL(".", import.meta.url));
         const output = resolve(root, "dist");

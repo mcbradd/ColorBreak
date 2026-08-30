@@ -47,9 +47,7 @@ describe("shared contributor rows", () => {
     const row = screen.getByRole("button", { name: /Open Helpful Dragon/ });
     expect(row).toHaveTextContent("25.0%");
     expect(row).toHaveTextContent("$12.00 · Nonfoil · TST");
-    expect(row.querySelector(".card-thumbnail")).toHaveStyle({
-      backgroundImage: 'url("https://cards.scryfall.io/example.jpg")',
-    });
+    expect(row.querySelector(".card-thumbnail")).toHaveTextContent("H");
     fireEvent.click(row);
     expect(inspect).toHaveBeenCalledWith(contributor);
   });

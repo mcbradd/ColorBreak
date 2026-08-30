@@ -18,7 +18,7 @@
     <h2>Optional product analytics</h2>
     <p>If an analytics endpoint is configured, ColorBreak sends only allow-listed anonymous funnel events: persona selected, builder opened, product selected, builder abandoned, calculation completed, decision eligibility, draft resumed, buyer setup copied, and commercial CTA viewed/clicked. Events contain only mode, viewport class, product count, eligibility/status, or a coarse duration bucket. They never include bids, costs, card names, search text, URLs, share contents, contact details, or persistent identifiers. Session replay and sensitive-field capture are not used.</p>
     <h2>Data requests and third parties</h2>
-    <p>The default app uses system fonts and published price snapshots bundled with the app; it does not make Google Fonts or live Scryfall API requests while evaluating a break. Card images are not loaded automatically. If a future image is requested, its third-party host will be named first and it is not stored by the app cache. External affiliate and support links are optional and subject to their own notices.</p>
+    <p>The default app uses system fonts and published price snapshots bundled with the app; it does not make Google Fonts or live Scryfall API requests while evaluating a break. This demo blocks third-party card-image requests and shows text or local placeholders instead. External affiliate and support links are optional, use only reviewed HTTPS destinations, and are subject to their own notices.</p>
     <h2>External links</h2>
     <p>Card details may include a clearly disclosed affiliate link when configured. Following it is optional; affiliate presence never changes analysis or ranking. External services apply their own privacy policies.</p>
     <h2>Future accounts</h2>

@@ -74,16 +74,13 @@ export async function buildReleaseManifest({ outputDir = resolve(ROOT, "dist"), 
     buildTimestamp,
     runtime: { node: process.version, tool: "tools/build-release-manifest.mjs" },
     eligibilityFreshnessMs: ELIGIBILITY_FRESHNESS_MS,
-    // A reproducible Pages build can be stale; only a fresh reviewed snapshot
-    // may describe buyer caps as decision-ready.
-    releasePosture: "analysis-only",
+  // Pages always remains analysis-only. A future production gate may pass this
+  // value only after it has independently validated the reviewed artifact.
+  releasePosture: process.env.COLORBREAK_VALIDATED_RELEASE_POSTURE === "decision-ready"
+    ? "decision-ready"
+    : "analysis-only",
     dataFiles,
   };
-  const priceObservation = dataFiles.find((file) => file.path === "data/prices/index.json")?.observationTimestamp;
-  const priceAge = Date.parse(buildTimestamp) - Date.parse(priceObservation ?? "");
-  // Freshness alone is insufficient: the explicit release-posture check also
-  // requires a reviewed record and live-smoke evidence. Pages stays demo-only.
-  if (process.env.COLORBREAK_RELEASE_POSTURE === "decision-ready" && Number.isFinite(priceAge) && priceAge >= 0 && priceAge <= ELIGIBILITY_FRESHNESS_MS) manifest.releasePosture = "decision-ready";
   const canonical = JSON.stringify({ ...manifest, id: undefined });
   manifest.id = sha256(canonical);
   const outputPath = join(outputDir, RELEASE_MANIFEST_PATH);
