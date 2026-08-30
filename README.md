@@ -1,5 +1,11 @@
 # ColorBreak
 
+> **Public demo notice:** the GitHub Pages deployment is a non-commercial demo. It does not have response-level anti-framing headers and must not be used for commercial transactions or financially consequential decisions. A production launch requires a header-capable static host/CDN.
+
+## Reproducible releases
+
+Price snapshots are reviewed, committed release inputs. The Pages workflow verifies them but never regenerates them, so the deployed artifact is traceable to the commit and its release manifest. Refresh snapshots in a dedicated reviewed commit before release; the app withholds a buyer limit whenever its exact-printing snapshot is older than six hours.
+
 ColorBreak is a mobile-first decision tool for Magic: The Gathering color breaks. Buyers can judge a live-auction bid in seconds; sellers can price a break against actual marketplace fees, product cost, and fulfillment.
 
 ## Run locally

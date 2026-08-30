@@ -452,7 +452,7 @@ function Home({ choose }: { choose: (mode: Mode, fresh?: boolean) => void }) {
       <section className="launcher-intro">
         <InformationLabel>Decision launcher</InformationLabel>
         <h1>What do you need to decide?</h1>
-        <p>For Magic: The Gathering break buyers and sellers: set a bid ceiling or build a profitable slot plan from the exact boxes being opened. Results are modeled, not guaranteed.</p>
+        <p>For Magic: The Gathering break buyers and sellers: set a bid ceiling or build a viable slot-plan scenario from the exact boxes being opened. Results are modeled, not guaranteed.</p>
       </section>
       <section className="mode-grid" aria-label="Choose a job">
         <button
@@ -494,12 +494,13 @@ function Home({ choose }: { choose: (mode: Mode, fresh?: boolean) => void }) {
       {recentSeller.length > 0 && <button className="resume-action" onClick={() => choose("seller", false)}>
         <RotateCw /><span><small>THIS BROWSER SESSION</small><strong>Resume seller plan · costs are session-only</strong></span><ChevronRight />
       </button>}
+      <p className="demo-scope" role="note">Public demo only — do not use this GitHub Pages build for commercial transactions or financially consequential decisions. A production release needs a header-capable host.</p>
       <footer className="launcher-footer">
         <span>Exact-printing prices · Modeled pull ranges · No login</span>
         <span><a href="./methodology.html">Methodology</a> · <a href="./privacy.html">Privacy</a>{supportUrl && <> · <a href={supportUrl} rel="noreferrer" target="_blank">Support</a></>}</span>
       </footer>
-      <button type="button" className="quiet" onClick={() => void clearDevice()}>Clear this device’s ColorBreak data</button>
-      {cleared && <p role="status">ColorBreak data cleared from this device.</p>}
+      <button type="button" className="quiet" onClick={() => void clearDevice()}>Clear local ColorBreak app data</button>
+      {cleared && <p role="status">ColorBreak-controlled local app storage and cache cleared. Browser history, HTTP cache, and clipboard require browser controls.</p>}
     </main>
   );
 }
@@ -996,13 +997,13 @@ export function SlotRail({
         </div>
       </div>
       <div className="assignment-toggle buyer-assignment-toggle" role="group" aria-label="Break assignment mode">
-        <button className={assignmentMode === "pick" ? "active" : ""} onClick={() => {
+        <button aria-pressed={assignmentMode === "pick"} className={assignmentMode === "pick" ? "active" : ""} onClick={() => {
           const nextSelected = auction.remaining.includes(selected) ? selected : auction.remaining[0];
           if (nextSelected) setSelected(nextSelected);
           setAssignmentMode("pick");
         }}>Pick a color</button>
-        <button className={assignmentMode === "random" ? "active" : ""} onClick={() => setAssignmentMode("random")}>Random remaining</button>
-        <button className={assignmentMode === "large" ? "active" : ""} onClick={() => setAssignmentMode("large")}>Large break</button>
+        <button aria-pressed={assignmentMode === "random"} className={assignmentMode === "random" ? "active" : ""} onClick={() => setAssignmentMode("random")}>Random remaining</button>
+        <button aria-pressed={assignmentMode === "large"} className={assignmentMode === "large" ? "active" : ""} onClick={() => setAssignmentMode("large")}>Large break</button>
       </div>
       {assignmentMode === "large" ? (
         <div className="large-break-spot-input">
@@ -3269,6 +3270,7 @@ export function Workspace({
   const firstResultTracked = useRef(false);
   const [legacyNotice, setLegacyNotice] = useState(false);
   const calculationStarted = useRef(Date.now());
+  const analysisRequest = useRef(0);
   const [lines, setLines] = useState<BreakLine[]>(() =>
       startFresh && mode === "buyer" ? [] : storedLines(mode, legacy),
     ),
@@ -3345,11 +3347,13 @@ export function Workspace({
       setAnalysis(undefined);
       return;
     }
+    const request = ++analysisRequest.current;
     setBusy(true);
     calculationStarted.current = Date.now();
     setError(undefined);
     evaluateBreakAnalysis(lines, threshold)
       .then((next) => {
+        if (request !== analysisRequest.current) return;
         setAnalysis(next);
         if (!firstResultTracked.current) {
           const elapsed = Date.now() - calculationStarted.current;
@@ -3363,10 +3367,13 @@ export function Workspace({
         }
       })
       .catch((e) => {
+        if (request !== analysisRequest.current) return;
         setError(e instanceof Error ? e.message : String(e));
         // Errors are intentionally not transmitted: failure details can be sensitive.
       })
-      .finally(() => setBusy(false));
+      .finally(() => {
+        if (request === analysisRequest.current) setBusy(false);
+      });
   }, [lines, threshold]);
   const update = (id: string, patch: Partial<BreakLine>) =>
     setLines((rows) => rows.map((r) => (r.id === id ? { ...r, ...patch } : r)));
