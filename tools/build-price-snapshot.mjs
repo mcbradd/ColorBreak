@@ -21,7 +21,9 @@ function stableJson(value) {
 }
 
 function sha256(value) {
-  return createHash("sha256").update(value).digest("hex");
+  // The generator always emits LF. Accept Git's CRLF checkout conversion without
+  // weakening the content check for the canonical snapshot representation.
+  return createHash("sha256").update(value.replace(/\r\n/g, "\n")).digest("hex");
 }
 
 async function requiredPrintings() {

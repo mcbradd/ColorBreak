@@ -1,0 +1,3 @@
+# Price snapshot checksums are computed from the generator's LF-terminated JSON.
+# Keep these artifacts byte-stable on Windows checkouts as well as CI.
+data/prices/*.json text eol=lf

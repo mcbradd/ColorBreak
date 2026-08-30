@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import { readFile, readdir, stat } from "node:fs/promises";
-import { dirname, extname, join, resolve } from "node:path";
+import { dirname, extname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
@@ -32,9 +32,10 @@ async function serveArtifact() {
       response.writeHead(404).end();
       return;
     }
-    const relative = decodeURIComponent(url.pathname.slice(deploymentBase.length));
-    const candidate = resolve(output, relative || "index.html");
-    if (!candidate.startsWith(`${output}\\`) && candidate !== output) {
+    const requestPath = decodeURIComponent(url.pathname.slice(deploymentBase.length));
+    const candidate = resolve(output, requestPath || "index.html");
+    const outputRelative = relative(output, candidate);
+    if (outputRelative === ".." || outputRelative.startsWith(`..${sep}`) || isAbsolute(outputRelative)) {
       response.writeHead(400).end();
       return;
     }
