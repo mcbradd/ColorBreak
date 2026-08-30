@@ -76,6 +76,7 @@ import { createLargeBreakPlan, sortNamedCards, summarizeAssignmentValues } from 
 import type { TopCardSort } from "../../domain/large-break";
 import {
   cleanupLegacyStorage,
+  clearColorBreakBrowserStorage,
   defaultSellerPlanDraft,
   readBuyerDecisionRecord,
   readSellerPlanDraft,
@@ -515,12 +516,7 @@ export function Home({ choose, buildId }: { choose: (mode: Mode, fresh?: boolean
   const recentSeller = readSessionDraft("seller").lines;
   const [cleared, setCleared] = useState(false);
   const clearDevice = async () => {
-    for (const storage of [localStorage, sessionStorage]) {
-      for (let index = storage.length - 1; index >= 0; index -= 1) {
-        const key = storage.key(index);
-        if (key?.startsWith("colorbreak:")) storage.removeItem(key);
-      }
-    }
+    clearColorBreakBrowserStorage();
     const names = await caches.keys();
     await Promise.all(names.filter((name) => name.startsWith("colorbreak-")).map((name) => caches.delete(name)));
     history.replaceState(null, "", location.pathname);

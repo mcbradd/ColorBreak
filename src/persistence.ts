@@ -298,3 +298,15 @@ export function cleanupLegacyStorage(): boolean {
   } catch { /* storage is optional */ }
   return removed;
 }
+
+/** Removes all ColorBreak browser-private records without exposing storage keys to UI code. */
+export function clearColorBreakBrowserStorage(): void {
+  try {
+    for (const storage of [localStorage, sessionStorage]) {
+      for (let index = storage.length - 1; index >= 0; index -= 1) {
+        const key = storage.key(index);
+        if (key?.startsWith("colorbreak:")) storage.removeItem(key);
+      }
+    }
+  } catch { /* storage is optional */ }
+}
