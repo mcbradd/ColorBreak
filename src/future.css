@@ -876,3 +876,27 @@ input {
   .icon-button,
   .quiet { transition: color 120ms linear, border-color 120ms linear, background-color 120ms linear, padding 120ms linear; }
 }
+
+/* A refusal can be the longest buyer status. Keep its full wording usable on
+ * the narrow phone target instead of treating it as a single display word. */
+@media (max-width: 430px) {
+  .bid-live-decision .verdict-head {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+    gap: 14px;
+  }
+  .bid-live-decision .verdict-decision { min-width: 0; }
+  .bid-live-decision .verdict-decision h2 {
+    max-width: 100%;
+    font-size: clamp(30px, 10vw, 43px) !important;
+    line-height: .98;
+    overflow-wrap: anywhere;
+    white-space: normal;
+  }
+  .bid-live-decision .decision-kicker span:first-child { text-overflow: ellipsis; }
+  .bid-live-decision .decision-kicker span:first-child[title] { cursor: help; }
+  .buyer-recovery-choice { display: grid; gap: 12px; margin: 10px; padding: 14px; border: var(--rule); background: #080c12; }
+  .buyer-recovery-choice p { margin: 5px 0 0; color: var(--muted); line-height: 1.4; }
+  .buyer-recovery-actions { display: grid; gap: 8px; }
+  .buyer-recovery-actions button { justify-content: center; min-height: 48px; }
+}

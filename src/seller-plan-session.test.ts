@@ -3,7 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { afterEach, describe, expect, it } from "vitest";
 import { calculateBreak } from "./domain/valuation";
 import type { BreakAnalysis } from "./data/evaluate";
-import { readSellerPlanDraft, sellerCompositionFingerprint, sellerPlanKeyFor } from "./persistence";
+import { readSellerPlanDraft } from "./persistence";
 import { SellerView } from "./App";
 
 const analysis: BreakAnalysis = {
@@ -20,12 +20,11 @@ const lines = [{
   id: "line-1", set: "TST", productKey: "box", productLabel: "Test Box",
   quantity: 1, tcgId: 1, marketCost: 100, myCost: 80,
 }];
-const fingerprint = sellerCompositionFingerprint(lines, analysis.valuation.dataVersion);
 
 describe("mounted seller operating plan", () => {
   afterEach(() => { cleanup(); sessionStorage.clear(); });
 
-  it("keeps target locks and actual asks in the private session plan across a remount", async () => {
+  it("keeps target locks private without turning a plan into an actual result", async () => {
     const first = render(createElement(SellerView, {
       analysis, lines, transactionCount: 8, add: () => {}, update: () => {}, remove: () => {},
     }));
@@ -34,34 +33,17 @@ describe("mounted seller operating plan", () => {
     fireEvent.change(planned, { target: { value: "24" } });
     fireEvent.blur(planned);
     fireEvent.click(screen.getByTitle("Lock target"));
-    const actual = screen.getByLabelText("Actual White sale price");
-    fireEvent.change(actual, { target: { value: "25" } });
-    fireEvent.blur(actual);
-
-    await waitFor(() => expect(readSellerPlanDraft(fingerprint)).toMatchObject({
-      plannedBidOverride: 24, lockedAsks: { W: 192 }, actualAsks: { W: 25 },
+    await waitFor(() => expect(readSellerPlanDraft()).toMatchObject({
+      plannedBidOverride: 24, lockedAsks: { W: 192 },
     }));
+    expect(screen.getByText("Reconciliation in progress")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Actual White sale price")).toBeNull();
     first.unmount();
 
     render(createElement(SellerView, {
       analysis, lines, transactionCount: 8, add: () => {}, update: () => {}, remove: () => {},
     }));
     expect(await screen.findByLabelText("Planned bid per spot")).toHaveValue("24");
-    expect(screen.getByLabelText("Actual White sale price")).toHaveValue("25");
     expect(screen.getByTitle("Unlock target")).toBeInTheDocument();
-  });
-
-  it("does not create a plan until edited, and discard does not resurrect it", async () => {
-    render(createElement(SellerView, {
-      analysis, lines, transactionCount: 8, add: () => {}, update: () => {}, remove: () => {},
-    }));
-    expect(sessionStorage.getItem(sellerPlanKeyFor(fingerprint))).toBeNull();
-
-    fireEvent.change(await screen.findByLabelText("Planned bid per spot"), { target: { value: "24" } });
-    fireEvent.blur(screen.getByLabelText("Planned bid per spot"));
-    await waitFor(() => expect(sessionStorage.getItem(sellerPlanKeyFor(fingerprint))).not.toBeNull());
-
-    fireEvent.click(screen.getByRole("button", { name: "Discard this seller plan" }));
-    await waitFor(() => expect(sessionStorage.getItem(sellerPlanKeyFor(fingerprint))).toBeNull());
   });
 });

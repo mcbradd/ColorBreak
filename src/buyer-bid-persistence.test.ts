@@ -6,6 +6,8 @@ import type { BreakAnalysis } from "./data/evaluate";
 
 const evaluateBreakAnalysis = vi.hoisted(() => vi.fn());
 vi.mock("./data/evaluate", () => ({ evaluateBreakAnalysis }));
+const productsForSet = vi.hoisted(() => vi.fn().mockResolvedValue([]));
+vi.mock("./data/catalog", () => ({ catalogSets: [], productsForSet, readinessForProduct: vi.fn() }));
 
 import { App, Workspace } from "./App";
 
@@ -76,6 +78,42 @@ describe("buyer bid persistence", () => {
     render(createElement(Workspace, { mode: "buyer", exit: vi.fn() }));
     expect(await screen.findByLabelText("Current bid")).toHaveValue("12.5");
     expect(screen.getByLabelText("Your added shipping")).toHaveValue("4.25");
+  });
+
+  it("restores a random pool only for the same saved composition", async () => {
+    const first = render(createElement(Workspace, { mode: "buyer", exit: vi.fn() }));
+    await screen.findByLabelText("Current bid");
+    fireEvent.click(screen.getByRole("button", { name: "Random remaining" }));
+    fireEvent.click(screen.getByRole("button", { name: "Edit availability" }));
+    fireEvent.click(screen.getByRole("button", { name: "Mark Blue taken" }));
+    fireEvent.change(screen.getByLabelText("Current bid"), { target: { value: "12.50" } });
+    fireEvent.blur(screen.getByLabelText("Current bid"));
+    fireEvent.change(screen.getByLabelText("Your added shipping"), { target: { value: "4.25" } });
+    fireEvent.blur(screen.getByLabelText("Your added shipping"));
+    first.unmount();
+
+    render(createElement(Workspace, { mode: "buyer", exit: vi.fn() }));
+    expect(await screen.findByRole("button", { name: "Random remaining" })).toHaveClass("active");
+    fireEvent.click(screen.getByRole("button", { name: "Edit availability" }));
+    expect(screen.getByRole("button", { name: "Restore Blue slot" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Current bid")).toHaveValue("12.5");
+    expect(screen.getByLabelText("Your added shipping")).toHaveValue("4.25");
+  });
+
+  it("offers a shared break without carrying private bid or shipping into it", async () => {
+    const first = render(createElement(Workspace, { mode: "buyer", exit: vi.fn() }));
+    fireEvent.change(await screen.findByLabelText("Current bid"), { target: { value: "12.50" } });
+    fireEvent.blur(screen.getByLabelText("Current bid"));
+    fireEvent.change(screen.getByLabelText("Your added shipping"), { target: { value: "4.25" } });
+    fireEvent.blur(screen.getByLabelText("Your added shipping"));
+    first.unmount();
+
+    history.replaceState(null, "", "/?b=TST.play-box.2&m=pick&s=W&r=WUBRGMCL&f=1&t=2#buyer");
+    render(createElement(Workspace, { mode: "buyer", exit: vi.fn() }));
+    expect(await screen.findByRole("button", { name: "Use this shared break" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Use this shared break" }));
+    expect(screen.getByLabelText("Current bid")).toHaveValue("");
+    expect(screen.getByLabelText("Your added shipping")).toHaveValue("");
   });
 
   it("starts with empty break contents when Bid Check is opened from the base page", async () => {

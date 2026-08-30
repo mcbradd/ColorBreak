@@ -1,14 +1,14 @@
 import { afterEach, describe, expect, it } from "vitest";
 import {
+  buyerDecisionKey,
+  buyerDecisionFingerprint,
   defaultSellerPlanDraft,
+  readBuyerDecisionRecord,
   readSellerPlanDraft,
-  sellerCompositionFingerprint,
   sellerPlanKey,
-  sellerPlanKeyFor,
+  writeBuyerDecisionRecord,
   writeSellerPlanDraft,
 } from "./persistence";
-
-const fingerprint = sellerCompositionFingerprint([{ id: "one", set: "TST", productKey: "box", productLabel: "Box", quantity: 1 }], "model-v1");
 
 describe("seller plan session persistence", () => {
   afterEach(() => sessionStorage.clear());
@@ -21,41 +21,80 @@ describe("seller plan session persistence", () => {
       acceptedEstimateIds: ["box-1"],
       minimumAsk: 3,
       lockedAsks: { W: 31 },
-      actualAsks: { U: 26.5 },
       unsoldSlots: ["B" as const],
     };
 
-    writeSellerPlanDraft(fingerprint, plan);
+    writeSellerPlanDraft(plan);
 
-    expect(readSellerPlanDraft(fingerprint)).toEqual(plan);
-    expect(localStorage.getItem(sellerPlanKeyFor(fingerprint))).toBeNull();
+    expect(readSellerPlanDraft()).toEqual(plan);
+    expect(localStorage.getItem(sellerPlanKey)).toBeNull();
   });
 
   it("rejects malformed, negative, and unknown persisted fields", () => {
-    sessionStorage.setItem(sellerPlanKeyFor(fingerprint), JSON.stringify({ schemaVersion: 2, compositionFingerprint: fingerprint, draft: {
+    sessionStorage.setItem(sellerPlanKey, JSON.stringify({
       buyerShipping: -4,
       commission: "free",
       acceptedEstimateIds: ["safe", 2],
       minimumAsk: Number.NaN,
       lockedAsks: { W: 20, NOPE: 44, U: -1 },
-      actualAsks: { R: 15, bad: 4 },
       unsoldSlots: ["G", "bogus"],
-    }}));
+    }));
 
-    expect(readSellerPlanDraft(fingerprint)).toMatchObject({
+    expect(readSellerPlanDraft()).toMatchObject({
       buyerShipping: 5,
       commission: 8,
       acceptedEstimateIds: ["safe"],
       minimumAsk: 1,
       lockedAsks: { W: 20 },
-      actualAsks: { R: 15 },
       unsoldSlots: ["G"],
     });
   });
 
-  it("deletes unsafe global v1 data instead of reusing it for a new composition", () => {
-    sessionStorage.setItem(sellerPlanKey, JSON.stringify({ actualAsks: { W: 42 } }));
-    expect(readSellerPlanDraft(fingerprint).actualAsks).toEqual({});
-    expect(sessionStorage.getItem(sellerPlanKey)).toBeNull();
+  it("drops legacy actual asks instead of silently treating targets as receipts", () => {
+    sessionStorage.setItem(sellerPlanKey, JSON.stringify({
+      ...defaultSellerPlanDraft(), actualAsks: { W: 42 },
+    }));
+    expect(readSellerPlanDraft()).toMatchObject({
+      lockedAsks: {}, reconciliationNeeded: true,
+    });
+    expect(readSellerPlanDraft()).not.toHaveProperty("actualAsks");
+  });
+});
+
+describe("buyer decision session persistence", () => {
+  const state = {
+    lines: [{ id: "line-1", set: "TST", productKey: "play-box", productLabel: "Play Booster Box", quantity: 1 }],
+    dataVersion: "TST:play-box:1@2026-08-30",
+    assignmentMode: "random" as const,
+    selectedSlot: "U" as const,
+    remaining: ["W", "U", "B"] as const,
+    bulkEnabled: true,
+    bulkThreshold: 2,
+    largeSpots: 120,
+  };
+
+  afterEach(() => sessionStorage.clear());
+
+  it("round-trips one atomic, composition-bound private buyer snapshot", () => {
+    writeBuyerDecisionRecord(state, { bid: 12.5, shipping: 4.25 });
+    expect(readBuyerDecisionRecord(state)).toMatchObject({
+      fingerprint: buyerDecisionFingerprint(state),
+      remaining: ["W", "U", "B"], bid: 12.5, shipping: 4.25,
+    });
+  });
+
+  it("rejects money and auction state after any decision-relevant change", () => {
+    writeBuyerDecisionRecord(state, { bid: 12.5, shipping: 4.25 });
+    expect(readBuyerDecisionRecord({ ...state, dataVersion: "new-price-snapshot" })).toBeUndefined();
+    expect(sessionStorage.getItem(buyerDecisionKey)).toBeNull();
+
+    writeBuyerDecisionRecord(state, { bid: 12.5, shipping: 4.25 });
+    expect(readBuyerDecisionRecord({ ...state, lines: [{ ...state.lines[0], quantity: 2 }] })).toBeUndefined();
+  });
+
+  it("removes malformed or legacy records rather than partially hydrating them", () => {
+    sessionStorage.setItem(buyerDecisionKey, JSON.stringify({ bid: 99, shipping: 2, remaining: ["U"] }));
+    expect(readBuyerDecisionRecord()).toBeUndefined();
+    expect(sessionStorage.getItem(buyerDecisionKey)).toBeNull();
   });
 });

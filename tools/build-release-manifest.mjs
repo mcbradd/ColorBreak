@@ -57,32 +57,76 @@ function sourceMetadata(path, parsed) {
   return { observationTimestamp: null, sourceVersion: null };
 }
 
-export async function buildReleaseManifest({ outputDir = resolve(ROOT, "dist"), root = ROOT, buildTimestamp = generatedAt(), releaseContext } = {}) {
-  const dataDir = join(outputDir, "data");
-  const files = (await filesWithin(dataDir)).filter((file) => relative(outputDir, file).replaceAll("\\", "/") !== RELEASE_MANIFEST_PATH);
-  const dataFiles = await Promise.all(files.sort().map(async (file) => {
+export async function scanReleaseAssets(outputDir) {
+  // Only executable/rendered resource references are relevant here. Citation
+  // URLs in the immutable data are not browser fetches.
+  const patterns = {
+    html: /<(?:script|link|img|iframe)\b[^>]*(?:src|href)=["'](https?:\/\/[^"']+)/gi,
+    css: /(?:@import\s+(?:url\()?|url\()["']?(https?:\/\/[^\s"')]+)/gi,
+    js: /(?:fetch|import)\(\s*["'](https?:\/\/[^"']+)/gi,
+    svg: /(?:href|xlink:href)=["'](https?:\/\/[^"']+)/gi,
+    json: /["'](?:assetUrl|imageUrl|scriptUrl)["']\s*:\s*["'](https?:\/\/[^"']+)/gi,
+  };
+  const approved = new Set([
+    "https://cards.scryfall.io",
+    "https://mcbradd.github.io",
+    ...((process.env.COLORBREAK_APPROVED_EXTERNAL_ORIGINS ?? "").split(",").filter(Boolean)),
+  ]);
+  const files = await filesWithin(outputDir);
+  const findings = [];
+  for (const file of files) {
+    if (!/\.(?:html|css|js|mjs|json|svg|webmanifest)$/i.test(file)) continue;
+    const path = relative(outputDir, file).replaceAll("\\", "/");
+    const text = await readFile(file, "utf8");
+    const extension = file.split(".").pop()?.toLowerCase();
+    const pattern = extension === "html" ? patterns.html : extension === "css" ? patterns.css : extension === "svg" ? patterns.svg : extension === "json" || extension === "webmanifest" ? patterns.json : patterns.js;
+    for (const match of text.matchAll(pattern)) {
+      const origin = new URL(match[1]).origin;
+      if (!approved.has(origin)) findings.push({ path, origin });
+    }
+  }
+  if (findings.length) throw new Error(`Unapproved external release resource: ${findings.map((item) => `${item.path} (${item.origin})`).join(", ")}`);
+  return findings;
+}
+
+export async function verifyReleaseArtifact({ outputDir = resolve(ROOT, "dist") } = {}) {
+  const manifest = JSON.parse(await readFile(join(outputDir, RELEASE_MANIFEST_PATH), "utf8"));
+  const files = manifest.artifactFiles ?? manifest.dataFiles;
+  for (const item of files) {
+    const bytes = await readFile(join(outputDir, item.path));
+    if (sha256(bytes) !== item.sha256) throw new Error(`Release artifact hash mismatch: ${item.path}`);
+  }
+  await scanReleaseAssets(outputDir);
+  return manifest;
+}
+
+export async function buildReleaseManifest({ outputDir = resolve(ROOT, "dist"), root = ROOT, buildTimestamp = generatedAt() } = {}) {
+  const files = (await filesWithin(outputDir)).filter((file) => relative(outputDir, file).replaceAll("\\", "/") !== RELEASE_MANIFEST_PATH);
+  const artifactFiles = await Promise.all(files.sort().map(async (file) => {
     const bytes = await readFile(file);
     const path = relative(outputDir, file).replaceAll("\\", "/");
     let parsed = {};
     try { parsed = JSON.parse(bytes.toString("utf8")); } catch { /* Non-JSON data is still hashable. */ }
     return { path, sha256: sha256(bytes), ...sourceMetadata(path, parsed) };
   }));
-  const context = releaseContext ?? { posture: "analysis-only", appCommitSha: commitSha(root), observedAt: dataFiles.find((file) => file.path === "data/prices/index.json")?.observationTimestamp ?? null, reviewEvidence: null };
-  if (!['analysis-only', 'decision-ready'].includes(context.posture)) throw new Error("Release context has an invalid posture");
-  if (context.posture === "decision-ready" && (!context.verified || !context.reviewEvidence)) throw new Error("Decision-ready manifest requires verified in-process release context");
+  const dataFiles = artifactFiles.filter((file) => file.path.startsWith("data/"));
+  const resolvedSha = commitSha(root);
+  if (process.env.GITHUB_SHA && process.env.GITHUB_SHA !== resolvedSha) throw new Error("GITHUB_SHA does not match checked-out commit");
   const manifest = {
     schemaVersion: 1,
     id: "",
-    appCommitSha: context.appCommitSha,
+    appCommitSha: resolvedSha,
     buildTimestamp,
     runtime: { node: process.version, tool: "tools/build-release-manifest.mjs" },
     eligibilityFreshnessMs: ELIGIBILITY_FRESHNESS_MS,
-    releasePosture: context.posture,
-    reviewedObservation: context.observedAt,
-    reviewEvidence: context.reviewEvidence,
+    // Public Pages is always analysis-only. A separately authorized host and
+    // reviewed tuple are required before decision-ready is even considered.
+    releasePosture: "analysis-only",
     dataFiles,
+    artifactFiles,
   };
-  const canonical = JSON.stringify({ schemaVersion: manifest.schemaVersion, policyVersion: 1, appCommitSha: manifest.appCommitSha, eligibilityFreshnessMs: manifest.eligibilityFreshnessMs, releasePosture: manifest.releasePosture, reviewedObservation: manifest.reviewedObservation, reviewEvidence: manifest.reviewEvidence, dataFiles: manifest.dataFiles });
+  await scanReleaseAssets(outputDir);
+  const canonical = JSON.stringify({ ...manifest, id: undefined });
   manifest.id = sha256(canonical);
   const outputPath = join(outputDir, RELEASE_MANIFEST_PATH);
   await writeFile(outputPath, `${JSON.stringify(manifest, null, 2)}\n`);
@@ -94,5 +138,5 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   const info = await stat(join(outputArg, "data")).catch(() => null);
   if (!info?.isDirectory()) throw new Error(`Release data directory not found: ${join(outputArg, "data")}`);
   const manifest = await buildReleaseManifest({ outputDir: outputArg });
-  console.log(`release manifest ${manifest.id}: ${manifest.dataFiles.length} data files`);
+  console.log(`release manifest ${manifest.id}: ${manifest.artifactFiles.length} artifact files`);
 }

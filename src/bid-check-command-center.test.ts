@@ -40,8 +40,6 @@ describe("Bid Check command center", () => {
       tcgId: 1,
       marketCost: 100,
     }]));
-    sessionStorage.setItem("colorbreak:buyer:bid", "9");
-    sessionStorage.setItem("colorbreak:buyer:shipping", "3");
     evaluateBreakAnalysis.mockResolvedValue(analysis);
     simulateOutcomesAsync.mockResolvedValue({
       seed: "test",
@@ -63,8 +61,8 @@ describe("Bid Check command center", () => {
     render(createElement(Workspace, { mode: "buyer", exit: vi.fn() }));
 
     const decision = await screen.findByRole("region", { name: "Live bid decision" });
-    expect(within(decision).getByLabelText("Current bid")).toHaveValue("9");
-    expect(within(decision).getByLabelText("Your added shipping")).toHaveValue("3");
+    expect(within(decision).getByLabelText("Current bid")).toHaveValue("");
+    expect(within(decision).getByLabelText("Your added shipping")).toHaveValue("");
     expect(within(decision).getByRole("group", { name: "Risk stance" })).toBeInTheDocument();
     expect(within(decision).getByText("Your max hammer")).toBeInTheDocument();
     expect(screen.queryByText("V2 RESEARCH PREVIEW")).not.toBeInTheDocument();
@@ -107,7 +105,7 @@ describe("Bid Check command center", () => {
     expect(screen.getAllByText("1× foil box topper has no verified card list.").length).toBeGreaterThan(0);
     expect(screen.queryByText(/Expected impact:/)).not.toBeInTheDocument();
     await waitFor(() => expect(simulateOutcomesAsync).toHaveBeenCalled());
-    expect(screen.getByText(/LIMIT UNAVAILABLE — 1 MATERIAL OMISSIONS/)).toBeInTheDocument();
+    expect(screen.getByText(/ANALYSIS ONLY — NO BID DECISION/)).toBeInTheDocument();
     expect(screen.getByLabelText("Maximum hammer")).toHaveTextContent("—");
   });
 

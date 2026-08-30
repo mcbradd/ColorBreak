@@ -68,18 +68,15 @@ import { SLOT_IDS, SLOT_NAMES } from "./domain/types";
 import { useMobileInputViewport } from "./mobile-input-viewport";
 import { track } from "./analytics";
 import { chaseMapLayout } from "./constellation-layout";
+import { buyerDecisionPresentation, decisionReadyReleaseContext, type ReleaseContext } from "./release-context";
 import { createLargeBreakPlan, sortNamedCards, summarizeAssignmentValues } from "./domain/large-break";
 import type { TopCardSort } from "./domain/large-break";
-import { canonicalCompositionFingerprint } from "./domain/canonical-composition";
-import { useDecisionConfirmation } from "./domain/decision-confirmation";
-import { decisionFingerprint } from "./features/buyer/decision-state";
 import {
   cleanupLegacyStorage,
-  defaultSellerPlanDraft,
-  discardSellerPlanDraft,
+  readBuyerDecisionRecord,
   readSellerPlanDraft,
   readSessionLines,
-  sellerCompositionFingerprint,
+  writeBuyerDecisionRecord,
   writeSellerPlanDraft,
   writeSessionLines,
   type SellerPlanDraft,
@@ -101,10 +98,6 @@ const oddsLabel = (probability: number) =>
       ? `${(probability * 100).toFixed(probability < 0.01 ? 2 : 1)}%`
       : "0%";
 const FOCUSABLE_SELECTOR = "button:not(:disabled), a[href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex='-1'])";
-
-function DemoBoundaryNotice() {
-  return <p className="demo-scope" role="note"><strong>DEMO · ANALYSIS ONLY</strong> This browser-local GitHub Pages demo must not be used for financially consequential decisions or commercial transactions. A bid limit requires a separately hosted decision-capable release with complete contents, exact prices observed within six hours, current simulation evidence, and a fresh one-minute acknowledgement.</p>;
-}
 
 /** Keeps a dialog's opener stable even while its owning screen re-renders. */
 function useDialogOwnership(open: boolean, onClose: () => void, dialogRef: RefObject<HTMLElement | null>, initialFocus?: RefObject<HTMLElement | null>) {
@@ -136,11 +129,38 @@ function useDialogOwnership(open: boolean, onClose: () => void, dialogRef: RefOb
       document.body.style.overflow = previousOverflow;
       application?.removeAttribute("inert");
       application?.removeAttribute("aria-hidden");
-      opener.current?.focus({ preventScroll: true });
+      const candidate = opener.current;
+      const canRestore = candidate?.isConnected
+        && !candidate.matches(":disabled, [inert]")
+        && !candidate.closest("[inert]");
+      const fallback = document.querySelector<HTMLElement>("[data-focus-fallback]")
+        ?? document.querySelector<HTMLElement>("main");
+      (canRestore ? candidate : fallback)?.focus({ preventScroll: true });
       window.scrollTo(0, scrollY);
       opener.current = null;
     };
   }, [open]); // onClose intentionally lives in a ref: re-renders must not reset ownership.
+}
+
+/** Schedules focus only while the originating control still owns it. */
+function useDeferredOwnedFocus() {
+  const timer = useRef<ReturnType<typeof window.setTimeout> | undefined>(undefined);
+  const token = useRef(0);
+  useEffect(() => () => {
+    token.current += 1;
+    if (timer.current != null) window.clearTimeout(timer.current);
+  }, []);
+  return useCallback((id: string) => {
+    token.current += 1;
+    const request = token.current;
+    if (timer.current != null) window.clearTimeout(timer.current);
+    const owner = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    timer.current = window.setTimeout(() => {
+      if (request !== token.current || (owner && document.activeElement !== owner)) return;
+      const target = document.getElementById(id);
+      if (target instanceof HTMLElement && target.isConnected && !target.matches(":disabled, [inert]")) target.focus({ preventScroll: true });
+    }, 0);
+  }, []);
 }
 
 function DisclosureArrow() {
@@ -483,14 +503,6 @@ function Home({ choose }: { choose: (mode: Mode, fresh?: boolean) => void }) {
   const supportUrl = import.meta.env.VITE_SUPPORT_URL as string | undefined;
   const recentBuyer = readSessionLines("buyer");
   const recentSeller = readSessionLines("seller");
-  // A product list is not itself a saved financial plan.  Only advertise a
-  // resume when an owned session draft exists.
-  const hasSavedSellerPlan = (() => {
-    try {
-      return Array.from({ length: sessionStorage.length }, (_, index) => sessionStorage.key(index))
-        .some((key) => key?.startsWith("colorbreak:seller:plan:v2:"));
-    } catch { return false; }
-  })();
   const [cleared, setCleared] = useState(false);
   const clearDevice = async () => {
     for (const storage of [localStorage, sessionStorage]) {
@@ -514,37 +526,37 @@ function Home({ choose }: { choose: (mode: Mode, fresh?: boolean) => void }) {
         <span className="engine-ready" aria-label="Catalog is analysis-only"><i /> DEMO · ANALYSIS ONLY</span>
       </header>
       <section className="launcher-intro">
-        <InformationLabel>Analysis launcher</InformationLabel>
-        <h1>What would you like to explore?</h1>
-        <p>For Magic: The Gathering break buyers and sellers: explore modeled outcomes or rehearse a costed plan from the exact boxes being opened.</p>
+        <InformationLabel>Decision launcher</InformationLabel>
+        <h1>What do you need to decide?</h1>
+        <p>For Magic: The Gathering break buyers and sellers: set a bid ceiling or build a viable slot-plan scenario from the exact boxes being opened. Results are modeled, not guaranteed.</p>
       </section>
       <section className="mode-grid" aria-label="Choose a job">
         <button
           className="mode-card buyer-card"
-          aria-label="Explore buyer analysis — Bid Check"
+          aria-label="Bid Check — should I bid?"
           onClick={() => choose("buyer", true)}
         >
           <span className="mode-number">01</span>
           <span className="mode-copy">
             <small>BUYING A COLOR SLOT</small>
-          <strong>Explore buyer analysis</strong>
-            <p>Practice modeled outcomes. This published catalog has no decision-ready products.</p>
+          <strong>Explore a bid</strong>
+            <p>Analysis-only — bid caps are temporarily unavailable in this published catalog.</p>
           </span>
           <span className="mode-output"><small>CATALOG POSTURE</small><b>Analysis only</b><span>Check catalog · no bid cap</span></span>
           <ChevronRight />
         </button>
         <button
           className="mode-card seller-card"
-          aria-label="Rehearse a costed seller plan"
+          aria-label="Seller Studio — should I run it?"
           onClick={() => choose("seller")}
         >
           <span className="mode-number">02</span>
           <span className="mode-copy">
             <small>PLANNING A BREAK</small>
-            <strong>Rehearse a costed seller plan</strong>
-            <p>Add products and costs. This is costed launch-plan analysis, not a demand prediction.</p>
+            <strong>Should I run it?</strong>
+            <p>Add products and costs. ColorBreak builds the viable plan.</p>
           </span>
-          <span className="mode-output"><small>YOUR ANALYSIS</small><b>Costed plan</b><span>Costs · scenarios · rehearsal</span></span>
+          <span className="mode-output"><small>YOUR ANSWER</small><b>Economics decision</b><span>Costs · scenarios · demand gate</span></span>
           <ChevronRight />
         </button>
       </section>
@@ -555,10 +567,10 @@ function Home({ choose }: { choose: (mode: Mode, fresh?: boolean) => void }) {
           <ChevronRight />
         </button>
       )}
-      {recentSeller.length > 0 && hasSavedSellerPlan && <button className="resume-action" onClick={() => choose("seller", false)}>
+      {recentSeller.length > 0 && <button className="resume-action" onClick={() => choose("seller", false)}>
         <RotateCw /><span><small>THIS BROWSER SESSION</small><strong>Resume seller plan · costs are session-only</strong></span><ChevronRight />
       </button>}
-      <DemoBoundaryNotice />
+      <p className="demo-scope" role="note">Public demo only — do not use this GitHub Pages build for commercial transactions or financially consequential decisions. A production release needs a header-capable host.</p>
       <footer className="launcher-footer">
         <span>Exact-printing prices · Modeled pull ranges · No login</span>
         <span><a href="./methodology.html">Methodology</a> · <a href="./privacy.html">Privacy</a>{supportUrl && <> · <a href={supportUrl} rel="noreferrer" target="_blank">Support</a></>}</span>
@@ -1246,6 +1258,7 @@ export function CardInspector({
   ));
   const faces = row?.card.faces ?? [];
   const activeFace = faces[faceIndex];
+  const activeImage = activeFace?.image ?? row?.card.image;
   const activeOracleText = activeFace?.oracleText ?? row?.card.oracleText;
   return createPortal(
     <AnimatePresence>
@@ -1285,7 +1298,11 @@ export function CardInspector({
             </header>
             <div className="card-inspector-body">
               <div className="card-art">
-                <span>Card artwork is unavailable in this privacy-preserving demo.</span>
+                {activeImage ? (
+                  <img src={activeImage} alt={`${activeFace?.name ?? row.card.name} ${faces.length > 1 ? (faceIndex === 0 ? "front face" : "back face") : "card"}`} />
+                ) : (
+                  <span>Image unavailable</span>
+                )}
                 {faces.length > 1 && (
                   <button
                     type="button"
@@ -1793,9 +1810,10 @@ function CardThumbnail({ row }: { row: Contributor }) {
   return (
     <span
       className="card-thumbnail"
+      style={{ backgroundImage: row.card.image ? `url("${row.card.image}")` : undefined }}
       aria-hidden="true"
     >
-      {row.card.name.slice(0, 1)}
+      {row.card.image ? null : row.card.name.slice(0, 1)}
     </span>
   );
 }
@@ -2079,7 +2097,7 @@ export function LargeBreakView({
             return <div className={`large-break-card large-break-slot ${isOpen ? "open" : ""}`} key={card.key}>
             <button type="button" className="large-break-card-main" onClick={() => setOpenSlot(isOpen ? null : slotKey)} aria-expanded={isOpen} aria-label={`${isOpen ? "Hide" : "Show"} cards in ${card.name} slot`}>
               <span className="large-break-rank">{String(index + 1).padStart(2, "0")}</span>
-              <span className="card-placeholder" aria-label="Card artwork unavailable" />
+              {card.image ? <img src={card.image} alt="" /> : <span className="card-placeholder" />}
               <span className="large-break-card-copy"><strong>{card.name}</strong><small>{card.cards.length} card{card.cards.length === 1 ? "" : "s"} · {cardPreviewSubtitle(card.row, card.marketPrice)}</small></span>
             </button>
             <div className="large-break-card-value"><span>Pull EV</span>{card.pullRateVerified
@@ -2122,7 +2140,6 @@ export function LargeBreakView({
 
 export function BuyerView({
   analysis,
-  lines,
   auction,
   assignmentMode,
   selected,
@@ -2132,9 +2149,9 @@ export function BuyerView({
   shipping,
   setShipping,
   onChooseDecisionReady,
+  releaseContext = decisionReadyReleaseContext,
 }: {
   analysis: BreakAnalysis;
-  lines?: BreakLine[];
   auction: AuctionState;
   assignmentMode: AssignmentMode;
   selected: SlotId;
@@ -2144,13 +2161,17 @@ export function BuyerView({
   shipping: number | undefined;
   setShipping: (value: number | undefined) => void;
   onChooseDecisionReady?: () => void;
+  releaseContext?: ReleaseContext;
 }) {
   const result = analysis.valuation;
   const eligibility = decisionEligibility(result);
   const availability = decisionAvailability(result);
+  const releasePresentation = buyerDecisionPresentation(eligibility.status, releaseContext);
   const [inspectedCard, setInspectedCard] = useState<Contributor | null>(null);
   const [valueRule, setValueRule] = useState<ValueRule>({ kind: "median" });
   const [resolvedOnlyRequested, setResolvedOnlyRequested] = useState(false);
+  const [reconfirmedAt, setReconfirmedAt] = useState<number>();
+  const [reconfirmedInput, setReconfirmedInput] = useState<string>();
   const slot = result.slots.find((row) => row.id === selected)!;
   const landed = (bid ?? 0) + (shipping ?? 0);
   const simulation = useOutcomeSimulation(analysis, auction.remaining, bid == null ? undefined : landed);
@@ -2167,15 +2188,8 @@ export function BuyerView({
       : valueRule.kind === "coverage"
         ? distribution.p25
         : distribution.mean;
-  const decisionInput = decisionFingerprint({
-    lines, selected, assignmentMode, remaining: auction.remaining, bid, shipping,
-    risk: `${valueRule.kind}:${valueRule.kind === "coverage" ? valueRule.coverage : ""}`,
-    omissionIds: eligibility.affectedGroups.map((group) => group.id),
-    valuationVersion: result.status, priceSource: eligibility.observedSource,
-    observedAt: eligibility.observedAt, distribution: valueTarget ?? "pending",
-  });
-  const { confirmation, reconfirm } = useDecisionConfirmation(decisionInput);
-  const reconfirmed = confirmation != null;
+  const decisionInput = `${selected}|${assignmentMode}|${auction.remaining.join("")}|${bid ?? ""}|${shipping ?? ""}|${valueRule.kind}|${valueRule.kind === "coverage" ? valueRule.coverage : ""}|${eligibility.affectedGroups.map((group) => group.id).join("|")}`;
+  const reconfirmed = reconfirmedInput === decisionInput && reconfirmedAt != null && Date.now() - reconfirmedAt <= 60_000;
   const scoped = valueTarget == null || shipping == null ? undefined : resolvedOnlyLimit(valueTarget, shipping, eligibility);
   const cap = eligibility.status !== "eligible" || valueTarget == null || shipping == null
     ? { kind: "unknown-cost" as const }
@@ -2186,27 +2200,33 @@ export function BuyerView({
           : [],
         addedCost: () => shipping,
       });
-  const activeCap = eligibility.status === "material-incomplete" && resolvedOnlyRequested && scoped && reconfirmed
+  const activeCap = releasePresentation.canShowDecision && eligibility.status === "material-incomplete" && resolvedOnlyRequested && scoped && reconfirmed
     ? { kind: "cap" as const, amount: scoped.amount, allInAtCap: scoped.allIn }
     : cap;
   const recommendation = recommendBid(bid, activeCap);
-  const unavailable = eligibility.status === "stale" || eligibility.status === "unavailable";
-  const scopedEligible = eligibility.status === "material-incomplete" && resolvedOnlyRequested && scoped;
-  const canShowDecision = (eligibility.status === "eligible" || scopedEligible) && reconfirmed;
-  const decision = unavailable
-    ? "LIMIT UNAVAILABLE — STALE/INCOMPLETE DATA"
-    : eligibility.status === "material-incomplete" && !scopedEligible
-      ? `LIMIT UNAVAILABLE — ${eligibility.blockerCount} MATERIAL OMISSIONS`
-      : !reconfirmed
-        ? "RECONFIRM CURRENT INPUTS"
-        : bid == null ? "ENTER BID" : shipping == null ? "ADD SHIPPING"
-          : recommendation.action === "bid" ? "BID" : recommendation.action === "stop" ? "STOP HERE"
-            : recommendation.action === "pass" ? "PASS" : "NO CAP";
+  const decision = !releasePresentation.canShowDecision
+    ? releasePresentation.heading!
+    : eligibility.status !== "eligible"
+    ? eligibility.status === "material-incomplete" && resolvedOnlyRequested && scoped && reconfirmed
+      ? bid == null ? "ENTER BID" : recommendation.action === "bid" ? "BID" : recommendation.action === "stop" ? "STOP HERE" : recommendation.action === "pass" ? "PASS" : "NO CAP"
+      : eligibility.status === "material-incomplete" ? `LIMIT UNAVAILABLE — ${eligibility.blockerCount} MATERIAL OMISSIONS` : "LIMIT UNAVAILABLE"
+    : bid == null
+    ? "ENTER BID"
+    : shipping == null
+      ? "ADD SHIPPING"
+      : recommendation.action === "bid"
+        ? "BID"
+        : recommendation.action === "stop"
+          ? "STOP HERE"
+          : recommendation.action === "pass"
+            ? "PASS"
+            : "NO CAP";
   const ruleLabel = valueRule.kind === "median"
     ? "Typical outcome"
     : valueRule.kind === "coverage"
       ? "75% coverage"
       : "Average outcome";
+  const decisionKicker = `${breakLabel ? `${breakLabel} · ` : ""}Manual auction check · ${assignmentMode === "random" ? `${auction.remaining.length} random colors` : `${SLOT_NAMES[selected]} slot`}`;
   return (
     <>
       <section
@@ -2214,16 +2234,16 @@ export function BuyerView({
         aria-label="Live bid decision"
       >
         <div className="decision-kicker">
-          <span>{breakLabel ? `${breakLabel} · ` : ""}Manual auction check · {assignmentMode === "random" ? `${auction.remaining.length} random colors` : `${SLOT_NAMES[selected]} slot`}</span>
-          <span className={`decision-evidence evidence-${result.status}`}>{eligibility.status === "eligible" ? "Contents verified · decision data current" : result.status === "verified" ? "Contents verified · prices stale" : "Analysis available · no decision data"}</span>
+          <span title={decisionKicker}>{decisionKicker}</span>
+          <span className={`decision-evidence evidence-${result.status}`}>{result.status === "verified" ? "Data ready" : result.status}</span>
         </div>
         <div className="verdict-head">
           <div className="verdict-decision">
             <InformationLabel>Recommendation</InformationLabel>
             <h2 aria-live="polite">{decision}</h2>
-            {eligibility.status !== "eligible" && <div className="decision-reason"><p><strong>No bid decision is available.</strong> {availability.detail} Observed {eligibility.observedAt ? new Date(eligibility.observedAt).toLocaleString() : "unknown"} from {eligibility.observedSource ?? "the published snapshot"}. The modeled range below remains practice analysis; editing products cannot refresh published prices.</p>{eligibility.affectedGroups.length > 0 && <details><summary className="disclosure-summary">Why this is unavailable<DisclosureArrow /></summary><p>Policy threshold: {eligibility.freshnessThresholdMs / 36e5} hours.</p><ul>{eligibility.affectedGroups.map((group) => <li key={group.id}>{group.label}</li>)}</ul></details>}{eligibility.status === "material-incomplete" && !resolvedOnlyRequested && eligibility.resolvedOnlyAvailable && <button type="button" className="quiet" onClick={() => setResolvedOnlyRequested(true)}>Calculate resolved-only limit</button>}{eligibility.status === "material-incomplete" && resolvedOnlyRequested && scoped && <p><strong>CONSERVATIVE · INCOMPLETE LIMIT</strong> uses only resolved exact-printing values. It is not a full break recommendation.</p>}</div>}
-            {(eligibility.status === "eligible" || scopedEligible) && !reconfirmed && <p className="decision-reason"><button type="button" className="quiet" onClick={reconfirm}>Reconfirm current inputs</button> Reconfirm after changing bid, shipping, slot, risk stance, or break composition. Confirmation expires after one minute.</p>}
-            {eligibility.status === "eligible" && bid == null && <p className="decision-reason"><a href="#buyer-current-bid">Enter the current auction price</a> to compare it with your maximum hammer.</p>}
+            {!releasePresentation.canShowDecision && <div className="decision-reason"><p><strong>Analysis only — no bid decision.</strong> This public Pages release uses published timestamped observations and cannot present a bid cap or action instruction. Observed {eligibility.observedAt ? new Date(eligibility.observedAt).toLocaleString() : "unknown"} from {eligibility.observedSource ?? "the published snapshot"}.</p></div>}
+            {releasePresentation.canShowDecision && (eligibility.status === "eligible" || (eligibility.status === "material-incomplete" && resolvedOnlyRequested && scoped)) && !reconfirmed && <p className="decision-reason"><button type="button" className="quiet" onClick={() => { setReconfirmedInput(decisionInput); setReconfirmedAt(Date.now()); }}>Reconfirm current bid</button> Reconfirm after changing bid, shipping, slot, or risk stance. Confirmation expires after one minute.</p>}
+            {releasePresentation.canShowDecision && eligibility.status === "eligible" && bid == null && <p className="decision-reason"><a href="#buyer-current-bid">Enter the current auction price</a> to compare it with your maximum hammer.</p>}
             {bid != null && shipping == null && <p className="decision-reason"><a href="#buyer-added-shipping">Enter the extra shipping charged for this purchase</a>. It affects your landed cost and maximum hammer.</p>}
             {eligibility.status === "eligible" && recommendation.action === "bid" && (
               <p className="decision-reason">Current hammer is {fmt(recommendation.room)} below your modeled ceiling.</p>
@@ -2236,9 +2256,9 @@ export function BuyerView({
             )}
           </div>
           <div className="ev-orb">
-            <small><span>{eligibility.status === "eligible" || (resolvedOnlyRequested && scoped) ? "Your max hammer" : "Limit unavailable"}</span></small>
-            <strong className="max-hammer" aria-label="Maximum hammer" aria-live="polite">{canShowDecision && activeCap.kind === "cap" ? fmt(activeCap.amount) : "—"}</strong>
-            <span>{eligibility.status === "eligible" ? `${ruleLabel} limit` : resolvedOnlyRequested && scoped ? "Conservative incomplete limit" : "No action recommendation"}</span>
+            <small><span>{releasePresentation.canShowDecision ? "Your max hammer" : "Analysis only"}</span></small>
+            <strong className="max-hammer" aria-label="Maximum hammer" aria-live="polite">{releasePresentation.canShowDecision && reconfirmed && activeCap.kind === "cap" ? fmt(activeCap.amount) : "—"}</strong>
+            <span>{releasePresentation.canShowDecision ? `${ruleLabel} limit` : "No action recommendation"}</span>
             <strong aria-label="Typical card value" aria-live="polite">{simulation.busy && !distribution ? "Checking…" : fmt(distribution?.median ?? fallbackMean)}</strong>
             {distribution?.median === 0 && <em>Usually no card above the bulk filter</em>}
             <span>Average {fmt(distribution?.mean ?? fallbackMean)}</span>
@@ -3019,39 +3039,24 @@ function SellerEnticement({
   );
 }
 
-type SellerViewProps = {
-  analysis: BreakAnalysis;
-  lines: BreakLine[];
-  transactionCount: number;
-  add: () => void;
-  update: (id: string, patch: Partial<BreakLine>) => void;
-  remove: (id: string) => void;
-};
-
-/** A keyed editor makes a plan fingerprint an atomic ownership boundary. */
-export function SellerView(props: SellerViewProps) {
-  const fingerprint = sellerCompositionFingerprint(props.lines, props.analysis.valuation.dataVersion);
-  return <SellerPlanEditor key={fingerprint} {...props} />;
-}
-
-function SellerPlanEditor({
+export function SellerView({
   analysis,
   lines,
   transactionCount,
   add,
   update,
   remove,
-}: SellerViewProps) {
-  const planFingerprint = sellerCompositionFingerprint(lines, analysis.valuation.dataVersion);
-  const [draft, setDraft] = useState<SellerPlanDraft>(() => readSellerPlanDraft(planFingerprint));
-  const [dirty, setDirty] = useState(false);
-  const setPlan = (patch: Partial<SellerPlanDraft>) => {
-    setDirty(true);
-    setDraft((current) => ({ ...current, ...patch }));
-  };
-  // Only an explicit edit creates/updates a session plan.  In particular, a
-  // freshly mounted or discarded default must not resurrect a Resume row.
-  useEffect(() => { if (dirty) writeSellerPlanDraft(planFingerprint, draft); }, [draft, dirty, planFingerprint]);
+}: {
+  analysis: BreakAnalysis;
+  lines: BreakLine[];
+  transactionCount: number;
+  add: () => void;
+  update: (id: string, patch: Partial<BreakLine>) => void;
+  remove: (id: string) => void;
+}) {
+  const [draft, setDraft] = useState<SellerPlanDraft>(readSellerPlanDraft);
+  const setPlan = (patch: Partial<SellerPlanDraft>) => setDraft((current) => ({ ...current, ...patch }));
+  useEffect(() => { writeSellerPlanDraft(draft); }, [draft]);
   const {
     buyerShipping, packing, postage, shipments, mailingMethod, labor, tax,
     giveaways, refundReserve, overhead, commission, processing, processingFlat,
@@ -3074,10 +3079,10 @@ function SellerPlanEditor({
   const setProcessingFlat = (value: number) => setPlan({ processingFlat: value });
   const setPlannedBidOverride = (value: number | undefined) => setPlan({ plannedBidOverride: value });
   const [productsOpen, setProductsOpen] = useState(false);
-  const costStatusRef = useRef<HTMLSpanElement>(null);
+  const deferOwnedFocus = useDeferredOwnedFocus();
   const focusManualCost = (id: string) => {
     setProductsOpen(true);
-    window.setTimeout(() => document.getElementById(`seller-cost-${id}`)?.focus(), 0);
+    deferOwnedFocus(`seller-cost-${id}`);
   };
   const totalOpenings = lines.reduce((total, line) => total + line.quantity * Math.max(1, line.packCount ?? 1), 0);
   const marketEstimateLines = lines.filter((line) => line.myCost == null && line.marketCost != null);
@@ -3132,21 +3137,6 @@ function SellerPlanEditor({
     draft.lockedAsks,
     unsoldSlots,
   );
-  const actualTransactions: Transaction[] = soldSlots.flatMap((slot) => {
-    const hammer = draft.actualAsks[slot.id];
-    return hammer == null ? [] : [{ slot: slot.id, hammer, buyerShipping, buyerTax: 0 }];
-  });
-  const actualProfit = costsComplete && soldSlots.length > 0 && actualTransactions.length === soldSlots.length
-    ? calculateProfit(
-      actualTransactions,
-      Array.from({ length: shipmentCount }, (_, index) => ({
-        id: `seller-plan-${index}`, slots: [], packingCost: packing, sellerCoveredShipping: postage,
-      })),
-      acquisition + otherCosts,
-      marketplace,
-    )
-    : undefined;
-
   return (
     <section className="seller-command-center">
       <section className="seller-contents" aria-labelledby="seller-contents-heading">
@@ -3156,7 +3146,7 @@ function SellerPlanEditor({
         </div>
         <div className="seller-break-reconciliation" aria-label="Seller break composition summary">
           <strong>{lines.length} lines · {totalOpenings} openings · {transactionCount} spots</strong>
-          <span ref={costStatusRef} tabIndex={-1} role="status">{costsComplete ? "Cost basis ready" : "Cost basis incomplete"}</span>
+          <span id="seller-cost-status" tabIndex={-1} role="status">{costsComplete ? "Cost basis ready" : "Cost basis incomplete"}</span>
         </div>
         <details className="seller-cost-rollout seller-product-ledger" open={productsOpen} onToggle={(event) => setProductsOpen(event.currentTarget.open)}>
           <summary className="disclosure-summary">
@@ -3170,7 +3160,7 @@ function SellerPlanEditor({
                 <span className="seller-product-name"><strong>{line.productLabel}</strong><small>{line.set}</small></span>
                 <div className="seller-market-price"><span>Current market</span><b>{fmt(line.marketCost)}</b><small>{line.myCost != null ? "Actual cost entered" : line.marketCost == null ? "Estimate unavailable — enter your cost" : estimateAccepted(line) ? "Market estimate accepted — estimated" : "Estimate available — not accepted"}</small></div>
                 <NumberField id={`seller-cost-${line.id}`} label="My cost basis" value={line.myCost} onChange={(value) => update(line.id, { myCost: value })} live />
-                {line.myCost == null && line.marketCost != null && <button type="button" className="quiet" onClick={() => { setPlan({ acceptedEstimateIds: acceptedEstimateIds.has(line.id) ? draft.acceptedEstimateIds.filter((id) => id !== line.id) : [...draft.acceptedEstimateIds, line.id] }); window.setTimeout(() => costStatusRef.current?.focus(), 0); }}>{estimateAccepted(line) ? "Stop using estimate" : "Use estimate"}</button>}
+                {line.myCost == null && line.marketCost != null && <button type="button" className="quiet" onClick={() => { setPlan({ acceptedEstimateIds: acceptedEstimateIds.has(line.id) ? draft.acceptedEstimateIds.filter((id) => id !== line.id) : [...draft.acceptedEstimateIds, line.id] }); deferOwnedFocus("seller-cost-status"); }}>{estimateAccepted(line) ? "Stop using estimate" : "Use estimate"}</button>}
                 {line.myCost == null && line.marketCost == null && <button type="button" className="quiet" onClick={() => focusManualCost(line.id)}>Enter actual cost</button>}
                 <QuantityControl line={line} update={(quantity) => update(line.id, { quantity })} />
                 <button className="remove-line" aria-label={`Remove ${line.productLabel} from break`} onClick={() => remove(line.id)}><Trash2 /></button>
@@ -3187,6 +3177,10 @@ function SellerPlanEditor({
 
       {missingCostLine && <CompactWarning title={<a href={`#seller-cost-${missingCostLine.id}`} onClick={() => focusManualCost(missingCostLine.id)}>Enter your cost for {missingCostLine.productLabel}</a>} summary="Needed to calculate break-even and profit." className="missing-input-warning">
         <p>No sealed-market price is available for this product, so ColorBreak needs your cost instead.</p>
+      </CompactWarning>}
+
+      {draft.reconciliationNeeded && <CompactWarning title="Previous actual asks need reconciliation" summary="Older saved asks were not receipts, so none were carried into actual results." className="missing-input-warning">
+        <p>Record the completed orders and their shipments before treating any revenue as actual.</p>
       </CompactWarning>}
 
       <IncompleteDataWarning analysis={analysis} title="Some seller values may be low" />
@@ -3242,9 +3236,9 @@ function SellerPlanEditor({
           label="SLOT OPERATING PLAN"
           help="Targets are split by modeled sellable card value. Locks preserve a chosen target; marking a slot unsold redistributes the remaining recovery across the eligible unlocked slots."
           title={`${fmt(soldSlots.reduce((sum, slot) => sum + asks[slot.id], 0))} recovery target`}
-          accessory={<button type="button" className="quiet" onClick={() => setPlan({ actualAsks: Object.fromEntries(soldSlots.map((slot) => [slot.id, asks[slot.id]])) })}><Copy />Use plan</button>}
+          accessory={<button type="button" className="quiet" onClick={() => setPlan({ targetsApplied: true })}>{draft.targetsApplied ? "Targets applied" : "Apply targets"}</button>}
         />
-        <p className="muted">Session-only private plan. Actual-result profit stays hidden until every sold slot has an entered actual ask.</p>
+        <p className="muted">These are planned targets, not receipts. Locking preserves a target; completed orders and shipments must be reconciled separately before an actual result is shown.</p>
         {analysis.valuation.slots.map((slot) => {
           const unsold = unsoldSlots.has(slot.id);
           const eligible = slot.sellableEV > 0;
@@ -3258,20 +3252,17 @@ function SellerPlanEditor({
                 <button type="button" title={locked ? "Unlock target" : "Lock target"} onClick={() => setPlan({ lockedAsks: locked ? Object.fromEntries(Object.entries(draft.lockedAsks).filter(([id]) => id !== slot.id)) : { ...draft.lockedAsks, [slot.id]: asks[slot.id] } })}>{locked ? <Lock /> : <Unlock />}</button>
                 <button type="button" title={unsold ? "Sell this slot" : "Mark unsold"} onClick={() => setPlan({ unsoldSlots: unsold ? draft.unsoldSlots.filter((id) => id !== slot.id) : [...draft.unsoldSlots, slot.id] })}>{unsold ? <DollarSign /> : <X />}</button>
               </div>}
-              <label><small>Actual</small><NumericInput ariaLabel={`Actual ${slot.name} sale price`} placeholder={unsold ? "unsold" : "—"} disabled={!eligible || unsold} value={draft.actualAsks[slot.id]} onCommit={(value) => setPlan({ actualAsks: value == null ? Object.fromEntries(Object.entries(draft.actualAsks).filter(([id]) => id !== slot.id)) : { ...draft.actualAsks, [slot.id]: value } })} /></label>
             </div>
           </div>;
         })}
         <div className="min-row"><NumberField label="Minimum ask" value={minimumAsk} onChange={(value) => setPlan({ minimumAsk: value ?? 0 })} live /></div>
       </section>}
 
-      {actualProfit && <section className={`panel profit ${actualProfit.profit >= 0 ? "positive" : "negative"}`} aria-label="Actual seller result">
+      <section className="panel seller-reconciliation" aria-label="Seller reconciliation status">
         <InformationLabel>ACTUAL RESULT</InformationLabel>
-        <h2>{fmt(actualProfit.profit)} profit</h2>
-        <div className="metric-row profit-metrics"><div><span>Hammer</span><b>{fmt(actualProfit.hammer)}</b></div><div><span>Fees</span><b>−{fmt(actualProfit.fees)}</b></div><div><span>Packing &amp; shipping</span><b>−{fmt(actualProfit.shipmentCosts)}</b></div></div>
-      </section>}
-
-      <button type="button" className="quiet" onClick={() => { discardSellerPlanDraft(planFingerprint); setDraft(defaultSellerPlanDraft()); setDirty(false); }}>Discard this seller plan</button>
+        <h2>Reconciliation in progress</h2>
+        <p>0 of {soldSlots.length} saleable slots have recorded orders; 0 orders have linked shipments. Planned targets and locked targets never create actual profit.</p>
+      </section>
 
       <SellerEnticement
         baseAnalysis={analysis}
@@ -3279,7 +3270,7 @@ function SellerPlanEditor({
         transactionCount={transactionCount}
         baseProfitAtAll={allSoldProfit}
       />
-      <p className="seller-demand-checkpoint"><strong>Analysis only — demand validation remains unmodeled.</strong> Record audience/pre-interest, a comparable break and date, and your planned time window before launch. This does not predict fill or profit.</p>
+      <p className="seller-demand-checkpoint"><strong>Economics ready — demand validation pending.</strong> Record audience/pre-interest, a comparable break and date, and your planned time window before launch. This does not predict fill or profit.</p>
     </section>
   );
 }
@@ -3295,17 +3286,6 @@ function storedLines(
     ) as BreakLine[];
   } catch {
     return [];
-  }
-}
-
-function storedBuyerNumber(key: "bid" | "shipping" | "large-spots"): number | undefined {
-  try {
-    const stored = sessionStorage.getItem(`colorbreak:buyer:${key}`);
-    if (stored == null || stored.trim() === "") return undefined;
-    const value = Number(stored);
-    return Number.isFinite(value) && value >= 0 ? value : undefined;
-  } catch {
-    return undefined;
   }
 }
 
@@ -3387,14 +3367,17 @@ export function Workspace({
   mode,
   exit,
   startFresh = false,
+  releaseContext = decisionReadyReleaseContext,
 }: {
   mode: "buyer" | "seller";
   exit: () => void;
   startFresh?: boolean;
+  releaseContext?: ReleaseContext;
 }) {
   const legacy = useMemo(() => decodeLegacySearch(location.search), []);
   const sharedBuyer = useMemo(() => decodeBuyerShare(location.search), []);
   const isSharedBreak = legacy.length > 0;
+  const initialBuyerRecord = useMemo(() => mode === "buyer" ? readBuyerDecisionRecord() : undefined, [mode]);
   const firstResultTracked = useRef(false);
   const [legacyNotice, setLegacyNotice] = useState(false);
   const calculationStarted = useRef(Date.now());
@@ -3411,19 +3394,17 @@ export function Workspace({
     [bulkThreshold, setBulkThreshold] = useState(() => sharedBuyer.bulkThreshold ?? 2),
     [bulkEnabled, setBulkEnabled] = useState(() => sharedBuyer.bulkEnabled ?? true),
     [assignmentMode, setAssignmentMode] = useState<AssignmentMode>(() => sharedBuyer.assignmentMode),
-    [buyerBid, setBuyerBid] = useState<number | undefined>(() => {
-      const value = sessionStorage.getItem("colorbreak:buyer:bid"); return value == null ? undefined : Number(value);
-    }),
-    [buyerShipping, setBuyerShipping] = useState<number | undefined>(() => {
-      const value = sessionStorage.getItem("colorbreak:buyer:shipping"); return value == null ? undefined : Number(value);
-    }),
+    [buyerBid, setBuyerBid] = useState<number | undefined>(),
+    [buyerShipping, setBuyerShipping] = useState<number | undefined>(),
     [largeSpots, setLargeSpots] = useState<number>(() => {
-      return sharedBuyer.largeSpots ?? storedBuyerNumber("large-spots") ?? 120;
+      return sharedBuyer.largeSpots ?? 120;
     }),
     [selectedSlot, setSelectedSlot] = useState<SlotId>(() => {
       return sharedBuyer.selectedSlot ?? "W";
     }),
     [busy, setBusy] = useState(false);
+  const [recoveryRecord, setRecoveryRecord] = useState(() => isSharedBreak ? initialBuyerRecord : undefined);
+  const [buyerRecoveryReady, setBuyerRecoveryReady] = useState(() => mode !== "buyer" || !initialBuyerRecord || isSharedBreak);
   const [importUndo, setImportUndo] = useState<{
     lines: BreakLine[];
     assignmentMode: AssignmentMode;
@@ -3441,23 +3422,20 @@ export function Workspace({
     }
   }, [lines, mode]);
   useEffect(() => {
-    try { sessionStorage.setItem("colorbreak:buyer:auction", JSON.stringify(auction)); } catch { /* optional */ }
-  }, [auction]);
-  useEffect(() => {
-    try {
-      if (buyerBid == null) sessionStorage.removeItem("colorbreak:buyer:bid");
-      else sessionStorage.setItem("colorbreak:buyer:bid", String(buyerBid));
-    } catch { /* optional */ }
-  }, [buyerBid]);
-  useEffect(() => {
-    try {
-      if (buyerShipping == null) sessionStorage.removeItem("colorbreak:buyer:shipping");
-      else sessionStorage.setItem("colorbreak:buyer:shipping", String(buyerShipping));
-    } catch { /* optional */ }
-  }, [buyerShipping]);
-  useEffect(() => {
-    try { sessionStorage.setItem("colorbreak:buyer:large-spots", String(largeSpots)); } catch { /* optional */ }
-  }, [largeSpots]);
+    if (mode !== "buyer" || !buyerRecoveryReady) return;
+    writeBuyerDecisionRecord({
+      lines,
+      // A record is not hydrated until its evaluated data version agrees. The
+      // pending marker keeps a brand-new local draft atomic before first load.
+      dataVersion: analysis?.valuation.dataVersion ?? "pending",
+      assignmentMode,
+      selectedSlot,
+      remaining: auction.remaining,
+      bulkEnabled,
+      bulkThreshold,
+      largeSpots,
+    }, { bid: buyerBid, shipping: buyerShipping });
+  }, [analysis?.valuation.dataVersion, assignmentMode, auction.remaining, bulkEnabled, bulkThreshold, buyerBid, buyerRecoveryReady, buyerShipping, largeSpots, lines, mode, selectedSlot]);
   const sharedHref = createBreakShareUrl(`${location.origin}${location.pathname}#buyer`, {
     lines,
     assignmentMode,
@@ -3470,12 +3448,16 @@ export function Workspace({
   useEffect(() => {
     if (location.search) history.replaceState(null, "", `${location.pathname}#buyer`);
   }, []);
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!lines.length) {
       setAnalysis(undefined);
+      setBusy(false);
       return;
     }
     const request = ++analysisRequest.current;
+    // Never label the previous composition/threshold result as current while
+    // the latest calculation is pending.
+    setAnalysis(undefined);
     setBusy(true);
     calculationStarted.current = Date.now();
     setError(undefined);
@@ -3503,6 +3485,30 @@ export function Workspace({
         if (request === analysisRequest.current) setBusy(false);
       });
   }, [lines, threshold]);
+  useEffect(() => {
+    if (mode !== "buyer" || buyerRecoveryReady || !initialBuyerRecord || !analysis || recoveryRecord) return;
+    const recovered = readBuyerDecisionRecord({
+      lines,
+      dataVersion: analysis.valuation.dataVersion,
+      assignmentMode: initialBuyerRecord.assignmentMode,
+      selectedSlot: initialBuyerRecord.selectedSlot,
+      remaining: initialBuyerRecord.remaining,
+      bulkEnabled: initialBuyerRecord.bulkEnabled,
+      bulkThreshold: initialBuyerRecord.bulkThreshold,
+      largeSpots: initialBuyerRecord.largeSpots,
+    });
+    if (recovered) {
+      setAuction(createAuction(recovered.remaining));
+      setAssignmentMode(recovered.assignmentMode);
+      setSelectedSlot(recovered.selectedSlot);
+      setBulkEnabled(recovered.bulkEnabled);
+      setBulkThreshold(recovered.bulkThreshold);
+      setLargeSpots(recovered.largeSpots);
+      setBuyerBid(recovered.bid);
+      setBuyerShipping(recovered.shipping);
+    }
+    setBuyerRecoveryReady(true);
+  }, [analysis, buyerRecoveryReady, initialBuyerRecord, lines, mode, recoveryRecord]);
   const update = (id: string, patch: Partial<BreakLine>) =>
     setLines((rows) => rows.map((r) => (r.id === id ? { ...r, ...patch } : r)));
   useEffect(() => {
@@ -3558,19 +3564,58 @@ export function Workspace({
         </div>
       </nav>
       {legacyNotice && <p role="status">Legacy durable drafts were removed because they could contain financial data. Current drafts stay only in this browser session.</p>}
+      {mode === "buyer" && recoveryRecord && <aside className="buyer-recovery-choice" aria-label="Saved buyer decision recovery">
+        <div>
+          <strong>Saved decision found</strong>
+          <p>Resume the saved {recoveryRecord.lines.map((line) => `${line.quantity}× ${line.set} ${line.productLabel}`).join(", ")} decision, or use this shared break without its private bid and shipping.</p>
+        </div>
+        <div className="buyer-recovery-actions">
+          <button type="button" className="primary" onClick={() => {
+            setLines(recoveryRecord.lines);
+            setAuction(createAuction(recoveryRecord.remaining));
+            setAssignmentMode(recoveryRecord.assignmentMode);
+            setSelectedSlot(recoveryRecord.selectedSlot);
+            setBulkEnabled(recoveryRecord.bulkEnabled);
+            setBulkThreshold(recoveryRecord.bulkThreshold);
+            setLargeSpots(recoveryRecord.largeSpots);
+            setBuyerBid(recoveryRecord.bid);
+            setBuyerShipping(recoveryRecord.shipping);
+            setRecoveryRecord(undefined);
+            setBuyerRecoveryReady(true);
+          }}>Resume saved decision</button>
+          <button type="button" className="quiet" onClick={() => {
+            setBuyerBid(undefined);
+            setBuyerShipping(undefined);
+            setRecoveryRecord(undefined);
+            setBuyerRecoveryReady(true);
+          }}>Use this shared break</button>
+          <button type="button" className="quiet" onClick={() => {
+            setLines([]);
+            setAuction(createAuction());
+            setAssignmentMode("pick");
+            setSelectedSlot("W");
+            setBulkEnabled(true);
+            setBulkThreshold(2);
+            setLargeSpots(120);
+            setBuyerBid(undefined);
+            setBuyerShipping(undefined);
+            setRecoveryRecord(undefined);
+            setBuyerRecoveryReady(true);
+          }}>Start clean</button>
+        </div>
+      </aside>}
       {shareStatus && <p role="status">{shareStatus} <input aria-label="Buyer setup URL" readOnly value={sharedHref} /></p>}
-      <main className="workspace page">
+      <main className="workspace page" tabIndex={-1} data-focus-fallback>
         <header className="workspace-title">
           <div>
             <p className="eyebrow">
-              {mode === "buyer" ? assignmentMode === "large" ? "BUYER · LARGE RANDOM MODE" : "BUYER · FAST BID CHECK" : "SELLER · COSTED PLAN ANALYSIS"}
+              {mode === "buyer" ? assignmentMode === "large" ? "BUYER · LARGE RANDOM MODE" : "BUYER · FAST BID CHECK" : "SELLER · PLAN TO LAUNCH"}
             </p>
             <h1>{mode === "buyer" ? assignmentMode === "large" ? "Large Break" : "Bid Check" : "Seller Studio"}</h1>
           </div>
         </header>
-        <DemoBoundaryNotice />
         {importUndo && <aside className="import-undo" aria-live="polite">
-          <span><b>Composition updated</b><small>{lines.length} lines · analysis refreshed</small></span>
+          <span><b>Break updated</b><small>{lines.length} lines · review complete</small></span>
           <button type="button" className="quiet" onClick={() => {
             setLines(importUndo.lines);
             setAssignmentMode(importUndo.assignmentMode);
@@ -3582,7 +3627,7 @@ export function Workspace({
         </aside>}
         {mode === "buyer" && isSharedBreak && lines.length > 0 && <aside className="shared-calculation-notice" aria-label="Shared calculation details">
           <Lock />
-          <span><b>SHARED CALCULATION · USD · MODEL v4</b><small>Original link unchanged. Editing makes a local copy · {lines.length} products / {lines.reduce((total, line) => total + line.quantity * Math.max(1, line.packCount ?? 1), 0)} openings · Prices observed {analysis?.priceAvailability.observedAt ? new Date(analysis.priceAvailability.observedAt).toLocaleString() : "loading"}</small></span>
+          <span><b>SHARED CALCULATION · USD · MODEL v4</b><small>Original link unchanged. Editing makes a local copy · {lines.length} products / {lines.reduce((total, line) => total + line.quantity * Math.max(1, line.packCount ?? 1), 0)} openings · Prices observed {analysis?.priceAvailability?.observedAt ? new Date(analysis.priceAvailability.observedAt).toLocaleString() : "loading"}</small></span>
         </aside>}
         {mode === "buyer" ? (
           <>
@@ -3616,7 +3661,6 @@ export function Workspace({
               ) : (
                 <BuyerView
                   analysis={analysis}
-                  lines={lines}
                   auction={auction}
                   assignmentMode={assignmentMode}
                   selected={selectedSlot}
@@ -3626,6 +3670,7 @@ export function Workspace({
                   shipping={buyerShipping}
                   setShipping={setBuyerShipping}
                   onChooseDecisionReady={() => setBuilder(true)}
+                  releaseContext={releaseContext}
                 />
               ))}
             </div>
@@ -3675,7 +3720,7 @@ export function Workspace({
   );
 }
 
-export function App() {
+export function App({ releaseContext = decisionReadyReleaseContext }: { releaseContext?: ReleaseContext } = {}) {
   useMobileInputViewport();
   const hasSharedBreak = decodeLegacySearch(location.search).length > 0;
   const initial: Mode =
@@ -3712,6 +3757,7 @@ export function App() {
             mode={mode}
             exit={() => choose("home")}
             startFresh={mode === "buyer" && startFreshBuyer}
+            releaseContext={releaseContext}
           />
         )}
       </motion.div>
