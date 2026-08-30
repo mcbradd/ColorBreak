@@ -597,12 +597,14 @@ export function Builder({
   lines,
   onApply,
   invokingElement,
+  onUseManualCap,
 }: {
   open: boolean;
   onClose: () => void;
   lines: BreakLine[];
   onApply: (lines: BreakLine[], settings?: { assignmentMode: AssignmentMode; largeSpots?: number; bulkEnabled?: boolean; bulkThreshold?: number }) => void;
   invokingElement?: HTMLElement | null;
+  onUseManualCap?: () => void;
 }) {
   const dialogRef = useRef<HTMLElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
@@ -841,7 +843,7 @@ export function Builder({
                   <InformationLabel>READY NOW</InformationLabel><h3 id="ready-now-heading">Verified modeled ceilings</h3>
                   <p className="data-status-legend">Ready = verified contents + fresh prices. Stale = prices older than six hours. Incomplete = missing contents or exact prices. Unavailable = evidence cannot be verified.</p>
                   {readyChecking ? <p role="status">Checking data…</p> : readyRows.filter((row) => row.readiness.eligibility === "ready").map(({ product, readiness }) => <button type="button" className="ready-now-row" key={product.key} onClick={() => add(product)}><span><strong>{product.label}</strong><small>{product.setName ?? product.set} · {new Date(readiness.priceObservedAt ?? "").toLocaleString()} · published snapshot</small></span><span>Ready</span></button>)}
-                  {!readyChecking && !readyRows.some((row) => row.readiness.eligibility === "ready") && <p>No verified modeled ceilings are available in this snapshot.</p>}
+                  {!readyChecking && !readyRows.some((row) => row.readiness.eligibility === "ready") && <div className="empty-picker-state"><p>No verified modeled ceilings are available in this snapshot.</p><div className="buyer-recovery-actions"><button type="button" className="primary" onClick={onUseManualCap}>Use manual budget cap</button><button type="button" className="quiet" onClick={() => setSelected(undefined)}>Browse all products</button></div></div>}
                 </section>
                 <button type="button" className="paste-break-action" onClick={() => setComposerMode("paste")}><PackagePlus />Paste list or break link</button>
                 <div className="set-browser-tools">
@@ -915,7 +917,7 @@ export function Builder({
                         ))}
                       </section>
                     ))}
-                    {!Object.values(visibleProducts).some((rows) => rows.length) && <p className="empty-picker-state">No products match this filter. Show all products to keep building your break.</p>}
+                    {!Object.values(visibleProducts).some((rows) => rows.length) && (readyOnly ? <div className="empty-picker-state"><p>No verified modeled ceilings are available in this snapshot.</p><div className="buyer-recovery-actions"><button type="button" className="primary" onClick={onUseManualCap}>Use manual budget cap</button><button type="button" className="quiet" onClick={() => setReadyOnly(false)}>Show all products</button></div></div> : <p className="empty-picker-state">No products match this filter. Show all products to keep building your break.</p>)}
                   </div>
                 )}
               </>
@@ -969,6 +971,21 @@ function NextSteps({ reason }: { reason: string }) {
     <h2>Finish the setup</h2>
     <p>{reason}</p>
     <ul><li>Choose a product with complete contents and current prices, then enter your bid and added shipping.</li></ul>
+  </section>;
+}
+
+/** A buyer-entered arithmetic fallback; intentionally separate from valuation. */
+function ManualBudgetCap({ onBack, target, setTarget, shipping, setShipping, hammer, setHammer }: { onBack: () => void; target: number | undefined; setTarget: (value: number | undefined) => void; shipping: number | undefined; setShipping: (value: number | undefined) => void; hammer: number | undefined; setHammer: (value: number | undefined) => void }) {
+  const heading = useRef<HTMLHeadingElement>(null);
+  const manual = manualBudgetCap(target, shipping, hammer);
+  useEffect(() => { heading.current?.focus(); }, []);
+  return <section className="bid-live-decision manual-budget-cap" aria-label="Manual budget cap">
+    <div className="decision-kicker"><span>BUYER-ENTERED BUDGET</span><span className="decision-evidence evidence-incomplete">Not modeled</span></div>
+    <div className="verdict-head"><div className="verdict-decision"><InformationLabel>Manual budget cap — not a ColorBreak modeled ceiling</InformationLabel><h2 ref={heading} tabIndex={-1} aria-live="polite">{manual?.recommendation ?? "SET YOUR CAP"}</h2><p className="decision-reason">Uses the conservative value target you entered. ColorBreak did not verify current contents or prices for this calculation.</p></div><div className="ev-orb"><small>Manual maximum hammer</small><strong className="max-hammer" aria-label="Manual maximum hammer">{manual ? fmt(manual.maximumHammer) : "—"}</strong><span>max(0, value target − shipping)</span></div></div>
+    <div className="bid-inputs"><NumberField id="manual-value-target" label="My conservative value target" value={target} onChange={setTarget} live /><NumberField id="manual-added-shipping" label="Added shipping" value={shipping} onChange={setShipping} live /></div>
+    <div className="bid-inputs"><NumberField id="manual-current-hammer" label="Optional: current hammer" value={hammer} onChange={setHammer} live /></div>
+    {manual?.landedCost != null && <div className="delta"><span>Landed cost <b>{fmt(manual.landedCost)}</b></span><span>Compared with your cap <b>{fmt(manual.maximumHammer)}</b></span></div>}
+    <button type="button" className="quiet" onClick={onBack}>Back to products / choose a ready product</button>
   </section>;
 }
 
@@ -2012,6 +2029,7 @@ export function LargeBreakView({
   shipping,
   setShipping,
   onChooseReady,
+  onUseManualCap,
 }: {
   analysis: BreakAnalysis;
   lines: BreakLine[];
@@ -2021,6 +2039,7 @@ export function LargeBreakView({
   shipping: number | undefined;
   setShipping: (value: number | undefined) => void;
   onChooseReady?: () => void;
+  onUseManualCap?: () => void;
 }) {
   const result = analysis.valuation;
   const eligibility = decisionEligibility(result);
@@ -2189,6 +2208,7 @@ export function BuyerView({
   shipping,
   setShipping,
   onChooseReady,
+  onUseManualCap,
 }: {
   analysis: BreakAnalysis;
   auction: AuctionState;
@@ -2200,6 +2220,7 @@ export function BuyerView({
   shipping: number | undefined;
   setShipping: (value: number | undefined) => void;
   onChooseReady?: () => void;
+  onUseManualCap?: () => void;
 }) {
   const result = analysis.valuation;
   const eligibility = decisionEligibility(result);
@@ -2210,11 +2231,6 @@ export function BuyerView({
   const [resolvedOnlyRequested, setResolvedOnlyRequested] = useState(false);
   const [reconfirmedAt, setReconfirmedAt] = useState<number>();
   const [reconfirmedInput, setReconfirmedInput] = useState<string>();
-  const [manualMode, setManualMode] = useState(false);
-  const [manualTarget, setManualTarget] = useState<number>();
-  const [manualShipping, setManualShipping] = useState<number>();
-  const [manualHammer, setManualHammer] = useState<number>();
-  const manual = manualBudgetCap(manualTarget, manualShipping, manualHammer);
   const slot = result.slots.find((row) => row.id === selected)!;
   const landed = (bid ?? 0) + (shipping ?? 0);
   const simulation = useOutcomeSimulation(analysis, auction.remaining, bid == null ? undefined : landed);
@@ -2270,14 +2286,6 @@ export function BuyerView({
       ? "75% coverage"
       : "Average outcome";
   const decisionKicker = `${breakLabel ? `${breakLabel} · ` : ""}Manual auction check · ${assignmentMode === "random" ? `${auction.remaining.length} random colors` : `${SLOT_NAMES[selected]} slot`}`;
-  if (manualMode) return <section className="bid-live-decision manual-budget-cap" aria-label="Manual budget cap">
-    <div className="decision-kicker"><span>BUYER-ENTERED BUDGET</span><span className="decision-evidence evidence-incomplete">Not modeled</span></div>
-    <div className="verdict-head"><div className="verdict-decision"><InformationLabel>Manual budget cap — not a ColorBreak modeled ceiling</InformationLabel><h2 aria-live="polite">{manual?.recommendation ?? "SET YOUR CAP"}</h2><p className="decision-reason">Uses the value target you entered; ColorBreak did not verify this product's current contents/prices.</p></div><div className="ev-orb"><small>Manual maximum hammer</small><strong className="max-hammer" aria-label="Manual maximum hammer">{manual ? fmt(manual.maximumHammer) : "—"}</strong><span>max(0, value target − shipping)</span></div></div>
-    <div className="bid-inputs"><NumberField id="manual-value-target" label="My conservative value target" value={manualTarget} onChange={setManualTarget} /><NumberField id="manual-added-shipping" label="Added shipping" value={manualShipping} onChange={setManualShipping} /></div>
-    <div className="bid-inputs"><NumberField id="manual-current-hammer" label="Optional: current hammer" value={manualHammer} onChange={setManualHammer} /></div>
-    {manual?.landedCost != null && <div className="delta"><span>Landed cost <b>{fmt(manual.landedCost)}</b></span><span>Compared with your cap <b>{fmt(manual.maximumHammer)}</b></span></div>}
-    <button type="button" className="quiet" onClick={() => setManualMode(false)}>Back to product check</button>
-  </section>;
   return (
     <>
       <section
@@ -2292,7 +2300,7 @@ export function BuyerView({
           <div className="verdict-decision">
             <InformationLabel>Recommendation</InformationLabel>
             <h2 aria-live="polite">{decision}</h2>
-            {!releasePresentation.canShowDecision && <div className="decision-reason buyer-recovery-choice"><p><strong>{eligibility.status === "stale" ? "Price evidence is stale." : eligibility.status === "material-incomplete" ? "Contents or exact prices are incomplete." : "Required evidence is unavailable."}</strong> {eligibility.status === "material-incomplete" && eligibility.affectedGroups.length ? eligibility.affectedGroups.map((item) => item.label).join(" ") : ""} Observed {eligibility.observedAt ? new Date(eligibility.observedAt).toLocaleString() : "unknown"} from {eligibility.observedSource ?? "the price snapshot"}. The modeled ceiling is withheld.</p><div className="buyer-recovery-actions"><button type="button" className="quiet" onClick={onChooseReady}>Choose a ready product</button><button type="button" className="quiet" onClick={() => setManualMode(true)}>Use manual budget cap</button></div></div>}
+            {!releasePresentation.canShowDecision && <div className="decision-reason buyer-recovery-choice"><p><strong>{eligibility.status === "stale" ? "Price evidence is stale." : eligibility.status === "material-incomplete" ? "Contents or exact prices are incomplete." : "Required evidence is unavailable."}</strong> {eligibility.status === "material-incomplete" && eligibility.affectedGroups.length ? eligibility.affectedGroups.map((item) => item.label).join(" ") : ""} Observed {eligibility.observedAt ? new Date(eligibility.observedAt).toLocaleString() : "unknown"} from {eligibility.observedSource ?? "the price snapshot"}. The modeled ceiling is withheld.</p><div className="buyer-recovery-actions"><button type="button" className="quiet" onClick={onChooseReady}>Choose a ready product</button><button type="button" className="quiet" onClick={onUseManualCap}>Use manual budget cap</button></div></div>}
             {releasePresentation.canShowDecision && (eligibility.status === "eligible" || (eligibility.status === "material-incomplete" && resolvedOnlyRequested && scoped)) && !reconfirmed && <p className="decision-reason"><button type="button" className="quiet" onClick={() => { setReconfirmedInput(decisionInput); setReconfirmedAt(Date.now()); }}>Reconfirm current bid</button> Reconfirm after changing bid, shipping, slot, or risk stance. Confirmation expires after one minute.</p>}
             {releasePresentation.canShowDecision && eligibility.status === "eligible" && bid == null && <p className="decision-reason"><a href="#buyer-current-bid">Enter the current auction price</a> to compare it with your maximum hammer.</p>}
             {bid != null && shipping == null && <p className="decision-reason"><a href="#buyer-added-shipping">Enter the extra shipping charged for this purchase</a>. It affects your landed cost and maximum hammer.</p>}
@@ -3129,15 +3137,15 @@ export function SellerView({
     giveaways, refundReserve, overhead, commission, processing, processingFlat,
     plannedBidOverride, minimumAsk,
   } = activeDraft;
-  const acceptedEstimateIds = new Set(activeDraft.acceptedEstimateIds);
-  const [estimateConfirmation, setEstimateConfirmation] = useState<string[] | undefined>();
+  // An estimate is meaningful only for a line in this exact composition.
+  const acceptedEstimateIds = new Set(activeDraft.acceptedEstimateIds.filter((id) => lines.some((line) => line.id === id)));
   const priceAvailability = analysis.priceAvailability ?? { status: "available" as const, source: "none" as const, message: "Price source metadata unavailable" };
-  const estimateNeedsConfirmation = priceAvailability.status !== "available" || analysis.valuation.status === "incomplete";
-  const acceptEstimates = (ids: string[]) => {
-    if (estimateNeedsConfirmation) { setEstimateConfirmation(ids); return; }
-    setPlan({ acceptedEstimateIds: [...new Set([...activeDraft.acceptedEstimateIds, ...ids])] });
-  };
-  const setAcceptedEstimateIds = (update: (current: Set<string>) => Set<string>) => setDraft((current) => ({ ...current, acceptedEstimateIds: [...update(new Set(current.acceptedEstimateIds))] }));
+  const acceptEstimatesForPlanning = (ids: string[]) => setDraft((current) => {
+    const base = sellerPlanMatches(current, owner) || !hasSavedPlanValues ? current : { ...defaultSellerPlanDraft(), owner };
+    const eligible = new Set(lines.filter((line) => line.myCost == null && line.marketCost != null).map((line) => line.id));
+    return { ...base, owner, acceptedEstimateIds: [...new Set([...base.acceptedEstimateIds, ...ids.filter((id) => eligible.has(id))])] };
+  });
+  const removeAcceptedEstimate = (id: string) => setDraft((current) => ({ ...current, owner, acceptedEstimateIds: current.acceptedEstimateIds.filter((accepted) => accepted !== id) }));
   const setBuyerShipping = (value: number) => setPlan({ buyerShipping: value });
   const setPacking = (value: number) => setPlan({ packing: value });
   const setPostage = (value: number) => setPlan({ postage: value });
@@ -3284,7 +3292,7 @@ export function SellerView({
         </div>
         <div className="seller-break-reconciliation" aria-label="Seller break composition summary">
           <strong>{lines.length} lines · {totalOpenings} openings · {transactionCount} spots</strong>
-          <span id="seller-cost-status" tabIndex={-1} role="status">{costsComplete ? "Cost basis ready" : "Cost basis incomplete"}</span>
+          <span id="seller-cost-status" tabIndex={-1} role="status">{costsComplete ? acceptedEstimateIds.size ? "Estimated cost basis ready for rehearsal" : "Cost basis ready" : "Cost basis incomplete"}</span>
         </div>
         <details className="seller-cost-rollout seller-product-ledger" open={productsOpen} onToggle={(event) => setProductsOpen(event.currentTarget.open)}>
           <summary className="disclosure-summary">
@@ -3298,7 +3306,7 @@ export function SellerView({
                 <span className="seller-product-name"><strong>{line.productLabel}</strong><small>{line.set}</small></span>
                 <div className="seller-market-price"><span>{line.myCost != null ? "Actual acquisition cost" : !analysis.priceAvailability ? "Current market" : priceAvailability.status === "available" && analysis.valuation.status !== "incomplete" ? "Market estimate" : "Stale/incomplete estimate"}</span><b>{fmt(line.myCost ?? line.marketCost)}</b><small>{line.myCost != null ? "Actual cost entered" : line.marketCost == null ? "Estimate unavailable — enter your cost" : `${priceAvailability.source} · ${priceAvailability.observedAt ? new Date(priceAvailability.observedAt).toLocaleString() : "date unavailable"} · ${estimateAccepted(line) ? "accepted for rehearsal" : "not accepted"}`}</small></div>
                 <NumberField id={`seller-cost-${line.id}`} label="My cost basis" value={line.myCost} onChange={(value) => update(line.id, { myCost: value })} live />
-                {line.myCost == null && line.marketCost != null && <button type="button" className="quiet" onClick={() => { if (estimateAccepted(line)) setPlan({ acceptedEstimateIds: activeDraft.acceptedEstimateIds.filter((id) => id !== line.id) }); else acceptEstimates([line.id]); deferOwnedFocus("seller-cost-status"); }}>{estimateAccepted(line) ? "Stop using estimate" : "Use estimate"}</button>}
+                {line.myCost == null && line.marketCost != null && <button type="button" className="quiet" onClick={() => { if (estimateAccepted(line)) removeAcceptedEstimate(line.id); else acceptEstimatesForPlanning([line.id]); deferOwnedFocus("seller-cost-status"); }}>{estimateAccepted(line) ? "Stop using estimate" : "Use estimate"}</button>}
                 {line.myCost == null && line.marketCost == null && <button type="button" className="quiet" onClick={() => focusManualCost(line.id)}>Enter actual cost</button>}
                 <QuantityControl line={line} update={(quantity) => update(line.id, { quantity })} />
                 <button className="remove-line" aria-label={`Remove ${line.productLabel} from break`} onClick={() => remove(line.id)}><Trash2 /></button>
@@ -3308,14 +3316,9 @@ export function SellerView({
         </details>
       </section>
 
-      {estimateConfirmation && <aside className="buyer-recovery-choice" aria-label="Confirm rehearsal estimate">
-        <div><strong>This estimate is stale or incomplete</strong><p>It is from {priceAvailability.source} and was observed {priceAvailability.observedAt ? new Date(priceAvailability.observedAt).toLocaleString() : "on an unavailable date"}. Use it only for rehearsal; enter an actual acquisition cost when known.</p></div>
-        <div className="buyer-recovery-actions"><button type="button" className="primary" onClick={() => { setPlan({ acceptedEstimateIds: [...new Set([...activeDraft.acceptedEstimateIds, ...estimateConfirmation])] }); setEstimateConfirmation(undefined); }}>Accept for rehearsal only</button><button type="button" className="quiet" onClick={() => setEstimateConfirmation(undefined)}>Cancel</button></div>
-      </aside>}
-
       {marketEstimateLines.length > 0 && <section className="cost-basis-policy" aria-label="Cost basis policy">
-        <div><InformationLabel>COST BASIS</InformationLabel><h3>{acceptedEstimateIds.size ? "Some market estimates accepted" : "Actual costs are still blank"}</h3><p>Each sealed-market estimate is optional, reversible, and remains labeled estimated. Enter seller costs whenever available.</p></div>
-        <button type="button" className="quiet" onClick={() => acceptedEstimateIds.size === marketEstimateLines.length ? setPlan({ acceptedEstimateIds: [] }) : acceptEstimates(marketEstimateLines.map((line) => line.id))}>{acceptedEstimateIds.size === marketEstimateLines.length ? "Stop using estimates" : `Use ${marketEstimateLines.length} market estimates`}</button>
+        <div><InformationLabel>COST BASIS</InformationLabel><h3>{costsComplete && acceptedEstimateIds.size ? "Estimated cost basis ready for rehearsal" : costsComplete ? "Cost basis ready" : "Actual costs are still blank"}</h3><p>Estimated cost basis for rehearsal — source {priceAvailability.source}, observed {priceAvailability.observedAt ? new Date(priceAvailability.observedAt).toLocaleString() : "unknown"}; replace estimates with your actual cost when known.</p></div>
+        <button type="button" className="quiet" onClick={() => { if (acceptedEstimateIds.size === marketEstimateLines.length) setPlan({ acceptedEstimateIds: [] }); else acceptEstimatesForPlanning(marketEstimateLines.map((line) => line.id)); deferOwnedFocus("seller-cost-status"); }}>{acceptedEstimateIds.size === marketEstimateLines.length ? "Stop using estimates" : `Use ${marketEstimateLines.length} market estimates`}</button>
       </section>}
 
       {missingCostLine && <CompactWarning title={<a href={`#seller-cost-${missingCostLine.id}`} onClick={() => focusManualCost(missingCostLine.id)}>Enter your cost for {missingCostLine.productLabel}</a>} summary="Needed to calculate break-even and profit." className="missing-input-warning">
@@ -3433,7 +3436,7 @@ export function SellerView({
         <div className="actual-result" role="status"><strong>{ledgerSummary.incomplete ? "Actual result unavailable" : `Actual profit / loss: ${fmt(ledgerSummary.profitCents! / 100)}`}</strong><p>{ledgerSummary.sold} sold and receipt-linked · {activeDraft.unsoldSlots.length} unsold · {ledgerSummary.pending.length} pending/reconciliation missing. {ledgerSummary.missingReceipt.length} order receipt reference missing. {ledgerSummary.missingShipment.length} order shipment missing. {actualAcquisitionCents == null ? "Actual acquisition cost missing." : ""}</p>{!ledgerSummary.incomplete && <p>Realized gross {fmt(ledgerSummary.gross / 100)} · actual fees {fmt(ledgerSummary.fees / 100)} · fulfillment {fmt(ledgerSummary.fulfillment / 100)} · actual cost basis {fmt((actualAcquisitionCents ?? 0) / 100)}.</p>}</div>
       </section>
 
-      {(estimateNeedsConfirmation || ledgerSummary.incomplete || actualAcquisitionCents == null) && <NextSteps reason={actualAcquisitionCents == null ? "This plan remains a rehearsal until an actual acquisition cost is entered and receipt-backed orders and shipments reconcile." : ledgerSummary.incomplete ? "Actual profit or loss is unavailable until every required receipt and shipment record reconciles." : "The selected estimate is rehearsal-only until fresh, verified evidence is available."} />}
+      {(ledgerSummary.incomplete || actualAcquisitionCents == null) && <NextSteps reason={actualAcquisitionCents == null ? "This plan remains a rehearsal until an actual acquisition cost is entered and receipt-backed orders and shipments reconcile." : "Actual profit or loss is unavailable until every required receipt and shipment record reconciles."} />}
 
       <SellerEnticement
         baseAnalysis={analysis}
@@ -3576,6 +3579,10 @@ export function Workspace({
     }),
     [busy, setBusy] = useState(false),
     [calculationGeneration, setCalculationGeneration] = useState(0);
+  const [manualCapOpen, setManualCapOpen] = useState(false);
+  const [manualTarget, setManualTarget] = useState<number>();
+  const [manualShipping, setManualShipping] = useState<number>();
+  const [manualHammer, setManualHammer] = useState<number>();
   const [recoveryRecord, setRecoveryRecord] = useState(() => isSharedBreak ? initialBuyerRecord : undefined);
   const [buyerRecoveryReady, setBuyerRecoveryReady] = useState(() => mode !== "buyer" || !initialBuyerRecord || isSharedBreak);
   const [importUndo, setImportUndo] = useState<{
@@ -3831,9 +3838,9 @@ export function Workspace({
               setLargeSpots={setLargeSpots}
             />
             <div id="buyer-large-result" className="results buyer-results">
-              {!lines.length && <section className="buyer-awaiting-break"><span><BarChart3 /></span><h2>Your decision appears here</h2><p><b>1</b> Add every product · <b>2</b> Enter the spot price · <b>3</b> Compare value and risk.</p></section>}
+              {manualCapOpen ? <ManualBudgetCap onBack={() => { setManualCapOpen(false); openBuilder(); }} target={manualTarget} setTarget={setManualTarget} shipping={manualShipping} setShipping={setManualShipping} hammer={manualHammer} setHammer={setManualHammer} /> : !lines.length && <section className="buyer-awaiting-break"><span><BarChart3 /></span><h2>Your decision appears here</h2><p><b>1</b> Add every product · <b>2</b> Enter the spot price · <b>3</b> Compare value and risk.</p><p>Need a live bid limit without verified current product data? Set your own budget cap.</p><button type="button" className="primary" onClick={() => setManualCapOpen(true)}>Use manual budget cap</button></section>}
               {busy && <div className="calculating" role="status" aria-live="polite"><span />Calculating exact contents and prices…</div>}
-              {error && <CompactWarning title="Couldn’t load this result" summary="The same composition is still available to retry." className="load-warning"><p role="alert">{error}</p><button type="button" className="quiet" onClick={() => setCalculationGeneration((value) => value + 1)}>Retry analysis</button></CompactWarning>}
+              {error && <CompactWarning title="Couldn’t load this result" summary="No verified modeled ceiling can be offered until this data loads." className="load-warning"><p role="alert">{error}</p><div className="buyer-recovery-actions"><button type="button" className="quiet" onClick={() => setCalculationGeneration((value) => value + 1)}>Retry analysis</button><button type="button" className="quiet" onClick={() => setManualCapOpen(true)}>Use manual budget cap</button></div></CompactWarning>}
               {analysis && (assignmentMode === "large" ? (
                 <LargeBreakView analysis={analysis} lines={lines} spots={largeSpots} bid={buyerBid} setBid={setBuyerBid} shipping={buyerShipping} setShipping={setBuyerShipping} />
               ) : (
@@ -3848,6 +3855,7 @@ export function Workspace({
                   shipping={buyerShipping}
                   setShipping={setBuyerShipping}
                   onChooseReady={() => setLines([readyExampleLine()])}
+                  onUseManualCap={() => setManualCapOpen(true)}
                 />
               ))}
             </div>
@@ -3893,6 +3901,7 @@ export function Workspace({
           }
           track("product_selected", { mode, productCount: nextLines.length });
         }}
+        onUseManualCap={mode === "buyer" ? () => { setBuilder(false); setManualCapOpen(true); } : undefined}
       />
     </>
   );

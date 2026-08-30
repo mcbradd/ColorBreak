@@ -120,6 +120,18 @@ describe("Bid Check command center", () => {
     expect(screen.getByLabelText("Current bid")).toHaveAttribute("id", "buyer-current-bid");
   });
 
+  it("offers the buyer-entered manual cap from the empty state without a modeled claim", () => {
+    sessionStorage.removeItem("colorbreak:buyer:draft:v1");
+    render(createElement(Workspace, { mode: "buyer", exit: vi.fn(), startFresh: true }));
+    fireEvent.click(screen.getByRole("button", { name: "Use manual budget cap" }));
+    expect(screen.getByLabelText("Manual budget cap")).toHaveTextContent("not a ColorBreak modeled ceiling");
+    fireEvent.change(screen.getByLabelText("My conservative value target"), { target: { value: "60" } });
+    fireEvent.change(screen.getByLabelText("Added shipping"), { target: { value: "5" } });
+    fireEvent.change(screen.getByLabelText("Optional: current hammer"), { target: { value: "56" } });
+    expect(screen.getByLabelText("Manual budget cap")).toHaveTextContent("$55.00");
+    expect(screen.getByLabelText("Manual budget cap")).toHaveTextContent("PASS");
+  });
+
   it("names result navigation from the active assignment mode", async () => {
     render(createElement(Workspace, { mode: "buyer", exit: vi.fn() }));
     expect(await screen.findByLabelText("Break sections")).toBeInTheDocument();

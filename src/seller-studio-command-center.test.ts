@@ -77,6 +77,21 @@ describe("Seller Studio command center", () => {
     expect(screen.getByRole("region", { name: "Seller break economics" })).toHaveTextContent("$13.97");
   });
 
+  it("accepts a stale market estimate in one deliberate rehearsal action", () => {
+    render(createElement(SellerView, {
+      analysis: { ...analysis, priceAvailability: { status: "stale", source: "sealed snapshot", observedAt: "2025-01-01T00:00:00.000Z", message: "Old snapshot" } },
+      lines: startingLines,
+      transactionCount: 8,
+      add: vi.fn(), remove: vi.fn(), update: vi.fn(),
+    }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Use 1 market estimates" }));
+    expect(screen.getAllByText("Estimated cost basis ready for rehearsal")).not.toHaveLength(0);
+    expect(screen.getByRole("region", { name: "Seller break economics" })).toHaveTextContent("$16.77");
+    expect(screen.queryByRole("button", { name: "Accept for rehearsal only" })).not.toBeInTheDocument();
+    expect(screen.getByText("Rehearsal economics only — verify actual cost.")).toBeInTheDocument();
+  });
+
   it("keeps overhead optional and removes buyer-specific analysis from Seller Studio", () => {
     render(createElement(Harness));
 
