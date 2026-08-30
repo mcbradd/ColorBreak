@@ -12,25 +12,30 @@ jobs:
   audit:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           fetch-depth: 1
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
           cache: npm
       - run: npm ci
       - name: Rebuild every supported sealed document
-        run: node tools/build-sealed.mjs $(node -e "const i=require('./data/sealed/index.json'); process.stdout.write(i.sets.join(' '))")
-      - name: Generate semantic source diff and coverage report
         run: |
-          node tools/report-coverage.mjs
-          node tools/source-diff.mjs --check --output data/source-diff.json
+          mkdir -p audit
+          node tools/build-sealed.mjs $(node -e "const i=require('./data/sealed/index.json'); process.stdout.write(i.sets.join(' '))") 2>&1 | tee audit/rebuild.log
+      - name: Generate semantic source diff and coverage report
+        if: always()
+        run: |
+          mkdir -p audit
+          node tools/report-coverage.mjs 2>&1 | tee audit/coverage.log
+          node tools/source-diff.mjs --check --output data/source-diff.json 2>&1 | tee audit/source-diff.log
       - name: Upload review evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: sealed-source-audit
           path: |
             data/source-diff.json
             data/coverage.json
+            audit/

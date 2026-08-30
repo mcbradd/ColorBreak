@@ -47,7 +47,7 @@ import {
 import { recommendBid, solveFinancialCap } from "./domain/buyer-treatment";
 import type { ValueRule } from "./domain/buyer-treatment";
 import { completeCost, sellerPlanStatus } from "./domain/seller-plan";
-import { decisionEligibility, resolvedOnlyLimit } from "./domain/valuation";
+import { decisionAvailability, decisionEligibility, resolvedOnlyLimit } from "./domain/valuation";
 import { cardDisplayName, cardTreatmentLabel } from "./domain/card-label";
 import { deduplicateOmissions } from "./domain/omissions";
 import { simulateOutcomesAsync } from "./domain/simulation-client";
@@ -529,6 +529,7 @@ function Builder({
   const [importSource, setImportSource] = useState("");
   const [importRows, setImportRows] = useState<Array<{ source: string; line?: BreakLine; error?: string }>>([]);
   const [importErrors, setImportErrors] = useState<string[]>([]);
+  const importErrorsId = useId();
   const [importing, setImporting] = useState(false);
   const [importSettings, setImportSettings] = useState<{ assignmentMode: AssignmentMode; largeSpots?: number; bulkEnabled?: boolean; bulkThreshold?: number }>();
   useEffect(() => {
@@ -722,10 +723,10 @@ function Builder({
             </div>
             {composerMode === "paste" ? (
               <section className="break-import">
-                <p>Paste a ColorBreak link or one product per line.</p>
+                <p><strong>Paste a ColorBreak link or product list</strong> — accepted formats are a ColorBreak link or one canonical product per line.</p>
                 <code>SPM | Play Booster Pack | 10</code>
-                <textarea autoFocus value={importSource} onChange={(event) => setImportSource(event.target.value)} placeholder="Paste link or product list" aria-label="Break link or product list" />
-                {importErrors.length > 0 && <ul className="import-errors">{importErrors.map((error) => <li key={error}>{error}</li>)}</ul>}
+                <textarea autoFocus value={importSource} onChange={(event) => setImportSource(event.target.value)} placeholder="Paste link or product list" aria-label="Break link or product list" aria-describedby={importErrors.length ? importErrorsId : undefined} />
+                {importErrors.length > 0 && <ul id={importErrorsId} className="import-errors" role="alert">{importErrors.map((error) => <li key={error}>{error}</li>)}</ul>}
               </section>
             ) : composerMode === "review" ? (
               <section className="import-review">
@@ -1529,6 +1530,7 @@ interface EvidenceExplanation {
 
 function EvidenceDialog({ item, onClose }: { item: EvidenceExplanation | null; onClose: () => void }) {
   const closeRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useRef<HTMLElement>(null);
   useEffect(() => {
     if (!item) return;
     const previous = document.activeElement as HTMLElement | null;
@@ -1536,12 +1538,23 @@ function EvidenceDialog({ item, onClose }: { item: EvidenceExplanation | null; o
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     closeRef.current?.focus({ preventScroll: true });
+    const application = document.getElementById("root");
+    application?.setAttribute("inert", "");
+    application?.setAttribute("aria-hidden", "true");
     const keydown = (event: KeyboardEvent) => {
       if (event.key === "Escape") onClose();
+      if (event.key !== "Tab") return;
+      const focusable = [...(dialogRef.current?.querySelectorAll<HTMLElement>("button:not(:disabled), a[href], input:not(:disabled), [tabindex='0']") ?? [])].filter((element) => element.offsetParent !== null);
+      if (!focusable.length) return;
+      const first = focusable[0], last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
     };
     document.addEventListener("keydown", keydown);
     return () => {
       document.removeEventListener("keydown", keydown);
+      application?.removeAttribute("inert");
+      application?.removeAttribute("aria-hidden");
       document.body.style.overflow = previousOverflow;
       previous?.focus({ preventScroll: true });
       window.scrollTo(0, scrollY);
@@ -1550,7 +1563,7 @@ function EvidenceDialog({ item, onClose }: { item: EvidenceExplanation | null; o
   if (!item) return null;
   return createPortal(
     <div className="scrim evidence-scrim" onPointerDown={onClose}>
-      <section className="evidence-dialog" role="dialog" aria-modal="true" aria-labelledby="evidence-dialog-title" onPointerDown={(event) => event.stopPropagation()}>
+      <section ref={dialogRef} className="evidence-dialog" role="dialog" aria-modal="true" aria-labelledby="evidence-dialog-title" onPointerDown={(event) => event.stopPropagation()}>
         <header>
           <div><InformationLabel>WHY THIS MATTERS</InformationLabel><h2 id="evidence-dialog-title">{item.title}</h2></div>
           <button ref={closeRef} className="icon-button" onClick={onClose} aria-label="Close explanation"><X /></button>
@@ -2120,6 +2133,7 @@ export function BuyerView({
   setBid,
   shipping,
   setShipping,
+  onChooseDecisionReady,
 }: {
   analysis: BreakAnalysis;
   auction: AuctionState;
@@ -2130,9 +2144,11 @@ export function BuyerView({
   setBid: (value: number | undefined) => void;
   shipping: number | undefined;
   setShipping: (value: number | undefined) => void;
+  onChooseDecisionReady?: () => void;
 }) {
   const result = analysis.valuation;
   const eligibility = decisionEligibility(result);
+  const availability = decisionAvailability(result);
   const [inspectedCard, setInspectedCard] = useState<Contributor | null>(null);
   const [valueRule, setValueRule] = useState<ValueRule>({ kind: "median" });
   const [resolvedOnlyRequested, setResolvedOnlyRequested] = useState(false);
@@ -2204,7 +2220,7 @@ export function BuyerView({
           <div className="verdict-decision">
             <InformationLabel>Recommendation</InformationLabel>
             <h2 aria-live="polite">{decision}</h2>
-            {eligibility.status !== "eligible" && <div className="decision-reason"><p>{eligibility.status === "stale" ? `This snapshot is stale. Observed ${eligibility.observedAt ? new Date(eligibility.observedAt).toLocaleString() : "unknown"} from ${eligibility.observedSource ?? "the published snapshot"}; refresh a reviewed snapshot or choose a decision-ready product.` : eligibility.status === "material-incomplete" ? "A full bid limit is unavailable because some contents or prices are omitted. Inspect the affected groups, choose a decision-ready product, or deliberately use the incomplete analysis below." : "A usable price snapshot is unavailable, so no bid limit can be calculated."}</p>{eligibility.affectedGroups.length > 0 && <details><summary className="disclosure-summary">Review affected groups<DisclosureArrow /></summary><ul>{eligibility.affectedGroups.map((group) => <li key={group.id}>{group.label}</li>)}</ul></details>}{eligibility.status === "material-incomplete" && !resolvedOnlyRequested && eligibility.resolvedOnlyAvailable && <button type="button" className="quiet" onClick={() => { setResolvedOnlyRequested(true); setReconfirmedInput(undefined); }}>Calculate resolved-only limit</button>}{eligibility.status === "material-incomplete" && resolvedOnlyRequested && scoped && <p><strong>CONSERVATIVE · INCOMPLETE LIMIT</strong> uses only resolved exact-printing values. It is not a full break recommendation.</p>}</div>}
+            {eligibility.status !== "eligible" && <div className="decision-reason"><p><strong>No bid decision is available.</strong> {availability.detail} Observed {eligibility.observedAt ? new Date(eligibility.observedAt).toLocaleString() : "unknown"} from {eligibility.observedSource ?? "the published snapshot"}.</p>{onChooseDecisionReady && <button type="button" className="primary" onClick={onChooseDecisionReady}>Choose a decision-ready product</button>}{eligibility.affectedGroups.length > 0 && <details><summary className="disclosure-summary">Why this is unavailable<DisclosureArrow /></summary><p>Policy threshold: {eligibility.freshnessThresholdMs / 36e5} hours.</p><ul>{eligibility.affectedGroups.map((group) => <li key={group.id}>{group.label}</li>)}</ul></details>}{eligibility.status === "material-incomplete" && !resolvedOnlyRequested && eligibility.resolvedOnlyAvailable && <button type="button" className="quiet" onClick={() => { setResolvedOnlyRequested(true); setReconfirmedInput(undefined); }}>Calculate resolved-only limit</button>}{eligibility.status === "material-incomplete" && resolvedOnlyRequested && scoped && <p><strong>CONSERVATIVE · INCOMPLETE LIMIT</strong> uses only resolved exact-printing values. It is not a full break recommendation.</p>}</div>}
             {(eligibility.status === "eligible" || (eligibility.status === "material-incomplete" && resolvedOnlyRequested && scoped)) && !reconfirmed && <p className="decision-reason"><button type="button" className="quiet" onClick={() => { setReconfirmedInput(decisionInput); setReconfirmedAt(Date.now()); }}>Reconfirm current bid</button> Reconfirm after changing bid, shipping, slot, or risk stance. Confirmation expires after one minute.</p>}
             {eligibility.status === "eligible" && bid == null && <p className="decision-reason"><a href="#buyer-current-bid">Enter the current auction price</a> to compare it with your maximum hammer.</p>}
             {bid != null && shipping == null && <p className="decision-reason"><a href="#buyer-added-shipping">Enter the extra shipping charged for this purchase</a>. It affects your landed cost and maximum hammer.</p>}
@@ -2233,10 +2249,10 @@ export function BuyerView({
           <button aria-pressed={valueRule.kind === "average"} onClick={() => setValueRule({ kind: "average" })}>Chase upside</button>
         </div>
         <div className="bid-inputs">
-          <NumberField id="buyer-current-bid" label="Current bid" value={bid} onChange={setBid} />
+          <NumberField id="buyer-current-bid" label={eligibility.status === "eligible" ? "Current bid" : "Optional: compare your current all-in cost"} value={bid} onChange={setBid} />
           <NumberField
             id="buyer-added-shipping"
-            label="Your added shipping"
+            label={eligibility.status === "eligible" ? "Your added shipping" : "Optional: added shipping"}
             value={shipping}
             onChange={setShipping}
             hint="Only shipping added by this purchase—not your whole order."
@@ -3031,12 +3047,13 @@ export function SellerView({
   const [processing, setProcessing] = useState(WHATNOT_US.processingRate * 100);
   const [processingFlat, setProcessingFlat] = useState(WHATNOT_US.processingFlat);
   const [plannedBidOverride, setPlannedBidOverride] = useState<number>();
-  const [marketEstimatesAccepted, setMarketEstimatesAccepted] = useState(false);
+  const [acceptedEstimateIds, setAcceptedEstimateIds] = useState<Set<string>>(() => new Set());
   const [productsOpen, setProductsOpen] = useState(false);
   const totalOpenings = lines.reduce((total, line) => total + line.quantity * Math.max(1, line.packCount ?? 1), 0);
   const marketEstimateLines = lines.filter((line) => line.myCost == null && line.marketCost != null);
-  const acquisition = lines.reduce((total, line) => total + (line.myCost ?? (marketEstimatesAccepted ? line.marketCost : undefined) ?? 0) * line.quantity, 0);
-  const costsComplete = lines.every((line) => line.myCost != null || (marketEstimatesAccepted && line.marketCost != null));
+  const estimateAccepted = (line: BreakLine) => acceptedEstimateIds.has(line.id);
+  const acquisition = lines.reduce((total, line) => total + (line.myCost ?? (estimateAccepted(line) ? line.marketCost : undefined) ?? 0) * line.quantity, 0);
+  const costsComplete = lines.every((line) => line.myCost != null || (estimateAccepted(line) && line.marketCost != null));
   const missingCostLine = lines.find((line) => line.myCost == null && line.marketCost == null);
   const otherCosts = labor + tax + giveaways + refundReserve + overhead;
   const shipmentCount = Math.min(transactionCount, Math.max(1, Math.round(shipments)));
@@ -3098,8 +3115,9 @@ export function SellerView({
               <div className="seller-product-line" key={line.id}>
                 <span className="set-glyph">{line.set}</span>
                 <span className="seller-product-name"><strong>{line.productLabel}</strong><small>{line.set}</small></span>
-                <div className="seller-market-price"><span>Current market</span><b>{fmt(line.marketCost)}</b></div>
+                <div className="seller-market-price"><span>Current market</span><b>{fmt(line.marketCost)}</b><small>Sealed-market estimate · {line.marketCost == null ? "No estimate available" : estimateAccepted(line) ? "Estimated — accepted" : "Available — not accepted"}</small></div>
                 <NumberField id={`seller-cost-${line.id}`} label="My cost basis" value={line.myCost} onChange={(value) => update(line.id, { myCost: value })} live />
+                {line.myCost == null && line.marketCost != null && <button type="button" className="quiet" onClick={() => setAcceptedEstimateIds((current) => { const next = new Set(current); if (next.has(line.id)) next.delete(line.id); else next.add(line.id); return next; })}>{estimateAccepted(line) ? "Stop using estimate" : "Use estimate"}</button>}
                 <QuantityControl line={line} update={(quantity) => update(line.id, { quantity })} />
                 <button className="remove-line" aria-label={`Remove ${line.productLabel} from break`} onClick={() => remove(line.id)}><Trash2 /></button>
               </div>
@@ -3108,9 +3126,9 @@ export function SellerView({
         </details>
       </section>
 
-      {marketEstimateLines.length > 0 && <section className={`cost-basis-policy ${marketEstimatesAccepted ? "accepted" : ""}`} aria-label="Cost basis policy">
-        <div><InformationLabel>COST BASIS</InformationLabel><h3>{marketEstimatesAccepted ? "Market estimates accepted" : "Actual costs are still blank"}</h3><p>{marketEstimateLines.length} product{marketEstimateLines.length === 1 ? "" : "s"} can use current sealed-market prices as estimates. Break-even remains blocked until you explicitly accept them or enter actual costs.</p></div>
-        <button type="button" className={marketEstimatesAccepted ? "quiet" : "primary"} onClick={() => setMarketEstimatesAccepted((accepted) => !accepted)}>{marketEstimatesAccepted ? "Stop using estimates" : `Use ${marketEstimateLines.length} market estimates`}</button>
+      {marketEstimateLines.length > 0 && <section className="cost-basis-policy" aria-label="Cost basis policy">
+        <div><InformationLabel>COST BASIS</InformationLabel><h3>{acceptedEstimateIds.size ? "Some market estimates accepted" : "Actual costs are still blank"}</h3><p>Each sealed-market estimate is optional, reversible, and remains labeled estimated. Enter seller costs whenever available.</p></div>
+        <button type="button" className="quiet" onClick={() => setAcceptedEstimateIds((current) => current.size === marketEstimateLines.length ? new Set() : new Set(marketEstimateLines.map((line) => line.id)))}>{acceptedEstimateIds.size === marketEstimateLines.length ? "Stop using estimates" : `Use ${marketEstimateLines.length} market estimates`}</button>
       </section>}
 
       {missingCostLine && <CompactWarning title={<a href={`#seller-cost-${missingCostLine.id}`} onClick={(event) => { event.stopPropagation(); setProductsOpen(true); }}>Enter your cost for {missingCostLine.productLabel}</a>} summary="Needed to calculate break-even and profit." className="missing-input-warning">
@@ -3156,6 +3174,7 @@ export function SellerView({
           <strong>{fmt(breakEvenBid)}</strong>
           <small>per spot · all {transactionCount} sold</small>
         </div>
+        <details className="seller-assumptions"><summary className="disclosure-summary"><span>Assumptions used</span><DisclosureArrow /></summary><p>{acceptedEstimateIds.size ? "Acquisition includes accepted estimated market inputs; " : "Acquisition uses seller-entered costs; "}fees checked {WHATNOT_US.policyDate}; buyer shipping {fmt(buyerShipping)}; packaging/postage {fmt(packing + postage)} per shipment; up to one combined shipment per sold spot ({shipmentCount} expected). Change this if you expect consolidation. Scenarios are sell-through math, not a demand prediction.</p></details>
         <NumberField label="Planned bid per spot" value={plannedBid} onChange={setPlannedBidOverride} live />
         <div className="seller-fill-scenarios">
           {scenarios.map((scenario) => <div className={scenario.profit != null && scenario.profit >= 0 ? "positive" : "negative"} key={scenario.sold}>
@@ -3171,6 +3190,7 @@ export function SellerView({
         transactionCount={transactionCount}
         baseProfitAtAll={allSoldProfit}
       />
+      <p className="seller-demand-checkpoint"><strong>Economics ready — demand validation pending.</strong> Record audience/pre-interest, a comparable break and date, and your planned time window before launch. This does not predict fill or profit.</p>
     </section>
   );
 }
@@ -3438,7 +3458,7 @@ export function Workspace({
           COLORBREAK
         </button>
         <div className="nav-actions">
-          {lines.length > 0 && <button
+          {mode === "buyer" && lines.length > 0 && <button
             className="icon-button"
             onClick={share}
             title="Copy buyer break setup — excludes bids, shipping, seller costs, and actuals."
@@ -3514,6 +3534,7 @@ export function Workspace({
                   setBid={setBuyerBid}
                   shipping={buyerShipping}
                   setShipping={setBuyerShipping}
+                  onChooseDecisionReady={() => setBuilder(true)}
                 />
               ))}
             </div>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buyerVerdict, calculateBreak, decisionEligibility, DECISION_FRESHNESS_MS, resolvedOnlyLimit, slotOfCard } from "./valuation";
+import { buyerVerdict, calculateBreak, decisionAvailability, decisionEligibility, DECISION_FRESHNESS_MS, resolvedOnlyLimit, slotOfCard } from "./valuation";
 import type { CardPrice, ExpectedDraw } from "./types";
 
 const prices: CardPrice[] = [
@@ -252,5 +252,16 @@ describe("decisionEligibility", () => {
     const eligibility = decisionEligibility(result, now);
     expect(resolvedOnlyLimit(20, 3, eligibility)).toMatchObject({ scope: "resolved-only", amount: 17, allIn: 20, omittedGroups: [{ label: "A printing is missing." }] });
     expect(resolvedOnlyLimit(20, 3, decisionEligibility(result, now + DECISION_FRESHNESS_MS + 1))).toBeUndefined();
+  });
+});
+
+describe("decisionAvailability", () => {
+  it("keeps stale complete evidence analysis-only rather than creating a cap", () => {
+    const observedAt = "2026-08-29T12:00:00.000Z";
+    const now = Date.parse(observedAt);
+    const result = calculateBreak({ draws, prices, pricedAt: observedAt, priceSource: "published snapshot" });
+    const availability = decisionAvailability(result, now + DECISION_FRESHNESS_MS + 1);
+    expect(availability.label).toBe("Analysis only — stale");
+    expect(availability.detail).toMatch(/no bid decision/i);
   });
 });
