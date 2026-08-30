@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 describe("modern interface system", () => {
   it("loads the electric instrument system last and keeps primary rollouts out of panels", () => {
     const entry = readFileSync(join(process.cwd(), "src", "main.tsx"), "utf8");
-    const app = readFileSync(join(process.cwd(), "src", "App.tsx"), "utf8");
+    const app = readFileSync(join(process.cwd(), "src", "features", "workflow", "WorkflowImplementation.tsx"), "utf8");
     const css = readFileSync(join(process.cwd(), "src", "modern.css"), "utf8");
     const future = readFileSync(join(process.cwd(), "src", "future.css"), "utf8");
 

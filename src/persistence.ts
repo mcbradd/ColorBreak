@@ -136,8 +136,36 @@ export function compositionProjection(lines: BreakLine[]) {
     ({ id, set, productKey, productLabel, quantity, tcgId, packCount }));
 }
 
+export type SessionDraftRead =
+  | { kind: "missing"; lines: [] }
+  | { kind: "valid"; lines: BreakLine[] }
+  | { kind: "invalid"; lines: [] };
+
+function isBreakLine(value: unknown): value is BreakLine {
+  if (!value || typeof value !== "object") return false;
+  const line = value as Partial<BreakLine>;
+  return typeof line.id === "string" && typeof line.set === "string"
+    && typeof line.productKey === "string" && typeof line.productLabel === "string"
+    && typeof line.quantity === "number" && Number.isFinite(line.quantity) && line.quantity > 0
+    && (line.packCount == null || (typeof line.packCount === "number" && Number.isFinite(line.packCount) && line.packCount > 0));
+}
+
+/** The sole authority for session draft keys, parsing, and structural validation. */
+export function readSessionDraft(mode: "buyer" | "seller"): SessionDraftRead {
+  try {
+    const raw = sessionStorage.getItem(sessionKey(mode));
+    if (raw == null) return { kind: "missing", lines: [] };
+    const value: unknown = JSON.parse(raw);
+    return Array.isArray(value) && value.every(isBreakLine)
+      ? { kind: "valid", lines: value }
+      : { kind: "invalid", lines: [] };
+  } catch { return { kind: "invalid", lines: [] }; }
+}
+
+/** Compatibility convenience API; callers needing recovery messaging use readSessionDraft. */
 export function readSessionLines(mode: "buyer" | "seller"): BreakLine[] {
-  try { return JSON.parse(sessionStorage.getItem(sessionKey(mode)) ?? "[]") as BreakLine[]; } catch { return []; }
+  const draft = readSessionDraft(mode);
+  return draft.kind === "valid" ? draft.lines : [];
 }
 
 export function writeSessionLines(mode: "buyer" | "seller", lines: BreakLine[]) {

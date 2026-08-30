@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 
 describe("seller assumptions phone control", () => {
   const root = process.cwd();
-  const app = readFileSync(join(root, "src", "App.tsx"), "utf8");
+    const app = readFileSync(join(root, "src", "features", "workflow", "WorkflowImplementation.tsx"), "utf8");
   const css = readFileSync(join(root, "src", "modern.css"), "utf8");
   const future = readFileSync(join(root, "src", "future.css"), "utf8");
 

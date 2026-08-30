@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
-const source = readFileSync(join(process.cwd(), "src", "App.tsx"), "utf8");
+const source = readFileSync(join(process.cwd(), "src", "features", "workflow", "WorkflowImplementation.tsx"), "utf8");
 
 describe("expandable section affordances", () => {
   it("uses the shared disclosure summary and arrow for every details section", () => {

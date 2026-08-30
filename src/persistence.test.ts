@@ -4,6 +4,8 @@ import {
   buyerDecisionFingerprint,
   defaultSellerPlanDraft,
   readBuyerDecisionRecord,
+  readSessionDraft,
+  sessionKey,
   readSellerPlanDraft,
   sellerPlanKey,
   sellerPlanMatches,
@@ -70,6 +72,21 @@ describe("seller plan session persistence", () => {
     expect(sellerPlanMatches(plan, sellerPlanOwner([{ ...lines[0], quantity: 2 }], "prices-a"))).toBe(false);
     expect(sellerPlanMatches(plan, sellerPlanOwner(lines, "prices-b"))).toBe(false);
     expect(sellerPlanMatches(plan, sellerPlanOwner([{ ...lines[0], id: "imported" }], "prices-a"))).toBe(true);
+  });
+});
+
+describe("composition draft persistence", () => {
+  afterEach(() => sessionStorage.clear());
+
+  it("distinguishes missing, malformed, invalid, and valid session drafts", () => {
+    expect(readSessionDraft("buyer")).toEqual({ kind: "missing", lines: [] });
+    sessionStorage.setItem(sessionKey("buyer"), "not json");
+    expect(readSessionDraft("buyer")).toEqual({ kind: "invalid", lines: [] });
+    sessionStorage.setItem(sessionKey("buyer"), JSON.stringify([{ id: "missing-fields" }]));
+    expect(readSessionDraft("buyer")).toEqual({ kind: "invalid", lines: [] });
+    const lines = [{ id: "line", set: "TST", productKey: "box", productLabel: "Box", quantity: 1 }];
+    sessionStorage.setItem(sessionKey("buyer"), JSON.stringify(lines));
+    expect(readSessionDraft("buyer")).toEqual({ kind: "valid", lines });
   });
 });
 
