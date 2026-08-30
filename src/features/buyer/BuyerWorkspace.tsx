@@ -1,94 +1,25 @@
-import {
-  useCallback,
-  useEffect,
-  useId,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
-import type { CSSProperties, ReactNode, RefObject } from "react";
-import { createPortal } from "react-dom";
-import { AnimatePresence, motion } from "motion/react";
-import {
-  ArrowLeft,
-  BadgeCheck,
-  BarChart3,
-  Boxes,
-  ChevronRight,
-  CircleHelp,
-  Copy,
-  DollarSign,
-  Lock,
-  PackagePlus,
-  RotateCw,
-  Search,
-  ShieldAlert,
-  Sparkles,
-  Store,
-  Trash2,
-  Unlock,
-  X,
-} from "lucide-react";
-import { catalogSets, productsForSet, readinessForProduct } from "../../data/catalog";
-import type { DecisionReadiness } from "../../domain/decision-readiness";
-import { evaluateBreakAnalysis } from "../../data/evaluate";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { BarChart3, Copy, Lock, Sparkles } from "lucide-react";
+import { productsForSet } from "../../data/catalog";
 import type { BreakAnalysis } from "../../data/evaluate";
+import { assessBuyerDecision, type BuyerDecisionAssessment, type PreparedProductSelection } from "../../domain/decision-evidence";
+import { canonicalCompositionFingerprint } from "../../domain/canonical-composition";
 import { sealedMarketPrice } from "../../data/sealed-prices";
-import { createAuction, toggleSlotTaken } from "../../domain/auction";
+import { createAuction } from "../../domain/auction";
 import type { AuctionState } from "../../domain/auction";
 import { decodeLegacySearch } from "../../domain/legacy";
-import { mergeBreakLines, parseBreakImport } from "../../domain/break-import";
 import { createBreakShareUrl, decodeBuyerShare, type AssignmentMode } from "../../domain/share-url";
-import {
-  calculateProfit,
-  requiredHammer,
-  WHATNOT_US,
-} from "../../domain/marketplace";
-import { recommendBid, solveFinancialCap } from "../../domain/buyer-treatment";
-import type { ValueRule } from "../../domain/buyer-treatment";
-import { completeCost, sellerPlanStatus } from "../../domain/seller-plan";
-import { actualLedgerSummary, validateActualLedger, type ActualOrder, type ActualShipment } from "../../domain/actual-ledger";
-import { decisionAvailability, decisionEligibility, resolvedOnlyLimit } from "../../domain/valuation";
-import { cardDisplayName, cardTreatmentLabel } from "../../domain/card-label";
-import { deduplicateOmissions } from "../../domain/omissions";
-import { simulateOutcomesAsync } from "../../domain/simulation-client";
-import type { DistributionSummary, PackOutcomeModel, SimulationResult } from "../../domain/simulation";
-import type {
-  BreakLine,
-  Contributor,
-  MarketplacePreset,
-  ProductChoice,
-  SetChoice,
-  SlotId,
-  SlotValuation,
-  Transaction,
-  ValuationResult,
-} from "../../domain/types";
-import { SLOT_IDS, SLOT_NAMES } from "../../domain/types";
-import { useMobileInputViewport } from "../../mobile-input-viewport";
+import type { BreakLine, SlotId } from "../../domain/types";
 import { track } from "../../analytics";
-import { chaseMapLayout } from "../../constellation-layout";
-import { runtimeReleaseContext, buyerDecisionPresentation, type ReleaseContext } from "../../release-context";
-import { manualBudgetCap } from "../../domain/manual-budget";
-import { READY_EXAMPLES, readyExampleLine } from "../../data/ready-examples";
-import { createLargeBreakPlan, sortNamedCards, summarizeAssignmentValues } from "../../domain/large-break";
-import type { TopCardSort } from "../../domain/large-break";
+import { readyExampleLine } from "../../data/ready-examples";
 import {
   cleanupLegacyStorage,
-  clearColorBreakBrowserStorage,
-  defaultSellerPlanDraft,
   readBuyerDecisionRecord,
-  readSellerPlanDraft,
   readSessionDraft,
   writeBuyerDecisionRecord,
-  writeSellerPlanDraft,
-  sellerPlanMatches,
-  sellerPlanOwner,
   writeSessionLines,
-  type SellerPlanDraft,
 } from "../../persistence";
-import { Builder, EmptyBreak, ManualBudgetCap } from "../shared/ProductBuilder";
+import { Builder, ManualBudgetCap } from "../shared/ProductBuilder";
 import { CompactWarning } from "./BuyerVisuals";
 import { BuyerSetup } from "./BuyerSetup";
 import { BuyerView, LargeBreakView } from "./BuyerDetails";
@@ -118,6 +49,8 @@ export function BuyerWorkspace({
     [builder, setBuilder] = useState(false),
     [builderOpener, setBuilderOpener] = useState<HTMLElement | null>(null),
     [analysis, setAnalysis] = useState<BreakAnalysis>(),
+    [decisionAssessment, setDecisionAssessment] = useState<BuyerDecisionAssessment>(),
+    [preparedSelection, setPreparedSelection] = useState<PreparedProductSelection>(),
     [auction, setAuction] = useState<AuctionState>(() => {
       return sharedBuyer.remaining?.length ? createAuction(sharedBuyer.remaining) : createAuction();
     }),
@@ -188,27 +121,41 @@ export function BuyerWorkspace({
   useLayoutEffect(() => {
     if (!lines.length) {
       setAnalysis(undefined);
+      setDecisionAssessment(undefined);
       setBusy(false);
       return;
     }
     const request = ++analysisRequest.current;
     // Never label the previous composition/threshold result as current while
     // the latest calculation is pending.
+    const transfer = preparedSelection;
+    if (transfer
+      && transfer.compositionFingerprint === canonicalCompositionFingerprint(lines)
+      && transfer.assessment.analysis.valuation.threshold === threshold
+      && Date.now() <= transfer.assessment.assessedAt + transfer.assessment.policyThresholdMs) {
+      setAnalysis(transfer.assessment.analysis);
+      setDecisionAssessment(transfer.assessment);
+      setPreparedSelection(undefined);
+      setBusy(false);
+      return;
+    }
     setAnalysis(undefined);
+    setDecisionAssessment(undefined);
     setBusy(true);
     calculationStarted.current = Date.now();
     setError(undefined);
-    evaluateBreakAnalysis(lines, threshold)
+    assessBuyerDecision(lines, threshold)
       .then((next) => {
         if (request !== analysisRequest.current) return;
-        setAnalysis(next);
+        setAnalysis(next.analysis);
+        setDecisionAssessment(next);
         if (!firstResultTracked.current) {
           const elapsed = Date.now() - calculationStarted.current;
           track("calculation_completed", {
             mode,
             productCount: lines.length,
             durationBucket: elapsed < 10_000 ? "under-10s" : "10s-plus",
-            status: next.valuation.status,
+            status: next.analysis.valuation.status,
           });
           firstResultTracked.current = true;
         }
@@ -401,6 +348,7 @@ export function BuyerWorkspace({
               ) : (
                 <BuyerView
                   analysis={analysis}
+                  eligibility={decisionAssessment?.eligibility}
                   auction={auction}
                   assignmentMode={assignmentMode}
                   selected={selectedSlot}
@@ -422,8 +370,10 @@ export function BuyerWorkspace({
         onClose={() => setBuilder(false)}
         lines={lines}
         invokingElement={builderOpener}
-        onApply={(nextLines, settings) => {
+        valueThreshold={threshold}
+        onApply={(nextLines, settings, prepared) => {
           setImportUndo({ lines, assignmentMode, largeSpots, bulkEnabled, bulkThreshold });
+          setPreparedSelection(prepared);
           setLines(nextLines);
           if (settings) {
             setAssignmentMode(settings.assignmentMode);

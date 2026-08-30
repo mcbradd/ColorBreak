@@ -1,8 +1,8 @@
 import type { ProductChoice, SetChoice } from "../domain/types";
 import { choicesFromSealed, expectedDraws, loadSealed } from "./sealed";
-import { loadPrices } from "./scryfall";
-import { calculateBreak } from "../domain/valuation";
-import { decisionReadiness, type DecisionReadiness } from "../domain/decision-readiness";
+import { prepareProductSelection } from "../domain/decision-evidence";
+import type { DecisionReadiness } from "../domain/decision-readiness";
+import type { BreakLine } from "../domain/types";
 
 interface CatalogFile {
   sets: Record<string, {
@@ -75,15 +75,25 @@ export async function readinessForProduct(product: ProductChoice, now?: number |
 }
 
 async function readinessForProductUncached(product: ProductChoice, now?: number | Date): Promise<DecisionReadiness> {
-  const sealed = await loadSealed(product.set);
-  if (!sealed || !product.sealedKey) return decisionReadiness({ contentsStatus: product.status, now });
-  const expected = await expectedDraws(sealed, product.sealedKey, 1);
-  const prices = await loadPrices({
-    sets: [...new Set(expected.draws.map((draw) => draw.set))],
-    printings: expected.draws.map((draw) => ({ set: draw.set, collectorNumber: draw.collectorNumber })),
-  });
-  const valuation = calculateBreak({ draws: expected.draws, prices: prices.cards, omissions: [...expected.omissions, ...prices.omissions], sourceStatus: expected.status, pricedAt: prices.availability.observedAt, priceSource: prices.availability.source });
-  return decisionReadiness({ contentsStatus: valuation.status, priceObservedAt: valuation.pricedAt, materialOmissions: valuation.omissions, now });
+  const line: BreakLine = {
+    id: `catalog:${product.key}`,
+    set: product.set,
+    productKey: product.sealedKey ? `sealed:${product.sealedKey}` : product.key,
+    productLabel: product.label,
+    quantity: 1,
+    packCount: product.packCount,
+    tcgId: product.tcgId,
+  };
+  const assessment = await prepareProductSelection([line], 0, now);
+  const status = assessment.assessment.eligibility.status;
+  return {
+    eligibility: status === "eligible" ? "ready" : status === "material-incomplete" ? "incomplete" : status,
+    contentsStatus: assessment.assessment.analysis.valuation.status,
+    priceObservedAt: assessment.assessment.observedAt,
+    priceAgeMs: assessment.assessment.ageMs,
+    freshnessThresholdMs: assessment.assessment.policyThresholdMs,
+    materialBlockers: assessment.assessment.materialBlockers,
+  };
 }
 
 export async function catalogSets(): Promise<SetChoice[]> {

@@ -14,8 +14,8 @@ import {
   Search,
   X,
 } from "lucide-react";
-import { catalogSets, productsForSet, readinessForProduct } from "../../data/catalog";
-import type { DecisionReadiness } from "../../domain/decision-readiness";
+import { catalogSets, productsForSet } from "../../data/catalog";
+import { prepareProductSelection, type PreparedProductSelection } from "../../domain/decision-evidence";
 import { mergeBreakLines, parseBreakImport } from "../../domain/break-import";
 import { decodeBuyerShare, type AssignmentMode } from "../../domain/share-url";
 import type {
@@ -34,13 +34,15 @@ export function Builder({
   onApply,
   invokingElement,
   onUseManualCap,
+  valueThreshold = 0,
 }: {
   open: boolean;
   onClose: () => void;
   lines: BreakLine[];
-  onApply: (lines: BreakLine[], settings?: { assignmentMode: AssignmentMode; largeSpots?: number; bulkEnabled?: boolean; bulkThreshold?: number }) => void;
+  onApply: (lines: BreakLine[], settings?: { assignmentMode: AssignmentMode; largeSpots?: number; bulkEnabled?: boolean; bulkThreshold?: number }, prepared?: PreparedProductSelection) => void;
   invokingElement?: HTMLElement | null;
   onUseManualCap?: () => void;
+  valueThreshold?: number;
 }) {
   const dialogRef = useRef<HTMLElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
@@ -52,9 +54,9 @@ export function Builder({
   );
   const [selected, setSelected] = useState<SetChoice>();
   const [products, setProducts] = useState<ProductChoice[]>([]);
-  const [readiness, setReadiness] = useState<Record<string, DecisionReadiness>>({});
+  const [prepared, setPrepared] = useState<Record<string, PreparedProductSelection>>({});
   const [readyOnly, setReadyOnly] = useState(false);
-  const [readyRows, setReadyRows] = useState<Array<{ product: ProductChoice; readiness: DecisionReadiness }>>([]);
+  const [readyRows, setReadyRows] = useState<Array<{ product: ProductChoice; prepared: PreparedProductSelection }>>([]);
   const [readyChecking, setReadyChecking] = useState(false);
   const [loading, setLoading] = useState(false);
   const [draft, setDraft] = useState<BreakLine[]>([]);
@@ -77,37 +79,37 @@ export function Builder({
     setReadyChecking(true);
     void Promise.all(READY_EXAMPLES.map(async (example) => {
       const product = (await productsForSet(example.set)).find((item) => item.sealedKey === example.productKey);
-      return product ? { product, readiness: await readinessForProduct(product) } : undefined;
-    })).then((rows) => { if (active) setReadyRows(rows.filter((row): row is { product: ProductChoice; readiness: DecisionReadiness } => Boolean(row))); }).catch(() => { if (active) setReadyRows([]); }).finally(() => { if (active) setReadyChecking(false); });
+      return product ? { product, prepared: await prepareProductSelection([...lines, choiceLine(product)], valueThreshold) } : undefined;
+    })).then((rows) => { if (active) setReadyRows(rows.filter((row): row is { product: ProductChoice; prepared: PreparedProductSelection } => Boolean(row))); }).catch(() => { if (active) setReadyRows([]); }).finally(() => { if (active) setReadyChecking(false); });
     return () => { active = false; };
-  }, [open]);
+  }, [open, lines, valueThreshold]);
   useEffect(() => {
     if (!selected) { selectionRequest.current += 1; return; }
     const request = ++selectionRequest.current;
     setProducts([]);
-    setReadiness({});
+    setPrepared({});
     setLoading(true);
     void (async () => {
       try {
         const rows = await productsForSet(selected.code);
         if (request !== selectionRequest.current) return;
         setProducts(rows);
-        const entries: Array<[string, DecisionReadiness]> = [];
+        const entries: Array<[string, PreparedProductSelection]> = [];
         const workerCount = Math.min(4, rows.length);
         let next = 0;
         await Promise.all(Array.from({ length: workerCount }, async () => {
           while (next < rows.length) {
             const product = rows[next++];
-            entries.push([product.key, await readinessForProduct(product)]);
+            entries.push([product.key, await prepareProductSelection([...lines, choiceLine(product)], valueThreshold)]);
           }
         }));
         if (request !== selectionRequest.current) return;
-        setReadiness(Object.fromEntries(entries));
+        setPrepared(Object.fromEntries(entries));
       } finally {
         if (request === selectionRequest.current) setLoading(false);
       }
     })();
-  }, [selected]);
+  }, [selected, lines, valueThreshold]);
   useEffect(() => {
     if (!open) {
       setSelected(undefined);
@@ -194,12 +196,12 @@ export function Builder({
       setImporting(false);
     }
   };
-  const applyImport = () => {
+  const applyImport = async () => {
     const additions = importRows.flatMap((row) => row.line ? [row.line] : []);
     if (importRows.some((row) => row.error) || !additions.length) return;
     const next = importSettings ? mergeBreakLines(additions) : mergeBreakLines([...draft, ...additions]);
     setDraft(next);
-    onApply(next, importSettings);
+    onApply(next, importSettings, await prepareProductSelection(next, valueThreshold));
     setComposerMode("search");
     setImportSource("");
     setImportRows([]);
@@ -216,8 +218,8 @@ export function Builder({
     },
     {},
   );
-  const visibleProducts = Object.fromEntries(Object.entries(groupedProducts).map(([category, rows]) => [category, rows.filter((product) => !readyOnly || readiness[product.key]?.eligibility === "ready")]));
-  const readyCount = products.filter((product) => readiness[product.key]?.eligibility === "ready").length;
+  const visibleProducts = Object.fromEntries(Object.entries(groupedProducts).map(([category, rows]) => [category, rows.filter((product) => !readyOnly || prepared[product.key]?.assessment.presentation === "eligible")]));
+  const readyCount = products.filter((product) => prepared[product.key]?.assessment.presentation === "eligible").length;
   // Unmount before the ownership hook restores focus: no exit animation may
   // leave an active dialog exposed alongside the active workspace.
   if (!open) return null;
@@ -279,8 +281,8 @@ export function Builder({
                 <section className="ready-now-list" aria-labelledby="ready-now-heading">
                   <InformationLabel>READY NOW</InformationLabel><h3 id="ready-now-heading">Verified modeled ceilings</h3>
                   <p className="data-status-legend">Ready = verified contents + fresh prices. Stale = prices older than six hours. Incomplete = missing contents or exact prices. Unavailable = evidence cannot be verified.</p>
-                  {readyChecking ? <p role="status">Checking data…</p> : readyRows.filter((row) => row.readiness.eligibility === "ready").map(({ product, readiness }) => <button type="button" className="ready-now-row" key={product.key} onClick={() => add(product)}><span><strong>{product.label}</strong><small>{product.setName ?? product.set} · {new Date(readiness.priceObservedAt ?? "").toLocaleString()} · published snapshot</small></span><span>Ready</span></button>)}
-                  {!readyChecking && !readyRows.some((row) => row.readiness.eligibility === "ready") && <div className="empty-picker-state"><p>No verified modeled ceilings are available in this snapshot.</p><div className="buyer-recovery-actions"><button type="button" className="primary" onClick={onUseManualCap}>Use manual budget cap</button><button type="button" className="quiet" onClick={() => setSelected(undefined)}>Browse all products</button></div></div>}
+                  {readyChecking ? <p role="status">Checking data…</p> : readyRows.filter((row) => row.prepared.assessment.presentation === "eligible").map(({ product, prepared: selection }) => <button type="button" className="ready-now-row" key={product.key} onClick={() => add(product)}><span><strong>{product.label}</strong><small>{product.setName ?? product.set} · {new Date(selection.assessment.observedAt ?? "").toLocaleString()} · published snapshot</small></span><span>Ready</span></button>)}
+                  {!readyChecking && !readyRows.some((row) => row.prepared.assessment.presentation === "eligible") && <div className="empty-picker-state"><p>No verified modeled ceilings are available in this snapshot.</p><div className="buyer-recovery-actions"><button type="button" className="primary" onClick={onUseManualCap}>Use manual budget cap</button><button type="button" className="quiet" onClick={() => setSelected(undefined)}>Browse all products</button></div></div>}
                 </section>
                 <button type="button" className="paste-break-action" onClick={() => setComposerMode("paste")}><PackagePlus />Paste list or break link</button>
                 <div className="set-browser-tools">
@@ -346,7 +348,7 @@ export function Builder({
                                 {product.packCount
                                   ? `${product.packCount} packs · `
                                   : ""}
-                                Contents: {product.status} · Prices: {readiness[product.key]?.eligibility === "ready" ? "fresh" : readiness[product.key]?.eligibility === "stale" ? "stale" : readiness[product.key]?.eligibility === "incomplete" ? "incomplete" : "checking"} · Ceiling: {readiness[product.key]?.eligibility === "ready" ? "available" : "unavailable"}
+                                Contents: {product.status} · {prepared[product.key] ? prepared[product.key].assessment.presentation === "eligible" ? "Prices: fresh · Ceiling: available" : prepared[product.key].assessment.presentation === "stale" ? "Prices: stale · Ceiling: unavailable" : prepared[product.key].assessment.presentation === "material-incomplete" ? "Contents or prices incomplete · Ceiling: unavailable" : "Evidence unavailable · Ceiling: unavailable" : "Checking evidence…"}
                               </small>
                             </span>
                             <ChevronRight />
@@ -370,7 +372,7 @@ export function Builder({
               ) : composerMode === "paste" ? (
                 <button type="button" className="primary" disabled={!importSource.trim() || importing} onClick={resolveImport}>{importing ? "Checking products…" : "Review products"}</button>
               ) : (
-                <button type="button" className="primary" disabled={!draft.length} onClick={() => { onApply(draft); onClose(); }}>Done · {draft.length} line{draft.length === 1 ? "" : "s"}</button>
+                <button type="button" className="primary" disabled={!draft.length} onClick={() => { void prepareProductSelection(draft, valueThreshold).then((selection) => { onApply(draft, undefined, selection); onClose(); }); }}>Done · {draft.length} line{draft.length === 1 ? "" : "s"}</button>
               )}
             </footer>
           </motion.section>

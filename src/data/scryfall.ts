@@ -113,18 +113,6 @@ async function scryfallFetch(input: RequestInfo | URL, init?: RequestInit): Prom
   return response;
 }
 
-async function fetchAll<T>(initialUrl: string): Promise<T[]> {
-  const output: T[] = [];
-  let url: string | undefined = initialUrl;
-  while (url) {
-    const response = await scryfallFetch(url);
-    const page = await response.json() as ScryfallList<T>;
-    output.push(...page.data);
-    url = page.has_more ? page.next_page : undefined;
-  }
-  return output;
-}
-
 export async function loadSets(): Promise<SetChoice[]> {
   const response = await scryfallFetch("https://api.scryfall.com/sets");
   const result = await response.json() as ScryfallList<ScryfallSet>;
@@ -261,39 +249,6 @@ function loadSnapshotSet(set: string, index: PriceSnapshotIndex): Promise<CardPr
   return snapshotSetCache.get(code)!;
 }
 
-function loadLiveSet(set: string): Promise<CardPrice[]> {
-  const code = set.toUpperCase();
-  if (!liveSetCache.has(code)) {
-    const promise = (async () => {
-      const fetchedAt = new Date().toISOString();
-      return (await fetchAll<ScryfallCard>(
-        `https://api.scryfall.com/cards/search?unique=prints&order=set&q=${encodeURIComponent(`e:${code.toLowerCase()}`)}`,
-      )).map((card) => toPrice(card, fetchedAt));
-    })();
-    liveSetCache.set(code, promise);
-    void promise.catch(() => liveSetCache.delete(code));
-  }
-  return liveSetCache.get(code)!;
-}
-
-async function loadLivePrintings(printings: PrintingRef[]): Promise<CardPrice[]> {
-  const cards: CardPrice[] = [];
-  for (let offset = 0; offset < printings.length; offset += 75) {
-    const batch = printings.slice(offset, offset + 75);
-    const response = await scryfallFetch("https://api.scryfall.com/cards/collection", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ identifiers: batch.map((item) => ({
-        set: item.set.toLowerCase(), collector_number: item.collectorNumber,
-      })) }),
-    });
-    const fetchedAt = new Date().toISOString();
-    const result = await response.json() as ScryfallList<ScryfallCard>;
-    cards.push(...result.data.map((card) => toPrice(card, fetchedAt)));
-  }
-  return cards;
-}
-
 function uniqueCards(cards: CardPrice[]): CardPrice[] {
   return [...new Map(cards.map((card) => [`${card.set}|${card.collectorNumber}`, card])).values()];
 }
@@ -312,8 +267,6 @@ export async function loadPrices(request: PriceLoadRequest): Promise<PriceLoadRe
     : sets.map((set) => ({ set, cards: null as CardPrice[] | null }));
   const cards = snapshotResults.flatMap((result) => result.cards ?? []);
   const snapshotSets = new Set(snapshotResults.filter((result) => result.cards).map((result) => result.set));
-  const foundKeys = new Set(cards.map((card) => `${card.set}|${card.collectorNumber}`));
-  const missingPrintings = printings.filter((item) => !foundKeys.has(`${item.set}|${item.collectorNumber}`));
   const missingWholeSets = sets.filter((set) =>
     fullSets.has(set) || (!snapshotSets.has(set) && !printings.some((item) => item.set === set)));
   // The app is intentionally local-first: snapshot misses are blockers, not an

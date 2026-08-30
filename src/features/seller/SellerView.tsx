@@ -1,91 +1,27 @@
-import {
-  useCallback,
-  useEffect,
-  useId,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
-import type { CSSProperties, ReactNode, RefObject } from "react";
-import { createPortal } from "react-dom";
-import { AnimatePresence, motion } from "motion/react";
-import {
-  ArrowLeft,
-  BadgeCheck,
-  BarChart3,
-  Boxes,
-  ChevronRight,
-  CircleHelp,
-  Copy,
-  DollarSign,
-  Lock,
-  PackagePlus,
-  RotateCw,
-  Search,
-  ShieldAlert,
-  Sparkles,
-  Store,
-  Trash2,
-  Unlock,
-  X,
-} from "lucide-react";
-import { catalogSets, productsForSet, readinessForProduct } from "../../data/catalog";
-import type { DecisionReadiness } from "../../domain/decision-readiness";
+import { useEffect, useMemo, useState } from "react";
+import { DollarSign, Lock, PackagePlus, Trash2, Unlock, X } from "lucide-react";
 import { evaluateBreakAnalysis } from "../../data/evaluate";
 import type { BreakAnalysis } from "../../data/evaluate";
 import { sealedMarketPrice } from "../../data/sealed-prices";
-import { createAuction, toggleSlotTaken } from "../../domain/auction";
-import type { AuctionState } from "../../domain/auction";
-import { decodeLegacySearch } from "../../domain/legacy";
-import { mergeBreakLines, parseBreakImport } from "../../domain/break-import";
-import { createBreakShareUrl, decodeBuyerShare, type AssignmentMode } from "../../domain/share-url";
-import {
-  calculateProfit,
-  requiredHammer,
-  WHATNOT_US,
-} from "../../domain/marketplace";
-import { recommendBid, solveFinancialCap } from "../../domain/buyer-treatment";
-import type { ValueRule } from "../../domain/buyer-treatment";
-import { completeCost, sellerPlanStatus } from "../../domain/seller-plan";
+import { requiredHammer, WHATNOT_US } from "../../domain/marketplace";
+import { completeCost } from "../../domain/seller-plan";
+import { productsForSet } from "../../data/catalog";
 import { actualLedgerSummary, validateActualLedger, type ActualOrder, type ActualShipment } from "../../domain/actual-ledger";
-import { decisionAvailability, decisionEligibility, resolvedOnlyLimit } from "../../domain/valuation";
-import { cardDisplayName, cardTreatmentLabel } from "../../domain/card-label";
-import { deduplicateOmissions } from "../../domain/omissions";
-import { simulateOutcomesAsync } from "../../domain/simulation-client";
-import type { DistributionSummary, PackOutcomeModel, SimulationResult } from "../../domain/simulation";
+import type { DistributionSummary } from "../../domain/simulation";
 import type {
   BreakLine,
-  Contributor,
   MarketplacePreset,
   ProductChoice,
-  SetChoice,
   SlotId,
-  SlotValuation,
-  Transaction,
   ValuationResult,
 } from "../../domain/types";
 import { SLOT_IDS, SLOT_NAMES } from "../../domain/types";
-import { useMobileInputViewport } from "../../mobile-input-viewport";
-import { track } from "../../analytics";
-import { chaseMapLayout } from "../../constellation-layout";
-import { runtimeReleaseContext, buyerDecisionPresentation, type ReleaseContext } from "../../release-context";
-import { manualBudgetCap } from "../../domain/manual-budget";
-import { READY_EXAMPLES, readyExampleLine } from "../../data/ready-examples";
-import { createLargeBreakPlan, sortNamedCards, summarizeAssignmentValues } from "../../domain/large-break";
-import type { TopCardSort } from "../../domain/large-break";
 import {
-  cleanupLegacyStorage,
-  clearColorBreakBrowserStorage,
   defaultSellerPlanDraft,
-  readBuyerDecisionRecord,
   readSellerPlanDraft,
-  readSessionDraft,
-  writeBuyerDecisionRecord,
   writeSellerPlanDraft,
   sellerPlanMatches,
   sellerPlanOwner,
-  writeSessionLines,
   type SellerPlanDraft,
 } from "../../persistence";
 import { DisclosureArrow, fmt, InformationLabel, NumberField, PanelHeading, Tip, useDeferredOwnedFocus } from "../shared/Primitives";
@@ -210,7 +146,7 @@ function UpsideCandles({ base, bonus, bonusLabel, selectedSlot, selectSlot, useR
   );
 }
 
-function SellerScenarioLab({
+export function SellerScenarioLab({
   baseAnalysis, lines, acquisition, buyerShipping, packing, coveredShipping, shipmentCount, transactionCount, marketplace, selectedSlot, setSelectedSlot,
 }: {
   baseAnalysis: BreakAnalysis;
@@ -486,20 +422,6 @@ export function SellerView({
     return { ...base, owner, acceptedEstimateIds: [...new Set([...base.acceptedEstimateIds, ...ids.filter((id) => eligible.has(id))])] };
   });
   const removeAcceptedEstimate = (id: string) => setDraft((current) => ({ ...current, owner, acceptedEstimateIds: current.acceptedEstimateIds.filter((accepted) => accepted !== id) }));
-  const setBuyerShipping = (value: number) => setPlan({ buyerShipping: value });
-  const setPacking = (value: number) => setPlan({ packing: value });
-  const setPostage = (value: number) => setPlan({ postage: value });
-  const setShipments = (value: number) => setPlan({ shipments: value });
-  const setMailingMethod = (value: string) => setPlan({ mailingMethod: value });
-  const setLabor = (value: number) => setPlan({ labor: value });
-  const setTax = (value: number) => setPlan({ tax: value });
-  const setGiveaways = (value: number) => setPlan({ giveaways: value });
-  const setRefundReserve = (value: number) => setPlan({ refundReserve: value });
-  const setOverhead = (value: number) => setPlan({ overhead: value });
-  const setCommission = (value: number) => setPlan({ commission: value });
-  const setProcessing = (value: number) => setPlan({ processing: value });
-  const setProcessingFlat = (value: number) => setPlan({ processingFlat: value });
-  const setPlannedBidOverride = (value: number | undefined) => setPlan({ plannedBidOverride: value });
   const [productsOpen, setProductsOpen] = useState(false);
   const deferOwnedFocus = useDeferredOwnedFocus();
   const focusManualCost = (id: string) => {

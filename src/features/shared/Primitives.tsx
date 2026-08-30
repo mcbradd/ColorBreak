@@ -3,91 +3,20 @@ import {
   useEffect,
   useId,
   useLayoutEffect,
-  useMemo,
   useRef,
   useState,
 } from "react";
-import type { CSSProperties, ReactNode, RefObject } from "react";
+import type { ReactNode, RefObject } from "react";
 import { createPortal } from "react-dom";
-import { AnimatePresence, motion } from "motion/react";
 import {
-  ArrowLeft,
   BadgeCheck,
-  BarChart3,
-  Boxes,
   ChevronRight,
   CircleHelp,
-  Copy,
-  DollarSign,
-  Lock,
-  PackagePlus,
   RotateCw,
-  Search,
   ShieldAlert,
   Sparkles,
-  Store,
-  Trash2,
-  Unlock,
-  X,
 } from "lucide-react";
-import { catalogSets, productsForSet, readinessForProduct } from "../../data/catalog";
-import type { DecisionReadiness } from "../../domain/decision-readiness";
-import { evaluateBreakAnalysis } from "../../data/evaluate";
-import type { BreakAnalysis } from "../../data/evaluate";
-import { sealedMarketPrice } from "../../data/sealed-prices";
-import { createAuction, toggleSlotTaken } from "../../domain/auction";
-import type { AuctionState } from "../../domain/auction";
-import { decodeLegacySearch } from "../../domain/legacy";
-import { mergeBreakLines, parseBreakImport } from "../../domain/break-import";
-import { createBreakShareUrl, decodeBuyerShare, type AssignmentMode } from "../../domain/share-url";
-import {
-  calculateProfit,
-  requiredHammer,
-  WHATNOT_US,
-} from "../../domain/marketplace";
-import { recommendBid, solveFinancialCap } from "../../domain/buyer-treatment";
-import type { ValueRule } from "../../domain/buyer-treatment";
-import { completeCost, sellerPlanStatus } from "../../domain/seller-plan";
-import { actualLedgerSummary, validateActualLedger, type ActualOrder, type ActualShipment } from "../../domain/actual-ledger";
-import { decisionAvailability, decisionEligibility, resolvedOnlyLimit } from "../../domain/valuation";
-import { cardDisplayName, cardTreatmentLabel } from "../../domain/card-label";
-import { deduplicateOmissions } from "../../domain/omissions";
-import { simulateOutcomesAsync } from "../../domain/simulation-client";
-import type { DistributionSummary, PackOutcomeModel, SimulationResult } from "../../domain/simulation";
-import type {
-  BreakLine,
-  Contributor,
-  MarketplacePreset,
-  ProductChoice,
-  SetChoice,
-  SlotId,
-  SlotValuation,
-  Transaction,
-  ValuationResult,
-} from "../../domain/types";
-import { SLOT_IDS, SLOT_NAMES } from "../../domain/types";
-import { useMobileInputViewport } from "../../mobile-input-viewport";
-import { track } from "../../analytics";
-import { chaseMapLayout } from "../../constellation-layout";
-import { runtimeReleaseContext, buyerDecisionPresentation, type ReleaseContext } from "../../release-context";
-import { manualBudgetCap } from "../../domain/manual-budget";
-import { READY_EXAMPLES, readyExampleLine } from "../../data/ready-examples";
-import { createLargeBreakPlan, sortNamedCards, summarizeAssignmentValues } from "../../domain/large-break";
-import type { TopCardSort } from "../../domain/large-break";
-import {
-  cleanupLegacyStorage,
-  clearColorBreakBrowserStorage,
-  defaultSellerPlanDraft,
-  readBuyerDecisionRecord,
-  readSellerPlanDraft,
-  readSessionDraft,
-  writeBuyerDecisionRecord,
-  writeSellerPlanDraft,
-  sellerPlanMatches,
-  sellerPlanOwner,
-  writeSessionLines,
-  type SellerPlanDraft,
-} from "../../persistence";
+import type { Contributor, ValuationResult } from "../../domain/types";
 
 export type Mode = "home" | "buyer" | "seller";
 const money = new Intl.NumberFormat("en-US", {
@@ -510,16 +439,11 @@ function Status({ result }: { result: ValuationResult }) {
   );
 }
 
-export function Home({ choose, buildId }: { choose: (mode: Mode, fresh?: boolean, ready?: boolean) => void; buildId?: string }) {
+export function Home({ choose, buildId, recentBuyerCount = 0, recentSellerCount = 0, onClearDevice }: { choose: (mode: Mode, fresh?: boolean, ready?: boolean) => void; buildId?: string; recentBuyerCount?: number; recentSellerCount?: number; onClearDevice?: () => Promise<void> }) {
   const supportUrl = import.meta.env.VITE_SUPPORT_URL as string | undefined;
-  const recentBuyer = readSessionDraft("buyer").lines;
-  const recentSeller = readSessionDraft("seller").lines;
   const [cleared, setCleared] = useState(false);
   const clearDevice = async () => {
-    clearColorBreakBrowserStorage();
-    const names = await caches.keys();
-    await Promise.all(names.filter((name) => name.startsWith("colorbreak-")).map((name) => caches.delete(name)));
-    history.replaceState(null, "", location.pathname);
+    await onClearDevice?.();
     setCleared(true);
   };
   return (
@@ -567,14 +491,14 @@ export function Home({ choose, buildId }: { choose: (mode: Mode, fresh?: boolean
           <ChevronRight />
         </button>
       </section>
-      {recentBuyer.length > 0 && (
+      {recentBuyerCount > 0 && (
         <button className="resume-action" onClick={() => choose("buyer", false)}>
           <RotateCw />
-          <span><small>LAST BUYER SETUP</small><strong>Resume {recentBuyer.length} product{recentBuyer.length === 1 ? "" : "s"}</strong></span>
+          <span><small>LAST BUYER SETUP</small><strong>Resume {recentBuyerCount} product{recentBuyerCount === 1 ? "" : "s"}</strong></span>
           <ChevronRight />
         </button>
       )}
-      {recentSeller.length > 0 && <button className="resume-action" onClick={() => choose("seller", false)}>
+      {recentSellerCount > 0 && <button className="resume-action" onClick={() => choose("seller", false)}>
         <RotateCw /><span><small>THIS BROWSER SESSION</small><strong>Resume seller plan · costs are session-only</strong></span><ChevronRight />
       </button>}
       <footer className="launcher-footer">

@@ -6,6 +6,7 @@ import { runtimeReleaseContext, type ReleaseContext } from "./release-context";
 import { Home } from "./features/shared/Primitives";
 import { BuyerWorkspace } from "./features/buyer/BuyerWorkspace";
 import { SellerWorkspace } from "./features/seller/SellerWorkspace";
+import { clearColorBreakBrowserStorage, readSessionDraft } from "./persistence";
 
 type Mode = "home" | "buyer" | "seller";
 
@@ -34,6 +35,6 @@ export function App({ releaseContext = runtimeReleaseContext }: { releaseContext
     return () => window.removeEventListener("hashchange", syncRoute);
   }, []);
   return <AnimatePresence mode="wait"><motion.div key={mode} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.18 }}>
-    {mode === "home" ? <Home choose={choose} buildId={releaseContext.buildId} /> : mode === "buyer" ? <BuyerWorkspace exit={() => choose("home")} startFresh={startFreshBuyer} startReady={startReadyBuyer} /> : <SellerWorkspace exit={() => choose("home")} />}
+    {mode === "home" ? <Home choose={choose} buildId={releaseContext.buildId} recentBuyerCount={readSessionDraft("buyer").lines.length} recentSellerCount={readSessionDraft("seller").lines.length} onClearDevice={async () => { clearColorBreakBrowserStorage(); const names = await caches.keys(); await Promise.all(names.filter((name) => name.startsWith("colorbreak-")).map((name) => caches.delete(name))); history.replaceState(null, "", location.pathname); }} /> : mode === "buyer" ? <BuyerWorkspace exit={() => choose("home")} startFresh={startFreshBuyer} startReady={startReadyBuyer} /> : <SellerWorkspace exit={() => choose("home")} />}
   </motion.div></AnimatePresence>;
 }

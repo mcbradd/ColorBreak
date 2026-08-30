@@ -1,96 +1,29 @@
-import {
-  useCallback,
-  useEffect,
-  useId,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
-import type { CSSProperties, ReactNode, RefObject } from "react";
-import { createPortal } from "react-dom";
-import { AnimatePresence, motion } from "motion/react";
-import {
-  ArrowLeft,
-  BadgeCheck,
-  BarChart3,
-  Boxes,
-  ChevronRight,
-  CircleHelp,
-  Copy,
-  DollarSign,
-  Lock,
-  PackagePlus,
-  RotateCw,
-  Search,
-  ShieldAlert,
-  Sparkles,
-  Store,
-  Trash2,
-  Unlock,
-  X,
-} from "lucide-react";
-import { catalogSets, productsForSet, readinessForProduct } from "../../data/catalog";
-import type { DecisionReadiness } from "../../domain/decision-readiness";
-import { evaluateBreakAnalysis } from "../../data/evaluate";
+import { useMemo, useState } from "react";
+import type { CSSProperties } from "react";
+import { ShieldAlert } from "lucide-react";
 import type { BreakAnalysis } from "../../data/evaluate";
-import { sealedMarketPrice } from "../../data/sealed-prices";
-import { createAuction, toggleSlotTaken } from "../../domain/auction";
-import type { AuctionState } from "../../domain/auction";
-import { decodeLegacySearch } from "../../domain/legacy";
-import { mergeBreakLines, parseBreakImport } from "../../domain/break-import";
-import { createBreakShareUrl, decodeBuyerShare, type AssignmentMode } from "../../domain/share-url";
-import {
-  calculateProfit,
-  requiredHammer,
-  WHATNOT_US,
-} from "../../domain/marketplace";
+import type { AssignmentMode } from "../../domain/share-url";
 import { recommendBid, solveFinancialCap } from "../../domain/buyer-treatment";
 import type { ValueRule } from "../../domain/buyer-treatment";
-import { completeCost, sellerPlanStatus } from "../../domain/seller-plan";
-import { actualLedgerSummary, validateActualLedger, type ActualOrder, type ActualShipment } from "../../domain/actual-ledger";
-import { decisionAvailability, decisionEligibility, resolvedOnlyLimit } from "../../domain/valuation";
-import { cardDisplayName, cardTreatmentLabel } from "../../domain/card-label";
+import { decisionEligibility, resolvedOnlyLimit } from "../../domain/valuation";
+import type { AuctionState } from "../../domain/auction";
+import { cardDisplayName } from "../../domain/card-label";
 import { deduplicateOmissions } from "../../domain/omissions";
-import { simulateOutcomesAsync } from "../../domain/simulation-client";
-import type { DistributionSummary, PackOutcomeModel, SimulationResult } from "../../domain/simulation";
 import type {
   BreakLine,
   Contributor,
-  MarketplacePreset,
-  ProductChoice,
-  SetChoice,
+  DecisionEligibility,
   SlotId,
   SlotValuation,
-  Transaction,
   ValuationResult,
 } from "../../domain/types";
-import { SLOT_IDS, SLOT_NAMES } from "../../domain/types";
-import { useMobileInputViewport } from "../../mobile-input-viewport";
-import { track } from "../../analytics";
+import { SLOT_NAMES } from "../../domain/types";
 import { chaseMapLayout } from "../../constellation-layout";
-import { runtimeReleaseContext, buyerDecisionPresentation, type ReleaseContext } from "../../release-context";
-import { manualBudgetCap } from "../../domain/manual-budget";
-import { READY_EXAMPLES, readyExampleLine } from "../../data/ready-examples";
+import { buyerDecisionPresentation } from "../../release-context";
 import { createLargeBreakPlan, sortNamedCards, summarizeAssignmentValues } from "../../domain/large-break";
 import type { TopCardSort } from "../../domain/large-break";
-import {
-  cleanupLegacyStorage,
-  clearColorBreakBrowserStorage,
-  defaultSellerPlanDraft,
-  readBuyerDecisionRecord,
-  readSellerPlanDraft,
-  readSessionDraft,
-  writeBuyerDecisionRecord,
-  writeSellerPlanDraft,
-  sellerPlanMatches,
-  sellerPlanOwner,
-  writeSessionLines,
-  type SellerPlanDraft,
-} from "../../persistence";
 import { DisclosureArrow, fmt, InformationLabel, NumberField, PanelHeading, Status, Tip, countedPriceLabel, oddsLabel, NumericInput } from "../shared/Primitives";
 import { cardPreviewSubtitle, CardInspector, CompactWarning, IncompleteDataWarning, OutcomeRange, EvidenceDialog, EvidenceLens, BreakBalance, useOutcomeSimulation, ValueSummary } from "./BuyerVisuals";
-import { useDialogOwnership } from "../shared/Primitives";
 import { PublicCardPlaceholder } from "./CardPlaceholder";
 
 export function ChaseConstellation({
@@ -387,8 +320,6 @@ export function LargeBreakView({
   setBid,
   shipping,
   setShipping,
-  onChooseReady,
-  onUseManualCap,
 }: {
   analysis: BreakAnalysis;
   lines: BreakLine[];
@@ -397,11 +328,8 @@ export function LargeBreakView({
   setBid: (value: number | undefined) => void;
   shipping: number | undefined;
   setShipping: (value: number | undefined) => void;
-  onChooseReady?: () => void;
-  onUseManualCap?: () => void;
 }) {
   const result = analysis.valuation;
-  const eligibility = decisionEligibility(result);
   const [inspectedCard, setInspectedCard] = useState<Contributor | null>(null);
   const [excludedCard, setExcludedCard] = useState<Contributor | null>(null);
   const [topCardSort, setTopCardSort] = useState<TopCardSort>("expected-value");
@@ -558,6 +486,7 @@ export function LargeBreakView({
 
 export function BuyerView({
   analysis,
+  eligibility: assessedEligibility,
   auction,
   assignmentMode,
   selected,
@@ -570,6 +499,7 @@ export function BuyerView({
   onUseManualCap,
 }: {
   analysis: BreakAnalysis;
+  eligibility?: DecisionEligibility;
   auction: AuctionState;
   assignmentMode: AssignmentMode;
   selected: SlotId;
@@ -582,12 +512,11 @@ export function BuyerView({
   onUseManualCap?: () => void;
 }) {
   const result = analysis.valuation;
-  const eligibility = decisionEligibility(result);
-  const availability = decisionAvailability(result);
+  const eligibility = assessedEligibility ?? decisionEligibility(result);
   const releasePresentation = buyerDecisionPresentation(eligibility.status);
   const [inspectedCard, setInspectedCard] = useState<Contributor | null>(null);
   const [valueRule, setValueRule] = useState<ValueRule>({ kind: "median" });
-  const [resolvedOnlyRequested, setResolvedOnlyRequested] = useState(false);
+  const [resolvedOnlyRequested] = useState(false);
   const [reconfirmedAt, setReconfirmedAt] = useState<number>();
   const [reconfirmedInput, setReconfirmedInput] = useState<string>();
   const slot = result.slots.find((row) => row.id === selected)!;

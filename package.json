@@ -11,6 +11,7 @@
     "test:node": "node tools/run-root-mjs-tests.mjs",
     "test:deploy-path": "node --test test/deploy-path-smoke.test.mjs",
     "check:shared-imports": "node --test test/shared-module-boundary.test.mjs",
+    "check:unused": "tsc -p tsconfig.app.json --noEmit --noUnusedLocals --noUnusedParameters",
     "test:watch": "vitest",
     "data:coverage": "node tools/report-coverage.mjs",
     "data:diff": "node tools/source-diff.mjs",
@@ -23,7 +24,7 @@
     "check:decision-freshness": "node tools/build-price-snapshot.mjs --check --max-age-ms 21600000",
     "check:ready-examples": "node tools/check-ready-examples.mjs",
     "check:sealed-prices": "node tools/build-sealed-price-snapshot.mjs --check",
-    "check": "npm run check:shared-imports && npm run test && npm run check:data && npm run check:prices && npm run check:sealed-prices && npm run check:ready-examples && npm run build && npm run test:deploy-path"
+    "check": "npm run check:unused && npm run check:shared-imports && npm run test && npm run check:data && npm run check:prices && npm run check:sealed-prices && npm run check:ready-examples && npm run build && npm run test:deploy-path"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",
