@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 
 describe("seller assumptions phone control", () => {
   const root = process.cwd();
-    const app = readFileSync(join(root, "src", "features", "workflow", "WorkflowImplementation.tsx"), "utf8");
+    const app = readFileSync(join(root, "src", "features", "seller", "SellerView.tsx"), "utf8");
   const css = readFileSync(join(root, "src", "modern.css"), "utf8");
   const future = readFileSync(join(root, "src", "future.css"), "utf8");
 
@@ -16,3 +16,4 @@ describe("seller assumptions phone control", () => {
     expect(future).toContain(".seller-command-center .seller-assumptions .disclosure-summary > span");
   });
 });
+

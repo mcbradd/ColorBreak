@@ -1,7 +1,7 @@
 import { createElement } from "react";
 import { render } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { BreakBalance } from "./App";
+import { BreakBalance } from "./features/buyer/BuyerVisuals";
 import { calculateBreak } from "./domain/valuation";
 import { SLOT_IDS } from "./domain/types";
 
@@ -45,3 +45,4 @@ describe("Break Balance values", () => {
     expect(container.querySelector(".balance-axis-track > span:last-child")?.textContent).toBe("$20.00");
   });
 });
+

@@ -1,7 +1,8 @@
 import { createElement } from "react";
 import { render } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { Tip, ValueSummary } from "./App";
+import { Tip } from "./features/shared/Primitives";
+import { ValueSummary } from "./features/buyer/BuyerVisuals";
 import { calculateBreak } from "./domain/valuation";
 
 describe("help hierarchy", () => {
@@ -23,3 +24,5 @@ describe("help hierarchy", () => {
     expect(container.querySelector(".panel-heading")).toBeInTheDocument();
   });
 });
+
+

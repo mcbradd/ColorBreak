@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { CardInspector } from "./App";
+import { CardInspector } from "./features/buyer/BuyerVisuals";
 import type { Contributor } from "./domain/types";
 
 const card: Contributor = {
@@ -103,3 +103,4 @@ describe("card inspector", () => {
     expect(screen.getByRole("button", { name: "Flip to Day Face" })).toBeInTheDocument();
   });
 });
+

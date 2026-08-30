@@ -3,15 +3,11 @@ import { AnimatePresence, motion } from "motion/react";
 import { decodeLegacySearch } from "./domain/legacy";
 import { useMobileInputViewport } from "./mobile-input-viewport";
 import { runtimeReleaseContext, type ReleaseContext } from "./release-context";
-import { Home, Workspace, BuyerSetup, SellerView } from "./features/workflow/WorkflowImplementation";
+import { Home } from "./features/shared/Primitives";
 import { BuyerWorkspace } from "./features/buyer/BuyerWorkspace";
 import { SellerWorkspace } from "./features/seller/SellerWorkspace";
 
 type Mode = "home" | "buyer" | "seller";
-
-// Compatibility exports for existing imports. Feature modules own new composition.
-export { Workspace, BuyerSetup, SellerView };
-export * from "./features/workflow/WorkflowImplementation";
 
 /** Application shell: route selection and feature composition only. */
 export function App({ releaseContext = runtimeReleaseContext }: { releaseContext?: ReleaseContext } = {}) {

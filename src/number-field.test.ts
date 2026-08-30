@@ -1,7 +1,7 @@
 import { createElement, useState } from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { NumberField } from "./App";
+import { NumberField } from "./features/shared/Primitives";
 
 function Harness() {
   const [value, setValue] = useState<number>();
@@ -59,3 +59,4 @@ describe("mobile numeric entry", () => {
     expect(screen.getByTestId("committed-value")).toHaveTextContent("12.5");
   });
 });
+

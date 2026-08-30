@@ -1,7 +1,7 @@
 import { createElement } from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { ContributorRows } from "./App";
+import { ContributorRows } from "./features/buyer/BuyerDetails";
 import type { Contributor, SlotValuation } from "./domain/types";
 
 const contributor: Contributor = {
@@ -52,3 +52,4 @@ describe("shared contributor rows", () => {
     expect(inspect).toHaveBeenCalledWith(contributor);
   });
 });
+

@@ -1,7 +1,7 @@
 import { createElement } from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { LargeBreakView } from "./App";
+import { LargeBreakView } from "./features/buyer/BuyerDetails";
 import type { BreakAnalysis } from "./data/evaluate";
 import { calculateBreak } from "./domain/valuation";
 
@@ -204,3 +204,4 @@ describe("large break card list", () => {
     expect(explanation).toHaveTextContent("Rank by Price");
   });
 });
+

@@ -1,7 +1,7 @@
 import { createElement, useState } from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { SlotRail } from "./App";
+import { SlotRail } from "./features/buyer/BuyerVisuals";
 import { createAuction } from "./domain/auction";
 import type { AuctionState } from "./domain/auction";
 import type { SlotId, ValuationResult } from "./domain/types";
@@ -67,3 +67,4 @@ describe("buyer color controls", () => {
     expect(screen.getByText("8 colors remain in the random pool")).toBeInTheDocument();
   });
 });
+

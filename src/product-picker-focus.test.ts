@@ -2,7 +2,7 @@ import { createElement, useState } from "react";
 import type { MouseEvent } from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { Builder } from "./App";
+import { Builder } from "./features/shared/ProductBuilder";
 
 function Harness({ label }: { label: string }) {
   const [open, setOpen] = useState(false);
@@ -29,3 +29,4 @@ describe("shared product picker focus ownership", () => {
     await waitFor(() => expect(document.activeElement).toBe(opener));
   });
 });
+

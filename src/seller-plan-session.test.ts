@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { calculateBreak } from "./domain/valuation";
 import type { BreakAnalysis } from "./data/evaluate";
 import { readSellerPlanDraft } from "./persistence";
-import { SellerView } from "./App";
+import { SellerView } from "./features/seller/SellerView";
 
 const analysis: BreakAnalysis = {
   valuation: calculateBreak({
@@ -47,3 +47,4 @@ describe("mounted seller operating plan", () => {
     expect(screen.getByTitle("Unlock target")).toBeInTheDocument();
   });
 });
+

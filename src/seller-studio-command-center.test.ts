@@ -5,7 +5,7 @@ import { calculateBreak } from "./domain/valuation";
 import type { BreakAnalysis } from "./data/evaluate";
 import type { BreakLine } from "./domain/types";
 
-import { SellerView } from "./App";
+import { SellerView } from "./features/seller/SellerView";
 
 const valuation = calculateBreak({
   prices: [{ id: "w", set: "TST", collectorNumber: "1", name: "White", slot: "W", nonfoil: 20, foil: null }],
@@ -142,3 +142,4 @@ describe("Seller Studio command center", () => {
     expect(studio).toHaveTextContent("70 / 100 sold");
   });
 });
+

@@ -1,7 +1,7 @@
 import { createElement } from "react";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { BuyerSetup } from "./App";
+import { BuyerSetup } from "./features/buyer/BuyerSetup";
 import { createAuction } from "./domain/auction";
 import type { BreakLine, ValuationResult } from "./domain/types";
 
@@ -80,3 +80,4 @@ describe("Check a Bid setup order", () => {
     expect(screen.getByText(/remaining spots use top-value cards/i)).toHaveTextContent("17 catch-all spots");
   });
 });
+

@@ -1,7 +1,7 @@
 import { createElement } from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { Composition } from "./App";
+import { Composition } from "./features/buyer/BuyerVisuals";
 
 describe("break composition", () => {
   it("explicitly removes the final line without overloading quantity controls", () => {
@@ -28,3 +28,4 @@ describe("break composition", () => {
     expect(remove).toHaveBeenCalledWith("only-line");
   });
 });
+

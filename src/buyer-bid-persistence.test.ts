@@ -9,7 +9,8 @@ vi.mock("./data/evaluate", () => ({ evaluateBreakAnalysis }));
 const productsForSet = vi.hoisted(() => vi.fn().mockResolvedValue([]));
 vi.mock("./data/catalog", () => ({ catalogSets: [], productsForSet, readinessForProduct: vi.fn() }));
 
-import { App, Workspace } from "./App";
+import { App } from "./App";
+import { BuyerWorkspace } from "./features/buyer/BuyerWorkspace";
 
 const valuation = calculateBreak({
   prices: [{ id: "w", set: "TST", collectorNumber: "1", name: "White", slot: "W", nonfoil: 20, foil: null }],
@@ -45,7 +46,7 @@ describe("buyer bid persistence", () => {
   });
 
   it("keeps bid and shipping values while the bulk setting recalculates results", async () => {
-    render(createElement(Workspace, { mode: "buyer", exit: vi.fn() }));
+    render(createElement(BuyerWorkspace, { exit: vi.fn(), startFresh: false, startReady: false }));
     const bid = await screen.findByLabelText("Current bid");
     const shipping = screen.getByLabelText("Your added shipping");
 
@@ -67,7 +68,7 @@ describe("buyer bid persistence", () => {
   });
 
   it("restores bid and shipping after a cold remount", async () => {
-    const first = render(createElement(Workspace, { mode: "buyer", exit: vi.fn() }));
+    const first = render(createElement(BuyerWorkspace, { exit: vi.fn(), startFresh: false, startReady: false }));
     fireEvent.change(await screen.findByLabelText("Current bid"), { target: { value: "12.50" } });
     fireEvent.blur(screen.getByLabelText("Current bid"));
     fireEvent.change(screen.getByLabelText("Your added shipping"), { target: { value: "4.25" } });
@@ -75,13 +76,13 @@ describe("buyer bid persistence", () => {
     first.unmount();
     history.replaceState(null, "", "/#buyer");
 
-    render(createElement(Workspace, { mode: "buyer", exit: vi.fn() }));
+    render(createElement(BuyerWorkspace, { exit: vi.fn(), startFresh: false, startReady: false }));
     expect(await screen.findByLabelText("Current bid")).toHaveValue("12.5");
     expect(screen.getByLabelText("Your added shipping")).toHaveValue("4.25");
   });
 
   it("restores a random pool only for the same saved composition", async () => {
-    const first = render(createElement(Workspace, { mode: "buyer", exit: vi.fn() }));
+    const first = render(createElement(BuyerWorkspace, { exit: vi.fn(), startFresh: false, startReady: false }));
     await screen.findByLabelText("Current bid");
     fireEvent.click(screen.getByRole("button", { name: "Random remaining" }));
     fireEvent.click(screen.getByRole("button", { name: "Edit availability" }));
@@ -92,7 +93,7 @@ describe("buyer bid persistence", () => {
     fireEvent.blur(screen.getByLabelText("Your added shipping"));
     first.unmount();
 
-    render(createElement(Workspace, { mode: "buyer", exit: vi.fn() }));
+    render(createElement(BuyerWorkspace, { exit: vi.fn(), startFresh: false, startReady: false }));
     expect(await screen.findByRole("button", { name: "Random remaining" })).toHaveClass("active");
     fireEvent.click(screen.getByRole("button", { name: "Edit availability" }));
     expect(screen.getByRole("button", { name: "Restore Blue slot" })).toBeInTheDocument();
@@ -101,7 +102,7 @@ describe("buyer bid persistence", () => {
   });
 
   it("offers a shared break without carrying private bid or shipping into it", async () => {
-    const first = render(createElement(Workspace, { mode: "buyer", exit: vi.fn() }));
+    const first = render(createElement(BuyerWorkspace, { exit: vi.fn(), startFresh: false, startReady: false }));
     fireEvent.change(await screen.findByLabelText("Current bid"), { target: { value: "12.50" } });
     fireEvent.blur(screen.getByLabelText("Current bid"));
     fireEvent.change(screen.getByLabelText("Your added shipping"), { target: { value: "4.25" } });
@@ -109,7 +110,7 @@ describe("buyer bid persistence", () => {
     first.unmount();
 
     history.replaceState(null, "", "/?b=TST.play-box.2&m=pick&s=W&r=WUBRGMCL&f=1&t=2#buyer");
-    render(createElement(Workspace, { mode: "buyer", exit: vi.fn() }));
+    render(createElement(BuyerWorkspace, { exit: vi.fn(), startFresh: false, startReady: false }));
     expect(await screen.findByRole("button", { name: "Use this shared break" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Use this shared break" }));
     expect(screen.getByLabelText("Current bid")).toHaveValue("");
@@ -136,3 +137,5 @@ describe("buyer bid persistence", () => {
     expect(await screen.findByText("Play Booster Box")).toBeInTheDocument();
   });
 });
+
+

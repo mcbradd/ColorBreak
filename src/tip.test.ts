@@ -1,7 +1,7 @@
 import { createElement } from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { Tip } from "./App";
+import { Tip } from "./features/shared/Primitives";
 
 describe("info tooltip", () => {
   it("renders outside overflow-clipping panels when opened", () => {
@@ -70,3 +70,4 @@ describe("info tooltip", () => {
     expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
   });
 });
+

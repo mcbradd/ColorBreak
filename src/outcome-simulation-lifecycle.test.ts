@@ -8,9 +8,12 @@ import type { SlotId } from "./domain/types";
 const { simulate } = vi.hoisted(() => ({ simulate: vi.fn(() => new Promise(() => {})) }));
 vi.mock("./domain/simulation-client", () => ({ simulateOutcomesAsync: simulate }));
 
-import { useOutcomeSimulation } from "./App";
+import { useOutcomeSimulation } from "./features/buyer/BuyerVisuals";
 
-const appSource = readFileSync(join(process.cwd(), "src", "features", "workflow", "WorkflowImplementation.tsx"), "utf8");
+const appSource = [
+  "buyer/BuyerDetails.tsx",
+  "seller/SellerView.tsx",
+].map((path) => readFileSync(join(process.cwd(), "src", "features", path), "utf8")).join("\n");
 
 const analysis = {
   valuation: { dataVersion: "test", threshold: 2, status: "verified" },
@@ -43,3 +46,6 @@ describe("outcome simulation lifecycle", () => {
     expect(appSource).toContain("Some estimates may be low");
   });
 });
+
+
+

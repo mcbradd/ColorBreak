@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 describe("modern interface system", () => {
   it("loads the electric instrument system last and keeps primary rollouts out of panels", () => {
     const entry = readFileSync(join(process.cwd(), "src", "main.tsx"), "utf8");
-    const app = readFileSync(join(process.cwd(), "src", "features", "workflow", "WorkflowImplementation.tsx"), "utf8");
+    const app = readFileSync(join(process.cwd(), "src", "features", "buyer", "BuyerWorkspace.tsx"), "utf8");
     const css = readFileSync(join(process.cwd(), "src", "modern.css"), "utf8");
     const future = readFileSync(join(process.cwd(), "src", "future.css"), "utf8");
 
@@ -14,7 +14,7 @@ describe("modern interface system", () => {
     expect(app).not.toContain('<details className="panel evidence-lens">');
     expect(app).not.toContain('<details className="panel supporting-view">');
     expect(app.match(/<p className="section-label"/g)).toBeNull();
-    expect(app).toContain("function InformationLabel(");
+    expect(app).not.toContain("WorkspaceShell");
     expect(css).toMatch(/\.panel,[\s\S]*?border-radius:\s*2px/);
     expect(css).toMatch(/\.rollout\s*\{[\s\S]*?border:\s*0/);
     expect(future).toMatch(/--accent:\s*#d7ff00/);
@@ -25,3 +25,4 @@ describe("modern interface system", () => {
     expect(future).not.toMatch(/#[0-9a-f]{2}(?:1[0-9a-f]|2[0-9a-f])[0-9a-f]{2}\s*;\s*\/\*\s*earth/i);
   });
 });
+

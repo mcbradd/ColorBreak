@@ -10,7 +10,7 @@ const simulateOutcomesAsync = vi.hoisted(() => vi.fn());
 vi.mock("./data/evaluate", () => ({ evaluateBreakAnalysis }));
 vi.mock("./domain/simulation-client", () => ({ simulateOutcomesAsync }));
 
-import { Workspace } from "./App";
+import { BuyerWorkspace } from "./features/buyer/BuyerWorkspace";
 
 const valuation = calculateBreak({
   prices: [{ id: "w", set: "TST", collectorNumber: "1", name: "White", slot: "W", nonfoil: 20, foil: null }],
@@ -59,7 +59,7 @@ describe("Bid Check command center", () => {
   });
 
   it("keeps the live decision and its controls in one primary surface", async () => {
-    render(createElement(Workspace, { mode: "buyer", exit: vi.fn() }));
+    render(createElement(BuyerWorkspace, { exit: vi.fn(), startFresh: false, startReady: false }));
 
     const decision = await screen.findByRole("region", { name: "Live bid decision" });
     expect(within(decision).getByLabelText("Current bid")).toHaveValue("");
@@ -70,7 +70,7 @@ describe("Bid Check command center", () => {
   });
 
   it("keeps supporting analysis immediately available without a disclosure", async () => {
-    render(createElement(Workspace, { mode: "buyer", exit: vi.fn() }));
+    render(createElement(BuyerWorkspace, { exit: vi.fn(), startFresh: false, startReady: false }));
     await screen.findByRole("region", { name: "Live bid decision" });
 
     const evidence = screen.getByText("Break evidence").closest("section");
@@ -93,7 +93,7 @@ describe("Bid Check command center", () => {
       outcomeOmissions: [{ code: "missing-topper", message: "1× foil box topper has no verified card list.", material: true }],
     });
 
-    render(createElement(Workspace, { mode: "buyer", exit: vi.fn() }));
+    render(createElement(BuyerWorkspace, { exit: vi.fn(), startFresh: false, startReady: false }));
 
     const warningTitle = await screen.findByText("Some estimates may be low");
     expect(warningTitle.closest("details")).not.toHaveAttribute("open");
@@ -113,7 +113,7 @@ describe("Bid Check command center", () => {
   it("links missing buyer information to the exact fields", async () => {
     sessionStorage.removeItem("colorbreak:buyer:bid");
     sessionStorage.removeItem("colorbreak:buyer:shipping");
-    render(createElement(Workspace, { mode: "buyer", exit: vi.fn() }));
+    render(createElement(BuyerWorkspace, { exit: vi.fn(), startFresh: false, startReady: false }));
 
     const bidLink = await screen.findByRole("link", { name: "Enter the current auction price" });
     expect(bidLink).toHaveAttribute("href", "#buyer-current-bid");
@@ -122,7 +122,7 @@ describe("Bid Check command center", () => {
 
   it("offers the buyer-entered manual cap from the empty state without a modeled claim", () => {
     sessionStorage.removeItem("colorbreak:buyer:draft:v1");
-    render(createElement(Workspace, { mode: "buyer", exit: vi.fn(), startFresh: true }));
+    render(createElement(BuyerWorkspace, { exit: vi.fn(), startFresh: true, startReady: false }));
     fireEvent.click(screen.getByRole("button", { name: "Use manual budget cap" }));
     expect(screen.getByLabelText("Manual budget cap")).toHaveTextContent("not a ColorBreak modeled ceiling");
     fireEvent.change(screen.getByLabelText("My conservative value target"), { target: { value: "60" } });
@@ -133,7 +133,7 @@ describe("Bid Check command center", () => {
   });
 
   it("names result navigation from the active assignment mode", async () => {
-    render(createElement(Workspace, { mode: "buyer", exit: vi.fn() }));
+    render(createElement(BuyerWorkspace, { exit: vi.fn(), startFresh: false, startReady: false }));
     expect(await screen.findByLabelText("Break sections")).toBeInTheDocument();
     expect(screen.queryByLabelText("Large Break sections")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Large break" }));
@@ -142,3 +142,4 @@ describe("Bid Check command center", () => {
     expect(screen.getByLabelText("Break sections")).toBeInTheDocument();
   });
 });
+

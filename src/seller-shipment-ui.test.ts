@@ -1,7 +1,7 @@
 import { createElement } from "react";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { SellerView } from "./App";
+import { SellerView } from "./features/seller/SellerView";
 import { calculateBreak } from "./domain/valuation";
 import type { BreakAnalysis } from "./data/evaluate";
 import { sellerPlanKey } from "./persistence";
@@ -95,3 +95,4 @@ describe("Seller shipment reconciliation through public controls", () => {
     vi.restoreAllMocks();
   });
 });
+

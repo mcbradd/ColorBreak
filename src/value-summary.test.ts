@@ -1,7 +1,7 @@
 import { createElement } from "react";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { ValueSummary } from "./App";
+import { ValueSummary } from "./features/buyer/BuyerVisuals";
 import { calculateBreak } from "./domain/valuation";
 
 describe("filtered value summary", () => {
@@ -35,3 +35,4 @@ describe("filtered value summary", () => {
     expect(screen.getByRole("tooltip")).toHaveTextContent("Product contents, pack odds, card versions, and prices are ready.");
   });
 });
+

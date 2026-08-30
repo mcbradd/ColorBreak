@@ -1,7 +1,7 @@
 import { createElement } from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { BulkFilterControl } from "./App";
+import { BulkFilterControl } from "./features/buyer/BuyerDetails";
 import { calculateBreak } from "./domain/valuation";
 
 const result = calculateBreak({
@@ -27,3 +27,4 @@ describe("combined bulk filter control", () => {
     expect(screen.getByText("Value used by ColorBreak")).toBeInTheDocument();
   });
 });
+

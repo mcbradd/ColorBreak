@@ -1,7 +1,8 @@
 import { createElement, Fragment, useState } from "react";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { BuyerView, SlotRail } from "./App";
+import { BuyerView } from "./features/buyer/BuyerDetails";
+import { SlotRail } from "./features/buyer/BuyerVisuals";
 import { createAuction } from "./domain/auction";
 import { calculateBreak } from "./domain/valuation";
 import type { AuctionState } from "./domain/auction";
@@ -101,3 +102,5 @@ describe("live random-slot buyer workflow", () => {
     expect(supporting.tagName).toBe("SECTION");
   });
 });
+
+

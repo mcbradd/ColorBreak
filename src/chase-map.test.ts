@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { render } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { ChaseConstellation } from "./App";
+import { ChaseConstellation } from "./features/buyer/BuyerDetails";
 import type { Contributor, SlotValuation } from "./domain/types";
 
 const contributor = (id: string, price: number, probability: number, value: number): Contributor => ({
@@ -82,3 +82,4 @@ describe("Chase Map presentation", () => {
     expect(css).not.toContain(".chase-pointers");
   });
 });
+

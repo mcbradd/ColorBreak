@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 describe("mobile Chrome viewport contract", () => {
   const root = process.cwd();
   const html = readFileSync(join(root, "index.html"), "utf8");
-  const app = readFileSync(join(root, "src", "features", "workflow", "WorkflowImplementation.tsx"), "utf8");
+  const app = readFileSync(join(root, "src", "features", "shared", "ProductBuilder.tsx"), "utf8");
   const css = readFileSync(join(root, "src", "future.css"), "utf8");
 
   it("asks Chrome to resize page content when the onscreen keyboard opens", () => {
@@ -27,3 +27,5 @@ describe("mobile Chrome viewport contract", () => {
     expect(css).toContain("padding-bottom: max(14px, var(--safe-bottom))");
   });
 });
+
+

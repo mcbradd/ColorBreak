@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
-const source = readFileSync(join(process.cwd(), "src", "features", "workflow", "WorkflowImplementation.tsx"), "utf8");
+const source = readFileSync(join(process.cwd(), "src", "features", "seller", "SellerView.tsx"), "utf8");
 
 describe("seller bonus-pack pricing", () => {
   it("shows market price separately from the seller cost override", () => {
@@ -16,3 +16,4 @@ describe("seller bonus-pack pricing", () => {
     expect(source).toContain("bonusCostKnown");
   });
 });
+
