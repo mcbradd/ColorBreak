@@ -77,7 +77,10 @@ function normalizedSellerDraft(value: unknown): SellerPlanDraft {
 export function sellerCompositionFingerprint(lines: BreakLine[], valuationVersion = "unknown"): string {
   const composition = lines.map((line) => ({
     set: line.set.toUpperCase(), productKey: line.productKey,
-    quantity: line.quantity, packCount: line.packCount ?? 1,
+    // An actual acquisition cost changes the seller's financial conclusion.
+    // It therefore belongs to the private-plan scope, even though it never
+    // leaves session storage.
+    quantity: line.quantity, packCount: line.packCount ?? 1, myCost: line.myCost ?? null,
   })).sort((left, right) => JSON.stringify(left).localeCompare(JSON.stringify(right)));
   return encodeURIComponent(JSON.stringify({ v: 2, valuationVersion, composition }));
 }

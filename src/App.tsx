@@ -486,6 +486,14 @@ function Home({ choose }: { choose: (mode: Mode, fresh?: boolean) => void }) {
   const supportUrl = import.meta.env.VITE_SUPPORT_URL as string | undefined;
   const recentBuyer = readSessionLines("buyer");
   const recentSeller = readSessionLines("seller");
+  // A product list is not itself a saved financial plan.  Only advertise a
+  // resume when an owned session draft exists.
+  const hasSavedSellerPlan = (() => {
+    try {
+      return Array.from({ length: sessionStorage.length }, (_, index) => sessionStorage.key(index))
+        .some((key) => key?.startsWith("colorbreak:seller:plan:v2:"));
+    } catch { return false; }
+  })();
   const [cleared, setCleared] = useState(false);
   const clearDevice = async () => {
     for (const storage of [localStorage, sessionStorage]) {
@@ -550,7 +558,7 @@ function Home({ choose }: { choose: (mode: Mode, fresh?: boolean) => void }) {
           <ChevronRight />
         </button>
       )}
-      {recentSeller.length > 0 && <button className="resume-action" onClick={() => choose("seller", false)}>
+      {recentSeller.length > 0 && hasSavedSellerPlan && <button className="resume-action" onClick={() => choose("seller", false)}>
         <RotateCw /><span><small>THIS BROWSER SESSION</small><strong>Resume seller plan · costs are session-only</strong></span><ChevronRight />
       </button>}
       <p className="demo-scope" role="note">Public demo only — do not use this GitHub Pages build for commercial transactions or financially consequential decisions. A production release needs a header-capable host.</p>
@@ -3030,26 +3038,39 @@ function SellerEnticement({
   );
 }
 
-export function SellerView({
-  analysis,
-  lines,
-  transactionCount,
-  add,
-  update,
-  remove,
-}: {
+type SellerViewProps = {
   analysis: BreakAnalysis;
   lines: BreakLine[];
   transactionCount: number;
   add: () => void;
   update: (id: string, patch: Partial<BreakLine>) => void;
   remove: (id: string) => void;
-}) {
+};
+
+/** A keyed editor makes a plan fingerprint an atomic ownership boundary. */
+export function SellerView(props: SellerViewProps) {
+  const fingerprint = sellerCompositionFingerprint(props.lines, props.analysis.valuation.dataVersion);
+  return <SellerPlanEditor key={fingerprint} {...props} />;
+}
+
+function SellerPlanEditor({
+  analysis,
+  lines,
+  transactionCount,
+  add,
+  update,
+  remove,
+}: SellerViewProps) {
   const planFingerprint = sellerCompositionFingerprint(lines, analysis.valuation.dataVersion);
   const [draft, setDraft] = useState<SellerPlanDraft>(() => readSellerPlanDraft(planFingerprint));
-  const setPlan = (patch: Partial<SellerPlanDraft>) => setDraft((current) => ({ ...current, ...patch }));
-  useEffect(() => { setDraft(readSellerPlanDraft(planFingerprint)); }, [planFingerprint]);
-  useEffect(() => { writeSellerPlanDraft(planFingerprint, draft); }, [draft, planFingerprint]);
+  const [dirty, setDirty] = useState(false);
+  const setPlan = (patch: Partial<SellerPlanDraft>) => {
+    setDirty(true);
+    setDraft((current) => ({ ...current, ...patch }));
+  };
+  // Only an explicit edit creates/updates a session plan.  In particular, a
+  // freshly mounted or discarded default must not resurrect a Resume row.
+  useEffect(() => { if (dirty) writeSellerPlanDraft(planFingerprint, draft); }, [draft, dirty, planFingerprint]);
   const {
     buyerShipping, packing, postage, shipments, mailingMethod, labor, tax,
     giveaways, refundReserve, overhead, commission, processing, processingFlat,
@@ -3271,7 +3292,7 @@ export function SellerView({
         <div className="metric-row profit-metrics"><div><span>Hammer</span><b>{fmt(actualProfit.hammer)}</b></div><div><span>Fees</span><b>−{fmt(actualProfit.fees)}</b></div><div><span>Packing &amp; shipping</span><b>−{fmt(actualProfit.shipmentCosts)}</b></div></div>
       </section>}
 
-      <button type="button" className="quiet" onClick={() => { discardSellerPlanDraft(planFingerprint); setDraft(defaultSellerPlanDraft()); }}>Discard this seller plan</button>
+      <button type="button" className="quiet" onClick={() => { discardSellerPlanDraft(planFingerprint); setDraft(defaultSellerPlanDraft()); setDirty(false); }}>Discard this seller plan</button>
 
       <SellerEnticement
         baseAnalysis={analysis}

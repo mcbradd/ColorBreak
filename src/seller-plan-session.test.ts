@@ -3,7 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { afterEach, describe, expect, it } from "vitest";
 import { calculateBreak } from "./domain/valuation";
 import type { BreakAnalysis } from "./data/evaluate";
-import { readSellerPlanDraft, sellerCompositionFingerprint } from "./persistence";
+import { readSellerPlanDraft, sellerCompositionFingerprint, sellerPlanKeyFor } from "./persistence";
 import { SellerView } from "./App";
 
 const analysis: BreakAnalysis = {
@@ -49,5 +49,19 @@ describe("mounted seller operating plan", () => {
     expect(await screen.findByLabelText("Planned bid per spot")).toHaveValue("24");
     expect(screen.getByLabelText("Actual White sale price")).toHaveValue("25");
     expect(screen.getByTitle("Unlock target")).toBeInTheDocument();
+  });
+
+  it("does not create a plan until edited, and discard does not resurrect it", async () => {
+    render(createElement(SellerView, {
+      analysis, lines, transactionCount: 8, add: () => {}, update: () => {}, remove: () => {},
+    }));
+    expect(sessionStorage.getItem(sellerPlanKeyFor(fingerprint))).toBeNull();
+
+    fireEvent.change(await screen.findByLabelText("Planned bid per spot"), { target: { value: "24" } });
+    fireEvent.blur(screen.getByLabelText("Planned bid per spot"));
+    await waitFor(() => expect(sessionStorage.getItem(sellerPlanKeyFor(fingerprint))).not.toBeNull());
+
+    fireEvent.click(screen.getByRole("button", { name: "Discard this seller plan" }));
+    await waitFor(() => expect(sessionStorage.getItem(sellerPlanKeyFor(fingerprint))).toBeNull());
   });
 });
