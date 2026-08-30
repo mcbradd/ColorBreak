@@ -46,14 +46,25 @@ export function validateActualLedger(value: unknown, allowedSlots: readonly Slot
       if (ledger.orders.find((o) => o.id === orderId)?.shipmentId !== shipment.id) throw new Error("Order and shipment links disagree");
     }
   }
+  // `shipmentId` is not advisory presentation state.  It must name exactly
+  // one persisted shipment that links back to the same extant order.
+  for (const order of ledger.orders) {
+    if (order.shipmentId != null && !shippedOrders.has(order.id)) throw new Error("Order references a missing shipment");
+  }
   return ledger as ActualLedger;
+}
+
+/** One canonical reconciliation derivation from the validated ledger envelope. */
+export function missingShipmentOrderIds(ledger: ActualLedger): string[] {
+  const shipped = new Set(ledger.shipments.flatMap((shipment) => shipment.orderIds));
+  return ledger.orders.filter((order) => !shipped.has(order.id)).map((order) => order.id);
 }
 
 export function actualLedgerSummary(ledger: ActualLedger, saleableSlots: readonly SlotId[], costCents?: number) {
   const sold = new Set(ledger.orders.flatMap((order) => order.slotIds));
   const pending = saleableSlots.filter((slot) => !sold.has(slot));
   const missingReceipt = ledger.orders.filter((order) => !order.reference?.trim()).map((order) => order.id);
-  const missingShipment = ledger.orders.filter((order) => !order.shipmentId || !ledger.shipments.some((shipment) => shipment.id === order.shipmentId)).map((order) => order.id);
+  const missingShipment = missingShipmentOrderIds(ledger);
   const incomplete = costCents == null || pending.length > 0 || missingReceipt.length > 0 || missingShipment.length > 0;
   const gross = ledger.orders.reduce((sum, order) => sum + order.receiptCents, 0);
   const fees = ledger.orders.reduce((sum, order) => sum + order.feeCents, 0);

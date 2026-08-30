@@ -3088,6 +3088,7 @@ export function SellerView({
   const [orderDraft, setOrderDraft] = useState({ slots: [] as SlotId[], receipt: "", fee: "", reference: "" });
   const [shipmentDraft, setShipmentDraft] = useState({ orderId: "", postage: "", packing: "", reference: "" });
   const [ledgerError, setLedgerError] = useState<string>();
+  const [pendingLedgerRemoval, setPendingLedgerRemoval] = useState<{ kind: "order"; record: ActualOrder } | { kind: "shipment"; record: ActualShipment }>();
   const hasSavedPlanValues = draft.targetsApplied || Object.keys(draft.lockedAsks).length > 0 || draft.unsoldSlots.length > 0 || draft.acceptedEstimateIds.length > 0 || draft.plannedBidOverride != null || draft.actualLedger.orders.length > 0 || draft.actualLedger.shipments.length > 0;
   const planMismatch = hasSavedPlanValues && !sellerPlanMatches(draft, owner);
   const activeDraft = planMismatch ? { ...defaultSellerPlanDraft(), owner } : draft;
@@ -3232,8 +3233,17 @@ export function SellerView({
       if (commitLedger({ version: 1, orders: activeDraft.actualLedger.orders.map((candidate) => candidate.id === order.id ? { ...candidate, shipmentId: shipment.id } : candidate), shipments: [...activeDraft.actualLedger.shipments, shipment] })) setShipmentDraft({ orderId: "", postage: "", packing: "", reference: "" });
     } catch (error) { setLedgerError(error instanceof Error ? error.message : "Shipment could not be recorded"); }
   };
-  const removeOrder = (order: ActualOrder) => commitLedger({ version: 1, orders: activeDraft.actualLedger.orders.filter((item) => item.id !== order.id), shipments: activeDraft.actualLedger.shipments.filter((shipment) => !shipment.orderIds.includes(order.id)) });
-  const removeShipment = (shipment: ActualShipment) => commitLedger({ version: 1, orders: activeDraft.actualLedger.orders.map((order) => shipment.orderIds.includes(order.id) ? { ...order, shipmentId: undefined } : order), shipments: activeDraft.actualLedger.shipments.filter((item) => item.id !== shipment.id) });
+  /** Corrections are an explicit, persisted remove-then-record transaction. */
+  const confirmLedgerRemoval = () => {
+    if (!pendingLedgerRemoval) return;
+    const committed = pendingLedgerRemoval.kind === "order"
+      ? commitLedger({ version: 1, orders: activeDraft.actualLedger.orders.filter((item) => item.id !== pendingLedgerRemoval.record.id), shipments: activeDraft.actualLedger.shipments.filter((shipment) => !shipment.orderIds.includes(pendingLedgerRemoval.record.id)) })
+      : commitLedger({ version: 1, orders: activeDraft.actualLedger.orders.map((order) => pendingLedgerRemoval.record.orderIds.includes(order.id) ? { ...order, shipmentId: undefined } : order), shipments: activeDraft.actualLedger.shipments.filter((item) => item.id !== pendingLedgerRemoval.record.id) });
+    if (committed) {
+      setLedgerError(pendingLedgerRemoval.kind === "order" ? "Order and any linked shipment removed. Its slots are available to record again." : "Shipment removed. Its linked order needs fulfillment again; re-record it to correct the costs.");
+      setPendingLedgerRemoval(undefined);
+    }
+  };
   return (
     <section className="seller-command-center">
       <aside className="shared-calculation-notice" aria-label="Practice plan boundary"><span><b>{publicPresentation.sellerScope}</b><small>Costs, targets, and scenarios below are rehearsal maths only.</small></span></aside>
@@ -3381,7 +3391,7 @@ export function SellerView({
           <label>Receipt / reference (required for reconciliation)<input aria-label="Receipt reference" value={orderDraft.reference} onChange={(event) => setOrderDraft({ ...orderDraft, reference: event.target.value })} /></label>
           <button className="primary" type="submit" disabled={!orderDraft.slots.length}>Record order</button>
         </form>
-        {activeDraft.actualLedger.orders.length > 0 && <ul className="actual-ledger-list">{activeDraft.actualLedger.orders.map((order) => <li key={order.id}><span>{order.slotIds.join(", ")} · {fmt(order.receiptCents / 100)} receipt · {fmt(order.feeCents / 100)} fee {order.reference ? `· ${order.reference}` : "· receipt reference missing"}</span><button type="button" className="quiet" onClick={() => removeOrder(order)}>Remove / correct</button></li>)}</ul>}
+        {activeDraft.actualLedger.orders.length > 0 && <ul className="actual-ledger-list">{activeDraft.actualLedger.orders.map((order) => <li key={order.id}><span>{order.slotIds.join(", ")} · {fmt(order.receiptCents / 100)} receipt · {fmt(order.feeCents / 100)} fee {order.reference ? `· ${order.reference}` : "· receipt reference missing"}</span><button type="button" className="quiet" onClick={() => setPendingLedgerRemoval({ kind: "order", record: order })}>Remove / correct</button></li>)}</ul>}
         <form className="actual-ledger-form" onSubmit={(event) => { event.preventDefault(); addShipment(); }}>
           <h3>Shipments &amp; fulfillment costs</h3><p className="muted">One order can have one shipment in this browser-local demo; split shipments are intentionally unsupported.</p>
           <label>Order<select aria-label="Order to fulfill" value={shipmentDraft.orderId} onChange={(event) => setShipmentDraft({ ...shipmentDraft, orderId: event.target.value })}><option value="">Choose an unshipped order</option>{activeDraft.actualLedger.orders.filter((order) => !order.shipmentId).map((order) => <option key={order.id} value={order.id}>{order.reference || order.id}</option>)}</select></label>
@@ -3391,8 +3401,12 @@ export function SellerView({
         </form>
         {activeDraft.actualLedger.shipments.length > 0 && <ul className="actual-ledger-list" aria-label="Recorded shipments">{activeDraft.actualLedger.shipments.map((shipment) => {
           const order = activeDraft.actualLedger.orders.find((candidate) => shipment.orderIds.includes(candidate.id));
-          return <li key={shipment.id}><span>{order?.reference || order?.id || "Recorded order"} · {fmt(shipment.postageCents / 100)} postage · {fmt(shipment.packingCents / 100)} packing · {fmt((shipment.postageCents + shipment.packingCents) / 100)} fulfillment</span><button type="button" className="quiet" onClick={() => removeShipment(shipment)}>Remove / correct</button></li>;
+          return <li key={shipment.id}><span>{order?.reference || order?.id || "Recorded order"} · {fmt(shipment.postageCents / 100)} postage · {fmt(shipment.packingCents / 100)} packing · {fmt((shipment.postageCents + shipment.packingCents) / 100)} fulfillment</span><button type="button" className="quiet" onClick={() => setPendingLedgerRemoval({ kind: "shipment", record: shipment })}>Remove / correct</button></li>;
         })}</ul>}
+        {pendingLedgerRemoval && <aside className="buyer-recovery-choice" aria-label={`Confirm ${pendingLedgerRemoval.kind} removal`}>
+          <div><strong>Remove this {pendingLedgerRemoval.kind}?</strong><p>{pendingLedgerRemoval.kind === "order" ? "This also removes its linked shipment and restores the order slots. You can record a corrected receipt afterward." : "This restores its linked order as missing shipment. You can record corrected fulfillment costs afterward."}</p></div>
+          <div className="buyer-recovery-actions"><button type="button" className="primary" onClick={confirmLedgerRemoval}>Confirm remove and correct</button><button type="button" className="quiet" onClick={() => setPendingLedgerRemoval(undefined)}>Cancel</button></div>
+        </aside>}
         <div className="actual-result" role="status"><strong>{ledgerSummary.incomplete ? "Actual result unavailable" : `Actual profit / loss: ${fmt(ledgerSummary.profitCents! / 100)}`}</strong><p>{ledgerSummary.sold} sold and receipt-linked · {activeDraft.unsoldSlots.length} unsold · {ledgerSummary.pending.length} pending/reconciliation missing. {ledgerSummary.missingReceipt.length} order receipt reference missing. {ledgerSummary.missingShipment.length} order shipment missing. {actualAcquisitionCents == null ? "Actual acquisition cost missing." : ""}</p>{!ledgerSummary.incomplete && <p>Realized gross {fmt(ledgerSummary.gross / 100)} · actual fees {fmt(ledgerSummary.fees / 100)} · fulfillment {fmt(ledgerSummary.fulfillment / 100)} · actual cost basis {fmt((actualAcquisitionCents ?? 0) / 100)}.</p>}</div>
       </section>
 
@@ -3771,7 +3785,7 @@ export function Workspace({
         </aside>}
         {mode === "buyer" ? (
           <>
-          {lines.length > 0 && <div className="mobile-stage-nav" aria-label="Large Break sections"><a href="#buyer-large-result">Decision</a>{assignmentMode === "large" && <a href="#buyer-large-assignments">Assignments</a>}<a href="#buyer-break-setup">{isSharedBreak ? "Customize" : "Edit break"}</a></div>}
+          {lines.length > 0 && <div className="mobile-stage-nav" aria-label={assignmentMode === "large" ? "Large Break sections" : "Break sections"}><a href="#buyer-large-result">Decision</a>{assignmentMode === "large" && <a href="#buyer-large-assignments">Assignments</a>}<a href="#buyer-break-setup">{isSharedBreak ? "Customize" : "Edit break"}</a></div>}
           <div className={`bid-check-workbench ${lines.length ? "has-break" : "is-empty"}`}>
             <BuyerSetup
               lines={lines}

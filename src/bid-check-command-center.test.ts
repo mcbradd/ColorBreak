@@ -22,6 +22,7 @@ const analysis: BreakAnalysis = {
   valuation,
   outcomeModel: { cacheKey: "command-center", complete: true, packs: [], fixed: [{ id: "w", slot: "W", value: 20 }] },
   outcomeOmissions: [],
+  priceAvailability: { status: "available", source: "test", message: "Test snapshot" },
 };
 
 const distribution = {
@@ -117,5 +118,15 @@ describe("Bid Check command center", () => {
     const bidLink = await screen.findByRole("link", { name: "Enter the current auction price" });
     expect(bidLink).toHaveAttribute("href", "#buyer-current-bid");
     expect(screen.getByLabelText("Current bid")).toHaveAttribute("id", "buyer-current-bid");
+  });
+
+  it("names result navigation from the active assignment mode", async () => {
+    render(createElement(Workspace, { mode: "buyer", exit: vi.fn(), releaseContext: { posture: "decision-ready" } }));
+    expect(await screen.findByLabelText("Break sections")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Large Break sections")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Large break" }));
+    expect(screen.getByLabelText("Large Break sections")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Pick a color" }));
+    expect(screen.getByLabelText("Break sections")).toBeInTheDocument();
   });
 });
