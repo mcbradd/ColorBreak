@@ -3,7 +3,9 @@ import type { BreakLine, SlotId } from "./domain/types";
 const VERSION = 1;
 export const sessionKey = (mode: "buyer" | "seller") => `colorbreak:${mode}:draft:v${VERSION}`;
 export const rememberedKey = "colorbreak:buyer:composition:v1";
+/** Legacy global key. It is deleted rather than guessed against a new break. */
 export const sellerPlanKey = "colorbreak:seller:plan:v1";
+const SELLER_PLAN_SCHEMA = 2;
 
 /**
  * The operating plan is deliberately private and session-scoped.  Unlike a
@@ -50,13 +52,11 @@ const askMap = (value: unknown): Partial<Record<SlotId, number>> => {
   )) as Partial<Record<SlotId, number>>;
 };
 
-export function readSellerPlanDraft(): SellerPlanDraft {
+function normalizedSellerDraft(value: unknown): SellerPlanDraft {
   const fallback = defaultSellerPlanDraft();
-  try {
-    const value: unknown = JSON.parse(sessionStorage.getItem(sellerPlanKey) ?? "null");
-    if (!value || typeof value !== "object") return fallback;
-    const draft = value as Partial<SellerPlanDraft>;
-    return {
+  if (!value || typeof value !== "object") return fallback;
+  const draft = value as Partial<SellerPlanDraft>;
+  return {
       buyerShipping: finite(draft.buyerShipping, fallback.buyerShipping),
       packing: finite(draft.packing, fallback.packing),
       postage: finite(draft.postage, fallback.postage),
@@ -71,12 +71,49 @@ export function readSellerPlanDraft(): SellerPlanDraft {
       minimumAsk: finite(draft.minimumAsk, fallback.minimumAsk),
       lockedAsks: askMap(draft.lockedAsks), actualAsks: askMap(draft.actualAsks),
       unsoldSlots: Array.isArray(draft.unsoldSlots) ? draft.unsoldSlots.filter((slot): slot is SlotId => slots.has(slot as SlotId)) : [],
-    };
+  };
+}
+
+export function sellerCompositionFingerprint(lines: BreakLine[], valuationVersion = "unknown"): string {
+  const composition = lines.map((line) => ({
+    set: line.set.toUpperCase(), productKey: line.productKey,
+    quantity: line.quantity, packCount: line.packCount ?? 1,
+  })).sort((left, right) => JSON.stringify(left).localeCompare(JSON.stringify(right)));
+  return encodeURIComponent(JSON.stringify({ v: 2, valuationVersion, composition }));
+}
+
+export const sellerPlanKeyFor = (fingerprint: string) => `colorbreak:seller:plan:v2:${fingerprint}`;
+
+export function readSellerPlanDraft(fingerprint: string): SellerPlanDraft {
+  const fallback = defaultSellerPlanDraft();
+  try {
+    // Financial facts from v1 cannot be safely associated with a composition.
+    sessionStorage.removeItem(sellerPlanKey);
+    const value: unknown = JSON.parse(sessionStorage.getItem(sellerPlanKeyFor(fingerprint)) ?? "null");
+    if (!value || typeof value !== "object") return fallback;
+    const wrapper = value as { schemaVersion?: unknown; compositionFingerprint?: unknown; draft?: unknown };
+    if (wrapper.schemaVersion !== SELLER_PLAN_SCHEMA || wrapper.compositionFingerprint !== fingerprint) return fallback;
+    return normalizedSellerDraft(wrapper.draft);
   } catch { return fallback; }
 }
 
-export function writeSellerPlanDraft(draft: SellerPlanDraft) {
-  try { sessionStorage.setItem(sellerPlanKey, JSON.stringify(draft)); } catch { /* optional */ }
+export function writeSellerPlanDraft(fingerprint: string, draft: SellerPlanDraft) {
+  try {
+    sessionStorage.setItem(sellerPlanKeyFor(fingerprint), JSON.stringify({
+      schemaVersion: SELLER_PLAN_SCHEMA, compositionFingerprint: fingerprint, draft,
+    }));
+  } catch { /* optional */ }
+}
+
+export function discardSellerPlanDraft(fingerprint: string) {
+  try { sessionStorage.removeItem(sellerPlanKeyFor(fingerprint)); } catch { /* optional */ }
+}
+
+/** Deliberately excludes all transaction facts from explicit assumption reuse. */
+export function copySellerOperatingAssumptions(source: SellerPlanDraft): SellerPlanDraft {
+  const fallback = defaultSellerPlanDraft();
+  const keys: Array<keyof SellerPlanDraft> = ["buyerShipping", "packing", "postage", "shipments", "mailingMethod", "labor", "tax", "giveaways", "refundReserve", "overhead", "commission", "processing", "processingFlat", "minimumAsk"];
+  return Object.assign(fallback, Object.fromEntries(keys.map((key) => [key, source[key]])));
 }
 
 /** Only non-financial composition is ever allowed to leave session storage. */

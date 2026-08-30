@@ -107,7 +107,7 @@ describe("Bid Check command center", () => {
     expect(screen.getAllByText("1× foil box topper has no verified card list.").length).toBeGreaterThan(0);
     expect(screen.queryByText(/Expected impact:/)).not.toBeInTheDocument();
     await waitFor(() => expect(simulateOutcomesAsync).toHaveBeenCalled());
-    expect(screen.getByText(/LIMIT UNAVAILABLE/)).toBeInTheDocument();
+    expect(screen.getByText(/RECONFIRM CURRENT INPUTS/)).toBeInTheDocument();
     expect(screen.getByLabelText("Maximum hammer")).toHaveTextContent("—");
   });
 

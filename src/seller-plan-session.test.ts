@@ -3,7 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { afterEach, describe, expect, it } from "vitest";
 import { calculateBreak } from "./domain/valuation";
 import type { BreakAnalysis } from "./data/evaluate";
-import { readSellerPlanDraft } from "./persistence";
+import { readSellerPlanDraft, sellerCompositionFingerprint } from "./persistence";
 import { SellerView } from "./App";
 
 const analysis: BreakAnalysis = {
@@ -20,6 +20,7 @@ const lines = [{
   id: "line-1", set: "TST", productKey: "box", productLabel: "Test Box",
   quantity: 1, tcgId: 1, marketCost: 100, myCost: 80,
 }];
+const fingerprint = sellerCompositionFingerprint(lines, analysis.valuation.dataVersion);
 
 describe("mounted seller operating plan", () => {
   afterEach(() => { cleanup(); sessionStorage.clear(); });
@@ -37,7 +38,7 @@ describe("mounted seller operating plan", () => {
     fireEvent.change(actual, { target: { value: "25" } });
     fireEvent.blur(actual);
 
-    await waitFor(() => expect(readSellerPlanDraft()).toMatchObject({
+    await waitFor(() => expect(readSellerPlanDraft(fingerprint)).toMatchObject({
       plannedBidOverride: 24, lockedAsks: { W: 192 }, actualAsks: { W: 25 },
     }));
     first.unmount();

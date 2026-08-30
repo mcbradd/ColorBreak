@@ -322,8 +322,8 @@ body {
   display: grid;
   justify-items: center;
   width: 100%;
+  min-width: 44px;
   min-height: 82px;
-  min-height: 44px;
   padding: 10px 6px 8px;
   border: 0;
   color: var(--ink);
@@ -496,7 +496,29 @@ body {
 }
 .card-inspector { max-height: 100%; }
 .card-inspector > header { padding: 14px 16px; }
-.card-inspector > header .icon-button { flex: 0 0 40px; background: #1b2028; }
+.card-inspector > header .icon-button { flex: 0 0 44px; min-width: 44px; min-height: 44px; background: #1b2028; }
+
+/* Primary phone controls are measured targets, not compact-mode accidents. */
+.sheet > header .icon-button,
+.evidence-dialog > header .icon-button,
+.assignment-toggle button,
+.availability-actions button {
+  min-width: 44px;
+  min-height: 44px;
+}
+@media (max-width: 719px) {
+  .buyer-slot-rail,
+  .bid-check-workbench .buyer-slot-rail {
+    grid-template-columns: none;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(44px, 1fr);
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    padding-bottom: 2px;
+  }
+  .buyer-slot-select { min-inline-size: 44px; min-block-size: 44px; }
+  .bid-check-workbench .buyer-assignment-toggle button { min-height: 44px; }
+}
 
 @media (max-width: 719px) {
   .page { padding-inline: 14px; }
@@ -1254,3 +1276,19 @@ body {
 .compact-warning.scenario-policy-note { margin: 0; border-right: 0; border-left: 0; border-radius: 0; }
 .compact-warning.enticement-policy { margin: 8px 0 0; }
 .compact-warning.missing-input-warning a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+.catalog-unavailable { margin: 0 0 16px; padding: 16px; border: 1px solid #80612f; background: #211b12; }
+.catalog-unavailable h2 { margin: 4px 0; font-size: 18px; }
+.catalog-unavailable p { margin: 0; color: #d9c89f; font-size: 12px; line-height: 1.45; }
+.catalog-unavailable > div { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.catalog-unavailable .quiet { text-decoration: none; }
+
+/* Keep the strict target invariant after compact-workbench overrides. */
+@media (max-width: 719px) {
+  .bid-check-workbench .buyer-assignment-toggle button { min-height: 44px; }
+  .bid-check-workbench .buyer-slot-rail {
+    grid-template-columns: none;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(44px, 1fr);
+    overflow-x: auto;
+  }
+}

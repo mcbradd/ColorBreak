@@ -72,12 +72,16 @@ import { createLargeBreakPlan, sortNamedCards, summarizeAssignmentValues } from 
 import type { TopCardSort } from "./domain/large-break";
 import {
   cleanupLegacyStorage,
+  defaultSellerPlanDraft,
+  discardSellerPlanDraft,
   readSellerPlanDraft,
   readSessionLines,
+  sellerCompositionFingerprint,
   writeSellerPlanDraft,
   writeSessionLines,
   type SellerPlanDraft,
 } from "./persistence";
+import { decisionFingerprint } from "./features/buyer/decision-state";
 
 type Mode = "home" | "buyer" | "seller";
 const money = new Intl.NumberFormat("en-US", {
@@ -469,6 +473,15 @@ function Status({ result }: { result: ValuationResult }) {
   );
 }
 
+function CatalogUnavailableNotice({ onEdit }: { onEdit?: () => void }) {
+  return <section className="catalog-unavailable" role="status">
+    <InformationLabel>CATALOG STATUS</InformationLabel>
+    <h2>No current calculation is trusted for a live decision</h2>
+    <p>Published prices are stale, incomplete, or still being checked. ColorBreak does not promise a refresh time it does not own; you can still explore the browser-local analysis-only model.</p>
+    <div>{onEdit && <button type="button" className="quiet" onClick={onEdit}>Edit products</button>}<a className="quiet" href="./methodology.html">Methodology &amp; status</a><a className="quiet" href="./">Return home</a></div>
+  </section>;
+}
+
 function Home({ choose }: { choose: (mode: Mode, fresh?: boolean) => void }) {
   const supportUrl = import.meta.env.VITE_SUPPORT_URL as string | undefined;
   const recentBuyer = readSessionLines("buyer");
@@ -820,6 +833,7 @@ function Builder({
               </>
             ) : (
               <>
+                {!loading && products.length > 0 && readyCount === 0 && <CatalogUnavailableNotice />}
                 <label className="ready-only-filter"><input type="checkbox" checked={readyOnly} onChange={(event) => setReadyOnly(event.target.checked)} /> Decision-ready only <small aria-live="polite">{readyCount} ready in this published snapshot</small></label>
                 {loading ? (
                   <div className="loader">
@@ -2110,6 +2124,7 @@ export function LargeBreakView({
 
 export function BuyerView({
   analysis,
+  lines,
   auction,
   assignmentMode,
   selected,
@@ -2121,6 +2136,7 @@ export function BuyerView({
   onChooseDecisionReady,
 }: {
   analysis: BreakAnalysis;
+  lines?: BreakLine[];
   auction: AuctionState;
   assignmentMode: AssignmentMode;
   selected: SlotId;
@@ -2137,8 +2153,7 @@ export function BuyerView({
   const [inspectedCard, setInspectedCard] = useState<Contributor | null>(null);
   const [valueRule, setValueRule] = useState<ValueRule>({ kind: "median" });
   const [resolvedOnlyRequested, setResolvedOnlyRequested] = useState(false);
-  const [reconfirmedAt, setReconfirmedAt] = useState<number>();
-  const [reconfirmedInput, setReconfirmedInput] = useState<string>();
+  const [confirmation, setConfirmation] = useState<{ fingerprint: string; confirmedAt: number }>();
   const slot = result.slots.find((row) => row.id === selected)!;
   const landed = (bid ?? 0) + (shipping ?? 0);
   const simulation = useOutcomeSimulation(analysis, auction.remaining, bid == null ? undefined : landed);
@@ -2155,8 +2170,19 @@ export function BuyerView({
       : valueRule.kind === "coverage"
         ? distribution.p25
         : distribution.mean;
-  const decisionInput = `${selected}|${assignmentMode}|${auction.remaining.join("")}|${bid ?? ""}|${shipping ?? ""}|${valueRule.kind}|${valueRule.kind === "coverage" ? valueRule.coverage : ""}|${eligibility.affectedGroups.map((group) => group.id).join("|")}`;
-  const reconfirmed = reconfirmedInput === decisionInput && reconfirmedAt != null && Date.now() - reconfirmedAt <= 60_000;
+  const decisionInput = decisionFingerprint({
+    lines, selected, assignmentMode, remaining: auction.remaining, bid, shipping,
+    risk: valueRule.kind === "coverage" ? `${valueRule.kind}:${valueRule.coverage}` : valueRule.kind,
+    omissionIds: eligibility.affectedGroups.map((group) => group.id),
+    valuationVersion: result.dataVersion,
+    priceSource: eligibility.observedSource,
+    observedAt: eligibility.observedAt,
+    distribution: distribution ?? "pending",
+  });
+  const reconfirmed = confirmation?.fingerprint === decisionInput && Date.now() - confirmation.confirmedAt <= 60_000;
+  useEffect(() => {
+    if (confirmation && confirmation.fingerprint !== decisionInput) setConfirmation(undefined);
+  }, [confirmation, decisionInput]);
   const scoped = valueTarget == null || shipping == null ? undefined : resolvedOnlyLimit(valueTarget, shipping, eligibility);
   const cap = eligibility.status !== "eligible" || valueTarget == null || shipping == null
     ? { kind: "unknown-cost" as const }
@@ -2171,7 +2197,7 @@ export function BuyerView({
     ? { kind: "cap" as const, amount: scoped.amount, allInAtCap: scoped.allIn }
     : cap;
   const recommendation = recommendBid(bid, activeCap);
-  const decision = eligibility.status !== "eligible"
+  const decision = !reconfirmed ? "RECONFIRM CURRENT INPUTS" : eligibility.status !== "eligible"
     ? eligibility.status === "material-incomplete" && resolvedOnlyRequested && scoped && reconfirmed
       ? bid == null ? "ENTER BID" : recommendation.action === "bid" ? "BID" : recommendation.action === "stop" ? "STOP HERE" : recommendation.action === "pass" ? "PASS" : "NO CAP"
       : eligibility.status === "material-incomplete" ? `LIMIT UNAVAILABLE — ${eligibility.blockerCount} MATERIAL OMISSIONS` : "LIMIT UNAVAILABLE"
@@ -2193,6 +2219,7 @@ export function BuyerView({
       : "Average outcome";
   return (
     <>
+      {eligibility.status !== "eligible" && <CatalogUnavailableNotice onEdit={onChooseDecisionReady} />}
       <section
         className={`bid-live-decision decision-${recommendation.tone} verdict-${decision.replace(/[^A-Z]/g, "").toLowerCase()}`}
         aria-label="Live bid decision"
@@ -2205,17 +2232,17 @@ export function BuyerView({
           <div className="verdict-decision">
             <InformationLabel>Recommendation</InformationLabel>
             <h2 aria-live="polite">{decision}</h2>
-            {eligibility.status !== "eligible" && <div className="decision-reason"><p><strong>No bid decision is available.</strong> {availability.detail} Observed {eligibility.observedAt ? new Date(eligibility.observedAt).toLocaleString() : "unknown"} from {eligibility.observedSource ?? "the published snapshot"}.</p>{onChooseDecisionReady && <button type="button" className="primary" onClick={onChooseDecisionReady}>Choose a decision-ready product</button>}{eligibility.affectedGroups.length > 0 && <details><summary className="disclosure-summary">Why this is unavailable<DisclosureArrow /></summary><p>Policy threshold: {eligibility.freshnessThresholdMs / 36e5} hours.</p><ul>{eligibility.affectedGroups.map((group) => <li key={group.id}>{group.label}</li>)}</ul></details>}{eligibility.status === "material-incomplete" && !resolvedOnlyRequested && eligibility.resolvedOnlyAvailable && <button type="button" className="quiet" onClick={() => { setResolvedOnlyRequested(true); setReconfirmedInput(undefined); }}>Calculate resolved-only limit</button>}{eligibility.status === "material-incomplete" && resolvedOnlyRequested && scoped && <p><strong>CONSERVATIVE · INCOMPLETE LIMIT</strong> uses only resolved exact-printing values. It is not a full break recommendation.</p>}</div>}
-            {(eligibility.status === "eligible" || (eligibility.status === "material-incomplete" && resolvedOnlyRequested && scoped)) && !reconfirmed && <p className="decision-reason"><button type="button" className="quiet" onClick={() => { setReconfirmedInput(decisionInput); setReconfirmedAt(Date.now()); }}>Reconfirm current bid</button> Reconfirm after changing bid, shipping, slot, or risk stance. Confirmation expires after one minute.</p>}
+            {eligibility.status !== "eligible" && <div className="decision-reason"><p><strong>No bid decision is available.</strong> {availability.detail} Observed {eligibility.observedAt ? new Date(eligibility.observedAt).toLocaleString() : "unknown"} from {eligibility.observedSource ?? "the published snapshot"}.</p>{onChooseDecisionReady && <button type="button" className="primary" onClick={onChooseDecisionReady}>Choose a decision-ready product</button>}{eligibility.affectedGroups.length > 0 && <details><summary className="disclosure-summary">Why this is unavailable<DisclosureArrow /></summary><p>Policy threshold: {eligibility.freshnessThresholdMs / 36e5} hours.</p><ul>{eligibility.affectedGroups.map((group) => <li key={group.id}>{group.label}</li>)}</ul></details>}{eligibility.status === "material-incomplete" && !resolvedOnlyRequested && eligibility.resolvedOnlyAvailable && <button type="button" className="quiet" onClick={() => { setResolvedOnlyRequested(true); setConfirmation(undefined); }}>Calculate resolved-only limit</button>}{eligibility.status === "material-incomplete" && resolvedOnlyRequested && scoped && <p><strong>CONSERVATIVE · INCOMPLETE LIMIT</strong> uses only resolved exact-printing values. It is not a full break recommendation.</p>}</div>}
+            {(eligibility.status === "eligible" || (eligibility.status === "material-incomplete" && resolvedOnlyRequested && scoped)) && !reconfirmed && <p className="decision-reason"><button type="button" className="quiet" onClick={() => setConfirmation({ fingerprint: decisionInput, confirmedAt: Date.now() })}>Reconfirm current inputs</button> The cap and recommendation remain hidden until this exact composition, evidence, price observation, and simulation result are confirmed. Confirmation expires after one minute.</p>}
             {eligibility.status === "eligible" && bid == null && <p className="decision-reason"><a href="#buyer-current-bid">Enter the current auction price</a> to compare it with your maximum hammer.</p>}
             {bid != null && shipping == null && <p className="decision-reason"><a href="#buyer-added-shipping">Enter the extra shipping charged for this purchase</a>. It affects your landed cost and maximum hammer.</p>}
-            {eligibility.status === "eligible" && recommendation.action === "bid" && (
+            {reconfirmed && eligibility.status === "eligible" && recommendation.action === "bid" && (
               <p className="decision-reason">Current hammer is {fmt(recommendation.room)} below your modeled ceiling.</p>
             )}
-            {eligibility.status === "eligible" && recommendation.action === "stop" && (
+            {reconfirmed && eligibility.status === "eligible" && recommendation.action === "stop" && (
               <p className="decision-reason">The current hammer has reached your modeled ceiling.</p>
             )}
-            {eligibility.status === "eligible" && recommendation.action === "pass" && (
+            {reconfirmed && eligibility.status === "eligible" && recommendation.action === "pass" && (
               <p className="decision-reason">Current hammer is {fmt(Math.abs(recommendation.room))} beyond your modeled ceiling.</p>
             )}
           </div>
@@ -3018,9 +3045,11 @@ export function SellerView({
   update: (id: string, patch: Partial<BreakLine>) => void;
   remove: (id: string) => void;
 }) {
-  const [draft, setDraft] = useState<SellerPlanDraft>(readSellerPlanDraft);
+  const planFingerprint = sellerCompositionFingerprint(lines, analysis.valuation.dataVersion);
+  const [draft, setDraft] = useState<SellerPlanDraft>(() => readSellerPlanDraft(planFingerprint));
   const setPlan = (patch: Partial<SellerPlanDraft>) => setDraft((current) => ({ ...current, ...patch }));
-  useEffect(() => { writeSellerPlanDraft(draft); }, [draft]);
+  useEffect(() => { setDraft(readSellerPlanDraft(planFingerprint)); }, [planFingerprint]);
+  useEffect(() => { writeSellerPlanDraft(planFingerprint, draft); }, [draft, planFingerprint]);
   const {
     buyerShipping, packing, postage, shipments, mailingMethod, labor, tax,
     giveaways, refundReserve, overhead, commission, processing, processingFlat,
@@ -3118,6 +3147,8 @@ export function SellerView({
 
   return (
     <section className="seller-command-center">
+      {decisionEligibility(analysis.valuation).status !== "eligible" && <CatalogUnavailableNotice onEdit={add} />}
+      <p className="seller-plan-scope" role="note">This private seller plan is scoped to this exact product composition and valuation model. Changing either starts a clean plan.</p>
       <section className="seller-contents" aria-labelledby="seller-contents-heading">
         <div className="seller-section-heading">
           <div><InformationLabel>1 · BREAK</InformationLabel><h2 id="seller-contents-heading">Contents &amp; cost basis</h2></div>
@@ -3239,6 +3270,8 @@ export function SellerView({
         <h2>{fmt(actualProfit.profit)} profit</h2>
         <div className="metric-row profit-metrics"><div><span>Hammer</span><b>{fmt(actualProfit.hammer)}</b></div><div><span>Fees</span><b>−{fmt(actualProfit.fees)}</b></div><div><span>Packing &amp; shipping</span><b>−{fmt(actualProfit.shipmentCosts)}</b></div></div>
       </section>}
+
+      <button type="button" className="quiet" onClick={() => { discardSellerPlanDraft(planFingerprint); setDraft(defaultSellerPlanDraft()); }}>Discard this seller plan</button>
 
       <SellerEnticement
         baseAnalysis={analysis}
@@ -3582,6 +3615,7 @@ export function Workspace({
               ) : (
                 <BuyerView
                   analysis={analysis}
+                  lines={lines}
                   auction={auction}
                   assignmentMode={assignmentMode}
                   selected={selectedSlot}

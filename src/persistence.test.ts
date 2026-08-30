@@ -2,9 +2,13 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   defaultSellerPlanDraft,
   readSellerPlanDraft,
+  sellerCompositionFingerprint,
   sellerPlanKey,
+  sellerPlanKeyFor,
   writeSellerPlanDraft,
 } from "./persistence";
+
+const fingerprint = sellerCompositionFingerprint([{ id: "one", set: "TST", productKey: "box", productLabel: "Box", quantity: 1 }], "model-v1");
 
 describe("seller plan session persistence", () => {
   afterEach(() => sessionStorage.clear());
@@ -21,14 +25,14 @@ describe("seller plan session persistence", () => {
       unsoldSlots: ["B" as const],
     };
 
-    writeSellerPlanDraft(plan);
+    writeSellerPlanDraft(fingerprint, plan);
 
-    expect(readSellerPlanDraft()).toEqual(plan);
-    expect(localStorage.getItem(sellerPlanKey)).toBeNull();
+    expect(readSellerPlanDraft(fingerprint)).toEqual(plan);
+    expect(localStorage.getItem(sellerPlanKeyFor(fingerprint))).toBeNull();
   });
 
   it("rejects malformed, negative, and unknown persisted fields", () => {
-    sessionStorage.setItem(sellerPlanKey, JSON.stringify({
+    sessionStorage.setItem(sellerPlanKeyFor(fingerprint), JSON.stringify({ schemaVersion: 2, compositionFingerprint: fingerprint, draft: {
       buyerShipping: -4,
       commission: "free",
       acceptedEstimateIds: ["safe", 2],
@@ -36,9 +40,9 @@ describe("seller plan session persistence", () => {
       lockedAsks: { W: 20, NOPE: 44, U: -1 },
       actualAsks: { R: 15, bad: 4 },
       unsoldSlots: ["G", "bogus"],
-    }));
+    }}));
 
-    expect(readSellerPlanDraft()).toMatchObject({
+    expect(readSellerPlanDraft(fingerprint)).toMatchObject({
       buyerShipping: 5,
       commission: 8,
       acceptedEstimateIds: ["safe"],
@@ -47,5 +51,11 @@ describe("seller plan session persistence", () => {
       actualAsks: { R: 15 },
       unsoldSlots: ["G"],
     });
+  });
+
+  it("deletes unsafe global v1 data instead of reusing it for a new composition", () => {
+    sessionStorage.setItem(sellerPlanKey, JSON.stringify({ actualAsks: { W: 42 } }));
+    expect(readSellerPlanDraft(fingerprint).actualAsks).toEqual({});
+    expect(sessionStorage.getItem(sellerPlanKey)).toBeNull();
   });
 });

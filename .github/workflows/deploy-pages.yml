@@ -6,6 +6,13 @@ on:
   schedule:
     - cron: "41 11 * * *"
   workflow_dispatch:
+    inputs:
+      release_posture:
+        description: "Pages is analysis-only; decision-ready validation needs reviewed evidence."
+        required: false
+        default: "analysis-only"
+        type: choice
+        options: [analysis-only, decision-ready]
 
 permissions:
   contents: read
@@ -31,12 +38,17 @@ jobs:
         run: npm ci
       - name: Verify committed price snapshots
         run: npm run check:prices && npm run check:sealed-prices
+      - name: Establish release posture
+        env:
+          COLORBREAK_RELEASE_POSTURE: ${{ github.event_name == 'workflow_dispatch' && inputs.release_posture || 'analysis-only' }}
+        run: npm run release:posture
       - name: Test and build
         run: npm run check
       - name: Report release evidence
         run: |
           node -e "const m=require('./dist/data/release-manifest.json'); console.log('Release manifest:', m.id)"
           node tools/run-root-mjs-tests.mjs --discovery-only
+          echo "Pages artifact posture: analysis-only (GitHub Pages remains a browser-local demo)."
       - name: Configure Pages
         uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5
       - name: Upload Pages artifact

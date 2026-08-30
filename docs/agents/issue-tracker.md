@@ -1,5 +1,9 @@
 # Issue tracker: GitHub
 
+## Sealed-data audit routing
+
+The sealed-data audit currently has no authorized named owner or monitored alert destination. It intentionally uploads its diff and triage evidence without creating issues or sending notifications. Do not enable routing until the organization records a primary owner, backup escalation, response expectation, and approved destination in `data/source-diff-triage.json`. Unresolved material diffs remain fail-closed.
+
 Issues and specs for this repo live in GitHub issues. Use the `gh` CLI for all operations.
 
 ## Conventions

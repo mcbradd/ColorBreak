@@ -4,9 +4,9 @@
   "classification": "tool failure",
   "disposition": "investigate",
   "createdAt": "2026-08-30T00:00:00.000Z",
-  "responseTarget": "Owner assignment and alert routing are required before notification automation.",
+  "responseTarget": "Notification automation is disabled pending an authorized named owner, monitored alert destination, and backup escalation path.",
   "reviewBy": "2026-09-06T00:00:00.000Z",
   "acceptedBaseline": null,
   "artifactUrl": null,
-  "notes": "Template only. A material source diff remains fail-closed until the accepted baseline/review commit is recorded."
+  "notes": "No recipient has been authorized, so this workflow uploads traceable evidence only and does not send decorative alerts. A material source diff remains fail-closed until classification, disposition, accepted baseline/review commit, evidence URL, and review deadline are recorded."
 }

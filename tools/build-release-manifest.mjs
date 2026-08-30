@@ -81,7 +81,9 @@ export async function buildReleaseManifest({ outputDir = resolve(ROOT, "dist"), 
   };
   const priceObservation = dataFiles.find((file) => file.path === "data/prices/index.json")?.observationTimestamp;
   const priceAge = Date.parse(buildTimestamp) - Date.parse(priceObservation ?? "");
-  if (Number.isFinite(priceAge) && priceAge >= 0 && priceAge <= ELIGIBILITY_FRESHNESS_MS) manifest.releasePosture = "decision-ready";
+  // Freshness alone is insufficient: the explicit release-posture check also
+  // requires a reviewed record and live-smoke evidence. Pages stays demo-only.
+  if (process.env.COLORBREAK_RELEASE_POSTURE === "decision-ready" && Number.isFinite(priceAge) && priceAge >= 0 && priceAge <= ELIGIBILITY_FRESHNESS_MS) manifest.releasePosture = "decision-ready";
   const canonical = JSON.stringify({ ...manifest, id: undefined });
   manifest.id = sha256(canonical);
   const outputPath = join(outputDir, RELEASE_MANIFEST_PATH);
