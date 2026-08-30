@@ -36,6 +36,30 @@ test("release manifest inventories deployed data with reproducible hashes and ob
   assert.ok(!written.dataFiles.some((file) => file.path === "data/release-manifest.json"));
 });
 
+test("the canonical SOS price shard is indexed and carried into a release inventory", async (t) => {
+  const sourceRoot = new URL("..", import.meta.url);
+  const sourceIndex = JSON.parse(await readFile(new URL("data/prices/index.json", sourceRoot), "utf8"));
+  const sourceShard = await readFile(new URL("data/prices/SOS.json", sourceRoot));
+  assert.deepEqual(sourceIndex.sets.SOS, {
+    file: "SOS.json",
+    cards: JSON.parse(sourceShard).cards.length,
+    sha256: hash(sourceShard.toString("utf8")),
+  });
+
+  const outputDir = await mkdtemp(join(tmpdir(), "colorbreak-sos-release-"));
+  t.after(() => rm(outputDir, { recursive: true, force: true }));
+  await mkdir(join(outputDir, "data", "prices"), { recursive: true });
+  await writeFile(join(outputDir, "data", "prices", "SOS.json"), sourceShard);
+  await writeFile(join(outputDir, "data", "prices", "index.json"), JSON.stringify(sourceIndex));
+  const manifest = await buildReleaseManifest({ outputDir, root: outputDir });
+  assert.deepEqual(manifest.dataFiles.find((file) => file.path === "data/prices/SOS.json"), {
+    path: "data/prices/SOS.json",
+    sha256: hash(sourceShard.toString("utf8")),
+    observationTimestamp: null,
+    sourceVersion: null,
+  });
+});
+
 test("manifest identity ignores build clock and runtime but binds stable release inputs", async (t) => {
   const outputDir = await mkdtemp(join(tmpdir(), "colorbreak-release-id-"));
   t.after(() => rm(outputDir, { recursive: true, force: true }));
