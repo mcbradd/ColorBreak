@@ -17,4 +17,8 @@
 
 ## Deployment record
 
-Populate this section only after the final merge and GitHub Pages deployment, including merge SHA, manifest ID, Pages run URL, fresh-profile network inventory, 320/393/desktop smoke results, and real-device keyboard verification.
+- Merged Pages revision: `c1ebe171bbcb75f2a9df46779eafa9b0bbe1fcc8`.
+- GitHub Actions run: https://github.com/mcbradd/ColorBreak/actions/runs/33288107606 — build and deploy both succeeded on 2026-08-30.
+- Live production proof: `https://mcbradd.github.io/ColorBreak/` returned HTTP 200 and served the merged shell asset (`index-18w_mbzv.js`), CSP meta policy, and strict referrer policy.
+- Automated verification: 59 Vitest files / 216 tests and all 31 root-MJS tests passed; coverage, exact-price, sealed-price, and production build gates passed.
+- Browser/device note: production response was inspected as a fresh HTTP fetch. A real-iPhone/manual assistive-technology pass remains a release follow-up; it cannot be represented by this desktop environment.
