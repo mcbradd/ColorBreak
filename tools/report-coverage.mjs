@@ -3,14 +3,7 @@
 import { createHash } from "node:crypto";
 import { readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-
-const DATA_DIR = fileURLToPath(new URL("../data/", import.meta.url));
-const SEALED_DIR = fileURLToPath(new URL("../data/sealed/", import.meta.url));
-const OUT = fileURLToPath(new URL("../data/coverage.json", import.meta.url));
-const BASELINE = fileURLToPath(new URL("../data/coverage-baseline.json", import.meta.url));
-
-const CARDLIKE_PROSE = /\b(cards?|lands?)\b/i;
-const ACCESSORY_PROSE = /storage|\bbox\b|sleeve|display|walk[ -]?through|reference|arena code|helper|art[ -]?only|dungeon/i;
+import { classifyContentProse } from "../src/data/content-classifier.mjs";
 
 export function summarizeCoverage(documents, corrections) {
   const reasons = {};
@@ -37,7 +30,7 @@ export function summarizeCoverage(documents, corrections) {
         if (!booster) productReasons.add("missing-booster");
         else if (Object.values(booster.sheets).some((sheet) => sheet.missing)) productReasons.add("missing-sheet-weight");
       }
-      if ((product.other ?? []).some((text) => CARDLIKE_PROSE.test(text) && !ACCESSORY_PROSE.test(text))) {
+      if ((product.other ?? []).some((text) => classifyContentProse(text) === "cardlike-unresolved")) {
         productReasons.add("prose-only-contents");
       }
       if (product.unresolvedContents?.length) productReasons.add("unresolved-fixed-printing");
@@ -76,26 +69,32 @@ export function summarizeCoverage(documents, corrections) {
   };
 }
 
-function loadDocuments() {
-  return readdirSync(SEALED_DIR)
+function loadDocuments(sealedDir) {
+  return readdirSync(sealedDir)
     .filter((name) => name.endsWith(".json") && name !== "index.json")
     .map((name) => {
-      const raw = readFileSync(`${SEALED_DIR}/${name}`, "utf8");
+      const raw = readFileSync(`${sealedDir}/${name}`, "utf8");
       return { ...JSON.parse(raw), __sha256: createHash("sha256").update(raw).digest("hex") };
     });
 }
 
-const report = summarizeCoverage(loadDocuments(), JSON.parse(readFileSync(`${DATA_DIR}/corrections.json`, "utf8")));
-if (process.argv.includes("--check")) {
-  const baseline = JSON.parse(readFileSync(BASELINE, "utf8"));
-  const failures = [];
-  if (report.sets < baseline.sets) failures.push(`sets regressed: ${report.sets} < ${baseline.sets}`);
-  if (report.products < baseline.products) failures.push(`products regressed: ${report.products} < ${baseline.products}`);
-  if (report.complete < baseline.complete) failures.push(`complete products regressed: ${report.complete} < ${baseline.complete}`);
-  if (report.incomplete > baseline.incomplete) failures.push(`incomplete products increased: ${report.incomplete} > ${baseline.incomplete}`);
-  if (failures.length) throw new Error(failures.join("; "));
-  console.log(`coverage gate passed: ${report.complete}/${report.products} complete across ${report.sets} sets`);
-} else {
-  writeFileSync(OUT, `${JSON.stringify(report, null, 2)}\n`);
-  console.log(`wrote ${OUT}: ${report.complete}/${report.products} complete across ${report.sets} sets`);
+if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
+  const dataDir = fileURLToPath(new URL("../data/", import.meta.url));
+  const sealedDir = fileURLToPath(new URL("../data/sealed/", import.meta.url));
+  const out = fileURLToPath(new URL("../data/coverage.json", import.meta.url));
+  const baselinePath = fileURLToPath(new URL("../data/coverage-baseline.json", import.meta.url));
+  const report = summarizeCoverage(loadDocuments(sealedDir), JSON.parse(readFileSync(`${dataDir}/corrections.json`, "utf8")));
+  if (process.argv.includes("--check")) {
+    const baseline = JSON.parse(readFileSync(baselinePath, "utf8"));
+    const failures = [];
+    if (report.sets < baseline.sets) failures.push(`sets regressed: ${report.sets} < ${baseline.sets}`);
+    if (report.products < baseline.products) failures.push(`products regressed: ${report.products} < ${baseline.products}`);
+    if (report.complete < baseline.complete) failures.push(`complete products regressed: ${report.complete} < ${baseline.complete}`);
+    if (report.incomplete > baseline.incomplete) failures.push(`incomplete products increased: ${report.incomplete} > ${baseline.incomplete}`);
+    if (failures.length) throw new Error(failures.join("; "));
+    console.log(`coverage gate passed: ${report.complete}/${report.products} complete across ${report.sets} sets`);
+  } else {
+    writeFileSync(out, `${JSON.stringify(report, null, 2)}\n`);
+    console.log(`wrote ${out}: ${report.complete}/${report.products} complete across ${report.sets} sets`);
+  }
 }

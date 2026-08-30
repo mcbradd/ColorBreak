@@ -1,4 +1,5 @@
 import type { DataStatus, ExpectedDraw, Omission, ProductChoice } from "../domain/types";
+import { classifyContentProse } from "./content-classifier.mjs";
 
 export interface SealedProduct {
   key: string;
@@ -130,9 +131,6 @@ export function choicesFromSealed(document: SealedDocument): ProductChoice[] {
   });
 }
 
-const CARDLIKE_PROSE = /\b(cards?|lands?)\b/i;
-const ACCESSORY_PROSE = /storage|\bbox\b|sleeve|display|walk[ -]?through|reference|arena code|helper|art[ -]?only|dungeon/i;
-
 export async function expectedDraws(
   document: SealedDocument,
   productKey: string,
@@ -210,7 +208,7 @@ export async function expectedDraws(
     }
   }
   for (const prose of product.other ?? []) {
-    if (CARDLIKE_PROSE.test(prose) && !ACCESSORY_PROSE.test(prose)) {
+    if (classifyContentProse(prose) === "cardlike-unresolved") {
       omissions.push({
         code: "prose-only-contents",
         message: `${prose} is named by the product source but has no exact card list.`,

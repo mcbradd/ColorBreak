@@ -5,6 +5,7 @@ import type { BoosterSheet, SealedDocument } from "./sealed";
 import { isCollectorOutlier } from "../domain/outlier-policy";
 import { cardDisplayName } from "../domain/card-label";
 import { resolveCardPrice } from "../domain/card-price";
+import { classifyContentProse } from "./content-classifier.mjs";
 
 export interface OutcomeModelResult {
   model: PackOutcomeModel;
@@ -165,7 +166,7 @@ export async function outcomeModelForProduct(
   }
 
   for (const prose of product.other ?? []) {
-    if (/\b(cards?|lands?)\b/i.test(prose) && !/storage|\bbox\b|sleeve|display|walk[ -]?through|reference|arena code|helper|art[ -]?only|dungeon/i.test(prose)) {
+    if (classifyContentProse(prose) === "cardlike-unresolved") {
       omissions.push({ code: "prose-only-contents", message: `${prose} has no exact card list.`, material: true });
     }
   }

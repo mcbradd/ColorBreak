@@ -46,7 +46,7 @@ function Harness() {
 }
 
 describe("live random-slot buyer workflow", () => {
-  it("removes a taken slot in one tap and restores it from the same color tile", async () => {
+  it("changes availability through its dedicated editing control", async () => {
     render(createElement(Harness));
     fireEvent.click(screen.getByRole("button", { name: "Random remaining" }));
     expect(screen.getByText("8 colors remain in the random pool")).toBeInTheDocument();
@@ -59,6 +59,7 @@ describe("live random-slot buyer workflow", () => {
     fireEvent.blur(screen.getByLabelText("Current bid"));
     await waitFor(() => expect(screen.getByText(/Chance card value covers your \$12\.50 cost/)).toBeInTheDocument());
 
+    fireEvent.click(screen.getByRole("button", { name: "Edit availability" }));
     fireEvent.click(screen.getByRole("button", { name: "Mark Blue taken" }));
     expect(screen.getByText("7 colors remain in the random pool")).toBeInTheDocument();
     expect(screen.getByRole("region", { name: "Live bid decision" })).toHaveTextContent("7 random colors");

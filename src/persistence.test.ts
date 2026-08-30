@@ -1,14 +1,51 @@
-import { describe, expect, it } from "vitest";
-import { compositionProjection, cleanupLegacyStorage } from "./persistence";
+import { afterEach, describe, expect, it } from "vitest";
+import {
+  defaultSellerPlanDraft,
+  readSellerPlanDraft,
+  sellerPlanKey,
+  writeSellerPlanDraft,
+} from "./persistence";
 
-describe("private draft persistence", () => {
-  it("removes every financial field from a remembered composition", () => {
-    const remembered = compositionProjection([{ id: "x", set: "TDM", productKey: "sealed:box", productLabel: "Box", quantity: 1, myCost: 42, marketCost: 55 }]);
-    expect(JSON.stringify(remembered)).not.toMatch(/myCost|marketCost|42|55/);
+describe("seller plan session persistence", () => {
+  afterEach(() => sessionStorage.clear());
+
+  it("round-trips the private operating plan only through this browser session", () => {
+    const plan = {
+      ...defaultSellerPlanDraft(),
+      buyerShipping: 7.25,
+      commission: 9,
+      acceptedEstimateIds: ["box-1"],
+      minimumAsk: 3,
+      lockedAsks: { W: 31 },
+      actualAsks: { U: 26.5 },
+      unsoldSlots: ["B" as const],
+    };
+
+    writeSellerPlanDraft(plan);
+
+    expect(readSellerPlanDraft()).toEqual(plan);
+    expect(localStorage.getItem(sellerPlanKey)).toBeNull();
   });
-  it("deletes legacy durable seller records", () => {
-    localStorage.setItem("colorbreak:seller:lines", JSON.stringify([{ myCost: 44 }]));
-    expect(cleanupLegacyStorage()).toBe(true);
-    expect(localStorage.getItem("colorbreak:seller:lines")).toBeNull();
+
+  it("rejects malformed, negative, and unknown persisted fields", () => {
+    sessionStorage.setItem(sellerPlanKey, JSON.stringify({
+      buyerShipping: -4,
+      commission: "free",
+      acceptedEstimateIds: ["safe", 2],
+      minimumAsk: Number.NaN,
+      lockedAsks: { W: 20, NOPE: 44, U: -1 },
+      actualAsks: { R: 15, bad: 4 },
+      unsoldSlots: ["G", "bogus"],
+    }));
+
+    expect(readSellerPlanDraft()).toMatchObject({
+      buyerShipping: 5,
+      commission: 8,
+      acceptedEstimateIds: ["safe"],
+      minimumAsk: 1,
+      lockedAsks: { W: 20 },
+      actualAsks: { R: 15 },
+      unsoldSlots: ["G"],
+    });
   });
 });

@@ -17,6 +17,7 @@ let catalogPromise: Promise<CatalogFile> | null = null;
 let sealedIndexPromise: Promise<{
   documents?: Array<{ code: string; name: string; released: string; products: number }>;
 }> | null = null;
+const readinessCache = new Map<string, Promise<DecisionReadiness>>();
 
 export async function loadCatalog(): Promise<CatalogFile> {
   catalogPromise ??= fetch("data/products.json").then((response) => {
@@ -61,6 +62,19 @@ export async function productsForSet(set: string): Promise<ProductChoice[]> {
 /** Local-first catalog adapter for a single prospective product.  Picker code
  * can call this deliberately; it never repairs a snapshot miss with Scryfall. */
 export async function readinessForProduct(product: ProductChoice, now?: number | Date): Promise<DecisionReadiness> {
+  // The picker asks this for each row. Sharing the in-flight work avoids both
+  // duplicate local snapshot reads and a thundering herd when a set is reopened.
+  const cacheKey = `${product.set}:${product.sealedKey ?? product.key}`;
+  if (now == null) {
+    const cached = readinessCache.get(cacheKey);
+    if (cached) return cached;
+  }
+  const work = readinessForProductUncached(product, now);
+  if (now == null) readinessCache.set(cacheKey, work);
+  return work;
+}
+
+async function readinessForProductUncached(product: ProductChoice, now?: number | Date): Promise<DecisionReadiness> {
   const sealed = await loadSealed(product.set);
   if (!sealed || !product.sealedKey) return decisionReadiness({ contentsStatus: product.status, now });
   const expected = await expectedDraws(sealed, product.sealedKey, 1);

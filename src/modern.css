@@ -323,7 +323,8 @@ body {
   justify-items: center;
   width: 100%;
   min-height: 82px;
-  padding: 10px 34px 8px 6px;
+  min-height: 44px;
+  padding: 10px 6px 8px;
   border: 0;
   color: var(--ink);
   background: transparent;
@@ -348,28 +349,10 @@ body {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.slot-taken-toggle {
-  position: absolute;
-  z-index: 2;
-  top: 3px;
-  right: 3px;
-  display: grid;
-  place-items: center;
-  width: 32px;
-  height: 32px;
-  padding: 0;
-  border: 0;
-  border-radius: 1px;
-  color: #aeb7c5;
-  background: transparent;
-  cursor: pointer;
-}
-.slot-taken-toggle svg { width: 15px; height: 15px; }
-.slot-taken-toggle:hover,
-.slot-taken-toggle:focus-visible { color: #fff; background: #4a2028; }
-.slot-taken-toggle[aria-pressed="true"] { color: #ff8fa2; background: #321820; }
-.slot-taken-toggle[aria-pressed="true"] svg { transform: rotate(45deg); }
-.slot-taken-toggle:disabled { opacity: .2; cursor: not-allowed; }
+.availability-editor { margin-top: 10px; }
+.availability-actions { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin-top: 8px; }
+.availability-actions button { min-height: 44px; padding: 6px 4px; font-size: 10px; }
+.availability-actions button[aria-pressed="true"] { color: #ffb2bf; background: #321820; }
 .remaining-summary {
   margin: 10px 0 0;
   color: var(--muted);
@@ -941,12 +924,13 @@ body {
   .bid-check-workbench .buyer-assignment-toggle { margin: 5px 0; }
   .bid-check-workbench .buyer-assignment-toggle button { min-height: 33px; padding: 4px 2px; font-size: 8px; line-height: 1.1; }
   .bid-check-workbench .buyer-slot-rail { grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 3px; }
-  .bid-check-workbench .buyer-slot-select { min-height: 43px; padding: 4px 1px; }
+  .bid-check-workbench .buyer-slot-select { min-height: 44px; padding: 4px 1px; }
   .bid-check-workbench .buyer-slot-select > span { width: 23px; height: 23px; font-size: 9px; }
   .bid-check-workbench .buyer-slot-select b,
   .bid-check-workbench .buyer-slot-select small { display: none; }
-  .bid-check-workbench .slot-taken-toggle { top: 0; right: 0; width: 44px; height: 44px; }
-  .bid-check-workbench .slot-taken-toggle svg { width: 14px; height: 14px; }
+  .bid-check-workbench .availability-editor { margin-top: 5px; }
+  .bid-check-workbench .availability-editor > button { min-height: 44px; }
+  .bid-check-workbench .availability-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .bid-check-workbench .remaining-summary { margin-top: 4px; font-size: 8px; }
   .bid-check-workbench .large-break-spot-input { grid-template-columns: minmax(0, 1fr) 88px; gap: 7px; padding: 7px 8px; }
   .bid-check-workbench .large-break-spot-label small,

@@ -7,7 +7,7 @@ import {
   useRef,
   useState,
 } from "react";
-import type { CSSProperties, ReactNode } from "react";
+import type { CSSProperties, ReactNode, RefObject } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "motion/react";
 import {
@@ -70,7 +70,14 @@ import { track } from "./analytics";
 import { chaseMapLayout } from "./constellation-layout";
 import { createLargeBreakPlan, sortNamedCards, summarizeAssignmentValues } from "./domain/large-break";
 import type { TopCardSort } from "./domain/large-break";
-import { cleanupLegacyStorage, readSessionLines, writeSessionLines } from "./persistence";
+import {
+  cleanupLegacyStorage,
+  readSellerPlanDraft,
+  readSessionLines,
+  writeSellerPlanDraft,
+  writeSessionLines,
+  type SellerPlanDraft,
+} from "./persistence";
 
 type Mode = "home" | "buyer" | "seller";
 const money = new Intl.NumberFormat("en-US", {
@@ -88,6 +95,43 @@ const oddsLabel = (probability: number) =>
       ? `${(probability * 100).toFixed(probability < 0.01 ? 2 : 1)}%`
       : "0%";
 const FOCUSABLE_SELECTOR = "button:not(:disabled), a[href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex='-1'])";
+
+/** Keeps a dialog's opener stable even while its owning screen re-renders. */
+function useDialogOwnership(open: boolean, onClose: () => void, dialogRef: RefObject<HTMLElement | null>, initialFocus?: RefObject<HTMLElement | null>) {
+  const opener = useRef<HTMLElement | null>(null);
+  const close = useRef(onClose);
+  close.current = onClose;
+  useEffect(() => {
+    if (!open) return;
+    opener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const scrollY = window.scrollY;
+    const previousOverflow = document.body.style.overflow;
+    const application = document.getElementById("root");
+    document.body.style.overflow = "hidden";
+    application?.setAttribute("inert", "");
+    application?.setAttribute("aria-hidden", "true");
+    initialFocus?.current?.focus({ preventScroll: true });
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") { event.preventDefault(); close.current(); return; }
+      if (event.key !== "Tab" || !dialogRef.current) return;
+      const focusable = [...dialogRef.current.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)].filter((element) => element.offsetParent !== null);
+      if (!focusable.length) return;
+      const first = focusable[0], last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      document.body.style.overflow = previousOverflow;
+      application?.removeAttribute("inert");
+      application?.removeAttribute("aria-hidden");
+      opener.current?.focus({ preventScroll: true });
+      window.scrollTo(0, scrollY);
+      opener.current = null;
+    };
+  }, [open]); // onClose intentionally lives in a ref: re-renders must not reset ownership.
+}
 
 function DisclosureArrow() {
   return <ChevronRight className="disclosure-arrow" aria-hidden="true" />;
@@ -449,7 +493,7 @@ function Home({ choose }: { choose: (mode: Mode, fresh?: boolean) => void }) {
           <span className="brand-mark"><Sparkles /></span>
           <span>COLORBREAK</span>
         </div>
-        <span className="engine-ready" aria-label="Value engine ready"><i /> READY</span>
+        <span className="engine-ready" aria-label="Catalog is analysis-only"><i /> DEMO · ANALYSIS ONLY</span>
       </header>
       <section className="launcher-intro">
         <InformationLabel>Decision launcher</InformationLabel>
@@ -465,10 +509,10 @@ function Home({ choose }: { choose: (mode: Mode, fresh?: boolean) => void }) {
           <span className="mode-number">01</span>
           <span className="mode-copy">
             <small>BUYING A COLOR SLOT</small>
-            <strong>Should I bid?</strong>
-            <p>Pick the product and your color, then enter the current price.</p>
+          <strong>Explore a bid</strong>
+            <p>Analysis-only — bid caps are temporarily unavailable in this published catalog.</p>
           </span>
-          <span className="mode-output"><small>YOUR ANSWER</small><b>Bid cap when evidence is ready</b><span>Bid · Stop · Pass</span></span>
+          <span className="mode-output"><small>CATALOG POSTURE</small><b>Analysis only</b><span>Check catalog · no bid cap</span></span>
           <ChevronRight />
         </button>
         <button
@@ -518,6 +562,9 @@ function Builder({
   lines: BreakLine[];
   onApply: (lines: BreakLine[], settings?: { assignmentMode: AssignmentMode; largeSpots?: number; bulkEnabled?: boolean; bulkThreshold?: number }) => void;
 }) {
+  const dialogRef = useRef<HTMLElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
+  const selectionRequest = useRef(0);
   const [sets, setSets] = useState<SetChoice[]>([]);
   const [query, setQuery] = useState("");
   const [setSort, setSetSort] = useState<"release" | "alphabetical">(
@@ -543,16 +590,31 @@ function Builder({
       );
   }, [open]);
   useEffect(() => {
-    if (!selected) return;
+    if (!selected) { selectionRequest.current += 1; return; }
+    const request = ++selectionRequest.current;
+    setProducts([]);
+    setReadiness({});
     setLoading(true);
-    productsForSet(selected.code)
-      .then((rows) => {
+    void (async () => {
+      try {
+        const rows = await productsForSet(selected.code);
+        if (request !== selectionRequest.current) return;
         setProducts(rows);
-        setReadiness({});
-        void Promise.all(rows.map(async (product) => [product.key, await readinessForProduct(product)] as const))
-          .then((entries) => setReadiness(Object.fromEntries(entries)));
-      })
-      .finally(() => setLoading(false));
+        const entries: Array<[string, DecisionReadiness]> = [];
+        const workerCount = Math.min(4, rows.length);
+        let next = 0;
+        await Promise.all(Array.from({ length: workerCount }, async () => {
+          while (next < rows.length) {
+            const product = rows[next++];
+            entries.push([product.key, await readinessForProduct(product)]);
+          }
+        }));
+        if (request !== selectionRequest.current) return;
+        setReadiness(Object.fromEntries(entries));
+      } finally {
+        if (request === selectionRequest.current) setLoading(false);
+      }
+    })();
   }, [selected]);
   useEffect(() => {
     if (!open) {
@@ -569,38 +631,7 @@ function Builder({
       setDraft(lines);
     }
   }, [open, lines]);
-  useEffect(() => {
-    if (!open) return;
-    const previous = document.activeElement as HTMLElement | null;
-    const application = document.getElementById("root");
-    // The builder is portalled so the rest of the application can be truly
-    // unavailable to keyboard and assistive-technology navigation.
-    application?.setAttribute("inert", "");
-    application?.setAttribute("aria-hidden", "true");
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") return onClose();
-      if (event.key !== "Tab") return;
-      const focusable = [...document.querySelectorAll<HTMLElement>(
-        FOCUSABLE_SELECTOR.split(", ").map((selector) => `.sheet ${selector}`).join(", "),
-      )].filter((element) => element.offsetParent !== null);
-      if (!focusable.length) return;
-      const first = focusable[0], last = focusable[focusable.length - 1];
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    };
-    document.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.removeEventListener("keydown", onKeyDown);
-      application?.removeAttribute("inert");
-      application?.removeAttribute("aria-hidden");
-      previous?.focus({ preventScroll: true });
-    };
-  }, [open, onClose]);
+  useDialogOwnership(open, onClose, dialogRef, closeRef);
   const normalizedQuery = query.trim().toLocaleLowerCase();
   const visible = sets
     .filter((set) =>
@@ -706,6 +737,7 @@ function Builder({
           onMouseDown={onClose}
         >
           <motion.section
+            ref={dialogRef}
             className="sheet"
             role="dialog"
             aria-modal="true"
@@ -718,6 +750,7 @@ function Builder({
           >
             <header>
               <button
+                ref={closeRef}
                 className="icon-button"
                 onClick={selected ? () => setSelected(undefined) : composerMode !== "search" ? () => setComposerMode("search") : onClose}
                 aria-label={selected || composerMode !== "search" ? "Back" : "Close"}
@@ -1009,13 +1042,14 @@ export function SlotRail({
   largeSpots: number;
   setLargeSpots: (spots: number) => void;
 }) {
+  const [editingAvailability, setEditingAvailability] = useState(false);
   return (
     <section className="buyer-slot-control" aria-labelledby="buyer-color-heading">
       <div className="buyer-slot-heading">
         <div>
           <InformationLabel>1 · BREAK FORMAT</InformationLabel>
           <h2 id="buyer-color-heading">{assignmentMode === "pick" ? "Choose your color" : assignmentMode === "random" ? "Mark colors already taken" : "Set the random spot count"}</h2>
-          <p>{assignmentMode === "large" ? "For top-value cards and the 17 catch-all spots." : "Tap a color. Use × for colors already taken."}</p>
+          <p>{assignmentMode === "large" ? "For top-value cards and the 17 catch-all spots." : editingAvailability ? "Availability editing is separate from color selection." : "Tap a color to select it."}</p>
         </div>
       </div>
       <div className="assignment-toggle buyer-assignment-toggle" role="group" aria-label="Break assignment mode">
@@ -1055,24 +1089,25 @@ export function SlotRail({
                 <b>{slot ? fmt(slot.sellableEV) : "—"}</b>
                 <small>{taken ? "Taken" : SLOT_NAMES[id]}</small>
               </button>
-              <button
-                type="button"
-                className="slot-taken-toggle"
-                aria-label={taken ? `Restore ${SLOT_NAMES[id]} slot` : `Mark ${SLOT_NAMES[id]} taken`}
-                aria-pressed={taken}
-                disabled={finalAvailable}
-                title={finalAvailable ? "At least one color must remain" : taken ? "Restore color" : "Mark taken"}
-                onClick={() => {
-                  const next = toggleSlotTaken(auction, id);
-                  if (next === auction) return;
-                  setAuction(next);
-                  setAssignmentMode("random");
-                  if (!next.remaining.includes(selected)) setSelected(next.remaining[0]);
-                }}
-              ><X aria-hidden="true" /></button>
             </div>
           );
         })}
+      </div>
+      <div className="availability-editor">
+        <button type="button" className="quiet" aria-expanded={editingAvailability} onClick={() => setEditingAvailability((value) => !value)}>{editingAvailability ? "Done editing availability" : "Edit availability"}</button>
+        {editingAvailability && <div className="availability-actions" role="group" aria-label="Color availability">
+          {SLOT_IDS.map((id) => {
+            const taken = !auction.remaining.includes(id);
+            const finalAvailable = !taken && auction.remaining.length === 1;
+            return <button type="button" key={id} aria-label={taken ? `Restore ${SLOT_NAMES[id]} slot` : `Mark ${SLOT_NAMES[id]} taken`} aria-pressed={taken} disabled={finalAvailable} onClick={() => {
+              const next = toggleSlotTaken(auction, id);
+              if (next === auction) return;
+              setAuction(next);
+              setAssignmentMode("random");
+              if (!next.remaining.includes(selected)) setSelected(next.remaining[0]);
+            }}>{taken ? `Restore ${id}` : `Mark ${id} taken`}</button>;
+          })}
+        </div>}
       </div>
       <p className="remaining-summary">{assignmentMode === "random" ? `${auction.remaining.length} colors remain in the random pool` : `${SLOT_NAMES[selected]} selected`}</p></>}
     </section>
@@ -1166,48 +1201,7 @@ export function CardInspector({
 
   useEffect(() => setFaceIndex(0), [row?.card.id, row?.finish]);
 
-  useEffect(() => {
-    if (!row) return;
-    const previous = document.activeElement as HTMLElement | null;
-    const scrollY = window.scrollY;
-    const previousOverflow = document.body.style.overflow;
-    const application = document.getElementById("root");
-    document.body.style.overflow = "hidden";
-    application?.setAttribute("inert", "");
-    application?.setAttribute("aria-hidden", "true");
-    closeRef.current?.focus({ preventScroll: true });
-
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        onClose();
-        return;
-      }
-      if (event.key !== "Tab" || !dialogRef.current) return;
-      const focusable = [...dialogRef.current.querySelectorAll<HTMLElement>(
-        FOCUSABLE_SELECTOR,
-      )];
-      if (!focusable.length) return;
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    };
-    document.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.removeEventListener("keydown", onKeyDown);
-      document.body.style.overflow = previousOverflow;
-      application?.removeAttribute("inert");
-      application?.removeAttribute("aria-hidden");
-      previous?.focus({ preventScroll: true });
-      window.scrollTo(0, scrollY);
-    };
-  }, [row, onClose]);
+  useDialogOwnership(Boolean(row), onClose, dialogRef, closeRef);
 
   const affiliateTemplate = import.meta.env.VITE_TCGPLAYER_AFFILIATE_URL as
     | string
@@ -1550,35 +1544,7 @@ interface EvidenceExplanation {
 function EvidenceDialog({ item, onClose }: { item: EvidenceExplanation | null; onClose: () => void }) {
   const closeRef = useRef<HTMLButtonElement>(null);
   const dialogRef = useRef<HTMLElement>(null);
-  useEffect(() => {
-    if (!item) return;
-    const previous = document.activeElement as HTMLElement | null;
-    const scrollY = window.scrollY;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    closeRef.current?.focus({ preventScroll: true });
-    const application = document.getElementById("root");
-    application?.setAttribute("inert", "");
-    application?.setAttribute("aria-hidden", "true");
-    const keydown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
-      if (event.key !== "Tab") return;
-      const focusable = [...(dialogRef.current?.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR) ?? [])].filter((element) => element.offsetParent !== null);
-      if (!focusable.length) return;
-      const first = focusable[0], last = focusable[focusable.length - 1];
-      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
-      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
-    };
-    document.addEventListener("keydown", keydown);
-    return () => {
-      document.removeEventListener("keydown", keydown);
-      application?.removeAttribute("inert");
-      application?.removeAttribute("aria-hidden");
-      document.body.style.overflow = previousOverflow;
-      previous?.focus({ preventScroll: true });
-      window.scrollTo(0, scrollY);
-    };
-  }, [item, onClose]);
+  useDialogOwnership(Boolean(item), onClose, dialogRef, closeRef);
   if (!item) return null;
   return createPortal(
     <div className="scrim evidence-scrim" onPointerDown={onClose}>
@@ -3052,21 +3018,30 @@ export function SellerView({
   update: (id: string, patch: Partial<BreakLine>) => void;
   remove: (id: string) => void;
 }) {
-  const [buyerShipping, setBuyerShipping] = useState(5);
-  const [packing, setPacking] = useState(2);
-  const [postage, setPostage] = useState(0);
-  const [shipments, setShipments] = useState(transactionCount);
-  const [mailingMethod, setMailingMethod] = useState("whatnot-label");
-  const [labor, setLabor] = useState(0);
-  const [tax, setTax] = useState(0);
-  const [giveaways, setGiveaways] = useState(0);
-  const [refundReserve, setRefundReserve] = useState(0);
-  const [overhead, setOverhead] = useState(0);
-  const [commission, setCommission] = useState(WHATNOT_US.commissionRate * 100);
-  const [processing, setProcessing] = useState(WHATNOT_US.processingRate * 100);
-  const [processingFlat, setProcessingFlat] = useState(WHATNOT_US.processingFlat);
-  const [plannedBidOverride, setPlannedBidOverride] = useState<number>();
-  const [acceptedEstimateIds, setAcceptedEstimateIds] = useState<Set<string>>(() => new Set());
+  const [draft, setDraft] = useState<SellerPlanDraft>(readSellerPlanDraft);
+  const setPlan = (patch: Partial<SellerPlanDraft>) => setDraft((current) => ({ ...current, ...patch }));
+  useEffect(() => { writeSellerPlanDraft(draft); }, [draft]);
+  const {
+    buyerShipping, packing, postage, shipments, mailingMethod, labor, tax,
+    giveaways, refundReserve, overhead, commission, processing, processingFlat,
+    plannedBidOverride, minimumAsk,
+  } = draft;
+  const acceptedEstimateIds = new Set(draft.acceptedEstimateIds);
+  const setAcceptedEstimateIds = (update: (current: Set<string>) => Set<string>) => setDraft((current) => ({ ...current, acceptedEstimateIds: [...update(new Set(current.acceptedEstimateIds))] }));
+  const setBuyerShipping = (value: number) => setPlan({ buyerShipping: value });
+  const setPacking = (value: number) => setPlan({ packing: value });
+  const setPostage = (value: number) => setPlan({ postage: value });
+  const setShipments = (value: number) => setPlan({ shipments: value });
+  const setMailingMethod = (value: string) => setPlan({ mailingMethod: value });
+  const setLabor = (value: number) => setPlan({ labor: value });
+  const setTax = (value: number) => setPlan({ tax: value });
+  const setGiveaways = (value: number) => setPlan({ giveaways: value });
+  const setRefundReserve = (value: number) => setPlan({ refundReserve: value });
+  const setOverhead = (value: number) => setPlan({ overhead: value });
+  const setCommission = (value: number) => setPlan({ commission: value });
+  const setProcessing = (value: number) => setPlan({ processing: value });
+  const setProcessingFlat = (value: number) => setPlan({ processingFlat: value });
+  const setPlannedBidOverride = (value: number | undefined) => setPlan({ plannedBidOverride: value });
   const [productsOpen, setProductsOpen] = useState(false);
   const costStatusRef = useRef<HTMLSpanElement>(null);
   const focusManualCost = (id: string) => {
@@ -3117,6 +3092,29 @@ export function SellerView({
   const allSoldProfit = plannedBid == null ? 0 : profitAt(plannedBid, transactionCount);
   const scenarios = [...new Set([transactionCount, Math.max(1, Math.ceil(transactionCount * (transactionCount >= 20 ? .85 : .75))), Math.max(1, Math.ceil(transactionCount * (transactionCount >= 20 ? .7 : .5)))])]
     .map((sold) => ({ sold, profit: plannedBid == null || !costsComplete ? undefined : profitAt(plannedBid, sold) }));
+  const unsoldSlots = new Set(draft.unsoldSlots);
+  const soldSlots = analysis.valuation.slots.filter((slot) => slot.sellableEV > 0 && !unsoldSlots.has(slot.id));
+  const asks = plannedBid == null ? undefined : allocate(
+    analysis.valuation,
+    plannedBid * transactionCount,
+    minimumAsk,
+    draft.lockedAsks,
+    unsoldSlots,
+  );
+  const actualTransactions: Transaction[] = soldSlots.flatMap((slot) => {
+    const hammer = draft.actualAsks[slot.id];
+    return hammer == null ? [] : [{ slot: slot.id, hammer, buyerShipping, buyerTax: 0 }];
+  });
+  const actualProfit = costsComplete && soldSlots.length > 0 && actualTransactions.length === soldSlots.length
+    ? calculateProfit(
+      actualTransactions,
+      Array.from({ length: shipmentCount }, (_, index) => ({
+        id: `seller-plan-${index}`, slots: [], packingCost: packing, sellerCoveredShipping: postage,
+      })),
+      acquisition + otherCosts,
+      marketplace,
+    )
+    : undefined;
 
   return (
     <section className="seller-command-center">
@@ -3141,7 +3139,7 @@ export function SellerView({
                 <span className="seller-product-name"><strong>{line.productLabel}</strong><small>{line.set}</small></span>
                 <div className="seller-market-price"><span>Current market</span><b>{fmt(line.marketCost)}</b><small>{line.myCost != null ? "Actual cost entered" : line.marketCost == null ? "Estimate unavailable — enter your cost" : estimateAccepted(line) ? "Market estimate accepted — estimated" : "Estimate available — not accepted"}</small></div>
                 <NumberField id={`seller-cost-${line.id}`} label="My cost basis" value={line.myCost} onChange={(value) => update(line.id, { myCost: value })} live />
-                {line.myCost == null && line.marketCost != null && <button type="button" className="quiet" onClick={() => { setAcceptedEstimateIds((current) => { const next = new Set(current); if (next.has(line.id)) next.delete(line.id); else next.add(line.id); return next; }); window.setTimeout(() => costStatusRef.current?.focus(), 0); }}>{estimateAccepted(line) ? "Stop using estimate" : "Use estimate"}</button>}
+                {line.myCost == null && line.marketCost != null && <button type="button" className="quiet" onClick={() => { setPlan({ acceptedEstimateIds: acceptedEstimateIds.has(line.id) ? draft.acceptedEstimateIds.filter((id) => id !== line.id) : [...draft.acceptedEstimateIds, line.id] }); window.setTimeout(() => costStatusRef.current?.focus(), 0); }}>{estimateAccepted(line) ? "Stop using estimate" : "Use estimate"}</button>}
                 {line.myCost == null && line.marketCost == null && <button type="button" className="quiet" onClick={() => focusManualCost(line.id)}>Enter actual cost</button>}
                 <QuantityControl line={line} update={(quantity) => update(line.id, { quantity })} />
                 <button className="remove-line" aria-label={`Remove ${line.productLabel} from break`} onClick={() => remove(line.id)}><Trash2 /></button>
@@ -3153,7 +3151,7 @@ export function SellerView({
 
       {marketEstimateLines.length > 0 && <section className="cost-basis-policy" aria-label="Cost basis policy">
         <div><InformationLabel>COST BASIS</InformationLabel><h3>{acceptedEstimateIds.size ? "Some market estimates accepted" : "Actual costs are still blank"}</h3><p>Each sealed-market estimate is optional, reversible, and remains labeled estimated. Enter seller costs whenever available.</p></div>
-        <button type="button" className="quiet" onClick={() => setAcceptedEstimateIds((current) => current.size === marketEstimateLines.length ? new Set() : new Set(marketEstimateLines.map((line) => line.id)))}>{acceptedEstimateIds.size === marketEstimateLines.length ? "Stop using estimates" : `Use ${marketEstimateLines.length} market estimates`}</button>
+        <button type="button" className="quiet" onClick={() => setPlan({ acceptedEstimateIds: acceptedEstimateIds.size === marketEstimateLines.length ? [] : marketEstimateLines.map((line) => line.id) })}>{acceptedEstimateIds.size === marketEstimateLines.length ? "Stop using estimates" : `Use ${marketEstimateLines.length} market estimates`}</button>
       </section>}
 
       {missingCostLine && <CompactWarning title={<a href={`#seller-cost-${missingCostLine.id}`} onClick={() => focusManualCost(missingCostLine.id)}>Enter your cost for {missingCostLine.productLabel}</a>} summary="Needed to calculate break-even and profit." className="missing-input-warning">
@@ -3169,26 +3167,25 @@ export function SellerView({
         </summary>
         <div className="seller-cost-grid">
           <label className="compact-select"><span>Mailing method</span><select aria-label="Mailing method" value={mailingMethod} onChange={(event) => {
-            setMailingMethod(event.target.value);
-            if (event.target.value === "whatnot-label") setPostage(0);
+            setPlan({ mailingMethod: event.target.value, ...(event.target.value === "whatnot-label" ? { postage: 0 } : {}) });
           }}>
             <option value="whatnot-label">Whatnot buyer-paid label</option>
             <option value="ground">USPS Ground Advantage</option>
             <option value="priority">USPS Priority Mail</option>
             <option value="custom">Other / custom</option>
           </select></label>
-          <NumberField label="Buyer shipping at checkout" value={buyerShipping} onChange={(value) => setBuyerShipping(value ?? 0)} live />
-          <NumberField label="Packaging / shipment" value={packing} onChange={(value) => setPacking(value ?? 0)} live />
-          <NumberField label="Postage / shipment" value={postage} onChange={(value) => setPostage(value ?? 0)} live />
-          <NumberField label={`Expected combined shipments (up to ${transactionCount})`} value={shipments} onChange={(value) => setShipments(value ?? 1)} live />
-          <NumberField label="Labor" value={labor} onChange={(value) => setLabor(value ?? 0)} live />
-          <NumberField label="Tax on fees / permits" value={tax} onChange={(value) => setTax(value ?? 0)} live />
-          <NumberField label="Giveaways" value={giveaways} onChange={(value) => setGiveaways(value ?? 0)} live />
-          <NumberField label="Refund / damage reserve" value={refundReserve} onChange={(value) => setRefundReserve(value ?? 0)} live />
-          <NumberField label="Allocated overhead" value={overhead} onChange={(value) => setOverhead(value ?? 0)} live />
-          <NumberField label="Commission" value={commission} onChange={(value) => setCommission(value ?? 0)} prefix="%" live />
-          <NumberField label="Processing" value={processing} onChange={(value) => setProcessing(value ?? 0)} prefix="%" live />
-          <NumberField label="Fixed / purchase" value={processingFlat} onChange={(value) => setProcessingFlat(value ?? 0)} live />
+          <NumberField label="Buyer shipping at checkout" value={buyerShipping} onChange={(value) => setPlan({ buyerShipping: value ?? 0 })} live />
+          <NumberField label="Packaging / shipment" value={packing} onChange={(value) => setPlan({ packing: value ?? 0 })} live />
+          <NumberField label="Postage / shipment" value={postage} onChange={(value) => setPlan({ postage: value ?? 0 })} live />
+          <NumberField label={`Expected combined shipments (up to ${transactionCount})`} value={shipments} onChange={(value) => setPlan({ shipments: value ?? 1 })} live />
+          <NumberField label="Labor" value={labor} onChange={(value) => setPlan({ labor: value ?? 0 })} live />
+          <NumberField label="Tax on fees / permits" value={tax} onChange={(value) => setPlan({ tax: value ?? 0 })} live />
+          <NumberField label="Giveaways" value={giveaways} onChange={(value) => setPlan({ giveaways: value ?? 0 })} live />
+          <NumberField label="Refund / damage reserve" value={refundReserve} onChange={(value) => setPlan({ refundReserve: value ?? 0 })} live />
+          <NumberField label="Allocated overhead" value={overhead} onChange={(value) => setPlan({ overhead: value ?? 0 })} live />
+          <NumberField label="Commission" value={commission} onChange={(value) => setPlan({ commission: value ?? 0 })} prefix="%" live />
+          <NumberField label="Processing" value={processing} onChange={(value) => setPlan({ processing: value ?? 0 })} prefix="%" live />
+          <NumberField label="Fixed / purchase" value={processingFlat} onChange={(value) => setPlan({ processingFlat: value ?? 0 })} live />
         </div>
         <p className="seller-cost-source">Whatnot US TCG defaults: 8% commission and 2.9% + $0.30 processing, checked {WHATNOT_US.policyDate}. USPS postage varies by weight and distance; enter the actual label cost when the seller pays it.</p>
       </details>
@@ -3200,7 +3197,7 @@ export function SellerView({
           <small>per spot · all {transactionCount} sold</small>
         </div>
         <details className="seller-assumptions"><summary className="disclosure-summary"><span>Assumptions used</span><DisclosureArrow /></summary><p>{acceptedEstimateIds.size ? "Acquisition includes accepted estimated market inputs; " : "Acquisition uses seller-entered costs; "}fees checked {WHATNOT_US.policyDate}; buyer shipping {fmt(buyerShipping)}; packaging/postage {fmt(packing + postage)} per shipment; up to one combined shipment per sold spot ({shipmentCount} expected). Change this if you expect consolidation. Scenarios are sell-through math, not a demand prediction.</p></details>
-        <NumberField label="Planned bid per spot" value={plannedBid} onChange={setPlannedBidOverride} live />
+        <NumberField label="Planned bid per spot" value={plannedBid} onChange={(value) => setPlan(value == null ? { plannedBidOverride: undefined } : { plannedBidOverride: value })} live />
         <div className="seller-fill-scenarios">
           {scenarios.map((scenario) => <div className={scenario.profit != null && scenario.profit >= 0 ? "positive" : "negative"} key={scenario.sold}>
             <span>{scenario.sold} / {transactionCount} sold</span>
@@ -3208,6 +3205,40 @@ export function SellerView({
           </div>)}
         </div>
       </section>
+
+      {costsComplete && asks && <section className="panel ask-grid" aria-label="Per-slot seller operating plan">
+        <PanelHeading
+          label="SLOT OPERATING PLAN"
+          help="Targets are split by modeled sellable card value. Locks preserve a chosen target; marking a slot unsold redistributes the remaining recovery across the eligible unlocked slots."
+          title={`${fmt(soldSlots.reduce((sum, slot) => sum + asks[slot.id], 0))} recovery target`}
+          accessory={<button type="button" className="quiet" onClick={() => setPlan({ actualAsks: Object.fromEntries(soldSlots.map((slot) => [slot.id, asks[slot.id]])) })}><Copy />Use plan</button>}
+        />
+        <p className="muted">Session-only private plan. Actual-result profit stays hidden until every sold slot has an entered actual ask.</p>
+        {analysis.valuation.slots.map((slot) => {
+          const unsold = unsoldSlots.has(slot.id);
+          const eligible = slot.sellableEV > 0;
+          const locked = draft.lockedAsks[slot.id] != null;
+          return <div className={`ask-entry ${!eligible ? "ineligible" : ""}`} key={slot.id}>
+            <div className={`ask ${unsold ? "unsold" : ""}`}>
+              <span className={`slot-letter slot-letter-${slot.id}`}>{slot.id}</span>
+              <span><strong>{slot.name}</strong><small>{eligible ? `${fmt(slot.sellableEV)} sellable EV` : "No modeled sellable value"}</small></span>
+              <b>{eligible && !unsold ? fmt(asks[slot.id]) : unsold ? "Unsold" : "—"}</b>
+              {eligible && <div className="ask-actions">
+                <button type="button" title={locked ? "Unlock target" : "Lock target"} onClick={() => setPlan({ lockedAsks: locked ? Object.fromEntries(Object.entries(draft.lockedAsks).filter(([id]) => id !== slot.id)) : { ...draft.lockedAsks, [slot.id]: asks[slot.id] } })}>{locked ? <Lock /> : <Unlock />}</button>
+                <button type="button" title={unsold ? "Sell this slot" : "Mark unsold"} onClick={() => setPlan({ unsoldSlots: unsold ? draft.unsoldSlots.filter((id) => id !== slot.id) : [...draft.unsoldSlots, slot.id] })}>{unsold ? <DollarSign /> : <X />}</button>
+              </div>}
+              <label><small>Actual</small><NumericInput ariaLabel={`Actual ${slot.name} sale price`} placeholder={unsold ? "unsold" : "—"} disabled={!eligible || unsold} value={draft.actualAsks[slot.id]} onCommit={(value) => setPlan({ actualAsks: value == null ? Object.fromEntries(Object.entries(draft.actualAsks).filter(([id]) => id !== slot.id)) : { ...draft.actualAsks, [slot.id]: value } })} /></label>
+            </div>
+          </div>;
+        })}
+        <div className="min-row"><NumberField label="Minimum ask" value={minimumAsk} onChange={(value) => setPlan({ minimumAsk: value ?? 0 })} live /></div>
+      </section>}
+
+      {actualProfit && <section className={`panel profit ${actualProfit.profit >= 0 ? "positive" : "negative"}`} aria-label="Actual seller result">
+        <InformationLabel>ACTUAL RESULT</InformationLabel>
+        <h2>{fmt(actualProfit.profit)} profit</h2>
+        <div className="metric-row profit-metrics"><div><span>Hammer</span><b>{fmt(actualProfit.hammer)}</b></div><div><span>Fees</span><b>−{fmt(actualProfit.fees)}</b></div><div><span>Packing &amp; shipping</span><b>−{fmt(actualProfit.shipmentCosts)}</b></div></div>
+      </section>}
 
       <SellerEnticement
         baseAnalysis={analysis}
