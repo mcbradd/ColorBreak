@@ -53,10 +53,14 @@ test("manifest identity ignores build clock and runtime but binds stable release
   t.after(() => rm(outputDir, { recursive: true, force: true }));
   await mkdir(join(outputDir, "data", "prices"), { recursive: true });
   await writeFile(join(outputDir, "data", "prices", "index.json"), JSON.stringify({ observedAt: "2026-08-29T12:00:00.000Z" }));
+  await writeFile(join(outputDir, "index.html"), "<main>ColorBreak</main>\n");
   const first = await buildReleaseManifest({ outputDir, root: outputDir, buildTimestamp: "2026-08-29T13:00:00.000Z" });
   const second = await buildReleaseManifest({ outputDir, root: outputDir, buildTimestamp: "2026-08-30T13:00:00.000Z" });
   assert.equal(first.id, second.id);
   await writeFile(join(outputDir, "data", "prices", "index.json"), JSON.stringify({ observedAt: "2026-08-29T12:00:01.000Z" }));
+  assert.notEqual(first.id, (await buildReleaseManifest({ outputDir, root: outputDir })).id);
+  await writeFile(join(outputDir, "data", "prices", "index.json"), JSON.stringify({ observedAt: "2026-08-29T12:00:00.000Z" }));
+  await writeFile(join(outputDir, "index.html"), "<main>Updated ColorBreak</main>\n");
   assert.notEqual(first.id, (await buildReleaseManifest({ outputDir, root: outputDir })).id);
 });
 

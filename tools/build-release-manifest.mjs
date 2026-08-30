@@ -126,7 +126,10 @@ export async function buildReleaseManifest({ outputDir = resolve(ROOT, "dist"), 
     artifactFiles,
   };
   await scanReleaseAssets(outputDir);
-  const canonical = JSON.stringify({ ...manifest, id: undefined });
+  // The identity is the reproducible release tuple. Provenance fields tell us
+  // when and with what runtime it was assembled, but must not make identical
+  // artifacts receive different identities on separate builds.
+  const canonical = JSON.stringify({ ...manifest, id: undefined, buildTimestamp: undefined, runtime: undefined });
   manifest.id = sha256(canonical);
   const outputPath = join(outputDir, RELEASE_MANIFEST_PATH);
   await writeFile(outputPath, `${JSON.stringify(manifest, null, 2)}\n`);

@@ -85,7 +85,7 @@ describe("large break card list", () => {
     fireEvent.click(slot);
     const entry = screen.getByRole("button", { name: "Open Named Dragon card details" });
     expect(entry).toHaveTextContent("$50.00 · Nonfoil · TST");
-    expect(container.querySelector(".large-break-slot-cards .card-thumbnail")).toHaveTextContent("N");
+    expect(container.querySelector(".large-break-slot-cards .card-thumbnail")).toHaveStyle({ backgroundImage: 'url("https://example.com/dragon.jpg")' });
     fireEvent.click(entry);
     expect(screen.getByRole("dialog", { name: "Named Dragon" })).toBeInTheDocument();
   });

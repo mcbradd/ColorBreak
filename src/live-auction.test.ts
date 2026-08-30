@@ -51,7 +51,8 @@ describe("live random-slot buyer workflow", () => {
     fireEvent.click(screen.getByRole("button", { name: "Random remaining" }));
     expect(screen.getByText("8 colors remain in the random pool")).toBeInTheDocument();
     expect(screen.getByRole("region", { name: "Live bid decision" })).toHaveTextContent("8 random colors");
-    expect(screen.getByText("RECONFIRM CURRENT INPUTS")).toBeInTheDocument();
+    expect(screen.getByText("ENTER BID")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Reconfirm current bid" })).toBeInTheDocument();
     await waitFor(() => expect(screen.getByLabelText("Possible opening values")).toBeInTheDocument());
     expect(screen.queryByLabelText("Twenty equal-probability modeled outcome bands")).not.toBeInTheDocument();
 

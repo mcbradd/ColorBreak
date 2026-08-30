@@ -51,9 +51,11 @@ test("public optional endpoints are blank or source-controlled HTTPS origins", (
   })) assert.throws(() => validatePublicConfig({ [name]: value }), /approved HTTPS origin/);
 });
 
-test("Pages workflow is permanently analysis-only", async () => {
+test("Pages workflow verifies and publishes only an analysis-only artifact", async () => {
   const workflow = await import("node:fs/promises").then(({ readFile }) => readFile(new URL("../.github/workflows/deploy-pages.yml", import.meta.url), "utf8"));
-  assert.match(workflow, /COLORBREAK_RELEASE_POSTURE: analysis-only/);
+  assert.match(workflow, /verifyReleaseArtifact\(\{ outputDir: '\.\/dist' \}\)/);
+  assert.match(workflow, /m\.releasePosture !== 'analysis-only'/);
+  assert.match(workflow, /Analysis-only release manifest:/);
   assert.doesNotMatch(workflow, /decision-ready/);
-  assert.match(workflow, /Pages artifacts must be analysis-only/);
+  assert.match(workflow, /path: dist/);
 });
