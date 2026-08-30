@@ -125,11 +125,27 @@ describe("Bid Check command center", () => {
     render(createElement(BuyerWorkspace, { exit: vi.fn(), startFresh: true, startReady: false }));
     fireEvent.click(screen.getByRole("button", { name: "Use manual budget cap" }));
     expect(screen.getByLabelText("Manual budget cap")).toHaveTextContent("not a ColorBreak modeled ceiling");
-    fireEvent.change(screen.getByLabelText("My conservative value target"), { target: { value: "60" } });
-    fireEvent.change(screen.getByLabelText("Added shipping"), { target: { value: "5" } });
-    fireEvent.change(screen.getByLabelText("Optional: current hammer"), { target: { value: "56" } });
-    expect(screen.getByLabelText("Manual budget cap")).toHaveTextContent("$55.00");
-    expect(screen.getByLabelText("Manual budget cap")).toHaveTextContent("PASS");
+    fireEvent.change(screen.getByLabelText("My total landed-cost cap"), { target: { value: "100" } });
+    fireEvent.change(screen.getByLabelText("Added shipping"), { target: { value: "12" } });
+    fireEvent.change(screen.getByLabelText("Optional: current hammer"), { target: { value: "80" } });
+    expect(screen.getByLabelText("Manual budget cap")).toHaveTextContent("Maximum hammer bid");
+    expect(screen.getByLabelText("Manual budget cap")).toHaveTextContent("$88.00");
+    expect(screen.getByLabelText("Manual budget cap")).toHaveTextContent("BID");
+  });
+
+  it("uses a same-unit all-in cap for the manual boundary", () => {
+    sessionStorage.removeItem("colorbreak:buyer:draft:v1");
+    render(createElement(BuyerWorkspace, { exit: vi.fn(), startFresh: true, startReady: false }));
+    fireEvent.click(screen.getByRole("button", { name: "Use manual budget cap" }));
+    fireEvent.change(screen.getByLabelText("My total landed-cost cap"), { target: { value: "88" } });
+    fireEvent.change(screen.getByLabelText("Added shipping"), { target: { value: "12" } });
+    fireEvent.change(screen.getByLabelText("Optional: current hammer"), { target: { value: "80" } });
+    const panel = screen.getByLabelText("Manual budget cap");
+    expect(panel).toHaveTextContent("$76.00");
+    expect(panel).toHaveTextContent("$92.00");
+    expect(panel).toHaveTextContent("$88.00");
+    expect(panel).toHaveTextContent("Over total cap by $4.00");
+    expect(panel).toHaveTextContent("DO NOT BID");
   });
 
   it("names result navigation from the active assignment mode", async () => {
