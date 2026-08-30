@@ -11,5 +11,6 @@ import "./future.css";
 createRoot(document.getElementById("root")!).render(<StrictMode><App releaseContext={runtimeReleaseContext} /></StrictMode>);
 
 if ("serviceWorker" in navigator && import.meta.env.PROD) {
-  window.addEventListener("load", () => navigator.serviceWorker.register("./sw.js"));
+  const buildId = runtimeReleaseContext.buildId ?? "unknown";
+  window.addEventListener("load", () => navigator.serviceWorker.register(`./sw.js?build=${encodeURIComponent(buildId)}`));
 }

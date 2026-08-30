@@ -332,6 +332,9 @@ nav { z-index: 200; isolation: isolate; }
 .verdict-decision,.ev-orb { min-width:0; }
 .verdict-head h2 { overflow-wrap:anywhere; word-break:break-word; }
 .demo-scope { margin:18px 0; padding:12px 14px; border:1px solid #7a6134; border-radius:12px; color:#f3d392; background:#292112; font-size:12px; line-height:1.45; }
+.access-interest { display:flex; align-items:center; justify-content:space-between; gap:18px; margin:18px 0; padding:16px; border:1px solid #3e6040; border-radius:14px; background:#101b14; }
+.access-interest h2 { margin:3px 0 6px; font:700 18px Manrope,sans-serif; }.access-interest p { max-width:620px; margin:0; color:var(--muted); font-size:11px; line-height:1.45; }.access-interest>div:last-child { display:grid; gap:8px; justify-items:start; font-size:11px; }.access-interest .primary { min-height:44px; text-decoration:none; }
+@media(max-width:600px){.access-interest{align-items:flex-start;flex-direction:column}.access-interest .primary{width:100%;justify-content:center}}
 .verdict-decision .section-label { display:block; width:auto; padding-right:0; }
 .verdict-decision .section-label .tip-icon { position:absolute; top:10px; right:10px; margin:0; }
 .ev-orb small { display:block; padding-right:0; }

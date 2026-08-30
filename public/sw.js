@@ -1,4 +1,8 @@
-const CACHE = "colorbreak-v4.2.0";
+// `build` is injected in the registration URL by the immutable application
+// bundle. Each publish therefore activates a distinct cache and removes old
+// ColorBreak caches without relying on a manually edited version label.
+const BUILD = new URL(self.location.href).searchParams.get("build") || "unknown";
+const CACHE = `colorbreak-${BUILD}`;
 const CACHE_PREFIX = "colorbreak-";
 const CORE = [
   "./",

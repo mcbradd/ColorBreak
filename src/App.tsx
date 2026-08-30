@@ -48,6 +48,7 @@ import {
 import { recommendBid, solveFinancialCap } from "./domain/buyer-treatment";
 import type { ValueRule } from "./domain/buyer-treatment";
 import { completeCost, sellerPlanStatus } from "./domain/seller-plan";
+import { runtimeAccessInterest } from "./access-interest";
 import { actualLedgerSummary, validateActualLedger, type ActualOrder, type ActualShipment } from "./domain/actual-ledger";
 import { decisionAvailability, decisionEligibility, resolvedOnlyLimit } from "./domain/valuation";
 import { cardDisplayName, cardTreatmentLabel } from "./domain/card-label";
@@ -507,7 +508,7 @@ function Status({ result }: { result: ValuationResult }) {
   );
 }
 
-function Home({ choose }: { choose: (mode: Mode, fresh?: boolean) => void }) {
+function Home({ choose, buildId }: { choose: (mode: Mode, fresh?: boolean) => void; buildId?: string }) {
   const supportUrl = import.meta.env.VITE_SUPPORT_URL as string | undefined;
   const recentBuyer = readSessionLines("buyer");
   const recentSeller = readSessionLines("seller");
@@ -580,9 +581,13 @@ function Home({ choose }: { choose: (mode: Mode, fresh?: boolean) => void }) {
         <RotateCw /><span><small>THIS BROWSER SESSION</small><strong>Resume seller plan · costs are session-only</strong></span><ChevronRight />
       </button>}
       <p className="demo-scope" role="note">Public demo only — do not use this GitHub Pages build for commercial transactions or financially consequential decisions. A production release needs a header-capable host.</p>
+      {runtimeAccessInterest && <aside className="access-interest" aria-label="Early access interest">
+        <div><InformationLabel>FUTURE PRODUCT ACCESS</InformationLabel><h2>Tell {runtimeAccessInterest.owner} you’re interested</h2><p>Requesting access does not make this demo decision-ready. Use the interest form only for its stated purpose; do not include break costs, bids, receipt references, or session data.</p></div>
+        <div><a className="primary" href={runtimeAccessInterest.url} target="_blank" rel="noreferrer">Request early access</a><a href={runtimeAccessInterest.privacyUrl} target="_blank" rel="noreferrer">How the interest request is handled</a></div>
+      </aside>}
       <footer className="launcher-footer">
         <span>Exact-printing prices · Modeled pull ranges · No login</span>
-        <span><a href="./methodology.html">Methodology</a> · <a href="./privacy.html">Privacy</a>{supportUrl && <> · <a href={supportUrl} rel="noreferrer" target="_blank">Support</a></>}</span>
+        <span><a href="./methodology.html">Methodology</a> · <a href="./privacy.html">Privacy</a>{supportUrl && <> · <a href={supportUrl} rel="noreferrer" target="_blank">Support</a></>} {buildId && <> · <small aria-label="Support build identifier">Build {buildId.slice(0, 12)}</small></>}</span>
       </footer>
       <button type="button" className="quiet" onClick={() => void clearDevice()}>Clear local ColorBreak app data</button>
       {cleared && <p role="status">ColorBreak-controlled local app storage and cache cleared. Browser history, HTTP cache, and clipboard require browser controls.</p>}
@@ -952,7 +957,7 @@ function NextSteps({ reason }: { reason: string }) {
     <p>{reason}</p>
     <ul>
       <li><a href="./production-readiness.html">See the production readiness requirements</a></li>
-      <li><button type="button" className="quiet" disabled aria-disabled="true">Production access requests are not available yet</button><small>There is no privacy-reviewed access-interest destination for this demo.</small></li>
+      {runtimeAccessInterest ? <li><a className="quiet" href={runtimeAccessInterest.url} target="_blank" rel="noreferrer">Request early access from {runtimeAccessInterest.owner}</a><small>This interest request is separate from this analysis-only demo. <a href={runtimeAccessInterest.privacyUrl} target="_blank" rel="noreferrer">Read how it is handled.</a></small></li> : <li><strong>Access interest is not available on this demo.</strong><small>A future request route must name its privacy policy and owner before it is shown here.</small></li>}
       <li><strong>Keep this analysis private.</strong> This app does not send or share bids, costs, shipping, receipt references, or actual ledger values. They stay in this browser session only.</li>
     </ul>
   </section>;
@@ -3341,7 +3346,7 @@ export function SellerView({
           <strong>{fmt(breakEvenBid)}</strong>
           <small>per spot · all {transactionCount} sold</small>
         </div>
-        <details className="seller-assumptions"><summary className="disclosure-summary"><span>Assumptions used</span><DisclosureArrow /></summary><p>{acceptedEstimateIds.size ? "Acquisition includes accepted estimated market inputs; " : "Acquisition uses seller-entered costs; "}fees checked {WHATNOT_US.policyDate}; buyer shipping {fmt(buyerShipping)}; packaging/postage {fmt(packing + postage)} per shipment; up to one combined shipment per sold spot ({shipmentCount} expected). Change this if you expect consolidation. Scenarios are sell-through math, not a demand prediction.</p></details>
+        <details className="seller-assumptions"><summary className="disclosure-summary" data-testid="seller-assumptions-toggle"><span>Assumptions used</span><DisclosureArrow /></summary><p>{acceptedEstimateIds.size ? "Acquisition includes accepted estimated market inputs; " : "Acquisition uses seller-entered costs; "}fees checked {WHATNOT_US.policyDate}; buyer shipping {fmt(buyerShipping)}; packaging/postage {fmt(packing + postage)} per shipment; up to one combined shipment per sold spot ({shipmentCount} expected). Change this if you expect consolidation. Scenarios are sell-through math, not a demand prediction.</p></details>
         <NumberField label="Planned bid per spot" value={plannedBid} onChange={(value) => setPlan(value == null ? { plannedBidOverride: undefined } : { plannedBidOverride: value })} live />
         <div className="seller-fill-scenarios">
           {scenarios.map((scenario) => <div className={scenario.profit != null && scenario.profit >= 0 ? "positive" : "negative"} key={scenario.sold}>
@@ -3912,7 +3917,7 @@ export function App({ releaseContext = analysisOnlyReleaseContext }: { releaseCo
         transition={{ duration: 0.18 }}
       >
         {mode === "home" ? (
-          <Home choose={choose} />
+          <Home choose={choose} buildId={releaseContext.buildId} />
         ) : (
           <Workspace
             mode={mode}

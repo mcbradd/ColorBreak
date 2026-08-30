@@ -2,15 +2,16 @@
  * separate from data freshness: a public Pages artifact is analysis-only. */
 export type ReleasePosture = "analysis-only" | "decision-ready";
 
-export type ReleaseContext = Readonly<{ posture: ReleasePosture; checkoutSha?: string }>;
+export type ReleaseContext = Readonly<{ posture: ReleasePosture; checkoutSha?: string; buildId?: string }>;
 
 declare const __COLORBREAK_RELEASE_POSTURE__: ReleasePosture | undefined;
+declare const __COLORBREAK_BUILD_ID__: string | undefined;
 
 export const analysisOnlyReleaseContext: ReleaseContext = Object.freeze({ posture: "analysis-only" });
 /** Local development is not a public artifact. Production bundles default to
  * the safe public posture; a decision-ready host must inject its own context. */
 export const runtimeReleaseContext: ReleaseContext = typeof __COLORBREAK_RELEASE_POSTURE__ !== "undefined"
-  ? Object.freeze({ posture: __COLORBREAK_RELEASE_POSTURE__ })
+  ? Object.freeze({ posture: __COLORBREAK_RELEASE_POSTURE__, buildId: typeof __COLORBREAK_BUILD_ID__ !== "undefined" ? __COLORBREAK_BUILD_ID__ : undefined })
   : analysisOnlyReleaseContext;
 export const decisionReadyReleaseContext: ReleaseContext = Object.freeze({ posture: "decision-ready" });
 

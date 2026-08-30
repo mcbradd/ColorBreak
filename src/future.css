@@ -764,6 +764,7 @@ input {
   .seller-command-center .disclosure-summary > span,
   .seller-command-center .disclosure-summary small,
   .seller-command-center .disclosure-summary a { min-width: 0; overflow-wrap: anywhere; white-space: normal; }
+  .seller-command-center .seller-assumptions .disclosure-summary > span { overflow-wrap: normal; word-break: normal; white-space: nowrap; }
   .seller-command-center .disclosure-summary > span { flex-direction: column; align-items: flex-start; }
   .seller-command-center .disclosure-summary small,
   .seller-command-center .disclosure-summary b,

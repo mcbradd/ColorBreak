@@ -10,6 +10,7 @@
     "test": "vitest run && node tools/run-root-mjs-tests.mjs",
     "test:node": "node tools/run-root-mjs-tests.mjs",
     "test:deploy-path": "node --test test/deploy-path-smoke.test.mjs",
+    "test:production-host": "node tools/verify-production-host.mjs",
     "test:watch": "vitest",
     "data:coverage": "node tools/report-coverage.mjs",
     "data:diff": "node tools/source-diff.mjs",
