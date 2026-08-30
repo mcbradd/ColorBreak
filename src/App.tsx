@@ -2133,7 +2133,7 @@ export function BuyerView({
   onChooseDecisionReady,
 }: {
   analysis: BreakAnalysis;
-  lines: BreakLine[];
+  lines?: BreakLine[];
   auction: AuctionState;
   assignmentMode: AssignmentMode;
   selected: SlotId;
@@ -2166,7 +2166,7 @@ export function BuyerView({
       : valueRule.kind === "coverage"
         ? distribution.p25
         : distribution.mean;
-  const decisionInput = `${canonicalCompositionFingerprint(lines)}|${selected}|${assignmentMode}|${auction.remaining.join("")}|${bid ?? ""}|${shipping ?? ""}|${valueRule.kind}|${valueRule.kind === "coverage" ? valueRule.coverage : ""}|${eligibility.observedAt ?? ""}|${eligibility.affectedGroups.map((group) => group.id).join("|")}`;
+  const decisionInput = `${canonicalCompositionFingerprint(lines ?? [])}|${selected}|${assignmentMode}|${auction.remaining.join("")}|${bid ?? ""}|${shipping ?? ""}|${valueRule.kind}|${valueRule.kind === "coverage" ? valueRule.coverage : ""}|${eligibility.observedAt ?? ""}|${eligibility.affectedGroups.map((group) => group.id).join("|")}`;
   const { confirmation, reconfirm } = useDecisionConfirmation(decisionInput);
   const reconfirmed = confirmation != null;
   const scoped = valueTarget == null || shipping == null ? undefined : resolvedOnlyLimit(valueTarget, shipping, eligibility);
