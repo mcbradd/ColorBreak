@@ -6,6 +6,8 @@ import {
   readBuyerDecisionRecord,
   readSellerPlanDraft,
   sellerPlanKey,
+  sellerPlanMatches,
+  sellerPlanOwner,
   writeBuyerDecisionRecord,
   writeSellerPlanDraft,
 } from "./persistence";
@@ -58,6 +60,16 @@ describe("seller plan session persistence", () => {
       lockedAsks: {}, reconciliationNeeded: true,
     });
     expect(readSellerPlanDraft()).not.toHaveProperty("actualAsks");
+  });
+
+  it("binds seller locks and accepted estimates to the exact composition and valuation version", () => {
+    const lines = [{ id: "one", set: "TST", productKey: "box", productLabel: "Box", quantity: 1 }];
+    const owner = sellerPlanOwner(lines, "prices-a");
+    const plan = { ...defaultSellerPlanDraft(), owner, lockedAsks: { W: 25 }, unsoldSlots: ["B" as const], acceptedEstimateIds: ["one"] };
+    expect(sellerPlanMatches(plan, owner)).toBe(true);
+    expect(sellerPlanMatches(plan, sellerPlanOwner([{ ...lines[0], quantity: 2 }], "prices-a"))).toBe(false);
+    expect(sellerPlanMatches(plan, sellerPlanOwner(lines, "prices-b"))).toBe(false);
+    expect(sellerPlanMatches(plan, sellerPlanOwner([{ ...lines[0], id: "imported" }], "prices-a"))).toBe(true);
   });
 });
 

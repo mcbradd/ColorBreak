@@ -6,7 +6,7 @@
 
 Price snapshots are reviewed, committed release inputs. The Pages workflow verifies them but never regenerates them, so the deployed artifact is traceable to the commit and its release manifest. Refresh snapshots in a dedicated reviewed commit before release; the app withholds a buyer limit whenever its exact-printing snapshot is older than six hours.
 
-ColorBreak is a mobile-first decision tool for Magic: The Gathering color breaks. Buyers can judge a live-auction bid in seconds; sellers can price a break against actual marketplace fees, product cost, and fulfillment.
+ColorBreak is a mobile-first, analysis-only practice demo for Magic: The Gathering color breaks. It models historical/datestamped card-value outcomes and seller-plan assumptions; it does not provide bid caps, transaction guidance, or launch recommendations.
 
 ## Run locally
 
@@ -28,7 +28,7 @@ npm run check
 - A break may contain multiple sealed products from multiple sets.
 - Cards go to W/U/B/R/G/M/C/L by the printed color of the front face; lands always go to L.
 - Market EV counts every exactly priced card. Sellable EV applies the user’s price threshold. Known EV is the priced lower bound when source data is incomplete.
-- `verified`, `estimated`, and `incomplete` are confidence states. An incomplete result still produces a buyer verdict and outcome distribution from resolved data, with named warnings explaining what is missing and how the gap may affect the result.
+- `verified`, `estimated`, and `incomplete` are confidence states. A stale or incomplete snapshot blocks a decision, but does not block composing a break: the default picker can still be used for visibly analysis-only exploration, while “Decision-ready only” hides it.
 - Seller fees are assessed per purchase. Packing and seller-covered shipping are assessed per shipment. Buyer-paid shipping is not seller revenue.
 
 ## Data

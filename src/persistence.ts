@@ -4,7 +4,7 @@ import type { BreakLine, SlotId } from "./domain/types";
 const VERSION = 1;
 export const sessionKey = (mode: "buyer" | "seller") => `colorbreak:${mode}:draft:v${VERSION}`;
 export const rememberedKey = "colorbreak:buyer:composition:v1";
-export const sellerPlanKey = "colorbreak:seller:plan:v1";
+export const sellerPlanKey = "colorbreak:seller:plan:v2";
 export const buyerDecisionKey = "colorbreak:buyer:decision:v1";
 const BUYER_DECISION_VERSION = 1;
 
@@ -14,6 +14,8 @@ const BUYER_DECISION_VERSION = 1;
  * copied to localStorage or a URL.
  */
 export interface SellerPlanDraft {
+  /** Binds private seller assumptions to one exact composition and data snapshot. */
+  owner?: SellerPlanOwner;
   buyerShipping: number;
   packing: number;
   postage: number;
@@ -37,6 +39,13 @@ export interface SellerPlanDraft {
   reconciliationNeeded: boolean;
 }
 
+export interface SellerPlanOwner {
+  fingerprint: string;
+  dataVersion: string;
+  revision: 2;
+  lines: ReturnType<typeof compositionProjection>;
+}
+
 export const defaultSellerPlanDraft = (): SellerPlanDraft => ({
   buyerShipping: 5, packing: 2, postage: 0, shipments: 8,
   mailingMethod: "whatnot-label", labor: 0, tax: 0, giveaways: 0,
@@ -44,6 +53,19 @@ export const defaultSellerPlanDraft = (): SellerPlanDraft => ({
   processingFlat: .3, acceptedEstimateIds: [], minimumAsk: 1,
   targetsApplied: false, lockedAsks: {}, unsoldSlots: [], reconciliationNeeded: false,
 });
+
+/** Deliberately excludes line ids: importing/copying the same break keeps its identity. */
+export function sellerCompositionFingerprint(lines: BreakLine[]): string {
+  return buyerCompositionFingerprint(lines);
+}
+
+export function sellerPlanOwner(lines: BreakLine[], dataVersion: string): SellerPlanOwner {
+  return { fingerprint: sellerCompositionFingerprint(lines), dataVersion, revision: 2, lines: compositionProjection(lines) };
+}
+
+export function sellerPlanMatches(draft: SellerPlanDraft, owner: SellerPlanOwner): boolean {
+  return draft.owner?.revision === 2 && draft.owner.fingerprint === owner.fingerprint && draft.owner.dataVersion === owner.dataVersion;
+}
 
 const finite = (value: unknown, fallback: number) =>
   typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : fallback;
@@ -61,7 +83,14 @@ export function readSellerPlanDraft(): SellerPlanDraft {
     const value: unknown = JSON.parse(sessionStorage.getItem(sellerPlanKey) ?? "null");
     if (!value || typeof value !== "object") return fallback;
     const draft = value as Partial<SellerPlanDraft>;
+    const owner = draft.owner && typeof draft.owner === "object"
+      && typeof (draft.owner as SellerPlanOwner).fingerprint === "string"
+      && typeof (draft.owner as SellerPlanOwner).dataVersion === "string"
+      && (draft.owner as SellerPlanOwner).revision === 2
+      && Array.isArray((draft.owner as SellerPlanOwner).lines)
+      ? draft.owner as SellerPlanOwner : undefined;
     return {
+      ...(owner ? { owner } : {}),
       buyerShipping: finite(draft.buyerShipping, fallback.buyerShipping),
       packing: finite(draft.packing, fallback.packing),
       postage: finite(draft.postage, fallback.postage),

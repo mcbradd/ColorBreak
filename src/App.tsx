@@ -73,11 +73,14 @@ import { createLargeBreakPlan, sortNamedCards, summarizeAssignmentValues } from 
 import type { TopCardSort } from "./domain/large-break";
 import {
   cleanupLegacyStorage,
+  defaultSellerPlanDraft,
   readBuyerDecisionRecord,
   readSellerPlanDraft,
   readSessionLines,
   writeBuyerDecisionRecord,
   writeSellerPlanDraft,
+  sellerPlanMatches,
+  sellerPlanOwner,
   writeSessionLines,
   type SellerPlanDraft,
 } from "./persistence";
@@ -532,6 +535,7 @@ function Home({ choose }: { choose: (mode: Mode, fresh?: boolean) => void }) {
       </section>
       <section className="mode-grid" aria-label="Choose a job">
         <button
+          data-home-focus
           className="mode-card buyer-card"
           aria-label="Bid Check — practice composition exploration"
           onClick={() => choose("buyer", true)}
@@ -911,7 +915,8 @@ function Builder({
   );
 }
 
-function EmptyBreak({ add }: { add: () => void }) {
+function EmptyBreak({ add, practice }: { add: () => void; practice?: () => void }) {
+  const [why, setWhy] = useState(false);
   return (
     <section className="empty">
       <span>
@@ -922,6 +927,12 @@ function EmptyBreak({ add }: { add: () => void }) {
       <button className="primary" onClick={add}>
         <PackagePlus size={18} /> Add products
       </button>
+      <div className="empty-actions" aria-label="Analysis-only next steps">
+        <button type="button" className="quiet" onClick={practice ?? add}>Use a practice example</button>
+        <button type="button" className="quiet" onClick={add}>Continue as analysis-only</button>
+        <button type="button" className="quiet" onClick={() => setWhy((value) => !value)} aria-expanded={why}>Why no decision is available</button>
+      </div>
+      {why && <p role="status">No decision is available until a product has complete, fresh evidence. You can still compose a break and explore historical/modelled values; this ends in analysis, not a recommendation.</p>}
     </section>
   );
 }
@@ -1375,8 +1386,9 @@ export function useOutcomeSimulation(
   analysis: BreakAnalysis,
   remaining: SlotId[],
   landedCost: number | undefined,
-): { result?: SimulationResult; error?: string; busy: boolean } {
+): { result?: SimulationResult; error?: string; busy: boolean; retry: () => void } {
   const [state, setState] = useState<{ result?: SimulationResult; error?: string; busy: boolean }>({ busy: false });
+  const [generation, setGeneration] = useState(0);
   const modelKey = analysis.outcomeModel.cacheKey ?? JSON.stringify(analysis.outcomeModel);
   const key = `${analysis.valuation.dataVersion}|${analysis.valuation.status}|${modelKey}|${analysis.valuation.threshold}|${remaining.join("")}|${landedCost ?? "none"}`;
   useEffect(() => {
@@ -1417,8 +1429,8 @@ export function useOutcomeSimulation(
     };
   // `remaining` is often assembled inline by chart callers. The request key
   // captures its values; depending on the array identity creates a render loop.
-  }, [key]);
-  return state;
+  }, [key, generation]);
+  return { ...state, retry: () => setGeneration((value) => value + 1) };
 }
 
 function OutcomeRange({ summary, landed, compact = false }: { summary?: DistributionSummary; landed?: number; compact?: boolean }) {
@@ -2281,8 +2293,8 @@ export function BuyerView({
           </div>
         )}
         <OutcomeRange summary={distribution} landed={bid == null ? undefined : landed} compact />
-        {simulation.busy && <p className="simulation-state">Checking more possible openings…</p>}
-        {simulation.error && <CompactWarning title="Pull ranges unavailable" summary="The recommendation is still shown without the range." className="inline-warning"><p>{simulation.error}</p></CompactWarning>}
+        {simulation.busy && <p className="simulation-state" role="status" aria-live="polite">Checking more possible openings…</p>}
+        {simulation.error && <CompactWarning title="Pull ranges unavailable" summary="The non-simulation value remains visible." className="inline-warning"><p role="alert">{simulation.error}</p><button type="button" className="quiet" onClick={simulation.retry}>Retry pull ranges</button></CompactWarning>}
         <IncompleteDataWarning analysis={analysis} title="Some estimates may be low" />
       </section>
       <section className="bid-explorer">
@@ -2376,10 +2388,11 @@ function UpsideCandles({ base, bonus, bonusLabel, selectedSlot, selectSlot, useR
   const bonusSimulation = useOutcomeSimulation(bonus, [...SLOT_IDS], buyerLanded);
   if (baseSimulation.error || bonusSimulation.error) return (
     <CompactWarning title="Pull ranges unavailable" summary="Card values and profit are still available." className="distribution-unavailable">
-      <p>{bonusSimulation.error ?? baseSimulation.error}</p>
+      <p role="alert">{bonusSimulation.error ?? baseSimulation.error}</p>
+      <button type="button" className="quiet" onClick={() => { baseSimulation.retry(); bonusSimulation.retry(); }}>Retry pull ranges</button>
     </CompactWarning>
   );
-  if (!baseSimulation.result || !bonusSimulation.result) return <p className="calculating"><span />Building pull ranges…</p>;
+  if (!baseSimulation.result || !bonusSimulation.result) return <p className="calculating" role="status" aria-live="polite"><span />Building pull ranges…</p>;
   const selectedBefore = useRandom ? baseSimulation.result.remainingPool : baseSimulation.result.slotDistributions[selectedSlot];
   const selectedAfter = monotoneBonus(selectedBefore, useRandom ? bonusSimulation.result.remainingPool : bonusSimulation.result.slotDistributions[selectedSlot]);
   const rows = SLOT_IDS.map((id) => {
@@ -3048,15 +3061,33 @@ export function SellerView({
   releaseContext?: ReleaseContext;
 }) {
   const publicPresentation = releasePresentation(releaseContext);
+  const owner = useMemo(() => sellerPlanOwner(lines, analysis.valuation.dataVersion), [lines, analysis.valuation.dataVersion]);
   const [draft, setDraft] = useState<SellerPlanDraft>(readSellerPlanDraft);
-  const setPlan = (patch: Partial<SellerPlanDraft>) => setDraft((current) => ({ ...current, ...patch }));
+  const hasSavedPlanValues = draft.targetsApplied || Object.keys(draft.lockedAsks).length > 0 || draft.unsoldSlots.length > 0 || draft.acceptedEstimateIds.length > 0 || draft.plannedBidOverride != null;
+  const planMismatch = hasSavedPlanValues && !sellerPlanMatches(draft, owner);
+  const activeDraft = planMismatch ? { ...defaultSellerPlanDraft(), owner } : draft;
+  useEffect(() => {
+    if (!draft.owner && !hasSavedPlanValues) setDraft((current) => ({ ...current, owner }));
+  }, [draft.owner, hasSavedPlanValues, owner]);
+  const setPlan = (patch: Partial<SellerPlanDraft>) => setDraft((current) =>
+    sellerPlanMatches(current, owner) || !hasSavedPlanValues
+      ? { ...current, owner, ...patch }
+      : { ...defaultSellerPlanDraft(), owner, ...patch },
+  );
   useEffect(() => { writeSellerPlanDraft(draft); }, [draft]);
   const {
     buyerShipping, packing, postage, shipments, mailingMethod, labor, tax,
     giveaways, refundReserve, overhead, commission, processing, processingFlat,
     plannedBidOverride, minimumAsk,
-  } = draft;
-  const acceptedEstimateIds = new Set(draft.acceptedEstimateIds);
+  } = activeDraft;
+  const acceptedEstimateIds = new Set(activeDraft.acceptedEstimateIds);
+  const [estimateConfirmation, setEstimateConfirmation] = useState<string[] | undefined>();
+  const priceAvailability = analysis.priceAvailability ?? { status: "available" as const, source: "none" as const, message: "Price source metadata unavailable" };
+  const estimateNeedsConfirmation = priceAvailability.status !== "available" || analysis.valuation.status === "incomplete";
+  const acceptEstimates = (ids: string[]) => {
+    if (estimateNeedsConfirmation) { setEstimateConfirmation(ids); return; }
+    setPlan({ acceptedEstimateIds: [...new Set([...activeDraft.acceptedEstimateIds, ...ids])] });
+  };
   const setAcceptedEstimateIds = (update: (current: Set<string>) => Set<string>) => setDraft((current) => ({ ...current, acceptedEstimateIds: [...update(new Set(current.acceptedEstimateIds))] }));
   const setBuyerShipping = (value: number) => setPlan({ buyerShipping: value });
   const setPacking = (value: number) => setPlan({ packing: value });
@@ -3122,18 +3153,25 @@ export function SellerView({
   const allSoldProfit = plannedBid == null ? 0 : profitAt(plannedBid, transactionCount);
   const scenarios = [...new Set([transactionCount, Math.max(1, Math.ceil(transactionCount * (transactionCount >= 20 ? .85 : .75))), Math.max(1, Math.ceil(transactionCount * (transactionCount >= 20 ? .7 : .5)))])]
     .map((sold) => ({ sold, profit: plannedBid == null || !costsComplete ? undefined : profitAt(plannedBid, sold) }));
-  const unsoldSlots = new Set(draft.unsoldSlots);
+  const unsoldSlots = new Set(activeDraft.unsoldSlots);
   const soldSlots = analysis.valuation.slots.filter((slot) => slot.sellableEV > 0 && !unsoldSlots.has(slot.id));
   const asks = plannedBid == null ? undefined : allocate(
     analysis.valuation,
     plannedBid * transactionCount,
     minimumAsk,
-    draft.lockedAsks,
+    activeDraft.lockedAsks,
     unsoldSlots,
   );
   return (
     <section className="seller-command-center">
       <aside className="shared-calculation-notice" aria-label="Practice plan boundary"><span><b>{publicPresentation.sellerScope}</b><small>Costs, targets, and scenarios below are rehearsal maths only.</small></span></aside>
+      {planMismatch && <aside className="buyer-recovery-choice" aria-label="Saved seller plan recovery">
+        <div><strong>Saved seller plan belongs to another break</strong><p>Its targets, locked asks, unsold slots, and accepted estimates are not applied to this composition.</p></div>
+        <div className="buyer-recovery-actions">
+          <button type="button" className="primary" onClick={() => setDraft({ ...defaultSellerPlanDraft(), owner })}>Use this break with a clean plan</button>
+          <button type="button" className="quiet" onClick={() => setDraft({ ...defaultSellerPlanDraft(), owner })}>Start clean</button>
+        </div>
+      </aside>}
       <section className="seller-contents" aria-labelledby="seller-contents-heading">
         <div className="seller-section-heading">
           <div><InformationLabel>1 · BREAK</InformationLabel><h2 id="seller-contents-heading">Contents &amp; cost basis</h2></div>
@@ -3153,9 +3191,9 @@ export function SellerView({
               <div className="seller-product-line" key={line.id}>
                 <span className="set-glyph">{line.set}</span>
                 <span className="seller-product-name"><strong>{line.productLabel}</strong><small>{line.set}</small></span>
-                <div className="seller-market-price"><span>Current market</span><b>{fmt(line.marketCost)}</b><small>{line.myCost != null ? "Actual cost entered" : line.marketCost == null ? "Estimate unavailable — enter your cost" : estimateAccepted(line) ? "Market estimate accepted — estimated" : "Estimate available — not accepted"}</small></div>
+                <div className="seller-market-price"><span>{line.myCost != null ? "Actual acquisition cost" : !analysis.priceAvailability ? "Current market" : priceAvailability.status === "available" && analysis.valuation.status !== "incomplete" ? "Market estimate" : "Stale/incomplete estimate"}</span><b>{fmt(line.myCost ?? line.marketCost)}</b><small>{line.myCost != null ? "Actual cost entered" : line.marketCost == null ? "Estimate unavailable — enter your cost" : `${priceAvailability.source} · ${priceAvailability.observedAt ? new Date(priceAvailability.observedAt).toLocaleString() : "date unavailable"} · ${estimateAccepted(line) ? "accepted for rehearsal" : "not accepted"}`}</small></div>
                 <NumberField id={`seller-cost-${line.id}`} label="My cost basis" value={line.myCost} onChange={(value) => update(line.id, { myCost: value })} live />
-                {line.myCost == null && line.marketCost != null && <button type="button" className="quiet" onClick={() => { setPlan({ acceptedEstimateIds: acceptedEstimateIds.has(line.id) ? draft.acceptedEstimateIds.filter((id) => id !== line.id) : [...draft.acceptedEstimateIds, line.id] }); deferOwnedFocus("seller-cost-status"); }}>{estimateAccepted(line) ? "Stop using estimate" : "Use estimate"}</button>}
+                {line.myCost == null && line.marketCost != null && <button type="button" className="quiet" onClick={() => { if (estimateAccepted(line)) setPlan({ acceptedEstimateIds: activeDraft.acceptedEstimateIds.filter((id) => id !== line.id) }); else acceptEstimates([line.id]); deferOwnedFocus("seller-cost-status"); }}>{estimateAccepted(line) ? "Stop using estimate" : "Use estimate"}</button>}
                 {line.myCost == null && line.marketCost == null && <button type="button" className="quiet" onClick={() => focusManualCost(line.id)}>Enter actual cost</button>}
                 <QuantityControl line={line} update={(quantity) => update(line.id, { quantity })} />
                 <button className="remove-line" aria-label={`Remove ${line.productLabel} from break`} onClick={() => remove(line.id)}><Trash2 /></button>
@@ -3165,16 +3203,21 @@ export function SellerView({
         </details>
       </section>
 
+      {estimateConfirmation && <aside className="buyer-recovery-choice" aria-label="Confirm rehearsal estimate">
+        <div><strong>This estimate is stale or incomplete</strong><p>It is from {priceAvailability.source} and was observed {priceAvailability.observedAt ? new Date(priceAvailability.observedAt).toLocaleString() : "on an unavailable date"}. Use it only for rehearsal; enter an actual acquisition cost when known.</p></div>
+        <div className="buyer-recovery-actions"><button type="button" className="primary" onClick={() => { setPlan({ acceptedEstimateIds: [...new Set([...activeDraft.acceptedEstimateIds, ...estimateConfirmation])] }); setEstimateConfirmation(undefined); }}>Accept for rehearsal only</button><button type="button" className="quiet" onClick={() => setEstimateConfirmation(undefined)}>Cancel</button></div>
+      </aside>}
+
       {marketEstimateLines.length > 0 && <section className="cost-basis-policy" aria-label="Cost basis policy">
         <div><InformationLabel>COST BASIS</InformationLabel><h3>{acceptedEstimateIds.size ? "Some market estimates accepted" : "Actual costs are still blank"}</h3><p>Each sealed-market estimate is optional, reversible, and remains labeled estimated. Enter seller costs whenever available.</p></div>
-        <button type="button" className="quiet" onClick={() => setPlan({ acceptedEstimateIds: acceptedEstimateIds.size === marketEstimateLines.length ? [] : marketEstimateLines.map((line) => line.id) })}>{acceptedEstimateIds.size === marketEstimateLines.length ? "Stop using estimates" : `Use ${marketEstimateLines.length} market estimates`}</button>
+        <button type="button" className="quiet" onClick={() => acceptedEstimateIds.size === marketEstimateLines.length ? setPlan({ acceptedEstimateIds: [] }) : acceptEstimates(marketEstimateLines.map((line) => line.id))}>{acceptedEstimateIds.size === marketEstimateLines.length ? "Stop using estimates" : `Use ${marketEstimateLines.length} market estimates`}</button>
       </section>}
 
       {missingCostLine && <CompactWarning title={<a href={`#seller-cost-${missingCostLine.id}`} onClick={() => focusManualCost(missingCostLine.id)}>Enter your cost for {missingCostLine.productLabel}</a>} summary="Needed to calculate break-even and profit." className="missing-input-warning">
         <p>No sealed-market price is available for this product, so ColorBreak needs your cost instead.</p>
       </CompactWarning>}
 
-      {draft.reconciliationNeeded && <CompactWarning title="Previous actual asks need reconciliation" summary="Older saved asks were not receipts, so none were carried into actual results." className="missing-input-warning">
+      {activeDraft.reconciliationNeeded && <CompactWarning title="Previous actual asks need reconciliation" summary="Older saved asks were not receipts, so none were carried into actual results." className="missing-input-warning">
         <p>Record the completed orders and their shipments before treating any revenue as actual.</p>
       </CompactWarning>}
 
@@ -3231,21 +3274,21 @@ export function SellerView({
           label="SLOT OPERATING PLAN"
           help="Targets are split by modeled sellable card value. Locks preserve a chosen target; marking a slot unsold redistributes the remaining recovery across the eligible unlocked slots."
           title={`${fmt(soldSlots.reduce((sum, slot) => sum + asks[slot.id], 0))} recovery target`}
-          accessory={<button type="button" className="quiet" onClick={() => setPlan({ targetsApplied: true })}>{draft.targetsApplied ? "Targets applied" : "Apply targets"}</button>}
+          accessory={<button type="button" className="quiet" onClick={() => setPlan({ targetsApplied: true })}>{activeDraft.targetsApplied ? "Targets applied" : "Apply targets"}</button>}
         />
         <p className="muted">These are planned targets, not receipts. Locking preserves a target; completed orders and shipments must be reconciled separately before an actual result is shown.</p>
         {analysis.valuation.slots.map((slot) => {
           const unsold = unsoldSlots.has(slot.id);
           const eligible = slot.sellableEV > 0;
-          const locked = draft.lockedAsks[slot.id] != null;
+          const locked = activeDraft.lockedAsks[slot.id] != null;
           return <div className={`ask-entry ${!eligible ? "ineligible" : ""}`} key={slot.id}>
             <div className={`ask ${unsold ? "unsold" : ""}`}>
               <span className={`slot-letter slot-letter-${slot.id}`}>{slot.id}</span>
               <span><strong>{slot.name}</strong><small>{eligible ? `${fmt(slot.sellableEV)} sellable EV` : "No modeled sellable value"}</small></span>
               <b>{eligible && !unsold ? fmt(asks[slot.id]) : unsold ? "Unsold" : "—"}</b>
               {eligible && <div className="ask-actions">
-                <button type="button" title={locked ? "Unlock target" : "Lock target"} onClick={() => setPlan({ lockedAsks: locked ? Object.fromEntries(Object.entries(draft.lockedAsks).filter(([id]) => id !== slot.id)) : { ...draft.lockedAsks, [slot.id]: asks[slot.id] } })}>{locked ? <Lock /> : <Unlock />}</button>
-                <button type="button" title={unsold ? "Sell this slot" : "Mark unsold"} onClick={() => setPlan({ unsoldSlots: unsold ? draft.unsoldSlots.filter((id) => id !== slot.id) : [...draft.unsoldSlots, slot.id] })}>{unsold ? <DollarSign /> : <X />}</button>
+                <button type="button" title={locked ? "Unlock target" : "Lock target"} onClick={() => setPlan({ lockedAsks: locked ? Object.fromEntries(Object.entries(activeDraft.lockedAsks).filter(([id]) => id !== slot.id)) : { ...activeDraft.lockedAsks, [slot.id]: asks[slot.id] } })}>{locked ? <Lock /> : <Unlock />}</button>
+                <button type="button" title={unsold ? "Sell this slot" : "Mark unsold"} onClick={() => setPlan({ unsoldSlots: unsold ? activeDraft.unsoldSlots.filter((id) => id !== slot.id) : [...activeDraft.unsoldSlots, slot.id] })}>{unsold ? <DollarSign /> : <X />}</button>
               </div>}
             </div>
           </div>;
@@ -3397,7 +3440,8 @@ export function Workspace({
     [selectedSlot, setSelectedSlot] = useState<SlotId>(() => {
       return sharedBuyer.selectedSlot ?? "W";
     }),
-    [busy, setBusy] = useState(false);
+    [busy, setBusy] = useState(false),
+    [calculationGeneration, setCalculationGeneration] = useState(0);
   const [recoveryRecord, setRecoveryRecord] = useState(() => isSharedBreak ? initialBuyerRecord : undefined);
   const [buyerRecoveryReady, setBuyerRecoveryReady] = useState(() => mode !== "buyer" || !initialBuyerRecord || isSharedBreak);
   const [importUndo, setImportUndo] = useState<{
@@ -3479,7 +3523,7 @@ export function Workspace({
       .finally(() => {
         if (request === analysisRequest.current) setBusy(false);
       });
-  }, [lines, threshold]);
+  }, [lines, threshold, calculationGeneration]);
   useEffect(() => {
     if (mode !== "buyer" || buyerRecoveryReady || !initialBuyerRecord || !analysis || recoveryRecord) return;
     const recovered = readBuyerDecisionRecord({
@@ -3649,8 +3693,8 @@ export function Workspace({
             />
             <div id="buyer-large-result" className="results buyer-results">
               {!lines.length && <section className="buyer-awaiting-break"><span><BarChart3 /></span><h2>Your decision appears here</h2><p><b>1</b> Add every product · <b>2</b> Enter the spot price · <b>3</b> Compare value and risk.</p></section>}
-              {busy && <div className="calculating"><span />Calculating exact contents and prices…</div>}
-              {error && <CompactWarning title="Couldn’t load this result" summary="Open for details, then try again." className="load-warning"><p>{error}</p></CompactWarning>}
+              {busy && <div className="calculating" role="status" aria-live="polite"><span />Calculating exact contents and prices…</div>}
+              {error && <CompactWarning title="Couldn’t load this result" summary="The same composition is still available to retry." className="load-warning"><p role="alert">{error}</p><button type="button" className="quiet" onClick={() => setCalculationGeneration((value) => value + 1)}>Retry analysis</button></CompactWarning>}
               {analysis && (assignmentMode === "large" ? (
                 <LargeBreakView analysis={analysis} lines={lines} spots={largeSpots} bid={buyerBid} setBid={setBuyerBid} shipping={buyerShipping} setShipping={setBuyerShipping} />
               ) : (
@@ -3672,16 +3716,16 @@ export function Workspace({
           </div>
           </>
         ) : !lines.length ? (
-          <EmptyBreak add={() => setBuilder(true)} />
+          <EmptyBreak add={() => setBuilder(true)} practice={() => setLines([{ id: "practice-fdn-play-box", set: "FDN", productKey: "sealed:play-booster-box", productLabel: "Foundations Play Booster Box (historical practice example)", quantity: 1, tcgId: 562118, packCount: 36 }])} />
         ) : (
           <div className="seller-studio-shell">
               {busy && (
-                <div className="calculating">
+                <div className="calculating" role="status" aria-live="polite">
                   <span />
                   Calculating exact contents and prices…
                 </div>
               )}
-              {error && <CompactWarning title="Couldn’t load this result" summary="Open for details, then try again." className="load-warning"><p>{error}</p></CompactWarning>}
+              {error && <CompactWarning title="Couldn’t load this result" summary="The same composition is still available to retry." className="load-warning"><p role="alert">{error}</p><button type="button" className="quiet" onClick={() => setCalculationGeneration((value) => value + 1)}>Retry analysis</button></CompactWarning>}
               {analysis && !busy && (
                 <SellerView
                   analysis={analysis}
@@ -3736,6 +3780,11 @@ export function App({ releaseContext = analysisOnlyReleaseContext }: { releaseCo
       next === "home" ? location.pathname : `#${next}`,
     );
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    if (next === "home") {
+      // Dialog owners are unmounted during the route transition. Focus only a
+      // durable Home control after its enter animation has mounted it.
+      window.setTimeout(() => document.querySelector<HTMLElement>("[data-home-focus]")?.focus({ preventScroll: true }), 220);
+    }
   };
   return (
     <AnimatePresence mode="wait">
