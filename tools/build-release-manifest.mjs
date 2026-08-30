@@ -74,8 +74,14 @@ export async function buildReleaseManifest({ outputDir = resolve(ROOT, "dist"), 
     buildTimestamp,
     runtime: { node: process.version, tool: "tools/build-release-manifest.mjs" },
     eligibilityFreshnessMs: ELIGIBILITY_FRESHNESS_MS,
+    // A reproducible Pages build can be stale; only a fresh reviewed snapshot
+    // may describe buyer caps as decision-ready.
+    releasePosture: "analysis-only",
     dataFiles,
   };
+  const priceObservation = dataFiles.find((file) => file.path === "data/prices/index.json")?.observationTimestamp;
+  const priceAge = Date.parse(buildTimestamp) - Date.parse(priceObservation ?? "");
+  if (Number.isFinite(priceAge) && priceAge >= 0 && priceAge <= ELIGIBILITY_FRESHNESS_MS) manifest.releasePosture = "decision-ready";
   const canonical = JSON.stringify({ ...manifest, id: undefined });
   manifest.id = sha256(canonical);
   const outputPath = join(outputDir, RELEASE_MANIFEST_PATH);

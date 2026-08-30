@@ -37,5 +37,6 @@ jobs:
           name: sealed-source-audit
           path: |
             data/source-diff.json
+            data/source-diff-triage.json
             data/coverage.json
             audit/

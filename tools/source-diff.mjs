@@ -5,6 +5,16 @@ import { fileURLToPath } from "node:url";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const sealedDir = resolve(root, "data/sealed");
+const triagePath = resolve(root, "data/source-diff-triage.json");
+
+function triageRecord() {
+  try {
+    const value = JSON.parse(readFileSync(triagePath, "utf8"));
+    const required = ["owner", "classification", "disposition", "createdAt", "responseTarget"];
+    if (!required.every((key) => typeof value[key] === "string" && value[key])) return null;
+    return value;
+  } catch { return null; }
+}
 
 function previous(path) {
   try { return JSON.parse(execFileSync("git", ["show", `HEAD:${path}`], { cwd: root, encoding: "utf8" })); }
@@ -68,8 +78,20 @@ for (const code of currentCodes.filter((value) => (priorIndex.sets ?? []).includ
 }
 
 report.sets.sort((a, b) => a.code.localeCompare(b.code));
+const triage = triageRecord();
+report.triage = triage ?? {
+  status: "unreviewed",
+  owner: "unassigned (product decision required)",
+  disposition: "investigate",
+};
+if (triage) {
+  const reviewDue = triage.reviewBy && Date.parse(triage.reviewBy) < Date.now();
+  report.triage = { ...triage, status: report.summary.materialChanges ? (reviewDue ? "deferred-expired" : "review-required") : "no-current-diff" };
+}
 const outputArg = process.argv.indexOf("--output");
 const output = outputArg >= 0 ? process.argv[outputArg + 1] : "data/source-diff.json";
 writeFileSync(resolve(root, output), `${JSON.stringify(report, null, 2)}\n`);
 console.log(`source diff: ${report.summary.materialChanges} material changes across ${report.sets.length} sets`);
+// A record is durable evidence, not an override: an actual delta remains red
+// until its reviewed baseline is committed.
 if (process.argv.includes("--check") && report.summary.materialChanges > 0) process.exitCode = 1;

@@ -18,6 +18,7 @@
     "data:release-manifest": "node tools/build-release-manifest.mjs",
     "check:data": "node tools/report-coverage.mjs --check",
     "check:prices": "node tools/build-price-snapshot.mjs --check",
+    "check:decision-freshness": "node tools/build-price-snapshot.mjs --check --max-age-ms 21600000",
     "check:sealed-prices": "node tools/build-sealed-price-snapshot.mjs --check",
     "check": "npm run test && npm run check:data && npm run check:prices && npm run check:sealed-prices && npm run build && npm run test:deploy-path"
   },

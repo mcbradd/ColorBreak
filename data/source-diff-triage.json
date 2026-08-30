@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "owner": "unassigned (product decision required)",
+  "classification": "tool failure",
+  "disposition": "investigate",
+  "createdAt": "2026-08-30T00:00:00.000Z",
+  "responseTarget": "Owner assignment and alert routing are required before notification automation.",
+  "reviewBy": "2026-09-06T00:00:00.000Z",
+  "acceptedBaseline": null,
+  "artifactUrl": null,
+  "notes": "Template only. A material source diff remains fail-closed until the accepted baseline/review commit is recorded."
+}

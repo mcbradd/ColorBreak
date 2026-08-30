@@ -14,6 +14,8 @@ const SEALED_DIR = join(ROOT, "data", "sealed");
 const OUTPUT_DIR = join(ROOT, "data", "prices");
 const USER_AGENT = "ColorBreak/4.0 (+https://mcbradd.github.io/ColorBreak/)";
 const CHECK_ONLY = process.argv.includes("--check");
+const maxAgeIndex = process.argv.indexOf("--max-age-ms");
+const MAX_AGE_MS = maxAgeIndex >= 0 ? Number(process.argv[maxAgeIndex + 1]) : undefined;
 const TCGCSV_HEADERS = { Accept: "application/json", "User-Agent": USER_AGENT };
 
 function stableJson(value) {
@@ -190,6 +192,11 @@ async function validateSnapshot(required) {
     throw new Error(`Price snapshot misses ${missing.length || index.missing.length} required printings: ${(missing.length ? missing : index.missing).slice(0, 12).join(", ")}`);
   }
   if (found.size !== index.resolvedPrintings) throw new Error("Price snapshot printing count does not match its index.");
+  if (MAX_AGE_MS != null) {
+    if (!Number.isFinite(MAX_AGE_MS) || MAX_AGE_MS < 0) throw new Error("--max-age-ms must be a non-negative number.");
+    const age = Date.now() - Date.parse(index.observedAt ?? "");
+    if (!Number.isFinite(age) || age > MAX_AGE_MS) throw new Error(`Price snapshot is ${Number.isFinite(age) ? age : "an unknown number of"}ms old; decision freshness maximum is ${MAX_AGE_MS}ms.`);
+  }
   console.log(`Price snapshot valid: ${found.size} exact printings across ${Object.keys(index.sets).length} sets; observed ${index.observedAt}.`);
 }
 

@@ -1,5 +1,8 @@
 import type { ProductChoice, SetChoice } from "../domain/types";
 import { choicesFromSealed, expectedDraws, loadSealed } from "./sealed";
+import { loadPrices } from "./scryfall";
+import { calculateBreak } from "../domain/valuation";
+import { decisionReadiness, type DecisionReadiness } from "../domain/decision-readiness";
 
 interface CatalogFile {
   sets: Record<string, {
@@ -53,6 +56,20 @@ export async function productsForSet(set: string): Promise<ProductChoice[]> {
     tcgId: product.id,
     status: "estimated",
   }));
+}
+
+/** Local-first catalog adapter for a single prospective product.  Picker code
+ * can call this deliberately; it never repairs a snapshot miss with Scryfall. */
+export async function readinessForProduct(product: ProductChoice, now?: number | Date): Promise<DecisionReadiness> {
+  const sealed = await loadSealed(product.set);
+  if (!sealed || !product.sealedKey) return decisionReadiness({ contentsStatus: product.status, now });
+  const expected = await expectedDraws(sealed, product.sealedKey, 1);
+  const prices = await loadPrices({
+    sets: [...new Set(expected.draws.map((draw) => draw.set))],
+    printings: expected.draws.map((draw) => ({ set: draw.set, collectorNumber: draw.collectorNumber })),
+  });
+  const valuation = calculateBreak({ draws: expected.draws, prices: prices.cards, omissions: [...expected.omissions, ...prices.omissions], sourceStatus: expected.status, pricedAt: prices.availability.observedAt, priceSource: prices.availability.source });
+  return decisionReadiness({ contentsStatus: valuation.status, priceObservedAt: valuation.pricedAt, materialOmissions: valuation.omissions, now });
 }
 
 export async function catalogSets(): Promise<SetChoice[]> {

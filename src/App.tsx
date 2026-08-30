@@ -30,7 +30,8 @@ import {
   Unlock,
   X,
 } from "lucide-react";
-import { catalogSets, productsForSet } from "./data/catalog";
+import { catalogSets, productsForSet, readinessForProduct } from "./data/catalog";
+import type { DecisionReadiness } from "./domain/decision-readiness";
 import { evaluateBreakAnalysis } from "./data/evaluate";
 import type { BreakAnalysis } from "./data/evaluate";
 import { sealedMarketPrice } from "./data/sealed-prices";
@@ -86,6 +87,7 @@ const oddsLabel = (probability: number) =>
     : probability > 0
       ? `${(probability * 100).toFixed(probability < 0.01 ? 2 : 1)}%`
       : "0%";
+const FOCUSABLE_SELECTOR = "button:not(:disabled), a[href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex='-1'])";
 
 function DisclosureArrow() {
   return <ChevronRight className="disclosure-arrow" aria-hidden="true" />;
@@ -466,7 +468,7 @@ function Home({ choose }: { choose: (mode: Mode, fresh?: boolean) => void }) {
             <strong>Should I bid?</strong>
             <p>Pick the product and your color, then enter the current price.</p>
           </span>
-          <span className="mode-output"><small>YOUR ANSWER</small><b>Maximum hammer</b><span>Bid · Stop · Pass</span></span>
+          <span className="mode-output"><small>YOUR ANSWER</small><b>Bid cap when evidence is ready</b><span>Bid · Stop · Pass</span></span>
           <ChevronRight />
         </button>
         <button
@@ -480,7 +482,7 @@ function Home({ choose }: { choose: (mode: Mode, fresh?: boolean) => void }) {
             <strong>Should I run it?</strong>
             <p>Add products and costs. ColorBreak builds the viable plan.</p>
           </span>
-          <span className="mode-output"><small>YOUR ANSWER</small><b>Run decision</b><span>Asks · Fill · Profit</span></span>
+          <span className="mode-output"><small>YOUR ANSWER</small><b>Economics decision</b><span>Costs · scenarios · demand gate</span></span>
           <ChevronRight />
         </button>
       </section>
@@ -523,6 +525,8 @@ function Builder({
   );
   const [selected, setSelected] = useState<SetChoice>();
   const [products, setProducts] = useState<ProductChoice[]>([]);
+  const [readiness, setReadiness] = useState<Record<string, DecisionReadiness>>({});
+  const [readyOnly, setReadyOnly] = useState(false);
   const [loading, setLoading] = useState(false);
   const [draft, setDraft] = useState<BreakLine[]>([]);
   const [composerMode, setComposerMode] = useState<"search" | "paste" | "review">("search");
@@ -542,7 +546,12 @@ function Builder({
     if (!selected) return;
     setLoading(true);
     productsForSet(selected.code)
-      .then(setProducts)
+      .then((rows) => {
+        setProducts(rows);
+        setReadiness({});
+        void Promise.all(rows.map(async (product) => [product.key, await readinessForProduct(product)] as const))
+          .then((entries) => setReadiness(Object.fromEntries(entries)));
+      })
       .finally(() => setLoading(false));
   }, [selected]);
   useEffect(() => {
@@ -555,6 +564,7 @@ function Builder({
       setImportRows([]);
       setImportErrors([]);
       setImportSettings(undefined);
+      setReadyOnly(false);
     } else {
       setDraft(lines);
     }
@@ -571,7 +581,7 @@ function Builder({
       if (event.key === "Escape") return onClose();
       if (event.key !== "Tab") return;
       const focusable = [...document.querySelectorAll<HTMLElement>(
-        ".sheet button:not(:disabled), .sheet input:not(:disabled), .sheet [tabindex='0']",
+        FOCUSABLE_SELECTOR.split(", ").map((selector) => `.sheet ${selector}`).join(", "),
       )].filter((element) => element.offsetParent !== null);
       if (!focusable.length) return;
       const first = focusable[0], last = focusable[focusable.length - 1];
@@ -683,6 +693,8 @@ function Builder({
     },
     {},
   );
+  const visibleProducts = Object.fromEntries(Object.entries(groupedProducts).map(([category, rows]) => [category, rows.filter((product) => !readyOnly || readiness[product.key]?.eligibility === "ready")]));
+  const readyCount = products.filter((product) => readiness[product.key]?.eligibility === "ready").length;
   return createPortal(
     <AnimatePresence>
       {open && (
@@ -775,6 +787,7 @@ function Builder({
               </>
             ) : (
               <>
+                <label className="ready-only-filter"><input type="checkbox" checked={readyOnly} onChange={(event) => setReadyOnly(event.target.checked)} /> Decision-ready only <small aria-live="polite">{readyCount} ready in this published snapshot</small></label>
                 {loading ? (
                   <div className="loader">
                     <span />
@@ -782,7 +795,7 @@ function Builder({
                   </div>
                 ) : (
                   <div className="product-groups">
-                    {Object.entries(groupedProducts).map(([category, rows]) => (
+                    {Object.entries(visibleProducts).filter(([, rows]) => rows.length).map(([category, rows]) => (
                       <section key={category}>
                         <InformationLabel>
                           {category.toUpperCase()}
@@ -801,7 +814,7 @@ function Builder({
                                 {product.packCount
                                   ? `${product.packCount} packs · `
                                   : ""}
-                                {product.status}
+                                Contents: {product.status} · Prices: {readiness[product.key]?.eligibility === "ready" ? "fresh" : readiness[product.key]?.eligibility === "stale" ? "stale" : readiness[product.key]?.eligibility === "incomplete" ? "incomplete" : "checking"} · Bid cap: {readiness[product.key]?.eligibility === "ready" ? "available" : "unavailable"}
                               </small>
                             </span>
                             <ChevronRight />
@@ -809,6 +822,7 @@ function Builder({
                         ))}
                       </section>
                     ))}
+                    {!Object.values(visibleProducts).some((rows) => rows.length) && <p className="empty-picker-state">No decision-ready products in this published snapshot. Keep or edit this break as analysis-only.</p>}
                   </div>
                 )}
               </>
@@ -1157,7 +1171,10 @@ export function CardInspector({
     const previous = document.activeElement as HTMLElement | null;
     const scrollY = window.scrollY;
     const previousOverflow = document.body.style.overflow;
+    const application = document.getElementById("root");
     document.body.style.overflow = "hidden";
+    application?.setAttribute("inert", "");
+    application?.setAttribute("aria-hidden", "true");
     closeRef.current?.focus({ preventScroll: true });
 
     const onKeyDown = (event: KeyboardEvent) => {
@@ -1168,7 +1185,7 @@ export function CardInspector({
       }
       if (event.key !== "Tab" || !dialogRef.current) return;
       const focusable = [...dialogRef.current.querySelectorAll<HTMLElement>(
-        "button:not(:disabled), [href], [tabindex='0']",
+        FOCUSABLE_SELECTOR,
       )];
       if (!focusable.length) return;
       const first = focusable[0];
@@ -1185,6 +1202,8 @@ export function CardInspector({
     return () => {
       document.removeEventListener("keydown", onKeyDown);
       document.body.style.overflow = previousOverflow;
+      application?.removeAttribute("inert");
+      application?.removeAttribute("aria-hidden");
       previous?.focus({ preventScroll: true });
       window.scrollTo(0, scrollY);
     };
@@ -1544,7 +1563,7 @@ function EvidenceDialog({ item, onClose }: { item: EvidenceExplanation | null; o
     const keydown = (event: KeyboardEvent) => {
       if (event.key === "Escape") onClose();
       if (event.key !== "Tab") return;
-      const focusable = [...(dialogRef.current?.querySelectorAll<HTMLElement>("button:not(:disabled), a[href], input:not(:disabled), [tabindex='0']") ?? [])].filter((element) => element.offsetParent !== null);
+      const focusable = [...(dialogRef.current?.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR) ?? [])].filter((element) => element.offsetParent !== null);
       if (!focusable.length) return;
       const first = focusable[0], last = focusable[focusable.length - 1];
       if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
@@ -3049,6 +3068,11 @@ export function SellerView({
   const [plannedBidOverride, setPlannedBidOverride] = useState<number>();
   const [acceptedEstimateIds, setAcceptedEstimateIds] = useState<Set<string>>(() => new Set());
   const [productsOpen, setProductsOpen] = useState(false);
+  const costStatusRef = useRef<HTMLSpanElement>(null);
+  const focusManualCost = (id: string) => {
+    setProductsOpen(true);
+    window.setTimeout(() => document.getElementById(`seller-cost-${id}`)?.focus(), 0);
+  };
   const totalOpenings = lines.reduce((total, line) => total + line.quantity * Math.max(1, line.packCount ?? 1), 0);
   const marketEstimateLines = lines.filter((line) => line.myCost == null && line.marketCost != null);
   const estimateAccepted = (line: BreakLine) => acceptedEstimateIds.has(line.id);
@@ -3103,7 +3127,7 @@ export function SellerView({
         </div>
         <div className="seller-break-reconciliation" aria-label="Seller break composition summary">
           <strong>{lines.length} lines · {totalOpenings} openings · {transactionCount} spots</strong>
-          <span>{costsComplete ? "Cost basis ready" : "Cost basis incomplete"}</span>
+          <span ref={costStatusRef} tabIndex={-1} role="status">{costsComplete ? "Cost basis ready" : "Cost basis incomplete"}</span>
         </div>
         <details className="seller-cost-rollout seller-product-ledger" open={productsOpen} onToggle={(event) => setProductsOpen(event.currentTarget.open)}>
           <summary className="disclosure-summary">
@@ -3115,9 +3139,10 @@ export function SellerView({
               <div className="seller-product-line" key={line.id}>
                 <span className="set-glyph">{line.set}</span>
                 <span className="seller-product-name"><strong>{line.productLabel}</strong><small>{line.set}</small></span>
-                <div className="seller-market-price"><span>Current market</span><b>{fmt(line.marketCost)}</b><small>Sealed-market estimate · {line.marketCost == null ? "No estimate available" : estimateAccepted(line) ? "Estimated — accepted" : "Available — not accepted"}</small></div>
+                <div className="seller-market-price"><span>Current market</span><b>{fmt(line.marketCost)}</b><small>{line.myCost != null ? "Actual cost entered" : line.marketCost == null ? "Estimate unavailable — enter your cost" : estimateAccepted(line) ? "Market estimate accepted — estimated" : "Estimate available — not accepted"}</small></div>
                 <NumberField id={`seller-cost-${line.id}`} label="My cost basis" value={line.myCost} onChange={(value) => update(line.id, { myCost: value })} live />
-                {line.myCost == null && line.marketCost != null && <button type="button" className="quiet" onClick={() => setAcceptedEstimateIds((current) => { const next = new Set(current); if (next.has(line.id)) next.delete(line.id); else next.add(line.id); return next; })}>{estimateAccepted(line) ? "Stop using estimate" : "Use estimate"}</button>}
+                {line.myCost == null && line.marketCost != null && <button type="button" className="quiet" onClick={() => { setAcceptedEstimateIds((current) => { const next = new Set(current); if (next.has(line.id)) next.delete(line.id); else next.add(line.id); return next; }); window.setTimeout(() => costStatusRef.current?.focus(), 0); }}>{estimateAccepted(line) ? "Stop using estimate" : "Use estimate"}</button>}
+                {line.myCost == null && line.marketCost == null && <button type="button" className="quiet" onClick={() => focusManualCost(line.id)}>Enter actual cost</button>}
                 <QuantityControl line={line} update={(quantity) => update(line.id, { quantity })} />
                 <button className="remove-line" aria-label={`Remove ${line.productLabel} from break`} onClick={() => remove(line.id)}><Trash2 /></button>
               </div>
@@ -3131,7 +3156,7 @@ export function SellerView({
         <button type="button" className="quiet" onClick={() => setAcceptedEstimateIds((current) => current.size === marketEstimateLines.length ? new Set() : new Set(marketEstimateLines.map((line) => line.id)))}>{acceptedEstimateIds.size === marketEstimateLines.length ? "Stop using estimates" : `Use ${marketEstimateLines.length} market estimates`}</button>
       </section>}
 
-      {missingCostLine && <CompactWarning title={<a href={`#seller-cost-${missingCostLine.id}`} onClick={(event) => { event.stopPropagation(); setProductsOpen(true); }}>Enter your cost for {missingCostLine.productLabel}</a>} summary="Needed to calculate break-even and profit." className="missing-input-warning">
+      {missingCostLine && <CompactWarning title={<a href={`#seller-cost-${missingCostLine.id}`} onClick={() => focusManualCost(missingCostLine.id)}>Enter your cost for {missingCostLine.productLabel}</a>} summary="Needed to calculate break-even and profit." className="missing-input-warning">
         <p>No sealed-market price is available for this product, so ColorBreak needs your cost instead.</p>
       </CompactWarning>}
 

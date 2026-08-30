@@ -35,8 +35,8 @@ npm run check
 
 - `data/sealed/*.json`: normalized MTGJSON sealed products and collation.
 - `data/corrections.json`: narrowly scoped, sourced product corrections. This layer is authoritative over upstream sealed metadata.
-- `data/prices/*.json`: a compact, timestamped Scryfall bulk-data snapshot containing only exact printings referenced by the normalized corpus. It is refreshed for every deployment and by the daily Pages workflow.
-- Scryfall live lookup: globally throttled recovery path for a printing absent from the snapshot; it is not the primary page-load path.
+- `data/prices/*.json`: a compact, timestamped Scryfall bulk-data snapshot containing only exact printings referenced by the normalized corpus. It is refreshed in a separately reviewed commit; deployment only verifies that committed input.
+- There is no live-price repair path for picker or buyer eligibility. A snapshot miss remains a named, analysis-only blocker.
 - tcgcsv: best-effort sealed market cost. The seller can always enter actual cost.
 
 Unresolved contents and prices are surfaced as named omissions. For premium treatments on new releases, a missing treatment-specific market observation uses the same printing's listed TCG foil price and labels that basis; prices never cross printings or foil classes.
@@ -50,5 +50,6 @@ Price-source availability is reported separately from product-content completene
 - `tools/`: offline data builders and validators.
 - `CONTEXT.md`: domain language and product intent.
 - `SPEC.md`: current acceptance contract.
+- `docs/release-runbook.md`: canonical snapshot, release-posture, and audit procedure.
 
 The app is a Vite static build and requires no backend or account.
