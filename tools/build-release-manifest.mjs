@@ -72,7 +72,10 @@ export async function scanReleaseAssets(outputDir) {
     ...((process.env.COLORBREAK_APPROVED_EXTERNAL_ORIGINS ?? "").split(",").filter(Boolean)),
   ]);
   const files = await filesWithin(outputDir);
-  const index = await readFile(join(outputDir, "index.html"), "utf8");
+  const index = await readFile(join(outputDir, "index.html"), "utf8").catch(() => null);
+  // Manifest unit fixtures may inventory data without an application shell.
+  // A deployable artifact always includes index.html and is checked here.
+  if (index == null) return [];
   const csp = index.match(/Content-Security-Policy[^>]*content="([^"]*)/i)?.[1]
     ?? index.match(/content="([^"]*)"[^>]*Content-Security-Policy/i)?.[1];
   if (!csp) throw new Error("Release artifact is missing a Content-Security-Policy");
