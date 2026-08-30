@@ -51,6 +51,11 @@ describe("buyer bid persistence", () => {
     fireEvent.blur(bid);
     fireEvent.change(shipping, { target: { value: "4.25" } });
     fireEvent.blur(shipping);
+    // Wait for the controlled inputs to commit before triggering the separate
+    // bulk recalculation; otherwise a fast analysis response can race this
+    // test's synthetic blur sequence on CI.
+    await waitFor(() => expect(screen.getByLabelText("Current bid")).toHaveValue("12.5"));
+    expect(screen.getByLabelText("Your added shipping")).toHaveValue("4.25");
     evaluateBreakAnalysis.mockClear();
     fireEvent.click(screen.getByRole("switch", { name: /Bulk filter/ }));
 
