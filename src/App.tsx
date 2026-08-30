@@ -70,6 +70,8 @@ import { track } from "./analytics";
 import { chaseMapLayout } from "./constellation-layout";
 import { createLargeBreakPlan, sortNamedCards, summarizeAssignmentValues } from "./domain/large-break";
 import type { TopCardSort } from "./domain/large-break";
+import { canonicalCompositionFingerprint } from "./domain/canonical-composition";
+import { useDecisionConfirmation } from "./domain/decision-confirmation";
 import {
   cleanupLegacyStorage,
   readSellerPlanDraft,
@@ -95,6 +97,10 @@ const oddsLabel = (probability: number) =>
       ? `${(probability * 100).toFixed(probability < 0.01 ? 2 : 1)}%`
       : "0%";
 const FOCUSABLE_SELECTOR = "button:not(:disabled), a[href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex='-1'])";
+
+function DemoBoundaryNotice() {
+  return <p className="demo-scope" role="note"><strong>DEMO · ANALYSIS ONLY</strong> This browser-local GitHub Pages demo must not be used for financially consequential decisions or commercial transactions. A bid limit requires a separately hosted decision-capable release with complete contents, exact prices observed within six hours, current simulation evidence, and a fresh one-minute acknowledgement.</p>;
+}
 
 /** Keeps a dialog's opener stable even while its owning screen re-renders. */
 function useDialogOwnership(open: boolean, onClose: () => void, dialogRef: RefObject<HTMLElement | null>, initialFocus?: RefObject<HTMLElement | null>) {
@@ -496,37 +502,37 @@ function Home({ choose }: { choose: (mode: Mode, fresh?: boolean) => void }) {
         <span className="engine-ready" aria-label="Catalog is analysis-only"><i /> DEMO · ANALYSIS ONLY</span>
       </header>
       <section className="launcher-intro">
-        <InformationLabel>Decision launcher</InformationLabel>
-        <h1>What do you need to decide?</h1>
-        <p>For Magic: The Gathering break buyers and sellers: set a bid ceiling or build a viable slot-plan scenario from the exact boxes being opened. Results are modeled, not guaranteed.</p>
+        <InformationLabel>Analysis launcher</InformationLabel>
+        <h1>What would you like to explore?</h1>
+        <p>For Magic: The Gathering break buyers and sellers: explore modeled outcomes or rehearse a costed plan from the exact boxes being opened.</p>
       </section>
       <section className="mode-grid" aria-label="Choose a job">
         <button
           className="mode-card buyer-card"
-          aria-label="Bid Check — should I bid?"
+          aria-label="Explore buyer analysis — Bid Check"
           onClick={() => choose("buyer", true)}
         >
           <span className="mode-number">01</span>
           <span className="mode-copy">
             <small>BUYING A COLOR SLOT</small>
-          <strong>Explore a bid</strong>
-            <p>Analysis-only — bid caps are temporarily unavailable in this published catalog.</p>
+          <strong>Explore buyer analysis</strong>
+            <p>Practice modeled outcomes. This published catalog has no decision-ready products.</p>
           </span>
           <span className="mode-output"><small>CATALOG POSTURE</small><b>Analysis only</b><span>Check catalog · no bid cap</span></span>
           <ChevronRight />
         </button>
         <button
           className="mode-card seller-card"
-          aria-label="Seller Studio — should I run it?"
+          aria-label="Rehearse a costed seller plan"
           onClick={() => choose("seller")}
         >
           <span className="mode-number">02</span>
           <span className="mode-copy">
             <small>PLANNING A BREAK</small>
-            <strong>Should I run it?</strong>
-            <p>Add products and costs. ColorBreak builds the viable plan.</p>
+            <strong>Rehearse a costed seller plan</strong>
+            <p>Add products and costs. This is costed launch-plan analysis, not a demand prediction.</p>
           </span>
-          <span className="mode-output"><small>YOUR ANSWER</small><b>Economics decision</b><span>Costs · scenarios · demand gate</span></span>
+          <span className="mode-output"><small>YOUR ANALYSIS</small><b>Costed plan</b><span>Costs · scenarios · rehearsal</span></span>
           <ChevronRight />
         </button>
       </section>
@@ -540,7 +546,7 @@ function Home({ choose }: { choose: (mode: Mode, fresh?: boolean) => void }) {
       {recentSeller.length > 0 && <button className="resume-action" onClick={() => choose("seller", false)}>
         <RotateCw /><span><small>THIS BROWSER SESSION</small><strong>Resume seller plan · costs are session-only</strong></span><ChevronRight />
       </button>}
-      <p className="demo-scope" role="note">Public demo only — do not use this GitHub Pages build for commercial transactions or financially consequential decisions. A production release needs a header-capable host.</p>
+      <DemoBoundaryNotice />
       <footer className="launcher-footer">
         <span>Exact-printing prices · Modeled pull ranges · No login</span>
         <span><a href="./methodology.html">Methodology</a> · <a href="./privacy.html">Privacy</a>{supportUrl && <> · <a href={supportUrl} rel="noreferrer" target="_blank">Support</a></>}</span>
@@ -2110,6 +2116,7 @@ export function LargeBreakView({
 
 export function BuyerView({
   analysis,
+  lines,
   auction,
   assignmentMode,
   selected,
@@ -2121,6 +2128,7 @@ export function BuyerView({
   onChooseDecisionReady,
 }: {
   analysis: BreakAnalysis;
+  lines: BreakLine[];
   auction: AuctionState;
   assignmentMode: AssignmentMode;
   selected: SlotId;
@@ -2137,8 +2145,6 @@ export function BuyerView({
   const [inspectedCard, setInspectedCard] = useState<Contributor | null>(null);
   const [valueRule, setValueRule] = useState<ValueRule>({ kind: "median" });
   const [resolvedOnlyRequested, setResolvedOnlyRequested] = useState(false);
-  const [reconfirmedAt, setReconfirmedAt] = useState<number>();
-  const [reconfirmedInput, setReconfirmedInput] = useState<string>();
   const slot = result.slots.find((row) => row.id === selected)!;
   const landed = (bid ?? 0) + (shipping ?? 0);
   const simulation = useOutcomeSimulation(analysis, auction.remaining, bid == null ? undefined : landed);
@@ -2155,8 +2161,9 @@ export function BuyerView({
       : valueRule.kind === "coverage"
         ? distribution.p25
         : distribution.mean;
-  const decisionInput = `${selected}|${assignmentMode}|${auction.remaining.join("")}|${bid ?? ""}|${shipping ?? ""}|${valueRule.kind}|${valueRule.kind === "coverage" ? valueRule.coverage : ""}|${eligibility.affectedGroups.map((group) => group.id).join("|")}`;
-  const reconfirmed = reconfirmedInput === decisionInput && reconfirmedAt != null && Date.now() - reconfirmedAt <= 60_000;
+  const decisionInput = `${canonicalCompositionFingerprint(lines)}|${selected}|${assignmentMode}|${auction.remaining.join("")}|${bid ?? ""}|${shipping ?? ""}|${valueRule.kind}|${valueRule.kind === "coverage" ? valueRule.coverage : ""}|${eligibility.observedAt ?? ""}|${eligibility.affectedGroups.map((group) => group.id).join("|")}`;
+  const { confirmation, reconfirm } = useDecisionConfirmation(decisionInput);
+  const reconfirmed = confirmation != null;
   const scoped = valueTarget == null || shipping == null ? undefined : resolvedOnlyLimit(valueTarget, shipping, eligibility);
   const cap = eligibility.status !== "eligible" || valueTarget == null || shipping == null
     ? { kind: "unknown-cost" as const }
@@ -2171,21 +2178,18 @@ export function BuyerView({
     ? { kind: "cap" as const, amount: scoped.amount, allInAtCap: scoped.allIn }
     : cap;
   const recommendation = recommendBid(bid, activeCap);
-  const decision = eligibility.status !== "eligible"
-    ? eligibility.status === "material-incomplete" && resolvedOnlyRequested && scoped && reconfirmed
-      ? bid == null ? "ENTER BID" : recommendation.action === "bid" ? "BID" : recommendation.action === "stop" ? "STOP HERE" : recommendation.action === "pass" ? "PASS" : "NO CAP"
-      : eligibility.status === "material-incomplete" ? `LIMIT UNAVAILABLE — ${eligibility.blockerCount} MATERIAL OMISSIONS` : "LIMIT UNAVAILABLE"
-    : bid == null
-    ? "ENTER BID"
-    : shipping == null
-      ? "ADD SHIPPING"
-      : recommendation.action === "bid"
-        ? "BID"
-        : recommendation.action === "stop"
-          ? "STOP HERE"
-          : recommendation.action === "pass"
-            ? "PASS"
-            : "NO CAP";
+  const unavailable = eligibility.status === "stale" || eligibility.status === "unavailable";
+  const scopedEligible = eligibility.status === "material-incomplete" && resolvedOnlyRequested && scoped;
+  const canShowDecision = (eligibility.status === "eligible" || scopedEligible) && reconfirmed;
+  const decision = unavailable
+    ? "LIMIT UNAVAILABLE — STALE/INCOMPLETE DATA"
+    : eligibility.status === "material-incomplete" && !scopedEligible
+      ? `LIMIT UNAVAILABLE — ${eligibility.blockerCount} MATERIAL OMISSIONS`
+      : !reconfirmed
+        ? "RECONFIRM CURRENT INPUTS"
+        : bid == null ? "ENTER BID" : shipping == null ? "ADD SHIPPING"
+          : recommendation.action === "bid" ? "BID" : recommendation.action === "stop" ? "STOP HERE"
+            : recommendation.action === "pass" ? "PASS" : "NO CAP";
   const ruleLabel = valueRule.kind === "median"
     ? "Typical outcome"
     : valueRule.kind === "coverage"
@@ -2205,8 +2209,8 @@ export function BuyerView({
           <div className="verdict-decision">
             <InformationLabel>Recommendation</InformationLabel>
             <h2 aria-live="polite">{decision}</h2>
-            {eligibility.status !== "eligible" && <div className="decision-reason"><p><strong>No bid decision is available.</strong> {availability.detail} Observed {eligibility.observedAt ? new Date(eligibility.observedAt).toLocaleString() : "unknown"} from {eligibility.observedSource ?? "the published snapshot"}.</p>{onChooseDecisionReady && <button type="button" className="primary" onClick={onChooseDecisionReady}>Choose a decision-ready product</button>}{eligibility.affectedGroups.length > 0 && <details><summary className="disclosure-summary">Why this is unavailable<DisclosureArrow /></summary><p>Policy threshold: {eligibility.freshnessThresholdMs / 36e5} hours.</p><ul>{eligibility.affectedGroups.map((group) => <li key={group.id}>{group.label}</li>)}</ul></details>}{eligibility.status === "material-incomplete" && !resolvedOnlyRequested && eligibility.resolvedOnlyAvailable && <button type="button" className="quiet" onClick={() => { setResolvedOnlyRequested(true); setReconfirmedInput(undefined); }}>Calculate resolved-only limit</button>}{eligibility.status === "material-incomplete" && resolvedOnlyRequested && scoped && <p><strong>CONSERVATIVE · INCOMPLETE LIMIT</strong> uses only resolved exact-printing values. It is not a full break recommendation.</p>}</div>}
-            {(eligibility.status === "eligible" || (eligibility.status === "material-incomplete" && resolvedOnlyRequested && scoped)) && !reconfirmed && <p className="decision-reason"><button type="button" className="quiet" onClick={() => { setReconfirmedInput(decisionInput); setReconfirmedAt(Date.now()); }}>Reconfirm current bid</button> Reconfirm after changing bid, shipping, slot, or risk stance. Confirmation expires after one minute.</p>}
+            {eligibility.status !== "eligible" && <div className="decision-reason"><p><strong>No bid decision is available.</strong> {availability.detail} Observed {eligibility.observedAt ? new Date(eligibility.observedAt).toLocaleString() : "unknown"} from {eligibility.observedSource ?? "the published snapshot"}.</p>{unavailable && onChooseDecisionReady && <button type="button" className="primary" onClick={onChooseDecisionReady}>Practice analysis with this product</button>}{eligibility.affectedGroups.length > 0 && <details><summary className="disclosure-summary">Why this is unavailable<DisclosureArrow /></summary><p>Policy threshold: {eligibility.freshnessThresholdMs / 36e5} hours.</p><ul>{eligibility.affectedGroups.map((group) => <li key={group.id}>{group.label}</li>)}</ul></details>}{eligibility.status === "material-incomplete" && !resolvedOnlyRequested && eligibility.resolvedOnlyAvailable && <button type="button" className="quiet" onClick={() => setResolvedOnlyRequested(true)}>Calculate resolved-only limit</button>}{eligibility.status === "material-incomplete" && resolvedOnlyRequested && scoped && <p><strong>CONSERVATIVE · INCOMPLETE LIMIT</strong> uses only resolved exact-printing values. It is not a full break recommendation.</p>}</div>}
+            {(eligibility.status === "eligible" || scopedEligible) && !reconfirmed && <p className="decision-reason"><button type="button" className="quiet" onClick={reconfirm}>Reconfirm current inputs</button> Reconfirm after changing bid, shipping, slot, risk stance, or break composition. Confirmation expires after one minute.</p>}
             {eligibility.status === "eligible" && bid == null && <p className="decision-reason"><a href="#buyer-current-bid">Enter the current auction price</a> to compare it with your maximum hammer.</p>}
             {bid != null && shipping == null && <p className="decision-reason"><a href="#buyer-added-shipping">Enter the extra shipping charged for this purchase</a>. It affects your landed cost and maximum hammer.</p>}
             {eligibility.status === "eligible" && recommendation.action === "bid" && (
@@ -2221,7 +2225,7 @@ export function BuyerView({
           </div>
           <div className="ev-orb">
             <small><span>{eligibility.status === "eligible" || (resolvedOnlyRequested && scoped) ? "Your max hammer" : "Limit unavailable"}</span></small>
-            <strong className="max-hammer" aria-label="Maximum hammer" aria-live="polite">{reconfirmed && activeCap.kind === "cap" ? fmt(activeCap.amount) : "—"}</strong>
+            <strong className="max-hammer" aria-label="Maximum hammer" aria-live="polite">{canShowDecision && activeCap.kind === "cap" ? fmt(activeCap.amount) : "—"}</strong>
             <span>{eligibility.status === "eligible" ? `${ruleLabel} limit` : resolvedOnlyRequested && scoped ? "Conservative incomplete limit" : "No action recommendation"}</span>
             <strong aria-label="Typical card value" aria-live="polite">{simulation.busy && !distribution ? "Checking…" : fmt(distribution?.median ?? fallbackMean)}</strong>
             {distribution?.median === 0 && <em>Usually no card above the bulk filter</em>}
@@ -3246,7 +3250,7 @@ export function SellerView({
         transactionCount={transactionCount}
         baseProfitAtAll={allSoldProfit}
       />
-      <p className="seller-demand-checkpoint"><strong>Economics ready — demand validation pending.</strong> Record audience/pre-interest, a comparable break and date, and your planned time window before launch. This does not predict fill or profit.</p>
+      <p className="seller-demand-checkpoint"><strong>Analysis only — demand validation remains unmodeled.</strong> Record audience/pre-interest, a comparable break and date, and your planned time window before launch. This does not predict fill or profit.</p>
     </section>
   );
 }
@@ -3530,13 +3534,14 @@ export function Workspace({
         <header className="workspace-title">
           <div>
             <p className="eyebrow">
-              {mode === "buyer" ? assignmentMode === "large" ? "BUYER · LARGE RANDOM MODE" : "BUYER · FAST BID CHECK" : "SELLER · PLAN TO LAUNCH"}
+              {mode === "buyer" ? assignmentMode === "large" ? "BUYER · LARGE RANDOM MODE" : "BUYER · FAST BID CHECK" : "SELLER · COSTED PLAN ANALYSIS"}
             </p>
             <h1>{mode === "buyer" ? assignmentMode === "large" ? "Large Break" : "Bid Check" : "Seller Studio"}</h1>
           </div>
         </header>
+        <DemoBoundaryNotice />
         {importUndo && <aside className="import-undo" aria-live="polite">
-          <span><b>Break updated</b><small>{lines.length} lines · review complete</small></span>
+          <span><b>Composition updated</b><small>{lines.length} lines · analysis refreshed</small></span>
           <button type="button" className="quiet" onClick={() => {
             setLines(importUndo.lines);
             setAssignmentMode(importUndo.assignmentMode);
@@ -3582,6 +3587,7 @@ export function Workspace({
               ) : (
                 <BuyerView
                   analysis={analysis}
+                  lines={lines}
                   auction={auction}
                   assignmentMode={assignmentMode}
                   selected={selectedSlot}

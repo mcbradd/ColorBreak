@@ -1,4 +1,5 @@
 import type { BreakLine, SlotId } from "./domain/types";
+import { canonicalComposition } from "./domain/canonical-composition";
 
 const VERSION = 1;
 export const sessionKey = (mode: "buyer" | "seller") => `colorbreak:${mode}:draft:v${VERSION}`;
@@ -81,8 +82,7 @@ export function writeSellerPlanDraft(draft: SellerPlanDraft) {
 
 /** Only non-financial composition is ever allowed to leave session storage. */
 export function compositionProjection(lines: BreakLine[]) {
-  return lines.map(({ id, set, productKey, productLabel, quantity, tcgId, packCount }) =>
-    ({ id, set, productKey, productLabel, quantity, tcgId, packCount }));
+  return canonicalComposition(lines);
 }
 
 export function readSessionLines(mode: "buyer" | "seller"): BreakLine[] {
