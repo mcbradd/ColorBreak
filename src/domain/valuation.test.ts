@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buyerVerdict, calculateBreak, decisionEligibility, DECISION_FRESHNESS_MS, slotOfCard } from "./valuation";
+import { buyerVerdict, calculateBreak, decisionEligibility, DECISION_FRESHNESS_MS, resolvedOnlyLimit, slotOfCard } from "./valuation";
 import type { CardPrice, ExpectedDraw } from "./types";
 
 const prices: CardPrice[] = [
@@ -245,5 +245,12 @@ describe("decisionEligibility", () => {
         expect.objectContaining({ id: "booster:bonus" }),
       ]),
     }));
+  });
+
+  it("offers a conservative resolved-only limit only for fresh material omissions", () => {
+    const result = calculateBreak({ draws, prices, pricedAt: observedAt, omissions: [{ code: "missing-price", message: "A printing is missing.", material: true }] });
+    const eligibility = decisionEligibility(result, now);
+    expect(resolvedOnlyLimit(20, 3, eligibility)).toMatchObject({ scope: "resolved-only", amount: 17, allIn: 20, omittedGroups: [{ label: "A printing is missing." }] });
+    expect(resolvedOnlyLimit(20, 3, decisionEligibility(result, now + DECISION_FRESHNESS_MS + 1))).toBeUndefined();
   });
 });

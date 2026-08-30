@@ -47,7 +47,7 @@ import {
 import { recommendBid, solveFinancialCap } from "./domain/buyer-treatment";
 import type { ValueRule } from "./domain/buyer-treatment";
 import { completeCost, sellerPlanStatus } from "./domain/seller-plan";
-import { decisionEligibility } from "./domain/valuation";
+import { decisionEligibility, resolvedOnlyLimit } from "./domain/valuation";
 import { cardDisplayName, cardTreatmentLabel } from "./domain/card-label";
 import { deduplicateOmissions } from "./domain/omissions";
 import { simulateOutcomesAsync } from "./domain/simulation-client";
@@ -561,6 +561,11 @@ function Builder({
   useEffect(() => {
     if (!open) return;
     const previous = document.activeElement as HTMLElement | null;
+    const application = document.getElementById("root");
+    // The builder is portalled so the rest of the application can be truly
+    // unavailable to keyboard and assistive-technology navigation.
+    application?.setAttribute("inert", "");
+    application?.setAttribute("aria-hidden", "true");
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") return onClose();
       if (event.key !== "Tab") return;
@@ -580,6 +585,8 @@ function Builder({
     document.addEventListener("keydown", onKeyDown);
     return () => {
       document.removeEventListener("keydown", onKeyDown);
+      application?.removeAttribute("inert");
+      application?.removeAttribute("aria-hidden");
       previous?.focus({ preventScroll: true });
     };
   }, [open, onClose]);
@@ -675,7 +682,7 @@ function Builder({
     },
     {},
   );
-  return (
+  return createPortal(
     <AnimatePresence>
       {open && (
         <motion.div
@@ -822,7 +829,7 @@ function Builder({
           </motion.section>
         </motion.div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>, document.body,
   );
 }
 
@@ -2128,6 +2135,9 @@ export function BuyerView({
   const eligibility = decisionEligibility(result);
   const [inspectedCard, setInspectedCard] = useState<Contributor | null>(null);
   const [valueRule, setValueRule] = useState<ValueRule>({ kind: "median" });
+  const [resolvedOnlyRequested, setResolvedOnlyRequested] = useState(false);
+  const [reconfirmedAt, setReconfirmedAt] = useState<number>();
+  const [reconfirmedInput, setReconfirmedInput] = useState<string>();
   const slot = result.slots.find((row) => row.id === selected)!;
   const landed = (bid ?? 0) + (shipping ?? 0);
   const simulation = useOutcomeSimulation(analysis, auction.remaining, bid == null ? undefined : landed);
@@ -2144,6 +2154,9 @@ export function BuyerView({
       : valueRule.kind === "coverage"
         ? distribution.p25
         : distribution.mean;
+  const decisionInput = `${selected}|${assignmentMode}|${auction.remaining.join("")}|${bid ?? ""}|${shipping ?? ""}|${valueRule.kind}|${valueRule.kind === "coverage" ? valueRule.coverage : ""}|${eligibility.affectedGroups.map((group) => group.id).join("|")}`;
+  const reconfirmed = reconfirmedInput === decisionInput && reconfirmedAt != null && Date.now() - reconfirmedAt <= 60_000;
+  const scoped = valueTarget == null || shipping == null ? undefined : resolvedOnlyLimit(valueTarget, shipping, eligibility);
   const cap = eligibility.status !== "eligible" || valueTarget == null || shipping == null
     ? { kind: "unknown-cost" as const }
     : solveFinancialCap({
@@ -2153,9 +2166,14 @@ export function BuyerView({
           : [],
         addedCost: () => shipping,
       });
-  const recommendation = recommendBid(bid, cap);
+  const activeCap = eligibility.status === "material-incomplete" && resolvedOnlyRequested && scoped && reconfirmed
+    ? { kind: "cap" as const, amount: scoped.amount, allInAtCap: scoped.allIn }
+    : cap;
+  const recommendation = recommendBid(bid, activeCap);
   const decision = eligibility.status !== "eligible"
-    ? eligibility.status === "material-incomplete" ? `LIMIT UNAVAILABLE — ${eligibility.blockerCount} MATERIAL OMISSIONS` : "LIMIT UNAVAILABLE"
+    ? eligibility.status === "material-incomplete" && resolvedOnlyRequested && scoped && reconfirmed
+      ? bid == null ? "ENTER BID" : recommendation.action === "bid" ? "BID" : recommendation.action === "stop" ? "STOP HERE" : recommendation.action === "pass" ? "PASS" : "NO CAP"
+      : eligibility.status === "material-incomplete" ? `LIMIT UNAVAILABLE — ${eligibility.blockerCount} MATERIAL OMISSIONS` : "LIMIT UNAVAILABLE"
     : bid == null
     ? "ENTER BID"
     : shipping == null
@@ -2179,14 +2197,15 @@ export function BuyerView({
         aria-label="Live bid decision"
       >
         <div className="decision-kicker">
-          <span>{breakLabel ? `${breakLabel} · ` : ""}{assignmentMode === "random" ? `${auction.remaining.length} random colors` : `${SLOT_NAMES[selected]} slot`}</span>
+          <span>{breakLabel ? `${breakLabel} · ` : ""}Manual auction check · {assignmentMode === "random" ? `${auction.remaining.length} random colors` : `${SLOT_NAMES[selected]} slot`}</span>
           <span className={`decision-evidence evidence-${result.status}`}>{result.status === "verified" ? "Data ready" : result.status}</span>
         </div>
         <div className="verdict-head">
           <div className="verdict-decision">
             <InformationLabel>Recommendation</InformationLabel>
             <h2 aria-live="polite">{decision}</h2>
-            {eligibility.status !== "eligible" && <div className="decision-reason"><p>{eligibility.status === "stale" ? `Latest published snapshot; reload to check publication status. Observed ${eligibility.observedAt ? new Date(eligibility.observedAt).toLocaleString() : "unknown"} from ${eligibility.observedSource ?? "the published snapshot"}.` : "This result has material blockers, so ColorBreak will not recommend a bid limit."}</p>{eligibility.affectedGroups.length > 0 && <details><summary className="disclosure-summary">Review affected groups<DisclosureArrow /></summary><ul>{eligibility.affectedGroups.map((group) => <li key={group.id}>{group.label}</li>)}</ul></details>}</div>}
+            {eligibility.status !== "eligible" && <div className="decision-reason"><p>{eligibility.status === "stale" ? `This snapshot is stale. Observed ${eligibility.observedAt ? new Date(eligibility.observedAt).toLocaleString() : "unknown"} from ${eligibility.observedSource ?? "the published snapshot"}; refresh a reviewed snapshot or choose a decision-ready product.` : eligibility.status === "material-incomplete" ? "A full bid limit is unavailable because some contents or prices are omitted. Inspect the affected groups, choose a decision-ready product, or deliberately use the incomplete analysis below." : "A usable price snapshot is unavailable, so no bid limit can be calculated."}</p>{eligibility.affectedGroups.length > 0 && <details><summary className="disclosure-summary">Review affected groups<DisclosureArrow /></summary><ul>{eligibility.affectedGroups.map((group) => <li key={group.id}>{group.label}</li>)}</ul></details>}{eligibility.status === "material-incomplete" && !resolvedOnlyRequested && eligibility.resolvedOnlyAvailable && <button type="button" className="quiet" onClick={() => { setResolvedOnlyRequested(true); setReconfirmedInput(undefined); }}>Calculate resolved-only limit</button>}{eligibility.status === "material-incomplete" && resolvedOnlyRequested && scoped && <p><strong>CONSERVATIVE · INCOMPLETE LIMIT</strong> uses only resolved exact-printing values. It is not a full break recommendation.</p>}</div>}
+            {(eligibility.status === "eligible" || (eligibility.status === "material-incomplete" && resolvedOnlyRequested && scoped)) && !reconfirmed && <p className="decision-reason"><button type="button" className="quiet" onClick={() => { setReconfirmedInput(decisionInput); setReconfirmedAt(Date.now()); }}>Reconfirm current bid</button> Reconfirm after changing bid, shipping, slot, or risk stance. Confirmation expires after one minute.</p>}
             {eligibility.status === "eligible" && bid == null && <p className="decision-reason"><a href="#buyer-current-bid">Enter the current auction price</a> to compare it with your maximum hammer.</p>}
             {bid != null && shipping == null && <p className="decision-reason"><a href="#buyer-added-shipping">Enter the extra shipping charged for this purchase</a>. It affects your landed cost and maximum hammer.</p>}
             {eligibility.status === "eligible" && recommendation.action === "bid" && (
@@ -2200,9 +2219,9 @@ export function BuyerView({
             )}
           </div>
           <div className="ev-orb">
-            <small><span>{eligibility.status === "eligible" ? "Your max hammer" : "Limit unavailable"}</span></small>
-            <strong className="max-hammer" aria-label="Maximum hammer" aria-live="polite">{eligibility.status === "eligible" && cap.kind === "cap" ? fmt(cap.amount) : "—"}</strong>
-            <span>{eligibility.status === "eligible" ? `${ruleLabel} limit` : "No action recommendation"}</span>
+            <small><span>{eligibility.status === "eligible" || (resolvedOnlyRequested && scoped) ? "Your max hammer" : "Limit unavailable"}</span></small>
+            <strong className="max-hammer" aria-label="Maximum hammer" aria-live="polite">{reconfirmed && activeCap.kind === "cap" ? fmt(activeCap.amount) : "—"}</strong>
+            <span>{eligibility.status === "eligible" ? `${ruleLabel} limit` : resolvedOnlyRequested && scoped ? "Conservative incomplete limit" : "No action recommendation"}</span>
             <strong aria-label="Typical card value" aria-live="polite">{simulation.busy && !distribution ? "Checking…" : fmt(distribution?.median ?? fallbackMean)}</strong>
             {distribution?.median === 0 && <em>Usually no card above the bulk filter</em>}
             <span>Average {fmt(distribution?.mean ?? fallbackMean)}</span>

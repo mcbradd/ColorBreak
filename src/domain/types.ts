@@ -208,6 +208,8 @@ export interface DecisionEligibility {
   observedSource?: string;
   ageMs?: number;
   freshnessThresholdMs: number;
+  /** A conservative calculation using only resolved exact-printing values. */
+  resolvedOnlyAvailable: boolean;
   reason:
     | "fresh-complete"
     | "stale-price-snapshot"
@@ -215,6 +217,15 @@ export interface DecisionEligibility {
     | "missing-price-timestamp"
     | "invalid-price-timestamp"
     | "unavailable-source-status";
+}
+
+export interface ResolvedOnlyLimit {
+  scope: "resolved-only";
+  amount: number;
+  allIn: number;
+  omittedGroups: DecisionAffectedGroup[];
+  observedAt?: string;
+  observedSource?: string;
 }
 
 export interface Transaction {

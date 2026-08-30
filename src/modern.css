@@ -945,8 +945,8 @@ body {
   .bid-check-workbench .buyer-slot-select > span { width: 23px; height: 23px; font-size: 9px; }
   .bid-check-workbench .buyer-slot-select b,
   .bid-check-workbench .buyer-slot-select small { display: none; }
-  .bid-check-workbench .slot-taken-toggle { top: 1px; right: 1px; width: 20px; height: 20px; }
-  .bid-check-workbench .slot-taken-toggle svg { width: 11px; height: 11px; }
+  .bid-check-workbench .slot-taken-toggle { top: 0; right: 0; width: 44px; height: 44px; }
+  .bid-check-workbench .slot-taken-toggle svg { width: 14px; height: 14px; }
   .bid-check-workbench .remaining-summary { margin-top: 4px; font-size: 8px; }
   .bid-check-workbench .large-break-spot-input { grid-template-columns: minmax(0, 1fr) 88px; gap: 7px; padding: 7px 8px; }
   .bid-check-workbench .large-break-spot-label small,

@@ -1,6 +1,6 @@
 import { SLOT_IDS, SLOT_NAMES } from "./types";
 import type {
-  CardPrice, Contributor, DataStatus, DecisionEligibility, EvidenceState, ExpectedDraw, Finish, Omission, SlotId, SlotValuation, ValuationResult,
+  CardPrice, Contributor, DataStatus, DecisionEligibility, EvidenceState, ExpectedDraw, Finish, Omission, ResolvedOnlyLimit, SlotId, SlotValuation, ValuationResult,
 } from "./types";
 import { isCollectorOutlier } from "./outlier-policy";
 import { cardDisplayName } from "./card-label";
@@ -194,27 +194,18 @@ export function decisionEligibility(
     return [id, { id, label: omission.message, directionallyUsable: false }] as const;
   })).values()];
 
-  if (materialOmissions.length || valuation.status === "incomplete") {
-    return {
-      status: "material-incomplete",
-      blockerCount: Math.max(1, groups.length),
-      affectedGroups: groups,
-      observedAt,
-      observedSource,
-      freshnessThresholdMs,
-      reason: "material-omissions",
-    };
-  }
   if (!observedAt) {
     return {
       status: "unavailable", blockerCount: 1, affectedGroups: groups, observedSource,
       freshnessThresholdMs, reason: "missing-price-timestamp",
+      resolvedOnlyAvailable: false,
     };
   }
   if (!Number.isFinite(observedTime) || !Number.isFinite(currentTime)) {
     return {
       status: "unavailable", blockerCount: 1, affectedGroups: groups, observedAt, observedSource,
       freshnessThresholdMs, reason: "invalid-price-timestamp",
+      resolvedOnlyAvailable: false,
     };
   }
   const ageMs = Math.max(0, currentTime - observedTime);
@@ -222,17 +213,46 @@ export function decisionEligibility(
     return {
       status: "stale", blockerCount: 1, affectedGroups: groups, observedAt, observedSource, ageMs,
       freshnessThresholdMs, reason: "stale-price-snapshot",
+      resolvedOnlyAvailable: false,
+    };
+  }
+  if (materialOmissions.length || valuation.status === "incomplete") {
+    return {
+      status: "material-incomplete", blockerCount: Math.max(1, groups.length), affectedGroups: groups,
+      observedAt, observedSource, ageMs, freshnessThresholdMs, resolvedOnlyAvailable: true,
+      reason: "material-omissions",
     };
   }
   if (valuation.status !== "verified") {
     return {
       status: "unavailable", blockerCount: 1, affectedGroups: groups, observedAt, observedSource, ageMs,
       freshnessThresholdMs, reason: "unavailable-source-status",
+      resolvedOnlyAvailable: false,
     };
   }
   return {
     status: "eligible", blockerCount: 0, affectedGroups: [], observedAt, observedSource, ageMs,
     freshnessThresholdMs, reason: "fresh-complete",
+    resolvedOnlyAvailable: false,
+  };
+}
+
+/**
+ * Derives a deliberately incomplete ceiling without inventing a value for any
+ * omission. Callers may offer it only after explicit user consent.
+ */
+export function resolvedOnlyLimit(
+  resolvedValue: number,
+  shipping: number,
+  eligibility: DecisionEligibility,
+): ResolvedOnlyLimit | undefined {
+  if (!eligibility.resolvedOnlyAvailable || eligibility.status !== "material-incomplete") return undefined;
+  if (!Number.isFinite(resolvedValue) || !Number.isFinite(shipping) || shipping < 0) return undefined;
+  const amount = Math.max(0, Math.floor((resolvedValue - shipping) * 100) / 100);
+  return {
+    scope: "resolved-only", amount, allIn: amount + shipping,
+    omittedGroups: eligibility.affectedGroups,
+    observedAt: eligibility.observedAt, observedSource: eligibility.observedSource,
   };
 }
 
