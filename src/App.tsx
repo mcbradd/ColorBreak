@@ -69,6 +69,7 @@ import { track } from "./analytics";
 import { chaseMapLayout } from "./constellation-layout";
 import { createLargeBreakPlan, sortNamedCards, summarizeAssignmentValues } from "./domain/large-break";
 import type { TopCardSort } from "./domain/large-break";
+import { cleanupLegacyStorage, readSessionLines, writeSessionLines } from "./persistence";
 
 type Mode = "home" | "buyer" | "seller";
 const money = new Intl.NumberFormat("en-US", {
@@ -424,7 +425,8 @@ function Status({ result }: { result: ValuationResult }) {
 
 function Home({ choose }: { choose: (mode: Mode, fresh?: boolean) => void }) {
   const supportUrl = import.meta.env.VITE_SUPPORT_URL as string | undefined;
-  const recentBuyer = storedLines("buyer", []);
+  const recentBuyer = readSessionLines("buyer");
+  const recentSeller = readSessionLines("seller");
   const [cleared, setCleared] = useState(false);
   const clearDevice = async () => {
     for (const storage of [localStorage, sessionStorage]) {
@@ -489,9 +491,12 @@ function Home({ choose }: { choose: (mode: Mode, fresh?: boolean) => void }) {
           <ChevronRight />
         </button>
       )}
+      {recentSeller.length > 0 && <button className="resume-action" onClick={() => choose("seller", false)}>
+        <RotateCw /><span><small>THIS BROWSER SESSION</small><strong>Resume seller plan · costs are session-only</strong></span><ChevronRight />
+      </button>}
       <footer className="launcher-footer">
         <span>Exact-printing prices · Modeled pull ranges · No login</span>
-        <span><a href="/methodology.html">Methodology</a> · <a href="/privacy.html">Privacy</a>{supportUrl && <> · <a href={supportUrl} rel="noreferrer" target="_blank">Support</a></>}</span>
+        <span><a href="./methodology.html">Methodology</a> · <a href="./privacy.html">Privacy</a>{supportUrl && <> · <a href={supportUrl} rel="noreferrer" target="_blank">Support</a></>}</span>
       </footer>
       <button type="button" className="quiet" onClick={() => void clearDevice()}>Clear this device’s ColorBreak data</button>
       {cleared && <p role="status">ColorBreak data cleared from this device.</p>}
@@ -1040,7 +1045,6 @@ export function SlotRail({
                   setAuction(next);
                   setAssignmentMode("random");
                   if (!next.remaining.includes(selected)) setSelected(next.remaining[0]);
-                  if (!taken) track("slot_assigned", { remainingCount: next.remaining.length });
                 }}
               ><X aria-hidden="true" /></button>
             </div>
@@ -3158,7 +3162,7 @@ function storedLines(
   if (legacy.length) return legacy;
   try {
     return JSON.parse(
-      localStorage.getItem(`colorbreak:${mode}:lines`) ?? "[]",
+      sessionStorage.getItem(`colorbreak:${mode}:draft:v1`) ?? "[]",
     ) as BreakLine[];
   } catch {
     return [];
@@ -3167,7 +3171,7 @@ function storedLines(
 
 function storedBuyerNumber(key: "bid" | "shipping" | "large-spots"): number | undefined {
   try {
-    const stored = localStorage.getItem(`colorbreak:buyer:${key}`);
+    const stored = sessionStorage.getItem(`colorbreak:buyer:${key}`);
     if (stored == null || stored.trim() === "") return undefined;
     const value = Number(stored);
     return Number.isFinite(value) && value >= 0 ? value : undefined;
@@ -3263,6 +3267,7 @@ export function Workspace({
   const sharedBuyer = useMemo(() => decodeBuyerShare(location.search), []);
   const isSharedBreak = legacy.length > 0;
   const firstResultTracked = useRef(false);
+  const [legacyNotice, setLegacyNotice] = useState(false);
   const calculationStarted = useRef(Date.now());
   const [lines, setLines] = useState<BreakLine[]>(() =>
       startFresh && mode === "buyer" ? [] : storedLines(mode, legacy),
@@ -3297,15 +3302,16 @@ export function Workspace({
     bulkThreshold: number;
   }>();
   const threshold = mode === "seller" ? 0 : bulkEnabled ? bulkThreshold : 0;
+  useEffect(() => { if (cleanupLegacyStorage()) setLegacyNotice(true); }, []);
   useEffect(() => {
     try {
-      localStorage.setItem(`colorbreak:${mode}:lines`, JSON.stringify(lines));
+      writeSessionLines(mode, lines);
     } catch {
       /* persistence is optional */
     }
   }, [lines, mode]);
   useEffect(() => {
-    try { localStorage.setItem("colorbreak:buyer:auction", JSON.stringify(auction)); } catch { /* optional */ }
+    try { sessionStorage.setItem("colorbreak:buyer:auction", JSON.stringify(auction)); } catch { /* optional */ }
   }, [auction]);
   useEffect(() => {
     try {
@@ -3320,7 +3326,7 @@ export function Workspace({
     } catch { /* optional */ }
   }, [buyerShipping]);
   useEffect(() => {
-    try { localStorage.setItem("colorbreak:buyer:large-spots", String(largeSpots)); } catch { /* optional */ }
+    try { sessionStorage.setItem("colorbreak:buyer:large-spots", String(largeSpots)); } catch { /* optional */ }
   }, [largeSpots]);
   const sharedHref = createBreakShareUrl(`${location.origin}${location.pathname}#buyer`, {
     lines,
@@ -3347,7 +3353,7 @@ export function Workspace({
         setAnalysis(next);
         if (!firstResultTracked.current) {
           const elapsed = Date.now() - calculationStarted.current;
-          track("first_result", {
+          track("calculation_completed", {
             mode,
             productCount: lines.length,
             durationBucket: elapsed < 10_000 ? "under-10s" : "10s-plus",
@@ -3358,7 +3364,7 @@ export function Workspace({
       })
       .catch((e) => {
         setError(e instanceof Error ? e.message : String(e));
-        track("calculation_error", { mode, stage: "evaluate", code: "evaluation-failed" });
+        // Errors are intentionally not transmitted: failure details can be sensitive.
       })
       .finally(() => setBusy(false));
   }, [lines, threshold]);
@@ -3390,9 +3396,11 @@ export function Workspace({
     });
     return () => { cancelled = true; };
   }, [lines.map((line) => `${line.id}:${line.productKey}:${line.tcgId ?? ""}`).join("|")]);
+  const [shareStatus, setShareStatus] = useState<string>();
   const share = async () => {
-    await navigator.clipboard.writeText(sharedHref);
-    track("break_shared", { mode, productCount: lines.length, remainingCount: auction.remaining.length });
+    try { await navigator.clipboard.writeText(sharedHref); setShareStatus("Buyer setup link copied"); }
+    catch { setShareStatus("Clipboard unavailable — copy the displayed buyer setup URL."); }
+    track("buyer_setup_copied", { mode, productCount: lines.length });
   };
   return (
     <>
@@ -3407,13 +3415,15 @@ export function Workspace({
           {lines.length > 0 && <button
             className="icon-button"
             onClick={share}
-            title="Copy public break link — includes composition, assignment, remaining slots, and filters; excludes bid, shipping, costs, and actuals."
-            aria-label="Copy public break link"
+            title="Copy buyer break setup — excludes bids, shipping, seller costs, and actuals."
+            aria-label="Copy buyer break setup"
           >
             <Copy />
           </button>}
         </div>
       </nav>
+      {legacyNotice && <p role="status">Legacy durable drafts were removed because they could contain financial data. Current drafts stay only in this browser session.</p>}
+      {shareStatus && <p role="status">{shareStatus} <input aria-label="Buyer setup URL" readOnly value={sharedHref} /></p>}
       <main className="workspace page">
         <header className="workspace-title">
           <div>
@@ -3520,7 +3530,7 @@ export function Workspace({
             if (settings.bulkEnabled != null) setBulkEnabled(settings.bulkEnabled);
             if (settings.bulkThreshold != null) setBulkThreshold(settings.bulkThreshold);
           }
-          track("break_created", { mode, productCount: nextLines.length });
+          track("product_selected", { mode, productCount: nextLines.length });
         }}
       />
     </>

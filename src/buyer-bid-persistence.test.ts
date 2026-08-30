@@ -23,7 +23,7 @@ const analysis: BreakAnalysis = {
 
 describe("buyer bid persistence", () => {
   beforeEach(() => {
-    localStorage.setItem("colorbreak:buyer:lines", JSON.stringify([{
+    sessionStorage.setItem("colorbreak:buyer:draft:v1", JSON.stringify([{
       id: "line-1",
       set: "TST",
       productKey: "play-box",
@@ -38,6 +38,7 @@ describe("buyer bid persistence", () => {
   afterEach(() => {
     cleanup();
     localStorage.clear();
+    sessionStorage.clear();
     evaluateBreakAnalysis.mockReset();
   });
 

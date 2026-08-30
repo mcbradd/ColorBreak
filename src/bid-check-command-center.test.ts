@@ -31,7 +31,7 @@ const distribution = {
 
 describe("Bid Check command center", () => {
   beforeEach(() => {
-    localStorage.setItem("colorbreak:buyer:lines", JSON.stringify([{
+    sessionStorage.setItem("colorbreak:buyer:draft:v1", JSON.stringify([{
       id: "line-1",
       set: "TST",
       productKey: "play-box",
