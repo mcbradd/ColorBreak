@@ -640,7 +640,7 @@ export function Builder({
     void Promise.all(READY_EXAMPLES.map(async (example) => {
       const product = (await productsForSet(example.set)).find((item) => item.sealedKey === example.productKey);
       return product ? { product, readiness: await readinessForProduct(product) } : undefined;
-    })).then((rows) => { if (active) setReadyRows(rows.filter((row): row is { product: ProductChoice; readiness: DecisionReadiness } => Boolean(row))); }).finally(() => { if (active) setReadyChecking(false); });
+    })).then((rows) => { if (active) setReadyRows(rows.filter((row): row is { product: ProductChoice; readiness: DecisionReadiness } => Boolean(row))); }).catch(() => { if (active) setReadyRows([]); }).finally(() => { if (active) setReadyChecking(false); });
     return () => { active = false; };
   }, [open]);
   useEffect(() => {
