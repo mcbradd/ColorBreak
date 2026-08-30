@@ -90,7 +90,8 @@ import {
 } from "../../persistence";
 import { DisclosureArrow, fmt, InformationLabel, NumberField, PanelHeading, Tip, useDeferredOwnedFocus } from "../shared/Primitives";
 import { NextSteps, QuantityControl } from "../shared/ProductBuilder";
-import { CompactWarning, IncompleteDataWarning, useOutcomeSimulation } from "../buyer/BuyerVisuals";
+import { CompactWarning } from "../shared/Feedback";
+import { IncompleteDataWarning, useOutcomeSimulation } from "../shared/OutcomeFeedback";
 
 function allocate(
   result: ValuationResult,
