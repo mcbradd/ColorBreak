@@ -1,4 +1,4 @@
-import { cp, mkdir } from "node:fs/promises";
+import { cp, mkdir, rm } from "node:fs/promises";
 import { execFileSync } from "node:child_process";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -15,6 +15,9 @@ export default defineConfig({
         const root = fileURLToPath(new URL(".", import.meta.url));
         const output = resolve(root, "dist");
         await mkdir(output, { recursive: true });
+        // Vite may already have emitted a data directory from public/.  Replace
+        // that generated output so a repeat build cannot fail with EEXIST.
+        await rm(resolve(output, "data"), { recursive: true, force: true });
         await cp(resolve(root, "data"), resolve(output, "data"), { recursive: true });
         execFileSync(process.execPath, [resolve(root, "tools/build-release-manifest.mjs"), output], { stdio: "inherit" });
       },
