@@ -74,8 +74,11 @@ import { canonicalCompositionFingerprint } from "./domain/canonical-composition"
 import { useDecisionConfirmation } from "./domain/decision-confirmation";
 import {
   cleanupLegacyStorage,
+  defaultSellerPlanDraft,
+  discardSellerPlanDraft,
   readSellerPlanDraft,
   readSessionLines,
+  sellerCompositionFingerprint,
   writeSellerPlanDraft,
   writeSessionLines,
   type SellerPlanDraft,
