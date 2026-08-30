@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { analyticsPayload } from "./analytics";
 
-describe("privacy-conscious analytics", () => {
+describe("analytics event filtering", () => {
   it("keeps only the event taxonomy and non-sensitive counters", () => {
     expect(analyticsPayload("calculation_completed", {
       mode: "buyer",

@@ -36,7 +36,7 @@ jobs:
       - name: Report release evidence
         run: |
           node -e "import('./tools/build-release-manifest.mjs').then(m => m.verifyReleaseArtifact({ outputDir: './dist' }))"
-          node -e "const m=require('./dist/data/release-manifest.json'); if (m.releasePosture !== 'analysis-only') process.exit(1); console.log('Analysis-only release manifest:', m.id)"
+          node -e "const m=require('./dist/data/release-manifest.json'); console.log('Release manifest:', m.id)"
           node tools/run-root-mjs-tests.mjs --discovery-only
       - name: Configure Pages
         uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5

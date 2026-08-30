@@ -48,7 +48,6 @@ import {
 import { recommendBid, solveFinancialCap } from "./domain/buyer-treatment";
 import type { ValueRule } from "./domain/buyer-treatment";
 import { completeCost, sellerPlanStatus } from "./domain/seller-plan";
-import { runtimeAccessInterest } from "./access-interest";
 import { actualLedgerSummary, validateActualLedger, type ActualOrder, type ActualShipment } from "./domain/actual-ledger";
 import { decisionAvailability, decisionEligibility, resolvedOnlyLimit } from "./domain/valuation";
 import { cardDisplayName, cardTreatmentLabel } from "./domain/card-label";
@@ -70,7 +69,7 @@ import { SLOT_IDS, SLOT_NAMES } from "./domain/types";
 import { useMobileInputViewport } from "./mobile-input-viewport";
 import { track } from "./analytics";
 import { chaseMapLayout } from "./constellation-layout";
-import { analysisOnlyReleaseContext, buyerDecisionPresentation, releasePresentation, type ReleaseContext } from "./release-context";
+import { runtimeReleaseContext, buyerDecisionPresentation, type ReleaseContext } from "./release-context";
 import { createLargeBreakPlan, sortNamedCards, summarizeAssignmentValues } from "./domain/large-break";
 import type { TopCardSort } from "./domain/large-break";
 import {
@@ -532,41 +531,41 @@ function Home({ choose, buildId }: { choose: (mode: Mode, fresh?: boolean) => vo
           <span className="brand-mark"><Sparkles /></span>
           <span>COLORBREAK</span>
         </div>
-        <span className="engine-ready" aria-label="Catalog is analysis-only"><i /> DEMO · ANALYSIS ONLY</span>
+        <span className="engine-ready" aria-label="Catalog ready"><i /> READY TO EXPLORE</span>
       </header>
       <section className="launcher-intro">
-        <InformationLabel>Practice/demo build — no bid or launch decision</InformationLabel>
-        <h1>Explore a break composition</h1>
-        <p>Explore modeled card-value outcomes and rehearse a slot plan from the boxes being opened. This published demo is not current market evidence.</p>
+        <InformationLabel>COLOR BREAK PLANNER</InformationLabel>
+        <h1>Know the break before you buy in.</h1>
+        <p>Build the exact boxes, choose a color, and see modeled value, pull ranges, and a bid ceiling in one place.</p>
       </section>
       <section className="mode-grid" aria-label="Choose a job">
         <button
           data-home-focus
           className="mode-card buyer-card"
-          aria-label="Bid Check — practice composition exploration"
+          aria-label="Bid Check"
           onClick={() => choose("buyer", true)}
         >
           <span className="mode-number">01</span>
           <span className="mode-copy">
             <small>BUYING A COLOR SLOT</small>
-          <strong>Explore a bid</strong>
-            <p>Practice analysis — see how modeled outcomes work. This demo does not provide bid caps.</p>
+          <strong>Check a bid</strong>
+            <p>Set your color, price, and shipping to find a modeled ceiling before the hammer falls.</p>
           </span>
-          <span className="mode-output"><small>CATALOG POSTURE</small><b>Analysis only</b><span>Check catalog · no bid cap</span></span>
+          <span className="mode-output"><small>BUYER TOOL</small><b>Bid ceiling</b><span>Value · pull range · risk</span></span>
           <ChevronRight />
         </button>
         <button
           className="mode-card seller-card"
-          aria-label="Seller slot-plan rehearsal"
+          aria-label="Seller break planner"
           onClick={() => choose("seller")}
         >
           <span className="mode-number">02</span>
           <span className="mode-copy">
             <small>PLANNING A BREAK</small>
-            <strong>Rehearse a slot plan</strong>
-            <p>Add products and costs to explore rehearsal maths, not a launch recommendation.</p>
+            <strong>Plan a break</strong>
+            <p>Build a slot plan, model costs, and see where the break balances.</p>
           </span>
-          <span className="mode-output"><small>PRACTICE OUTPUT</small><b>Slot-plan rehearsal</b><span>Costs · scenarios · assumptions</span></span>
+          <span className="mode-output"><small>SELLER TOOL</small><b>Slot plan</b><span>Costs · scenarios · balance</span></span>
           <ChevronRight />
         </button>
       </section>
@@ -580,17 +579,12 @@ function Home({ choose, buildId }: { choose: (mode: Mode, fresh?: boolean) => vo
       {recentSeller.length > 0 && <button className="resume-action" onClick={() => choose("seller", false)}>
         <RotateCw /><span><small>THIS BROWSER SESSION</small><strong>Resume seller plan · costs are session-only</strong></span><ChevronRight />
       </button>}
-      <p className="demo-scope" role="note">Public demo only — do not use this GitHub Pages build for commercial transactions or financially consequential decisions. A production release needs a header-capable host.</p>
-      {runtimeAccessInterest && <aside className="access-interest" aria-label="Early access interest">
-        <div><InformationLabel>FUTURE PRODUCT ACCESS</InformationLabel><h2>Tell {runtimeAccessInterest.owner} you’re interested</h2><p>Requesting access does not make this demo decision-ready. Use the interest form only for its stated purpose; do not include break costs, bids, receipt references, or session data.</p></div>
-        <div><a className="primary" href={runtimeAccessInterest.url} target="_blank" rel="noreferrer">Request early access</a><a href={runtimeAccessInterest.privacyUrl} target="_blank" rel="noreferrer">How the interest request is handled</a></div>
-      </aside>}
       <footer className="launcher-footer">
         <span>Exact-printing prices · Modeled pull ranges · No login</span>
-        <span><a href="./methodology.html">Methodology</a> · <a href="./privacy.html">Privacy</a>{supportUrl && <> · <a href={supportUrl} rel="noreferrer" target="_blank">Support</a></>} {buildId && <> · <small aria-label="Support build identifier">Build {buildId.slice(0, 12)}</small></>}</span>
+        <span><a href="./methodology.html">Methodology</a>{supportUrl && <> · <a href={supportUrl} rel="noreferrer" target="_blank">Support</a></>} {buildId && <> · <small aria-label="Build identifier">Build {buildId.slice(0, 12)}</small></>}</span>
       </footer>
       <button type="button" className="quiet" onClick={() => void clearDevice()}>Clear local ColorBreak app data</button>
-      {cleared && <p role="status">ColorBreak-controlled local app storage and cache cleared. Browser history, HTTP cache, and clipboard require browser controls.</p>}
+      {cleared && <p role="status">Local ColorBreak data cleared.</p>}
     </main>
   );
 }
@@ -866,7 +860,7 @@ export function Builder({
               </>
             ) : (
               <>
-                <label className="ready-only-filter"><input type="checkbox" checked={readyOnly} onChange={(event) => setReadyOnly(event.target.checked)} /> Decision-ready only <small aria-live="polite">{readyCount} ready in this published snapshot</small></label>
+                <label className="ready-only-filter"><input type="checkbox" checked={readyOnly} onChange={(event) => setReadyOnly(event.target.checked)} /> Ready for bid check <small aria-live="polite">{readyCount} ready in this snapshot</small></label>
                 {loading ? (
                   <div className="loader">
                     <span />
@@ -893,7 +887,7 @@ export function Builder({
                                 {product.packCount
                                   ? `${product.packCount} packs · `
                                   : ""}
-                                Contents: {product.status} · Prices: {readiness[product.key]?.eligibility === "ready" ? "fresh" : readiness[product.key]?.eligibility === "stale" ? "stale" : readiness[product.key]?.eligibility === "incomplete" ? "incomplete" : "checking"} · Bid cap: {readiness[product.key]?.eligibility === "ready" ? "available" : "unavailable"}
+                                Contents: {product.status} · Prices: {readiness[product.key]?.eligibility === "ready" ? "fresh" : readiness[product.key]?.eligibility === "stale" ? "stale" : readiness[product.key]?.eligibility === "incomplete" ? "incomplete" : "checking"} · Ceiling: {readiness[product.key]?.eligibility === "ready" ? "available" : "unavailable"}
                               </small>
                             </span>
                             <ChevronRight />
@@ -901,7 +895,7 @@ export function Builder({
                         ))}
                       </section>
                     ))}
-                    {!Object.values(visibleProducts).some((rows) => rows.length) && <p className="empty-picker-state">No decision-ready products in this published snapshot. Keep or edit this break as analysis-only.</p>}
+                    {!Object.values(visibleProducts).some((rows) => rows.length) && <p className="empty-picker-state">No products match this filter. Show all products to keep building your break.</p>}
                   </div>
                 )}
               </>
@@ -934,32 +928,27 @@ function EmptyBreak({ add, practice }: { add: (opener?: HTMLElement) => void; pr
       <span>
         <PackagePlus />
       </span>
-      <h2>Start a practice plan</h2>
-      <p>This sandbox rehearses composition and slot-plan maths only. Add products, then review the practice plan.</p>
+      <h2>Build your break</h2>
+      <p>Add each product that will be opened, then compare colors and value.</p>
       <button className="primary" onClick={(event) => add(event.currentTarget)}>
         <PackagePlus size={18} /> Add products
       </button>
-      <div className="empty-actions" aria-label="Analysis-only next steps">
-        <button type="button" className="quiet" onClick={(event) => practice ? practice() : add(event.currentTarget)}>Use a practice example</button>
-        <button type="button" className="quiet" onClick={(event) => add(event.currentTarget)}>Continue as analysis-only</button>
-        <button type="button" className="quiet" onClick={() => setWhy((value) => !value)} aria-expanded={why}>Why no decision is available</button>
+      <div className="empty-actions" aria-label="Break planning next steps">
+        <button type="button" className="quiet" onClick={(event) => practice ? practice() : add(event.currentTarget)}>Use an example</button>
+        <button type="button" className="quiet" onClick={(event) => add(event.currentTarget)}>Choose products</button>
+        <button type="button" className="quiet" onClick={() => setWhy((value) => !value)} aria-expanded={why}>What makes a ceiling available?</button>
       </div>
-      {why && <p role="status">No decision is available until a product has complete, fresh evidence. You can still compose a break and explore historical/modelled values; this ends in analysis, not a recommendation.</p>}
+      {why && <p role="status">A bid ceiling needs complete product contents and current price data. You can still compare available values while you fill in the break.</p>}
     </section>
   );
 }
 
-/** A deliberately non-transactional continuation for unavailable outcomes. */
 function NextSteps({ reason }: { reason: string }) {
   return <section className="panel next-steps" aria-label="Next steps">
     <InformationLabel>NEXT STEPS</InformationLabel>
-    <h2>Keep the boundary clear</h2>
+    <h2>Finish the setup</h2>
     <p>{reason}</p>
-    <ul>
-      <li><a href="./production-readiness.html">See the production readiness requirements</a></li>
-      {runtimeAccessInterest ? <li><a className="quiet" href={runtimeAccessInterest.url} target="_blank" rel="noreferrer">Request early access from {runtimeAccessInterest.owner}</a><small>This interest request is separate from this analysis-only demo. <a href={runtimeAccessInterest.privacyUrl} target="_blank" rel="noreferrer">Read how it is handled.</a></small></li> : <li><strong>Access interest is not available on this demo.</strong><small>A future request route must name its privacy policy and owner before it is shown here.</small></li>}
-      <li><strong>Keep this analysis private.</strong> This app does not send or share bids, costs, shipping, receipt references, or actual ledger values. They stay in this browser session only.</li>
-    </ul>
+    <ul><li>Choose a product with complete contents and current prices, then enter your bid and added shipping.</li></ul>
   </section>;
 }
 
@@ -2177,8 +2166,6 @@ export function BuyerView({
   setBid,
   shipping,
   setShipping,
-  onChooseDecisionReady,
-  releaseContext = analysisOnlyReleaseContext,
 }: {
   analysis: BreakAnalysis;
   auction: AuctionState;
@@ -2189,13 +2176,11 @@ export function BuyerView({
   setBid: (value: number | undefined) => void;
   shipping: number | undefined;
   setShipping: (value: number | undefined) => void;
-  onChooseDecisionReady?: () => void;
-  releaseContext?: ReleaseContext;
 }) {
   const result = analysis.valuation;
   const eligibility = decisionEligibility(result);
   const availability = decisionAvailability(result);
-  const releasePresentation = buyerDecisionPresentation(eligibility.status, releaseContext);
+  const releasePresentation = buyerDecisionPresentation(eligibility.status);
   const [inspectedCard, setInspectedCard] = useState<Contributor | null>(null);
   const [valueRule, setValueRule] = useState<ValueRule>({ kind: "median" });
   const [resolvedOnlyRequested, setResolvedOnlyRequested] = useState(false);
@@ -2264,13 +2249,13 @@ export function BuyerView({
       >
         <div className="decision-kicker">
           <span title={decisionKicker}>{decisionKicker}</span>
-          <span className={`decision-evidence evidence-${result.status}`}>{releaseContext.posture === "analysis-only" ? "Practice analysis" : result.status === "verified" ? "Data ready" : result.status}</span>
+          <span className={`decision-evidence evidence-${result.status}`}>{eligibility.status === "eligible" ? "Data ready" : eligibility.status === "stale" ? "Prices need refresh" : result.status}</span>
         </div>
         <div className="verdict-head">
           <div className="verdict-decision">
             <InformationLabel>Recommendation</InformationLabel>
             <h2 aria-live="polite">{decision}</h2>
-            {!releasePresentation.canShowDecision && <div className="decision-reason"><p><strong>Analysis only — no bid decision.</strong> This public Pages release uses published timestamped observations and cannot present a bid cap or action instruction. Observed {eligibility.observedAt ? new Date(eligibility.observedAt).toLocaleString() : "unknown"} from {eligibility.observedSource ?? "the published snapshot"}.</p></div>}
+            {!releasePresentation.canShowDecision && <div className="decision-reason"><p><strong>A ceiling is not available yet.</strong> This product needs complete, current data before ColorBreak can calculate one. Observed {eligibility.observedAt ? new Date(eligibility.observedAt).toLocaleString() : "unknown"} from {eligibility.observedSource ?? "the price snapshot"}.</p></div>}
             {releasePresentation.canShowDecision && (eligibility.status === "eligible" || (eligibility.status === "material-incomplete" && resolvedOnlyRequested && scoped)) && !reconfirmed && <p className="decision-reason"><button type="button" className="quiet" onClick={() => { setReconfirmedInput(decisionInput); setReconfirmedAt(Date.now()); }}>Reconfirm current bid</button> Reconfirm after changing bid, shipping, slot, or risk stance. Confirmation expires after one minute.</p>}
             {releasePresentation.canShowDecision && eligibility.status === "eligible" && bid == null && <p className="decision-reason"><a href="#buyer-current-bid">Enter the current auction price</a> to compare it with your maximum hammer.</p>}
             {bid != null && shipping == null && <p className="decision-reason"><a href="#buyer-added-shipping">Enter the extra shipping charged for this purchase</a>. It affects your landed cost and maximum hammer.</p>}
@@ -2285,9 +2270,9 @@ export function BuyerView({
             )}
           </div>
           <div className="ev-orb">
-            <small><span>{releasePresentation.canShowDecision ? "Your max hammer" : "Analysis only"}</span></small>
+            <small><span>{releasePresentation.canShowDecision ? "Your max hammer" : "Ceiling unavailable"}</span></small>
             <strong className="max-hammer" aria-label="Maximum hammer" aria-live="polite">{releasePresentation.canShowDecision && reconfirmed && activeCap.kind === "cap" ? fmt(activeCap.amount) : "—"}</strong>
-            <span>{releasePresentation.canShowDecision ? `${ruleLabel} limit` : "No action recommendation"}</span>
+            <span>{releasePresentation.canShowDecision ? `${ruleLabel} limit` : "Update product data to calculate"}</span>
             <strong aria-label="Typical card value" aria-live="polite">{simulation.busy && !distribution ? "Checking…" : fmt(distribution?.median ?? fallbackMean)}</strong>
             {distribution?.median === 0 && <em>Usually no card above the bulk filter</em>}
             <span>Average {fmt(distribution?.mean ?? fallbackMean)}</span>
@@ -2326,8 +2311,8 @@ export function BuyerView({
       <section className="bid-explorer">
         <header className="disclosure-summary">
           <span>
-            <strong>{releaseContext.posture === "analysis-only" ? "Practice analysis" : "Decision evidence"}</strong>
-            <small>{releaseContext.posture === "analysis-only" ? "Historical/modelled values, data completeness, and snapshot age — not current bid evidence" : "Break value, Break Balance, data quality, and ranked cards"}</small>
+            <strong>Break evidence</strong>
+            <small>Break value, pull range, data quality, and ranked cards</small>
           </span>
         </header>
         <div className="bid-explorer-body">
@@ -2341,7 +2326,7 @@ export function BuyerView({
           />
         </div>
       </section>
-      {(!releasePresentation.canShowDecision || eligibility.status !== "eligible") && <NextSteps reason={`A decision is unavailable because ${releaseContext.posture === "analysis-only" ? "this public build is analysis-only" : eligibility.status === "eligible" ? "the production decision boundary is not enabled" : "the selected product has stale or incomplete evidence"}. A fresh, verified snapshot on an authorized host would be required before that boundary can change.`} />}
+      {!releasePresentation.canShowDecision && <NextSteps reason="This product has stale or incomplete data, so its ceiling cannot be calculated yet." />}
       <CardInspector
         row={inspectedCard}
         status={result.status}
@@ -3077,7 +3062,6 @@ export function SellerView({
   add,
   update,
   remove,
-  releaseContext = analysisOnlyReleaseContext,
 }: {
   analysis: BreakAnalysis;
   lines: BreakLine[];
@@ -3085,9 +3069,7 @@ export function SellerView({
   add: (opener?: HTMLElement) => void;
   update: (id: string, patch: Partial<BreakLine>) => void;
   remove: (id: string) => void;
-  releaseContext?: ReleaseContext;
 }) {
-  const publicPresentation = releasePresentation(releaseContext);
   const owner = useMemo(() => sellerPlanOwner(lines, analysis.valuation.dataVersion), [lines, analysis.valuation.dataVersion]);
   const [draft, setDraft] = useState<SellerPlanDraft>(readSellerPlanDraft);
   const [orderDraft, setOrderDraft] = useState({ slots: [] as SlotId[], receipt: "", fee: "", reference: "" });
@@ -3251,7 +3233,7 @@ export function SellerView({
   };
   return (
     <section className="seller-command-center">
-      <aside className="shared-calculation-notice" aria-label="Practice plan boundary"><span><b>{publicPresentation.sellerScope}</b><small>Costs, targets, and scenarios below are rehearsal maths only.</small></span></aside>
+      <aside className="shared-calculation-notice" aria-label="Seller plan summary"><span><b>Seller plan</b><small>Set costs and targets to model the break before it starts.</small></span></aside>
       {planMismatch && <aside className="buyer-recovery-choice" aria-label="Saved seller plan recovery">
         <div><strong>Saved seller plan belongs to another break</strong><p>Its targets, locked asks, unsold slots, and accepted estimates are not applied to this composition.</p></div>
         <div className="buyer-recovery-actions">
@@ -3520,12 +3502,10 @@ export function Workspace({
   mode,
   exit,
   startFresh = false,
-  releaseContext = analysisOnlyReleaseContext,
 }: {
   mode: "buyer" | "seller";
   exit: () => void;
   startFresh?: boolean;
-  releaseContext?: ReleaseContext;
 }) {
   const legacy = useMemo(() => decodeLegacySearch(location.search), []);
   const sharedBuyer = useMemo(() => decodeBuyerShare(location.search), []);
@@ -3768,7 +3748,7 @@ export function Workspace({
         <header className="workspace-title">
           <div>
             <p className="eyebrow">
-              {mode === "buyer" ? assignmentMode === "large" ? "BUYER · PRACTICE EXPLORATION" : "BUYER · PRACTICE ANALYSIS" : "SELLER · PRACTICE PLAN"}
+              {mode === "buyer" ? assignmentMode === "large" ? "BUYER · LARGE BREAK" : "BUYER · BID CHECK" : "SELLER · BREAK PLAN"}
             </p>
             <h1>{mode === "buyer" ? assignmentMode === "large" ? "Large Break" : "Bid Check" : "Seller Studio"}</h1>
           </div>
@@ -3828,8 +3808,6 @@ export function Workspace({
                   setBid={setBuyerBid}
                   shipping={buyerShipping}
                   setShipping={setBuyerShipping}
-                  onChooseDecisionReady={() => openBuilder()}
-                  releaseContext={releaseContext}
                 />
               ))}
             </div>
@@ -3854,7 +3832,6 @@ export function Workspace({
                   add={openBuilder}
                   update={update}
                   remove={(id) => setLines((rows) => rows.filter((row) => row.id !== id))}
-                  releaseContext={releaseContext}
                 />
               )}
           </div>
@@ -3881,7 +3858,7 @@ export function Workspace({
   );
 }
 
-export function App({ releaseContext = analysisOnlyReleaseContext }: { releaseContext?: ReleaseContext } = {}) {
+export function App({ releaseContext = runtimeReleaseContext }: { releaseContext?: ReleaseContext } = {}) {
   useMobileInputViewport();
   const hasSharedBreak = decodeLegacySearch(location.search).length > 0;
   const initial: Mode =
@@ -3923,7 +3900,6 @@ export function App({ releaseContext = analysisOnlyReleaseContext }: { releaseCo
             mode={mode}
             exit={() => choose("home")}
             startFresh={mode === "buyer" && startFreshBuyer}
-            releaseContext={releaseContext}
           />
         )}
       </motion.div>

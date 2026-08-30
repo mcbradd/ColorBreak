@@ -9,7 +9,6 @@ import { validatePublicConfig } from "./tools/public-config.mjs";
 export default defineConfig(({ mode }) => ({
   base: "./",
   define: mode === "test" ? {} : {
-    __COLORBREAK_RELEASE_POSTURE__: JSON.stringify("analysis-only"),
     __COLORBREAK_BUILD_ID__: JSON.stringify(process.env.GITHUB_SHA ?? execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim()),
   },
   plugins: [

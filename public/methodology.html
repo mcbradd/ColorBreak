@@ -10,12 +10,12 @@
     <style>body{max-width:760px;margin:0 auto;padding:32px 20px 80px;color:#e9edf4;background:#090b10;font:16px/1.65 system-ui,sans-serif}a{color:#aeff5e}h1,h2{line-height:1.15}h2{margin-top:2em}</style>
   </head>
   <body>
-    <nav aria-label="ColorBreak documents"><a href="./">← ColorBreak</a> · <a href="./privacy.html">Privacy</a></nav>
+    <nav aria-label="ColorBreak documents"><a href="./">← ColorBreak</a></nav>
     <h1>Methodology</h1>
     <p>ColorBreak estimates Magic: The Gathering break outcomes. It is a decision aid, not a prediction of the next opening or a guarantee of value.</p>
     <h2>Sources and evidence</h2>
     <p>MTGJSON supplies versioned product identities, contents, and weighted booster sheets. Scryfall supplies exact-printing metadata, images, and published timestamped price observations. Narrow corrections cite official Wizards product or collecting guides. Evidence for product identity, contents, collation, finish, break rules, and price freshness is tracked separately.</p>
-    <p>This GitHub Pages release is analysis-only. It may show disclosed ranges and observations, including incomplete-data analysis, but it never supplies a bid cap, transaction instruction, or buyer verdict.</p>
+    <p>ColorBreak calculates a modeled bid ceiling only when the selected products have complete contents and current prices. When data is stale or incomplete, the app keeps the available values visible and names what needs attention.</p>
     <h2>Expected value and outcomes</h2>
     <p>Analytic EV sums each possible printing's price times expected copies. Outcome distributions use deterministic, seeded sampling of mutually exclusive variants, sheet choices, fixed cards, nested products, finishes, and duplicate rules. Initial results use 10,000 samples and can refine to 50,000. The same break state and price snapshot reproduce the same result.</p>
     <p>The Outcome Fingerprint emphasizes median and downside alongside mean EV. A 20-dot display represents modeled frequency in five-percent increments. “Chance to clear” compares modeled counted card value with the entered landed cost.</p>

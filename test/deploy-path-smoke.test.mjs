@@ -67,7 +67,7 @@ test("built static documents work when ColorBreak is deployed under a subpath", 
   const { server, origin } = await serveArtifact();
   t.after(() => server.close());
 
-  for (const [file, heading] of [["methodology.html", "Methodology"], ["privacy.html", "Privacy"]]) {
+  for (const [file, heading] of [["methodology.html", "Methodology"]]) {
     const { response, text } = await fetchText(origin, `${deploymentBase}${file}`);
     assert.equal(response.status, 200, `${file} should be served from the deployment base`);
     assert.match(text, new RegExp(`<h1>${heading}</h1>`));
@@ -80,7 +80,7 @@ test("built static documents work when ColorBreak is deployed under a subpath", 
   }
 });
 
-test("built app bundle does not retain root-relative privacy or methodology paths", async (t) => {
+test("built app bundle keeps methodology navigation deploy-relative", async (t) => {
   if (!await builtArtifactExists()) {
     t.skip("Run this suite after `npm run build` (the normal check command does this).");
     return;
@@ -90,7 +90,6 @@ test("built app bundle does not retain root-relative privacy or methodology path
   const scripts = await Promise.all(assets.filter((asset) => asset.endsWith(".js")).map((asset) => readFile(join(output, "assets", asset), "utf8")));
   const bundle = scripts.join("\n");
   assert.match(bundle, /methodology\.html/);
-  assert.match(bundle, /privacy\.html/);
   assert.doesNotMatch(bundle, /["']\/methodology\.html/);
-  assert.doesNotMatch(bundle, /["']\/privacy\.html/);
+  assert.doesNotMatch(bundle, /privacy\.html/);
 });

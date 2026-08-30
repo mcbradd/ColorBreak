@@ -10,7 +10,6 @@
     "test": "vitest run && node tools/run-root-mjs-tests.mjs",
     "test:node": "node tools/run-root-mjs-tests.mjs",
     "test:deploy-path": "node --test test/deploy-path-smoke.test.mjs",
-    "test:production-host": "node tools/verify-production-host.mjs",
     "test:watch": "vitest",
     "data:coverage": "node tools/report-coverage.mjs",
     "data:diff": "node tools/source-diff.mjs",
@@ -21,7 +20,6 @@
     "check:data": "node tools/report-coverage.mjs --check",
     "check:prices": "node tools/build-price-snapshot.mjs --check",
     "check:decision-freshness": "node tools/build-price-snapshot.mjs --check --max-age-ms 21600000",
-    "release:posture": "node tools/release-posture.mjs",
     "check:sealed-prices": "node tools/build-sealed-price-snapshot.mjs --check",
     "check": "npm run test && npm run check:data && npm run check:prices && npm run check:sealed-prices && npm run build && npm run test:deploy-path"
   },

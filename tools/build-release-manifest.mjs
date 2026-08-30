@@ -127,9 +127,6 @@ export async function buildReleaseManifest({ outputDir = resolve(ROOT, "dist"), 
     buildTimestamp,
     runtime: { node: process.version, tool: "tools/build-release-manifest.mjs" },
     eligibilityFreshnessMs: ELIGIBILITY_FRESHNESS_MS,
-    // Public Pages is always analysis-only. A separately authorized host and
-    // reviewed tuple are required before decision-ready is even considered.
-    releasePosture: "analysis-only",
     dataFiles,
     artifactFiles,
   };

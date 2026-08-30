@@ -9,7 +9,6 @@ const CORE = [
   "./manifest.webmanifest",
   "./icon.svg",
   "./methodology.html",
-  "./privacy.html",
   "./data/products.json",
   "./data/corrections.json",
 ];

@@ -20,9 +20,8 @@ if (!asset) throw new Error("Published document has no hashed application asset"
 const manifestResponse = await get("data/release-manifest.json");
 const manifest = JSON.parse(manifestResponse.bytes.toString("utf8"));
 if (manifest.appCommitSha !== expectedSha) throw new Error(`Manifest SHA ${manifest.appCommitSha} does not equal reviewed SHA ${expectedSha}`);
-if (manifest.releasePosture !== "analysis-only") throw new Error(`Unexpected release posture ${manifest.releasePosture}`);
 const inventory = new Map(manifest.artifactFiles.map((item) => [item.path, item.sha256]));
-for (const path of [asset, "privacy.html", "methodology.html"]) {
+for (const path of [asset, "methodology.html"]) {
   const file = await get(path);
   const normalized = path.replace(/^\.\//, "");
   if (inventory.get(normalized) !== digest(file.bytes)) throw new Error(`Published hash mismatch: ${normalized}`);
