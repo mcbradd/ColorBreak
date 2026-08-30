@@ -1021,6 +1021,19 @@ body {
   box-shadow: none;
 }
 
+.actual-ledger-form { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 9px; margin: 14px 0; padding: 12px; border: 1px solid var(--line); }
+.actual-ledger-form h3, .actual-ledger-form p, .actual-slot-list { grid-column: 1 / -1; margin: 0; }
+.actual-ledger-form label { display: grid; gap: 4px; color: var(--muted); font-size: 10px; font-weight: 800; }
+.actual-ledger-form input, .actual-ledger-form select { min-width: 0; min-height: 38px; border: 1px solid var(--line-strong); border-radius: 2px; color: var(--ink); background: #0d1015; padding: 0 8px; }
+.actual-slot-list { display: flex; flex-wrap: wrap; gap: 8px 13px; }
+.actual-slot-list label { display: block; color: var(--ink); }
+.actual-ledger-form .primary { align-self: end; }
+.actual-ledger-list { display: grid; gap: 7px; padding: 0; list-style: none; }
+.actual-ledger-list li { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px; border-left: 2px solid var(--accent); background: #0d1015; font-size: 11px; }
+.actual-result { padding: 12px; border: 1px solid var(--line-strong); background: #0d1015; }
+.actual-result p { margin: 5px 0 0; font-size: 11px; }
+@media (max-width: 620px) { .actual-ledger-form { grid-template-columns: 1fr 1fr; } .actual-ledger-list li { align-items: flex-start; flex-direction: column; } }
+
 .seller-section-heading {
   display: flex;
   align-items: center;

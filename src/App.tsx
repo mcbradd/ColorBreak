@@ -48,6 +48,7 @@ import {
 import { recommendBid, solveFinancialCap } from "./domain/buyer-treatment";
 import type { ValueRule } from "./domain/buyer-treatment";
 import { completeCost, sellerPlanStatus } from "./domain/seller-plan";
+import { actualLedgerSummary, validateActualLedger, type ActualOrder, type ActualShipment } from "./domain/actual-ledger";
 import { decisionAvailability, decisionEligibility, resolvedOnlyLimit } from "./domain/valuation";
 import { cardDisplayName, cardTreatmentLabel } from "./domain/card-label";
 import { deduplicateOmissions } from "./domain/omissions";
@@ -3063,7 +3064,10 @@ export function SellerView({
   const publicPresentation = releasePresentation(releaseContext);
   const owner = useMemo(() => sellerPlanOwner(lines, analysis.valuation.dataVersion), [lines, analysis.valuation.dataVersion]);
   const [draft, setDraft] = useState<SellerPlanDraft>(readSellerPlanDraft);
-  const hasSavedPlanValues = draft.targetsApplied || Object.keys(draft.lockedAsks).length > 0 || draft.unsoldSlots.length > 0 || draft.acceptedEstimateIds.length > 0 || draft.plannedBidOverride != null;
+  const [orderDraft, setOrderDraft] = useState({ slots: [] as SlotId[], receipt: "", fee: "", reference: "" });
+  const [shipmentDraft, setShipmentDraft] = useState({ orderId: "", postage: "", packing: "", reference: "" });
+  const [ledgerError, setLedgerError] = useState<string>();
+  const hasSavedPlanValues = draft.targetsApplied || Object.keys(draft.lockedAsks).length > 0 || draft.unsoldSlots.length > 0 || draft.acceptedEstimateIds.length > 0 || draft.plannedBidOverride != null || draft.actualLedger.orders.length > 0 || draft.actualLedger.shipments.length > 0;
   const planMismatch = hasSavedPlanValues && !sellerPlanMatches(draft, owner);
   const activeDraft = planMismatch ? { ...defaultSellerPlanDraft(), owner } : draft;
   useEffect(() => {
@@ -3162,6 +3166,32 @@ export function SellerView({
     activeDraft.lockedAsks,
     unsoldSlots,
   );
+  const saleableSlotIds = soldSlots.map((slot) => slot.id);
+  const actualAcquisitionCents = lines.every((line) => line.myCost != null)
+    ? Math.round(lines.reduce((total, line) => total + (line.myCost ?? 0) * line.quantity, 0) * 100) : undefined;
+  const ledgerSummary = actualLedgerSummary(activeDraft.actualLedger, saleableSlotIds, actualAcquisitionCents);
+  const reconciliationState = ledgerSummary.incomplete ? "reconciliation_incomplete" : "actuals_reconciled";
+  const readiness = actualAcquisitionCents == null
+    ? (costsComplete ? "Rehearsal economics only — verify actual cost." : "Economics not ready — add actual acquisition cost.")
+    : reconciliationState === "actuals_reconciled" ? "Actual result reconciled for this session."
+      : "Planning inputs complete — demand and actual reconciliation still pending.";
+  const updateLedger = (next: SellerPlanDraft["actualLedger"]) => {
+    try { setPlan({ actualLedger: validateActualLedger(next, saleableSlotIds) }); setLedgerError(undefined); }
+    catch (error) { setLedgerError(error instanceof Error ? error.message : "Ledger could not be saved"); }
+  };
+  const addOrder = () => {
+    const receiptCents = Math.round(Number(orderDraft.receipt) * 100), feeCents = Math.round(Number(orderDraft.fee || 0) * 100);
+    const order: ActualOrder = { id: `order-${crypto.randomUUID()}`, slotIds: orderDraft.slots, receiptCents, feeCents, reference: orderDraft.reference.trim() || undefined };
+    updateLedger({ ...activeDraft.actualLedger, orders: [...activeDraft.actualLedger.orders, order] });
+    setOrderDraft({ slots: [], receipt: "", fee: "", reference: "" });
+  };
+  const addShipment = () => {
+    const order = activeDraft.actualLedger.orders.find((candidate) => candidate.id === shipmentDraft.orderId);
+    if (!order) { setLedgerError("Choose an order to fulfill."); return; }
+    const shipment: ActualShipment = { id: `shipment-${crypto.randomUUID()}`, orderIds: [order.id], postageCents: Math.round(Number(shipmentDraft.postage || 0) * 100), packingCents: Math.round(Number(shipmentDraft.packing || 0) * 100), reference: shipmentDraft.reference.trim() || undefined };
+    updateLedger({ version: 1, orders: activeDraft.actualLedger.orders.map((candidate) => candidate.id === order.id ? { ...candidate, shipmentId: shipment.id } : candidate), shipments: [...activeDraft.actualLedger.shipments, shipment] });
+    setShipmentDraft({ orderId: "", postage: "", packing: "", reference: "" });
+  };
   return (
     <section className="seller-command-center">
       <aside className="shared-calculation-notice" aria-label="Practice plan boundary"><span><b>{publicPresentation.sellerScope}</b><small>Costs, targets, and scenarios below are rehearsal maths only.</small></span></aside>
@@ -3288,7 +3318,7 @@ export function SellerView({
               <b>{eligible && !unsold ? fmt(asks[slot.id]) : unsold ? "Unsold" : "—"}</b>
               {eligible && <div className="ask-actions">
                 <button type="button" title={locked ? "Unlock target" : "Lock target"} onClick={() => setPlan({ lockedAsks: locked ? Object.fromEntries(Object.entries(activeDraft.lockedAsks).filter(([id]) => id !== slot.id)) : { ...activeDraft.lockedAsks, [slot.id]: asks[slot.id] } })}>{locked ? <Lock /> : <Unlock />}</button>
-                <button type="button" title={unsold ? "Sell this slot" : "Mark unsold"} onClick={() => setPlan({ unsoldSlots: unsold ? activeDraft.unsoldSlots.filter((id) => id !== slot.id) : [...activeDraft.unsoldSlots, slot.id] })}>{unsold ? <DollarSign /> : <X />}</button>
+                <button type="button" title={unsold ? "Sell this slot" : "Mark unsold"} onClick={() => activeDraft.actualLedger.orders.some((order) => order.slotIds.includes(slot.id)) ? setLedgerError("Remove or edit the receipt-linked order before changing this slot to unsold.") : setPlan({ unsoldSlots: unsold ? activeDraft.unsoldSlots.filter((id) => id !== slot.id) : [...activeDraft.unsoldSlots, slot.id] })}>{unsold ? <DollarSign /> : <X />}</button>
               </div>}
             </div>
           </div>;
@@ -3296,10 +3326,28 @@ export function SellerView({
         <div className="min-row"><NumberField label="Minimum ask" value={minimumAsk} onChange={(value) => setPlan({ minimumAsk: value ?? 0 })} live /></div>
       </section>}
 
-      <section className="panel seller-reconciliation" aria-label="Seller reconciliation status">
-        <InformationLabel>ACTUAL RESULT</InformationLabel>
-        <h2>Reconciliation in progress</h2>
-        <p>0 of {soldSlots.length} saleable slots have recorded orders; 0 orders have linked shipments. Planned targets and locked targets never create actual profit.</p>
+      <section className="panel seller-reconciliation" aria-label="Seller actual reconciliation">
+        <InformationLabel>ACTUALS · SESSION ONLY</InformationLabel>
+        <h2>Receipt-backed reconciliation</h2><span className="sr-only">Reconciliation in progress</span>
+        <p>Targets are never receipts. Record the paid receipt and actual fee once per order, then actual postage and packing once per shipment.</p>
+        {ledgerError && <p role="alert" className="missing-input-warning">{ledgerError}</p>}
+        <form className="actual-ledger-form" onSubmit={(event) => { event.preventDefault(); addOrder(); }}>
+          <h3>Actual orders</h3>
+          <div className="actual-slot-list">{saleableSlotIds.map((slot) => <label key={slot}><input type="checkbox" checked={orderDraft.slots.includes(slot)} disabled={activeDraft.actualLedger.orders.some((order) => order.slotIds.includes(slot))} onChange={(event) => setOrderDraft((current) => ({ ...current, slots: event.target.checked ? [...current.slots, slot] : current.slots.filter((id) => id !== slot) }))} /> {SLOT_NAMES[slot]}</label>)}</div>
+          <label>Receipt total<input aria-label="Receipt total" required min="0" step="0.01" type="number" value={orderDraft.receipt} onChange={(event) => setOrderDraft({ ...orderDraft, receipt: event.target.value })} /></label>
+          <label>Actual fee from receipt / statement<input aria-label="Actual fee from receipt or statement" required min="0" step="0.01" type="number" value={orderDraft.fee} onChange={(event) => setOrderDraft({ ...orderDraft, fee: event.target.value })} /></label>
+          <label>Receipt / reference (required for reconciliation)<input aria-label="Receipt reference" value={orderDraft.reference} onChange={(event) => setOrderDraft({ ...orderDraft, reference: event.target.value })} /></label>
+          <button className="primary" type="submit" disabled={!orderDraft.slots.length}>Record order</button>
+        </form>
+        {activeDraft.actualLedger.orders.length > 0 && <ul className="actual-ledger-list">{activeDraft.actualLedger.orders.map((order) => <li key={order.id}><span>{order.slotIds.join(", ")} · {fmt(order.receiptCents / 100)} receipt · {fmt(order.feeCents / 100)} fee {order.reference ? `· ${order.reference}` : "· receipt reference missing"}</span><button type="button" className="quiet" onClick={() => updateLedger({ version: 1, orders: activeDraft.actualLedger.orders.filter((item) => item.id !== order.id), shipments: activeDraft.actualLedger.shipments.filter((shipment) => !shipment.orderIds.includes(order.id)) })}>Remove / correct</button></li>)}</ul>}
+        <form className="actual-ledger-form" onSubmit={(event) => { event.preventDefault(); addShipment(); }}>
+          <h3>Shipments &amp; fulfillment costs</h3><p className="muted">One order can have one shipment in this browser-local demo; split shipments are intentionally unsupported.</p>
+          <label>Order<select aria-label="Order to fulfill" value={shipmentDraft.orderId} onChange={(event) => setShipmentDraft({ ...shipmentDraft, orderId: event.target.value })}><option value="">Choose an unshipped order</option>{activeDraft.actualLedger.orders.filter((order) => !order.shipmentId).map((order) => <option key={order.id} value={order.id}>{order.reference || order.id}</option>)}</select></label>
+          <label>Actual postage<input aria-label="Actual postage" required min="0" step="0.01" type="number" value={shipmentDraft.postage} onChange={(event) => setShipmentDraft({ ...shipmentDraft, postage: event.target.value })} /></label>
+          <label>Actual packing<input aria-label="Actual packing" required min="0" step="0.01" type="number" value={shipmentDraft.packing} onChange={(event) => setShipmentDraft({ ...shipmentDraft, packing: event.target.value })} /></label>
+          <button className="primary" type="submit" disabled={!shipmentDraft.orderId}>Record shipment</button>
+        </form>
+        <div className="actual-result" role="status"><strong>{ledgerSummary.incomplete ? "Actual result unavailable" : `Actual profit / loss: ${fmt(ledgerSummary.profitCents! / 100)}`}</strong><p>{ledgerSummary.sold} sold and receipt-linked · {activeDraft.unsoldSlots.length} unsold · {ledgerSummary.pending.length} pending/reconciliation missing. {ledgerSummary.missingReceipt.length ? `${ledgerSummary.missingReceipt.length} order receipt reference missing. ` : ""}{ledgerSummary.missingShipment.length ? `${ledgerSummary.missingShipment.length} order shipment missing. ` : ""}{actualAcquisitionCents == null ? "Actual acquisition cost missing." : ""}</p>{!ledgerSummary.incomplete && <p>Realized gross {fmt(ledgerSummary.gross / 100)} · actual fees {fmt(ledgerSummary.fees / 100)} · fulfillment {fmt(ledgerSummary.fulfillment / 100)} · actual cost basis {fmt((actualAcquisitionCents ?? 0) / 100)}.</p>}</div>
       </section>
 
       <SellerEnticement
@@ -3308,7 +3356,7 @@ export function SellerView({
         transactionCount={transactionCount}
         baseProfitAtAll={allSoldProfit}
       />
-      <p className="seller-demand-checkpoint"><strong>Economics ready — demand validation pending.</strong> Record audience/pre-interest, a comparable break and date, and your planned time window before launch. This does not predict fill or profit.</p>
+      <p className="seller-demand-checkpoint"><strong>{readiness}</strong> Demand validation remains separate: record audience/pre-interest, a comparable break and date, and your planned time window. This is not launch or bid authorization.</p>
     </section>
   );
 }

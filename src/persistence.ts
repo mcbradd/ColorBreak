@@ -1,5 +1,6 @@
 import type { AssignmentMode } from "./domain/share-url";
 import type { BreakLine, SlotId } from "./domain/types";
+import { emptyActualLedger, validateActualLedger, type ActualLedger } from "./domain/actual-ledger";
 
 const VERSION = 1;
 export const sessionKey = (mode: "buyer" | "seller") => `colorbreak:${mode}:draft:v${VERSION}`;
@@ -37,6 +38,8 @@ export interface SellerPlanDraft {
   unsoldSlots: SlotId[];
   /** Legacy ask entries are never treated as receipts after migration. */
   reconciliationNeeded: boolean;
+  /** Receipt-backed records only. Invalid records are discarded, never interpreted as money. */
+  actualLedger: ActualLedger;
 }
 
 export interface SellerPlanOwner {
@@ -51,7 +54,7 @@ export const defaultSellerPlanDraft = (): SellerPlanDraft => ({
   mailingMethod: "whatnot-label", labor: 0, tax: 0, giveaways: 0,
   refundReserve: 0, overhead: 0, commission: 8, processing: 2.9,
   processingFlat: .3, acceptedEstimateIds: [], minimumAsk: 1,
-  targetsApplied: false, lockedAsks: {}, unsoldSlots: [], reconciliationNeeded: false,
+  targetsApplied: false, lockedAsks: {}, unsoldSlots: [], reconciliationNeeded: false, actualLedger: emptyActualLedger(),
 });
 
 /** Deliberately excludes line ids: importing/copying the same break keeps its identity. */
@@ -110,6 +113,10 @@ export function readSellerPlanDraft(): SellerPlanDraft {
       // timestamp, or shipment evidence, so preserving it as an actual would
       // silently turn a plan into receipts.
       reconciliationNeeded: Boolean(draft.reconciliationNeeded) || ((draft as { actualAsks?: unknown }).actualAsks != null),
+      actualLedger: (() => {
+        try { return validateActualLedger(draft.actualLedger ?? emptyActualLedger(), [...slots] as SlotId[]); }
+        catch { return emptyActualLedger(); }
+      })(),
     };
   } catch { return fallback; }
 }
