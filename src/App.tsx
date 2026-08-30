@@ -104,13 +104,15 @@ const oddsLabel = (probability: number) =>
 const FOCUSABLE_SELECTOR = "button:not(:disabled), a[href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex='-1'])";
 
 /** Keeps a dialog's opener stable even while its owning screen re-renders. */
-function useDialogOwnership(open: boolean, onClose: () => void, dialogRef: RefObject<HTMLElement | null>, initialFocus?: RefObject<HTMLElement | null>) {
+function useDialogOwnership(open: boolean, onClose: () => void, dialogRef: RefObject<HTMLElement | null>, initialFocus?: RefObject<HTMLElement | null>, invokingElement?: HTMLElement | null) {
   const opener = useRef<HTMLElement | null>(null);
   const close = useRef(onClose);
   close.current = onClose;
   useEffect(() => {
     if (!open) return;
-    opener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    // The launcher captures this before React mounts the portal. Reading only
+    // activeElement here loses pointer launchers and native Escape ownership.
+    opener.current = invokingElement ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null);
     const scrollY = window.scrollY;
     const previousOverflow = document.body.style.overflow;
     const application = document.getElementById("root");
@@ -139,11 +141,13 @@ function useDialogOwnership(open: boolean, onClose: () => void, dialogRef: RefOb
         && !candidate.closest("[inert]");
       const fallback = document.querySelector<HTMLElement>("[data-focus-fallback]")
         ?? document.querySelector<HTMLElement>("main");
-      (canRestore ? candidate : fallback)?.focus({ preventScroll: true });
+      // The exit animation and inert teardown complete after this effect.
+      // Restore in a microtask so every dismissal path has one ownership rule.
+      queueMicrotask(() => (canRestore ? candidate : fallback)?.focus({ preventScroll: true }));
       window.scrollTo(0, scrollY);
       opener.current = null;
     };
-  }, [open]); // onClose intentionally lives in a ref: re-renders must not reset ownership.
+  }, [open]); // onClose/opener intentionally live outside dependencies: close retains its original caller.
 }
 
 /** Schedules focus only while the originating control still owns it. */
@@ -586,16 +590,18 @@ function Home({ choose }: { choose: (mode: Mode, fresh?: boolean) => void }) {
   );
 }
 
-function Builder({
+export function Builder({
   open,
   onClose,
   lines,
   onApply,
+  invokingElement,
 }: {
   open: boolean;
   onClose: () => void;
   lines: BreakLine[];
   onApply: (lines: BreakLine[], settings?: { assignmentMode: AssignmentMode; largeSpots?: number; bulkEnabled?: boolean; bulkThreshold?: number }) => void;
+  invokingElement?: HTMLElement | null;
 }) {
   const dialogRef = useRef<HTMLElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
@@ -666,7 +672,7 @@ function Builder({
       setDraft(lines);
     }
   }, [open, lines]);
-  useDialogOwnership(open, onClose, dialogRef, closeRef);
+  useDialogOwnership(open, onClose, dialogRef, closeRef, invokingElement);
   const normalizedQuery = query.trim().toLocaleLowerCase();
   const visible = sets
     .filter((set) =>
@@ -845,7 +851,7 @@ function Builder({
                       <span>
                         <strong>{set.name}</strong>
                         <small>
-                          {set.code} · {set.released}
+                          {set.code} · {set.released}{new Date(`${set.released}T00:00:00Z`) > new Date() ? " · Upcoming / announced" : ""}
                         </small>
                       </span>
                       <ChevronRight />
@@ -916,7 +922,7 @@ function Builder({
   );
 }
 
-function EmptyBreak({ add, practice }: { add: () => void; practice?: () => void }) {
+function EmptyBreak({ add, practice }: { add: (opener?: HTMLElement) => void; practice?: () => void }) {
   const [why, setWhy] = useState(false);
   return (
     <section className="empty">
@@ -925,17 +931,31 @@ function EmptyBreak({ add, practice }: { add: () => void; practice?: () => void 
       </span>
       <h2>Start a practice plan</h2>
       <p>This sandbox rehearses composition and slot-plan maths only. Add products, then review the practice plan.</p>
-      <button className="primary" onClick={add}>
+      <button className="primary" onClick={(event) => add(event.currentTarget)}>
         <PackagePlus size={18} /> Add products
       </button>
       <div className="empty-actions" aria-label="Analysis-only next steps">
-        <button type="button" className="quiet" onClick={practice ?? add}>Use a practice example</button>
-        <button type="button" className="quiet" onClick={add}>Continue as analysis-only</button>
+        <button type="button" className="quiet" onClick={(event) => practice ? practice() : add(event.currentTarget)}>Use a practice example</button>
+        <button type="button" className="quiet" onClick={(event) => add(event.currentTarget)}>Continue as analysis-only</button>
         <button type="button" className="quiet" onClick={() => setWhy((value) => !value)} aria-expanded={why}>Why no decision is available</button>
       </div>
       {why && <p role="status">No decision is available until a product has complete, fresh evidence. You can still compose a break and explore historical/modelled values; this ends in analysis, not a recommendation.</p>}
     </section>
   );
+}
+
+/** A deliberately non-transactional continuation for unavailable outcomes. */
+function NextSteps({ reason }: { reason: string }) {
+  return <section className="panel next-steps" aria-label="Next steps">
+    <InformationLabel>NEXT STEPS</InformationLabel>
+    <h2>Keep the boundary clear</h2>
+    <p>{reason}</p>
+    <ul>
+      <li><a href="./production-readiness.html">See the production readiness requirements</a></li>
+      <li><button type="button" className="quiet" disabled aria-disabled="true">Production access requests are not available yet</button><small>There is no privacy-reviewed access-interest destination for this demo.</small></li>
+      <li><strong>Keep this analysis private.</strong> This app does not send or share bids, costs, shipping, receipt references, or actual ledger values. They stay in this browser session only.</li>
+    </ul>
+  </section>;
 }
 
 function QuantityControl({ line, update }: { line: BreakLine; update: (quantity: number) => void }) {
@@ -973,7 +993,7 @@ export function Composition({
   showHelp = true,
 }: {
   lines: BreakLine[];
-  add: () => void;
+  add: (opener?: HTMLElement) => void;
   update: (id: string, patch: Partial<BreakLine>) => void;
   remove: (id: string) => void;
   headingLabel?: string;
@@ -1010,7 +1030,7 @@ export function Composition({
         label={headingLabel}
         help={showHelp ? "The sealed products and quantities being opened in this break. Changing any line immediately recalculates card contents, prices, color value, and possible opening values." : undefined}
         title={<>{lines.length} line{lines.length === 1 ? "" : "s"} · {totalOpenings} opening{totalOpenings === 1 ? "" : "s"}</>}
-        accessory={<button className={lines.length ? "quiet" : "primary composition-add-primary"} onClick={add}>
+        accessory={<button className={lines.length ? "quiet" : "primary composition-add-primary"} onClick={(event) => add(event.currentTarget)}>
           <PackagePlus /> Add products
         </button>}
       />
@@ -2316,6 +2336,7 @@ export function BuyerView({
           />
         </div>
       </section>
+      {(!releasePresentation.canShowDecision || eligibility.status !== "eligible") && <NextSteps reason={`A decision is unavailable because ${releaseContext.posture === "analysis-only" ? "this public build is analysis-only" : eligibility.status === "eligible" ? "the production decision boundary is not enabled" : "the selected product has stale or incomplete evidence"}. A fresh, verified snapshot on an authorized host would be required before that boundary can change.`} />}
       <CardInspector
         row={inspectedCard}
         status={result.status}
@@ -3056,7 +3077,7 @@ export function SellerView({
   analysis: BreakAnalysis;
   lines: BreakLine[];
   transactionCount: number;
-  add: () => void;
+  add: (opener?: HTMLElement) => void;
   update: (id: string, patch: Partial<BreakLine>) => void;
   remove: (id: string) => void;
   releaseContext?: ReleaseContext;
@@ -3175,23 +3196,44 @@ export function SellerView({
     ? (costsComplete ? "Rehearsal economics only — verify actual cost." : "Economics not ready — add actual acquisition cost.")
     : reconciliationState === "actuals_reconciled" ? "Actual result reconciled for this session."
       : "Planning inputs complete — demand and actual reconciliation still pending.";
-  const updateLedger = (next: SellerPlanDraft["actualLedger"]) => {
-    try { setPlan({ actualLedger: validateActualLedger(next, saleableSlotIds) }); setLedgerError(undefined); }
-    catch (error) { setLedgerError(error instanceof Error ? error.message : "Ledger could not be saved"); }
+  /** Validate, persist, then render one immutable ledger envelope. */
+  const commitLedger = (next: SellerPlanDraft["actualLedger"]): boolean => {
+    try {
+      const actualLedger = validateActualLedger(next, saleableSlotIds);
+      const nextDraft = { ...activeDraft, owner, actualLedger };
+      if (!writeSellerPlanDraft(nextDraft)) throw new Error("This browser could not save the reconciliation record. Check private browsing/storage settings and try again.");
+      setDraft(nextDraft);
+      setLedgerError(undefined);
+      return true;
+    } catch (error) {
+      setLedgerError(error instanceof Error ? error.message : "Ledger could not be saved");
+      return false;
+    }
+  };
+  const centsFrom = (value: string, label: string) => {
+    if (!value.trim()) throw new Error(`${label} is required.`);
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed) || parsed < 0) throw new Error(`${label} must be a non-negative amount.`);
+    return Math.round(parsed * 100);
   };
   const addOrder = () => {
-    const receiptCents = Math.round(Number(orderDraft.receipt) * 100), feeCents = Math.round(Number(orderDraft.fee || 0) * 100);
-    const order: ActualOrder = { id: `order-${crypto.randomUUID()}`, slotIds: orderDraft.slots, receiptCents, feeCents, reference: orderDraft.reference.trim() || undefined };
-    updateLedger({ ...activeDraft.actualLedger, orders: [...activeDraft.actualLedger.orders, order] });
-    setOrderDraft({ slots: [], receipt: "", fee: "", reference: "" });
+    try {
+      if (!orderDraft.slots.length) throw new Error("Choose at least one unrecorded slot.");
+      const order: ActualOrder = { id: `order-${crypto.randomUUID()}`, slotIds: orderDraft.slots, receiptCents: centsFrom(orderDraft.receipt, "Receipt total"), feeCents: centsFrom(orderDraft.fee, "Actual fee"), reference: orderDraft.reference.trim() || undefined };
+      if (commitLedger({ ...activeDraft.actualLedger, orders: [...activeDraft.actualLedger.orders, order] })) setOrderDraft({ slots: [], receipt: "", fee: "", reference: "" });
+    } catch (error) { setLedgerError(error instanceof Error ? error.message : "Order could not be recorded"); }
   };
   const addShipment = () => {
     const order = activeDraft.actualLedger.orders.find((candidate) => candidate.id === shipmentDraft.orderId);
     if (!order) { setLedgerError("Choose an order to fulfill."); return; }
-    const shipment: ActualShipment = { id: `shipment-${crypto.randomUUID()}`, orderIds: [order.id], postageCents: Math.round(Number(shipmentDraft.postage || 0) * 100), packingCents: Math.round(Number(shipmentDraft.packing || 0) * 100), reference: shipmentDraft.reference.trim() || undefined };
-    updateLedger({ version: 1, orders: activeDraft.actualLedger.orders.map((candidate) => candidate.id === order.id ? { ...candidate, shipmentId: shipment.id } : candidate), shipments: [...activeDraft.actualLedger.shipments, shipment] });
-    setShipmentDraft({ orderId: "", postage: "", packing: "", reference: "" });
+    if (order.shipmentId || activeDraft.actualLedger.shipments.some((shipment) => shipment.orderIds.includes(order.id))) { setLedgerError("This order already has a shipment. Remove / correct it before recording another; split shipments are unsupported."); return; }
+    try {
+      const shipment: ActualShipment = { id: `shipment-${crypto.randomUUID()}`, orderIds: [order.id], postageCents: centsFrom(shipmentDraft.postage, "Actual postage"), packingCents: centsFrom(shipmentDraft.packing, "Actual packing"), reference: shipmentDraft.reference.trim() || undefined };
+      if (commitLedger({ version: 1, orders: activeDraft.actualLedger.orders.map((candidate) => candidate.id === order.id ? { ...candidate, shipmentId: shipment.id } : candidate), shipments: [...activeDraft.actualLedger.shipments, shipment] })) setShipmentDraft({ orderId: "", postage: "", packing: "", reference: "" });
+    } catch (error) { setLedgerError(error instanceof Error ? error.message : "Shipment could not be recorded"); }
   };
+  const removeOrder = (order: ActualOrder) => commitLedger({ version: 1, orders: activeDraft.actualLedger.orders.filter((item) => item.id !== order.id), shipments: activeDraft.actualLedger.shipments.filter((shipment) => !shipment.orderIds.includes(order.id)) });
+  const removeShipment = (shipment: ActualShipment) => commitLedger({ version: 1, orders: activeDraft.actualLedger.orders.map((order) => shipment.orderIds.includes(order.id) ? { ...order, shipmentId: undefined } : order), shipments: activeDraft.actualLedger.shipments.filter((item) => item.id !== shipment.id) });
   return (
     <section className="seller-command-center">
       <aside className="shared-calculation-notice" aria-label="Practice plan boundary"><span><b>{publicPresentation.sellerScope}</b><small>Costs, targets, and scenarios below are rehearsal maths only.</small></span></aside>
@@ -3205,7 +3247,7 @@ export function SellerView({
       <section className="seller-contents" aria-labelledby="seller-contents-heading">
         <div className="seller-section-heading">
           <div><InformationLabel>1 · BREAK</InformationLabel><h2 id="seller-contents-heading">Contents &amp; cost basis</h2></div>
-          <button className="primary seller-add-products" onClick={add}><PackagePlus />Add products</button>
+          <button className="primary seller-add-products" onClick={(event) => add(event.currentTarget)}><PackagePlus />Add products</button>
         </div>
         <div className="seller-break-reconciliation" aria-label="Seller break composition summary">
           <strong>{lines.length} lines · {totalOpenings} openings · {transactionCount} spots</strong>
@@ -3339,7 +3381,7 @@ export function SellerView({
           <label>Receipt / reference (required for reconciliation)<input aria-label="Receipt reference" value={orderDraft.reference} onChange={(event) => setOrderDraft({ ...orderDraft, reference: event.target.value })} /></label>
           <button className="primary" type="submit" disabled={!orderDraft.slots.length}>Record order</button>
         </form>
-        {activeDraft.actualLedger.orders.length > 0 && <ul className="actual-ledger-list">{activeDraft.actualLedger.orders.map((order) => <li key={order.id}><span>{order.slotIds.join(", ")} · {fmt(order.receiptCents / 100)} receipt · {fmt(order.feeCents / 100)} fee {order.reference ? `· ${order.reference}` : "· receipt reference missing"}</span><button type="button" className="quiet" onClick={() => updateLedger({ version: 1, orders: activeDraft.actualLedger.orders.filter((item) => item.id !== order.id), shipments: activeDraft.actualLedger.shipments.filter((shipment) => !shipment.orderIds.includes(order.id)) })}>Remove / correct</button></li>)}</ul>}
+        {activeDraft.actualLedger.orders.length > 0 && <ul className="actual-ledger-list">{activeDraft.actualLedger.orders.map((order) => <li key={order.id}><span>{order.slotIds.join(", ")} · {fmt(order.receiptCents / 100)} receipt · {fmt(order.feeCents / 100)} fee {order.reference ? `· ${order.reference}` : "· receipt reference missing"}</span><button type="button" className="quiet" onClick={() => removeOrder(order)}>Remove / correct</button></li>)}</ul>}
         <form className="actual-ledger-form" onSubmit={(event) => { event.preventDefault(); addShipment(); }}>
           <h3>Shipments &amp; fulfillment costs</h3><p className="muted">One order can have one shipment in this browser-local demo; split shipments are intentionally unsupported.</p>
           <label>Order<select aria-label="Order to fulfill" value={shipmentDraft.orderId} onChange={(event) => setShipmentDraft({ ...shipmentDraft, orderId: event.target.value })}><option value="">Choose an unshipped order</option>{activeDraft.actualLedger.orders.filter((order) => !order.shipmentId).map((order) => <option key={order.id} value={order.id}>{order.reference || order.id}</option>)}</select></label>
@@ -3347,8 +3389,14 @@ export function SellerView({
           <label>Actual packing<input aria-label="Actual packing" required min="0" step="0.01" type="number" value={shipmentDraft.packing} onChange={(event) => setShipmentDraft({ ...shipmentDraft, packing: event.target.value })} /></label>
           <button className="primary" type="submit" disabled={!shipmentDraft.orderId}>Record shipment</button>
         </form>
-        <div className="actual-result" role="status"><strong>{ledgerSummary.incomplete ? "Actual result unavailable" : `Actual profit / loss: ${fmt(ledgerSummary.profitCents! / 100)}`}</strong><p>{ledgerSummary.sold} sold and receipt-linked · {activeDraft.unsoldSlots.length} unsold · {ledgerSummary.pending.length} pending/reconciliation missing. {ledgerSummary.missingReceipt.length ? `${ledgerSummary.missingReceipt.length} order receipt reference missing. ` : ""}{ledgerSummary.missingShipment.length ? `${ledgerSummary.missingShipment.length} order shipment missing. ` : ""}{actualAcquisitionCents == null ? "Actual acquisition cost missing." : ""}</p>{!ledgerSummary.incomplete && <p>Realized gross {fmt(ledgerSummary.gross / 100)} · actual fees {fmt(ledgerSummary.fees / 100)} · fulfillment {fmt(ledgerSummary.fulfillment / 100)} · actual cost basis {fmt((actualAcquisitionCents ?? 0) / 100)}.</p>}</div>
+        {activeDraft.actualLedger.shipments.length > 0 && <ul className="actual-ledger-list" aria-label="Recorded shipments">{activeDraft.actualLedger.shipments.map((shipment) => {
+          const order = activeDraft.actualLedger.orders.find((candidate) => shipment.orderIds.includes(candidate.id));
+          return <li key={shipment.id}><span>{order?.reference || order?.id || "Recorded order"} · {fmt(shipment.postageCents / 100)} postage · {fmt(shipment.packingCents / 100)} packing · {fmt((shipment.postageCents + shipment.packingCents) / 100)} fulfillment</span><button type="button" className="quiet" onClick={() => removeShipment(shipment)}>Remove / correct</button></li>;
+        })}</ul>}
+        <div className="actual-result" role="status"><strong>{ledgerSummary.incomplete ? "Actual result unavailable" : `Actual profit / loss: ${fmt(ledgerSummary.profitCents! / 100)}`}</strong><p>{ledgerSummary.sold} sold and receipt-linked · {activeDraft.unsoldSlots.length} unsold · {ledgerSummary.pending.length} pending/reconciliation missing. {ledgerSummary.missingReceipt.length} order receipt reference missing. {ledgerSummary.missingShipment.length} order shipment missing. {actualAcquisitionCents == null ? "Actual acquisition cost missing." : ""}</p>{!ledgerSummary.incomplete && <p>Realized gross {fmt(ledgerSummary.gross / 100)} · actual fees {fmt(ledgerSummary.fees / 100)} · fulfillment {fmt(ledgerSummary.fulfillment / 100)} · actual cost basis {fmt((actualAcquisitionCents ?? 0) / 100)}.</p>}</div>
       </section>
+
+      {(estimateNeedsConfirmation || ledgerSummary.incomplete || actualAcquisitionCents == null) && <NextSteps reason={actualAcquisitionCents == null ? "This plan remains a rehearsal until an actual acquisition cost is entered and receipt-backed orders and shipments reconcile." : ledgerSummary.incomplete ? "Actual profit or loss is unavailable until every required receipt and shipment record reconciles." : "The selected estimate is rehearsal-only until fresh, verified evidence is available."} />}
 
       <SellerEnticement
         baseAnalysis={analysis}
@@ -3395,7 +3443,7 @@ export function BuyerSetup({
   setLargeSpots,
 }: {
   lines: BreakLine[];
-  add: () => void;
+  add: (opener?: HTMLElement) => void;
   update: (id: string, patch: Partial<BreakLine>) => void;
   remove: (id: string) => void;
   result?: ValuationResult;
@@ -3472,6 +3520,7 @@ export function Workspace({
       startFresh && mode === "buyer" ? [] : storedLines(mode, legacy),
     ),
     [builder, setBuilder] = useState(false),
+    [builderOpener, setBuilderOpener] = useState<HTMLElement | null>(null),
     [analysis, setAnalysis] = useState<BreakAnalysis>(),
     [auction, setAuction] = useState<AuctionState>(() => {
       return sharedBuyer.remaining?.length ? createAuction(sharedBuyer.remaining) : createAuction();
@@ -3598,6 +3647,10 @@ export function Workspace({
   }, [analysis, buyerRecoveryReady, initialBuyerRecord, lines, mode, recoveryRecord]);
   const update = (id: string, patch: Partial<BreakLine>) =>
     setLines((rows) => rows.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+  const openBuilder = (opener?: HTMLElement) => {
+    setBuilderOpener(opener ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null));
+    setBuilder(true);
+  };
   useEffect(() => {
     let cancelled = false;
     Promise.all(lines.map(async (line) => {
@@ -3722,7 +3775,7 @@ export function Workspace({
           <div className={`bid-check-workbench ${lines.length ? "has-break" : "is-empty"}`}>
             <BuyerSetup
               lines={lines}
-              add={() => setBuilder(true)}
+              add={openBuilder}
               update={update}
               remove={(id) => setLines((rows) => rows.filter((row) => row.id !== id))}
               result={analysis?.valuation}
@@ -3756,7 +3809,7 @@ export function Workspace({
                   setBid={setBuyerBid}
                   shipping={buyerShipping}
                   setShipping={setBuyerShipping}
-                  onChooseDecisionReady={() => setBuilder(true)}
+                  onChooseDecisionReady={() => openBuilder()}
                   releaseContext={releaseContext}
                 />
               ))}
@@ -3764,7 +3817,7 @@ export function Workspace({
           </div>
           </>
         ) : !lines.length ? (
-          <EmptyBreak add={() => setBuilder(true)} practice={() => setLines([{ id: "practice-fdn-play-box", set: "FDN", productKey: "sealed:play-booster-box", productLabel: "Foundations Play Booster Box (historical practice example)", quantity: 1, tcgId: 562118, packCount: 36 }])} />
+          <EmptyBreak add={openBuilder} practice={() => setLines([{ id: "practice-fdn-play-box", set: "FDN", productKey: "sealed:play-booster-box", productLabel: "Foundations Play Booster Box (historical practice example)", quantity: 1, tcgId: 562118, packCount: 36 }])} />
         ) : (
           <div className="seller-studio-shell">
               {busy && (
@@ -3779,7 +3832,7 @@ export function Workspace({
                   analysis={analysis}
                   lines={lines}
                   transactionCount={assignmentMode === "large" ? largeSpots : 8}
-                  add={() => setBuilder(true)}
+                  add={openBuilder}
                   update={update}
                   remove={(id) => setLines((rows) => rows.filter((row) => row.id !== id))}
                   releaseContext={releaseContext}
@@ -3792,6 +3845,7 @@ export function Workspace({
         open={builder}
         onClose={() => setBuilder(false)}
         lines={lines}
+        invokingElement={builderOpener}
         onApply={(nextLines, settings) => {
           setImportUndo({ lines, assignmentMode, largeSpots, bulkEnabled, bulkThreshold });
           setLines(nextLines);

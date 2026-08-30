@@ -121,8 +121,13 @@ export function readSellerPlanDraft(): SellerPlanDraft {
   } catch { return fallback; }
 }
 
-export function writeSellerPlanDraft(draft: SellerPlanDraft) {
-  try { sessionStorage.setItem(sellerPlanKey, JSON.stringify(draft)); } catch { /* optional */ }
+export function writeSellerPlanDraft(draft: SellerPlanDraft): boolean {
+  try {
+    sessionStorage.setItem(sellerPlanKey, JSON.stringify(draft));
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /** Only non-financial composition is ever allowed to leave session storage. */
