@@ -47,7 +47,7 @@ describe("buyer bid persistence", () => {
 
   it("keeps bid and shipping values while the bulk setting recalculates results", async () => {
     render(createElement(BuyerWorkspace, { exit: vi.fn(), startFresh: false, startReady: false }));
-    const bid = await screen.findByLabelText("Current all-in bid");
+    const bid = await screen.findByLabelText("Current bid");
     const shipping = screen.getByLabelText("Your added shipping");
 
     fireEvent.change(bid, { target: { value: "12.50" } });
@@ -57,38 +57,38 @@ describe("buyer bid persistence", () => {
     // Wait for the controlled inputs to commit before triggering the separate
     // bulk recalculation; otherwise a fast analysis response can race this
     // test's synthetic blur sequence on CI.
-    await waitFor(() => expect(screen.getByLabelText("Current all-in bid")).toHaveValue("12.5"));
+    await waitFor(() => expect(screen.getByLabelText("Current bid")).toHaveValue("12.5"));
     expect(screen.getByLabelText("Your added shipping")).toHaveValue("4.25");
     evaluateBreakAnalysis.mockClear();
     fireEvent.click(screen.getByRole("switch", { name: /Bulk filter/ }));
 
     await waitFor(() => expect(evaluateBreakAnalysis).toHaveBeenCalled());
-    expect(await screen.findByLabelText("Current all-in bid")).toHaveValue("12.5");
+    expect(await screen.findByLabelText("Current bid")).toHaveValue("12.5");
     expect(screen.getByLabelText("Your added shipping")).toHaveValue("4.25");
   });
 
   it("restores bid and shipping after a cold remount", async () => {
     const first = render(createElement(BuyerWorkspace, { exit: vi.fn(), startFresh: false, startReady: false }));
-    fireEvent.change(await screen.findByLabelText("Current all-in bid"), { target: { value: "12.50" } });
-    fireEvent.blur(screen.getByLabelText("Current all-in bid"));
+    fireEvent.change(await screen.findByLabelText("Current bid"), { target: { value: "12.50" } });
+    fireEvent.blur(screen.getByLabelText("Current bid"));
     fireEvent.change(screen.getByLabelText("Your added shipping"), { target: { value: "4.25" } });
     fireEvent.blur(screen.getByLabelText("Your added shipping"));
     first.unmount();
     history.replaceState(null, "", "/#buyer");
 
     render(createElement(BuyerWorkspace, { exit: vi.fn(), startFresh: false, startReady: false }));
-    expect(await screen.findByLabelText("Current all-in bid")).toHaveValue("12.5");
+    expect(await screen.findByLabelText("Current bid")).toHaveValue("12.5");
     expect(screen.getByLabelText("Your added shipping")).toHaveValue("4.25");
   });
 
   it("restores a random pool only for the same saved composition", async () => {
     const first = render(createElement(BuyerWorkspace, { exit: vi.fn(), startFresh: false, startReady: false }));
-    await screen.findByLabelText("Current all-in bid");
+    await screen.findByLabelText("Current bid");
     fireEvent.click(screen.getByRole("button", { name: "Random remaining" }));
     fireEvent.click(screen.getByRole("button", { name: "Edit availability" }));
     fireEvent.click(screen.getByRole("button", { name: "Mark Blue taken" }));
-    fireEvent.change(screen.getByLabelText("Current all-in bid"), { target: { value: "12.50" } });
-    fireEvent.blur(screen.getByLabelText("Current all-in bid"));
+    fireEvent.change(screen.getByLabelText("Current bid"), { target: { value: "12.50" } });
+    fireEvent.blur(screen.getByLabelText("Current bid"));
     fireEvent.change(screen.getByLabelText("Your added shipping"), { target: { value: "4.25" } });
     fireEvent.blur(screen.getByLabelText("Your added shipping"));
     first.unmount();
@@ -97,14 +97,14 @@ describe("buyer bid persistence", () => {
     expect(await screen.findByRole("button", { name: "Random remaining" })).toHaveClass("active");
     fireEvent.click(screen.getByRole("button", { name: "Edit availability" }));
     expect(screen.getByRole("button", { name: "Restore Blue slot" })).toBeInTheDocument();
-    expect(screen.getByLabelText("Current all-in bid")).toHaveValue("12.5");
+    expect(screen.getByLabelText("Current bid")).toHaveValue("12.5");
     expect(screen.getByLabelText("Your added shipping")).toHaveValue("4.25");
   });
 
   it("offers a shared break without carrying private bid or shipping into it", async () => {
     const first = render(createElement(BuyerWorkspace, { exit: vi.fn(), startFresh: false, startReady: false }));
-    fireEvent.change(await screen.findByLabelText("Current all-in bid"), { target: { value: "12.50" } });
-    fireEvent.blur(screen.getByLabelText("Current all-in bid"));
+    fireEvent.change(await screen.findByLabelText("Current bid"), { target: { value: "12.50" } });
+    fireEvent.blur(screen.getByLabelText("Current bid"));
     fireEvent.change(screen.getByLabelText("Your added shipping"), { target: { value: "4.25" } });
     fireEvent.blur(screen.getByLabelText("Your added shipping"));
     first.unmount();
@@ -113,7 +113,7 @@ describe("buyer bid persistence", () => {
     render(createElement(BuyerWorkspace, { exit: vi.fn(), startFresh: false, startReady: false }));
     expect(await screen.findByRole("button", { name: "Use this shared break" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Use this shared break" }));
-    expect(screen.getByLabelText("Current all-in bid")).toHaveValue("");
+    expect(screen.getByLabelText("Current bid")).toHaveValue("");
     expect(screen.getByLabelText("Your added shipping")).toHaveValue("");
   });
 

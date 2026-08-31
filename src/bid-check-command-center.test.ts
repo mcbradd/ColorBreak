@@ -62,10 +62,10 @@ describe("Bid Check command center", () => {
     render(createElement(BuyerWorkspace, { exit: vi.fn(), startFresh: false, startReady: false }));
 
     const decision = await screen.findByRole("region", { name: "Live bid decision" });
-    expect(within(decision).getByLabelText("Current all-in bid")).toHaveValue("");
+    expect(within(decision).getByLabelText("Current bid")).toHaveValue("");
     expect(within(decision).getByLabelText("Your added shipping")).toHaveValue("");
     expect(within(decision).getByRole("group", { name: "Risk stance" })).toBeInTheDocument();
-    expect(within(decision).getByText("Bid up to")).toBeInTheDocument();
+    expect(within(decision).getByText("BID UP TO")).toBeInTheDocument();
     expect(screen.queryByText("V2 RESEARCH PREVIEW")).not.toBeInTheDocument();
   });
 
@@ -115,20 +115,20 @@ describe("Bid Check command center", () => {
     sessionStorage.removeItem("colorbreak:buyer:shipping");
     render(createElement(BuyerWorkspace, { exit: vi.fn(), startFresh: false, startReady: false }));
 
-    const bidLink = await screen.findByRole("link", { name: "Enter the current all-in bid" });
+    const bidLink = await screen.findByRole("link", { name: "Enter the current bid" });
     expect(bidLink).toHaveAttribute("href", "#buyer-current-bid");
-    expect(screen.getByLabelText("Current all-in bid")).toHaveAttribute("id", "buyer-current-bid");
+    expect(screen.getByLabelText("Current bid")).toHaveAttribute("id", "buyer-current-bid");
   });
 
   it("turns an entered bid into an immediate, exact recommendation", async () => {
     render(createElement(BuyerWorkspace, { exit: vi.fn(), startFresh: false, startReady: false }));
 
     const decision = await screen.findByRole("region", { name: "Live bid decision" });
-    fireEvent.change(within(decision).getByLabelText("Current all-in bid"), { target: { value: "10" } });
+    fireEvent.change(within(decision).getByLabelText("Current bid"), { target: { value: "10" } });
 
     const recommendation = await within(decision).findByLabelText("Bid recommendation");
-    expect(recommendation).toHaveTextContent("ROOM TO BID");
-    expect(recommendation).toHaveTextContent("$2.00 under the modeled max bid of $12.00");
+    expect(recommendation).toHaveTextContent("BID — $2.00 ROOM");
+    expect(recommendation).toHaveTextContent("$2.00 under your Estimated Max Bid of $12.00");
     expect(recommendation).toHaveTextContent("Bid only up to $12.00");
   });
 
@@ -136,23 +136,23 @@ describe("Bid Check command center", () => {
     render(createElement(BuyerWorkspace, { exit: vi.fn(), startFresh: false, startReady: false }));
 
     const decision = await screen.findByRole("region", { name: "Live bid decision" });
-    fireEvent.change(within(decision).getByLabelText("Current all-in bid"), { target: { value: "15" } });
+    fireEvent.change(within(decision).getByLabelText("Current bid"), { target: { value: "15" } });
 
     const recommendation = await within(decision).findByLabelText("Bid recommendation");
-    expect(recommendation).toHaveTextContent("OVER YOUR LIMIT — PASS");
-    expect(recommendation).toHaveTextContent("$3.00 over the modeled max bid of $12.00");
-    expect(recommendation).toHaveTextContent("Pass on this bid");
+    expect(recommendation).toHaveTextContent("STOP — $3.00 OVER");
+    expect(recommendation).toHaveTextContent("$3.00 over your Estimated Max Bid of $12.00");
+    expect(recommendation).toHaveTextContent("Stop bidding");
   });
 
   it("marks an exact-limit bid as the stopping point", async () => {
     render(createElement(BuyerWorkspace, { exit: vi.fn(), startFresh: false, startReady: false }));
 
     const decision = await screen.findByRole("region", { name: "Live bid decision" });
-    fireEvent.change(within(decision).getByLabelText("Current all-in bid"), { target: { value: "12" } });
+    fireEvent.change(within(decision).getByLabelText("Current bid"), { target: { value: "12" } });
 
     const recommendation = await within(decision).findByLabelText("Bid recommendation");
-    expect(recommendation).toHaveTextContent("AT YOUR LIMIT — STOP HERE");
-    expect(recommendation).toHaveTextContent("matches the modeled max bid of $12.00");
+    expect(recommendation).toHaveTextContent("AT LIMIT");
+    expect(recommendation).toHaveTextContent("matches your Estimated Max Bid of $12.00");
     expect(recommendation).toHaveTextContent("Do not bid higher");
   });
 
@@ -164,10 +164,10 @@ describe("Bid Check command center", () => {
     render(createElement(BuyerWorkspace, { exit: vi.fn(), startFresh: false, startReady: false }));
 
     const decision = await screen.findByRole("region", { name: "Live bid decision" });
-    fireEvent.change(within(decision).getByLabelText("Current all-in bid"), { target: { value: "15" } });
+    fireEvent.change(within(decision).getByLabelText("Current bid"), { target: { value: "15" } });
 
     const recommendation = await within(decision).findByLabelText("Bid recommendation");
-    expect(recommendation).toHaveTextContent("$3.00 over the estimated max bid of $12.00");
+    expect(recommendation).toHaveTextContent("$3.00 over your Estimated Max Bid of $12.00");
     expect(recommendation).toHaveTextContent("Prices are older than 6 hours, so recheck before bidding");
   });
 

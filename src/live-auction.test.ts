@@ -57,8 +57,8 @@ describe("live random-slot buyer workflow", () => {
     await waitFor(() => expect(screen.getByLabelText("Possible opening values")).toBeInTheDocument());
     expect(screen.queryByLabelText("Twenty equal-probability modeled outcome bands")).not.toBeInTheDocument();
 
-    fireEvent.change(screen.getByLabelText("Current all-in bid"), { target: { value: "12.50" } });
-    fireEvent.blur(screen.getByLabelText("Current all-in bid"));
+    fireEvent.change(screen.getByLabelText("Current bid"), { target: { value: "12.50" } });
+    fireEvent.blur(screen.getByLabelText("Current bid"));
     await waitFor(() => expect(screen.getByText(/Chance card value covers your \$12\.50 cost/)).toBeInTheDocument());
 
     fireEvent.click(screen.getByRole("button", { name: "Edit availability" }));

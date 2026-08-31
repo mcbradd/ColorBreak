@@ -386,13 +386,20 @@ function ManualBudgetCap({ onBack, target, setTarget, shipping, setShipping, ham
   const heading = useRef<HTMLHeadingElement>(null);
   const manual = manualBudgetCap(target, shipping, hammer);
   useEffect(() => { heading.current?.focus(); }, []);
+  const recommendation = manual?.status === "under"
+    ? `BID — ${fmt(manual.roomUnderCap!)} ROOM`
+    : manual?.status === "at"
+      ? "AT LIMIT"
+      : manual?.status === "over"
+        ? `STOP — ${fmt(manual.overage!)} OVER`
+        : undefined;
   return <section className="bid-live-decision manual-budget-cap" aria-label="Manual budget cap">
     <div className="decision-kicker"><span>BUYER-ENTERED BUDGET</span><span className="decision-evidence evidence-incomplete">Not modeled</span></div>
-    <div className="verdict-head"><div className="verdict-decision"><InformationLabel>Manual budget cap — not a ColorBreak modeled ceiling</InformationLabel><h2 ref={heading} tabIndex={-1} aria-live="polite">{manual?.recommendation ?? "SET YOUR CAP"}</h2><p className="decision-reason">Uses the budget you entered. ColorBreak did not verify current contents or prices for this calculation.</p></div><div className="ev-orb"><small>Maximum hammer bid</small><strong className="max-hammer" aria-label="Maximum hammer bid">{manual ? fmt(manual.maximumHammer) : "—"}</strong><span>Total cap minus added shipping</span></div></div>
+    <div className="verdict-head"><div className="verdict-decision"><InformationLabel>Manual budget cap — not a ColorBreak modeled ceiling</InformationLabel><h2 ref={heading} tabIndex={-1} aria-live="polite">{recommendation ?? "SET YOUR CAP"}</h2><p className="decision-reason">Uses the budget you entered. ColorBreak did not verify current contents or prices for this calculation.</p></div><div className="ev-orb"><small>Estimated Max Bid</small><strong className="max-hammer" aria-label="Estimated maximum bid">{manual ? fmt(manual.maximumHammer) : "—"}</strong><span>Total cap minus added shipping</span></div></div>
     <div className="bid-inputs"><NumberField id="manual-value-target" label="My total landed-cost cap" value={target} onChange={setTarget} live /><NumberField id="manual-added-shipping" label="Added shipping" value={shipping} onChange={setShipping} live /></div>
     <p className="decision-reason">Includes added shipping.</p>
-    <div className="bid-inputs"><NumberField id="manual-current-hammer" label="Optional: current hammer" value={hammer} onChange={setHammer} live /></div>
-    {manual?.landedCost != null && <div className="delta" aria-live="polite"><span>Total landed cost at current hammer <b>{fmt(manual.landedCost)}</b></span><span>Your total landed-cost cap <b>{fmt(manual.totalLandedCostCap)}</b></span>{manual.status === "under" && <span>Room under total cap <b>{fmt(manual.roomUnderCap)}</b></span>}{manual.status === "at" && <span>Exactly at total cap</span>}{manual.status === "over" && <span>Over total cap by <b>{fmt(manual.overage)}</b></span>}{manual.hammerAboveMaximum != null && <span>Current hammer is <b>{fmt(manual.hammerAboveMaximum)}</b> above the maximum hammer bid</span>}</div>}
+    <div className="bid-inputs"><NumberField id="manual-current-hammer" label="Current bid" value={hammer} onChange={setHammer} hint="Before added shipping." live /></div>
+    {manual?.landedCost != null && <div className={`bid-recommendation bid-recommendation-${manual.status === "under" ? "positive" : manual.status === "at" ? "warning" : "negative"}`} aria-live="polite" aria-label="Bid recommendation"><div><small>Bid recommendation</small><strong>{recommendation}</strong></div><p>{manual.status === "under" ? <>Current bid is <b>{fmt(manual.roomUnderCap)}</b> under your Estimated Max Bid of <b>{fmt(manual.maximumHammer)}</b>. Bid only up to {fmt(manual.maximumHammer)}.</> : manual.status === "at" ? <>Current bid matches your Estimated Max Bid of <b>{fmt(manual.maximumHammer)}</b>. Do not bid higher.</> : <>Current bid is <b>{fmt(manual.hammerAboveMaximum)}</b> over your Estimated Max Bid of <b>{fmt(manual.maximumHammer)}</b>. Stop bidding.</>}</p></div>}
     <button type="button" className="quiet" onClick={onBack}>Back to products / choose a ready product</button>
   </section>;
 }

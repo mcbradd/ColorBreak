@@ -602,7 +602,7 @@ export function BuyerView({
             <h2 aria-live="polite">{decision}</h2>
             {!releasePresentation.canShowDecision && <div className="decision-reason buyer-recovery-choice"><p><strong>{eligibility.status === "stale" ? "Price evidence is stale." : eligibility.status === "material-incomplete" ? "Contents or exact prices are incomplete." : "Required evidence is unavailable."}</strong> {eligibility.status === "material-incomplete" && eligibility.affectedGroups.length ? eligibility.affectedGroups.map((item) => item.label).join(" ") : ""} Observed {eligibility.observedAt ? new Date(eligibility.observedAt).toLocaleString() : "unknown"} from {eligibility.observedSource ?? "the price snapshot"}. The modeled ceiling is withheld.</p><div className="buyer-recovery-actions"><button type="button" className="quiet" onClick={onChooseReady}>Choose a ready product</button><button type="button" className="quiet" onClick={onUseManualCap}>Use manual budget cap</button></div></div>}
             {releasePresentation.canShowDecision && (eligibility.status === "eligible" || (eligibility.status === "material-incomplete" && resolvedOnlyRequested && scoped)) && !reconfirmed && <p className="decision-reason"><button type="button" className="quiet" onClick={() => { setReconfirmedInput(decisionInput); setReconfirmedAt(Date.now()); }}>Reconfirm current bid</button> Reconfirm after changing bid, shipping, slot, or risk stance. Confirmation expires after one minute.</p>}
-            {releasePresentation.canShowDecision && bid == null && <p className="decision-reason"><a href="#buyer-current-bid">Enter the current all-in bid</a> to compare it with this estimate.</p>}
+            {releasePresentation.canShowDecision && bid == null && <p className="decision-reason"><a href="#buyer-current-bid">Enter the current bid</a> to compare it with this estimate.</p>}
             {(eligibility.status === "eligible" || eligibility.status === "stale") && recommendation.action === "bid" && (
               <p className="decision-reason">Current hammer is {fmt(recommendation.room)} below your modeled ceiling.</p>
             )}
@@ -614,7 +614,7 @@ export function BuyerView({
             )}
           </div>
           <div className="ev-orb">
-            <small><span>{releasePresentation.canShowDecision ? eligibility.status === "stale" ? "Estimated max bid" : "Bid up to" : "Estimate unavailable"}</span></small>
+            <small><span>{releasePresentation.canShowDecision ? "Estimated Max Bid" : "Estimate unavailable"}</span></small>
             <strong className="max-hammer" aria-label="Maximum bid" aria-live="polite">{releasePresentation.canShowDecision && activeCap.kind === "cap" ? fmt(activeCap.amount) : "Checking…"}</strong>
             <span>{releasePresentation.canShowDecision ? `${ruleLabel} value` : "Choose another product"}</span>
             <strong aria-label="Typical card value" aria-live="polite">{simulation.busy && !distribution ? "Checking…" : fmt(distribution?.median ?? fallbackMean)}</strong>
@@ -628,7 +628,7 @@ export function BuyerView({
           <button aria-pressed={valueRule.kind === "average"} onClick={() => setValueRule({ kind: "average" })}>Chase upside</button>
         </div>}
         <div className="bid-inputs">
-          <NumberField id="buyer-current-bid" label="Current all-in bid" value={bid} onChange={setBid} live />
+          <NumberField id="buyer-current-bid" label="Current bid" value={bid} onChange={setBid} hint="Before the added shipping shown here." live />
           <NumberField
             id="buyer-added-shipping"
             label={eligibility.status === "eligible" ? "Your added shipping" : "Optional: added shipping"}
@@ -646,14 +646,14 @@ export function BuyerView({
           >
             <div>
               <small>Bid recommendation</small>
-              <strong>{immediateRecommendation.action === "bid" ? "ROOM TO BID" : immediateRecommendation.action === "stop" ? "AT YOUR LIMIT — STOP HERE" : "OVER YOUR LIMIT — PASS"}</strong>
+              <strong>{immediateRecommendation.action === "bid" ? `BID — ${fmt(immediateRecommendation.room)} ROOM` : immediateRecommendation.action === "stop" ? "AT LIMIT" : `STOP — ${fmt(Math.abs(immediateRecommendation.room))} OVER`}</strong>
             </div>
             <p>
               {immediateRecommendation.action === "bid"
-                ? <>Your current bid is <b>{fmt(immediateRecommendation.room)}</b> under the {eligibility.status === "stale" ? "estimated" : "modeled"} max bid of <b>{fmt(immediateCap.amount)}</b>. Bid only up to {fmt(immediateCap.amount)}.</>
+                ? <>Current bid is <b>{fmt(immediateRecommendation.room)}</b> under your Estimated Max Bid of <b>{fmt(immediateCap.amount)}</b>. Bid only up to {fmt(immediateCap.amount)}.</>
                 : immediateRecommendation.action === "stop"
-                  ? <>Your current bid matches the {eligibility.status === "stale" ? "estimated" : "modeled"} max bid of <b>{fmt(immediateCap.amount)}</b>. Do not bid higher.</>
-                  : <>Your current bid is <b>{fmt(Math.abs(immediateRecommendation.room))}</b> over the {eligibility.status === "stale" ? "estimated" : "modeled"} max bid of <b>{fmt(immediateCap.amount)}</b>. Pass on this bid.</>}
+                  ? <>Current bid matches your Estimated Max Bid of <b>{fmt(immediateCap.amount)}</b>. Do not bid higher.</>
+                  : <>Current bid is <b>{fmt(Math.abs(immediateRecommendation.room))}</b> over your Estimated Max Bid of <b>{fmt(immediateCap.amount)}</b>. Stop bidding.</>}
               {eligibility.status === "stale" && " Prices are older than 6 hours, so recheck before bidding."}
             </p>
           </div>
