@@ -191,6 +191,16 @@ export function SlotRail({
                 disabled={taken}
                 className="buyer-slot-select"
                 onClick={() => {
+                  if (assignmentMode === "random") {
+                    // Random remaining mode's own heading says "Mark colors
+                    // already taken" — tapping a swatch here must mark it
+                    // taken from the random pool, not silently switch modes.
+                    const next = toggleSlotTaken(auction, id);
+                    if (next === auction) return;
+                    setAuction(next);
+                    if (!next.remaining.includes(selected)) setSelected(next.remaining[0]);
+                    return;
+                  }
                   setSelected(id);
                   setSlotChosen(true);
                   setAssignmentMode("pick");
@@ -538,6 +548,9 @@ function OutcomeRange({ summary, landed, compact = false }: { summary?: Distribu
             <span style={{ width: `${chanceToClear * 100}%` }} />
           </div>
         </div>
+      )}
+      {summary.median === 0 && (
+        <p className="outcome-range-zero-note">Usually no card above the bulk filter — most openings land at $0.</p>
       )}
       {!compact && <p>Possible results from simulations—not a prediction of the next opening.</p>}
     </div>

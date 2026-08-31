@@ -66,5 +66,23 @@ describe("buyer color controls", () => {
     expect(screen.getByRole("button", { name: "Blue slot" })).toBeEnabled();
     expect(screen.getByText("8 colors remain in the random pool")).toBeInTheDocument();
   });
+
+  it("tapping a color swatch in random remaining mode marks it taken, matching the mode's own copy", () => {
+    render(createElement(Harness));
+
+    fireEvent.click(screen.getByRole("button", { name: "Random remaining" }));
+    expect(screen.getByText("Mark colors already taken")).toBeInTheDocument();
+    expect(screen.getByText("8 colors remain in the random pool")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Blue slot" }));
+
+    // The heading says "Mark colors already taken" — a tap must mark the
+    // color taken from the random pool, not silently flip the toggle back
+    // to Pick a color (the bug this test guards against).
+    expect(screen.getByRole("button", { name: "Random remaining" })).toHaveClass("active");
+    expect(screen.getByRole("button", { name: "Pick a color" })).not.toHaveClass("active");
+    expect(screen.getByRole("button", { name: "Blue slot" })).toBeDisabled();
+    expect(screen.getByText("7 colors remain in the random pool")).toBeInTheDocument();
+  });
 });
 

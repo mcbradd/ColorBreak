@@ -195,7 +195,7 @@ export function decisionAvailability(
   };
   if (eligibility.status === "stale") return {
     label: "Analysis only — stale",
-    detail: "Contents are resolved, but the price snapshot is older than six hours; no bid decision is available on this demo.",
+    detail: "Contents are resolved, but the price snapshot is older than six hours; no bid decision is available yet.",
     observedAt: eligibility.observedAt, observedSource: eligibility.observedSource, ageMs: eligibility.ageMs,
   };
   const reason = eligibility.affectedGroups[0]?.label ?? "price or product evidence is unavailable";
