@@ -843,6 +843,20 @@ input {
   .mobile-stage-nav a { display: grid; place-items: center; min-height: 48px; color: var(--ink); text-decoration: none; font-weight: 850; }
   .mobile-stage-nav a + a { border-left: var(--rule); }
   .mobile-stage-nav a:first-child { color: var(--accent); }
+
+  .product-groups section > .product-row-line {
+    grid-template-columns: 39px minmax(0, 1fr);
+    grid-template-areas:
+      "icon meta"
+      "controls controls";
+    gap: 8px 12px;
+  }
+  .product-row-line .product-icon { grid-area: icon; }
+  .product-row-line > span:nth-child(2) { grid-area: meta; }
+  .product-row-line .line-controls { grid-area: controls; width: 100%; justify-content: space-between; }
+  .product-row-line .quantity-control { flex: 1 1 auto; }
+  .product-row-line .quantity-control > div { grid-template-columns: 44px minmax(0, 1fr) 44px; }
+  .product-row-line .remove-line { flex: 0 0 44px; width: 44px; height: 44px; }
 }
 
 /*
