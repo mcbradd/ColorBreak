@@ -5,7 +5,6 @@ import type {
 } from "../../domain/types";
 import type { AuctionState } from "../../domain/auction";
 import type { AssignmentMode } from "../../domain/share-url";
-import { InformationLabel } from "../shared/Primitives";
 import { Composition, SlotRail } from "./BuyerVisuals";
 import { BulkFilterControl } from "./BuyerDetails";
 
@@ -21,6 +20,8 @@ export function BuyerSetup({
   setAssignmentMode,
   selected,
   setSelected,
+  slotChosen,
+  onSlotChosen,
   bulkEnabled,
   bulkThreshold,
   setBulkEnabled,
@@ -39,6 +40,8 @@ export function BuyerSetup({
   setAssignmentMode: (mode: AssignmentMode) => void;
   selected: SlotId;
   setSelected: (slot: SlotId) => void;
+  slotChosen: boolean;
+  onSlotChosen: () => void;
   bulkEnabled: boolean;
   bulkThreshold: number;
   setBulkEnabled: (enabled: boolean) => void;
@@ -48,7 +51,11 @@ export function BuyerSetup({
 }) {
   return (
     <section id="buyer-break-setup" className="buyer-setup" aria-label="Bid setup">
-      <SlotRail
+      <Composition
+        lines={lines} add={add} update={update} remove={remove}
+        headingLabel="1 · WHAT'S IN THE BREAK?" showHelp={false}
+      />
+      {lines.length > 0 && <SlotRail
         result={result}
         auction={auction}
         setAuction={setAuction}
@@ -56,29 +63,19 @@ export function BuyerSetup({
         setAssignmentMode={setAssignmentMode}
         selected={selected}
         setSelected={setSelected}
+        slotChosen={slotChosen}
+        onSlotChosen={onSlotChosen}
         largeSpots={largeSpots}
         setLargeSpots={setLargeSpots}
-      />
-      <Composition
-        lines={lines}
-        add={add}
-        update={update}
-        remove={remove}
-        headingLabel="2 · BREAK CONTENTS"
-        showHelp={false}
-      />
-      <div className="buyer-options-heading">
-        <InformationLabel>3 · VALUE FILTER</InformationLabel>
-        <h2>Set what counts as value</h2>
-      </div>
-      <BulkFilterControl
+      />}
+      {lines.length > 0 && <details className="buyer-advanced"><summary>Adjust assumptions</summary><BulkFilterControl
         enabled={bulkEnabled}
         threshold={bulkThreshold}
         result={result}
         onToggle={setBulkEnabled}
         onThreshold={setBulkThreshold}
         compact
-      />
+      /></details>}
     </section>
   );
 }

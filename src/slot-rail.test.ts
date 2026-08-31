@@ -48,14 +48,14 @@ describe("buyer color controls", () => {
     fireEvent.click(screen.getByRole("button", { name: "Green slot" }));
 
     expect(screen.getByRole("button", { name: "Pick a color" })).toHaveClass("active");
-    expect(screen.getByText("Green selected")).toBeInTheDocument();
+    expect(screen.getByText("Selected: Green")).toBeInTheDocument();
   });
 
   it("changes availability only in the separate deliberate editing mode", () => {
     render(createElement(Harness));
 
     expect(screen.queryByRole("button", { name: "Mark Blue taken" })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Edit availability" }));
+    fireEvent.click(screen.getByText("Choose included slots"));
     fireEvent.click(screen.getByRole("button", { name: "Mark Blue taken" }));
     expect(screen.getByRole("button", { name: "Random remaining" })).toHaveClass("active");
     expect(screen.getByRole("button", { name: "Blue slot" })).toBeDisabled();

@@ -24,7 +24,6 @@ import type {
   SetChoice,
 } from "../../domain/types";
 import { manualBudgetCap } from "../../domain/manual-budget";
-import { READY_EXAMPLES } from "../../data/ready-examples";
 import { fmt, InformationLabel, NumberField, useDialogOwnership } from "./Primitives";
 
 export function Builder({
@@ -33,7 +32,6 @@ export function Builder({
   lines,
   onApply,
   invokingElement,
-  onUseManualCap,
   valueThreshold = 0,
 }: {
   open: boolean;
@@ -41,7 +39,6 @@ export function Builder({
   lines: BreakLine[];
   onApply: (lines: BreakLine[], settings?: { assignmentMode: AssignmentMode; largeSpots?: number; bulkEnabled?: boolean; bulkThreshold?: number }, prepared?: PreparedProductSelection) => void;
   invokingElement?: HTMLElement | null;
-  onUseManualCap?: () => void;
   valueThreshold?: number;
 }) {
   const dialogRef = useRef<HTMLElement>(null);
@@ -56,8 +53,6 @@ export function Builder({
   const [products, setProducts] = useState<ProductChoice[]>([]);
   const [prepared, setPrepared] = useState<Record<string, PreparedProductSelection>>({});
   const [readyOnly, setReadyOnly] = useState(false);
-  const [readyRows, setReadyRows] = useState<Array<{ product: ProductChoice; prepared: PreparedProductSelection }>>([]);
-  const [readyChecking, setReadyChecking] = useState(false);
   const [loading, setLoading] = useState(false);
   const [draft, setDraft] = useState<BreakLine[]>([]);
   const [composerMode, setComposerMode] = useState<"search" | "paste" | "review">("search");
@@ -73,16 +68,6 @@ export function Builder({
         setSets(rows.sort((a, b) => b.released.localeCompare(a.released))),
       );
   }, [open]);
-  useEffect(() => {
-    if (!open) return;
-    let active = true;
-    setReadyChecking(true);
-    void Promise.all(READY_EXAMPLES.map(async (example) => {
-      const product = (await productsForSet(example.set)).find((item) => item.sealedKey === example.productKey);
-      return product ? { product, prepared: await prepareProductSelection([...lines, choiceLine(product)], valueThreshold) } : undefined;
-    })).then((rows) => { if (active) setReadyRows(rows.filter((row): row is { product: ProductChoice; prepared: PreparedProductSelection } => Boolean(row))); }).catch(() => { if (active) setReadyRows([]); }).finally(() => { if (active) setReadyChecking(false); });
-    return () => { active = false; };
-  }, [open, lines, valueThreshold]);
   useEffect(() => {
     if (!selected) { selectionRequest.current += 1; return; }
     const request = ++selectionRequest.current;
@@ -151,8 +136,6 @@ export function Builder({
     });
   const add = (product: ProductChoice) => {
     setDraft((rows) => mergeBreakLines([...rows, choiceLine(product)]));
-    setSelected(undefined);
-    setQuery("");
   };
   const normalizeProduct = (value: string) => value.toLocaleLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
   const resolveImport = async () => {
@@ -278,29 +261,23 @@ export function Builder({
               </section>
             ) : !selected ? (
               <>
-                <section className="ready-now-list" aria-labelledby="ready-now-heading">
-                  <InformationLabel>READY NOW</InformationLabel><h3 id="ready-now-heading">Verified modeled ceilings</h3>
-                  <p className="data-status-legend">Ready = verified contents + fresh prices. Stale = prices older than six hours. Incomplete = missing contents or exact prices. Unavailable = evidence cannot be verified.</p>
-                  {readyChecking ? <p role="status">Checking data…</p> : readyRows.filter((row) => row.prepared.assessment.presentation === "eligible").map(({ product, prepared: selection }) => <button type="button" className="ready-now-row" key={product.key} onClick={() => add(product)}><span><strong>{product.label}</strong><small>{product.setName ?? product.set} · {new Date(selection.assessment.observedAt ?? "").toLocaleString()} · published snapshot</small></span><span>Ready</span></button>)}
-                  {!readyChecking && !readyRows.some((row) => row.prepared.assessment.presentation === "eligible") && <div className="empty-picker-state"><p>No verified modeled ceilings are available in this snapshot.</p><div className="buyer-recovery-actions"><button type="button" className="primary" onClick={onUseManualCap}>Use manual budget cap</button><button type="button" className="quiet" onClick={() => setSelected(undefined)}>Browse all products</button></div></div>}
-                </section>
-                <button type="button" className="paste-break-action" onClick={() => setComposerMode("paste")}><PackagePlus />Paste list or break link</button>
                 <div className="set-browser-tools">
-                  <div className="set-sort-tabs" role="group" aria-label="Sort sets">
-                    <button aria-pressed={setSort === "release"} onClick={() => setSetSort("release")}>Release date</button>
-                    <button aria-pressed={setSort === "alphabetical"} onClick={() => setSetSort("alphabetical")}>Alphabetical</button>
-                  </div>
                   <label className="search">
                     <Search />
                     <input
                       autoFocus
                       aria-label="Search sets by name or code"
-                      placeholder="Search name or set code"
+                      placeholder="Search a product or set"
                       value={query}
                       onChange={(e) => setQuery(e.target.value)}
                     />
                   </label>
                 </div>
+                <div className="set-sort-tabs" role="group" aria-label="Sort sets">
+                  <button aria-pressed={setSort === "release"} onClick={() => setSetSort("release")}>Release date</button>
+                  <button aria-pressed={setSort === "alphabetical"} onClick={() => setSetSort("alphabetical")}>Alphabetical</button>
+                </div>
+                <button type="button" className="paste-break-action" onClick={() => setComposerMode("paste")}><PackagePlus />Paste a break listing</button>
                 <InformationLabel>
                   {visible.length} {query ? "MATCHING SETS" : "SETS"}
                 </InformationLabel>
@@ -356,13 +333,13 @@ export function Builder({
                         ))}
                       </section>
                     ))}
-                    {!Object.values(visibleProducts).some((rows) => rows.length) && (readyOnly ? <div className="empty-picker-state"><p>No verified modeled ceilings are available in this snapshot.</p><div className="buyer-recovery-actions"><button type="button" className="primary" onClick={onUseManualCap}>Use manual budget cap</button><button type="button" className="quiet" onClick={() => setReadyOnly(false)}>Show all products</button></div></div> : <p className="empty-picker-state">No products match this filter. Show all products to keep building your break.</p>)}
+                    {!Object.values(visibleProducts).some((rows) => rows.length) && (readyOnly ? <div className="empty-picker-state"><p>No ready products match this filter.</p><button type="button" className="quiet" onClick={() => setReadyOnly(false)}>Show all products</button></div> : <p className="empty-picker-state">No products match this filter. Show all products to keep building your break.</p>)}
                   </div>
                 )}
               </>
             )}
             <footer className="composer-actions">
-              <button type="button" className="quiet" onClick={onClose}>Cancel</button>
+              <button type="button" className="quiet" onClick={onClose}>Close</button>
               {composerMode === "review" ? (
                 <button type="button" className="primary" disabled={!importRows.length || importIssueCount > 0} onClick={applyImport}>
                   {importIssueCount > 0
@@ -372,7 +349,7 @@ export function Builder({
               ) : composerMode === "paste" ? (
                 <button type="button" className="primary" disabled={!importSource.trim() || importing} onClick={resolveImport}>{importing ? "Checking products…" : "Review products"}</button>
               ) : (
-                <button type="button" className="primary" disabled={!draft.length} onClick={() => { void prepareProductSelection(draft, valueThreshold).then((selection) => { onApply(draft, undefined, selection); onClose(); }); }}>Done · {draft.length} line{draft.length === 1 ? "" : "s"}</button>
+                <button type="button" className="primary" disabled={!draft.length} onClick={() => { void prepareProductSelection(draft, valueThreshold).then((selection) => { onApply(draft, undefined, selection); onClose(); }); }}>Add to break{draft.length ? ` · ${draft.length}` : ""}</button>
               )}
             </footer>
           </motion.section>
@@ -387,17 +364,16 @@ function EmptyBreak({ add, practice }: { add: (opener?: HTMLElement) => void; pr
       <span>
         <PackagePlus />
       </span>
-      <h2>Build your break</h2>
-      <p>Add each product that will be opened, then compare colors and value.</p>
+      <h2>Start a break plan</h2>
+      <p>Add the products being opened. You’ll enter the real cost next.</p>
       <button className="primary" onClick={(event) => add(event.currentTarget)}>
         <PackagePlus size={18} /> Add products
       </button>
       <div className="empty-actions" aria-label="Break planning next steps">
-        <button type="button" className="quiet" onClick={(event) => practice ? practice() : add(event.currentTarget)}>Use an example</button>
-        <button type="button" className="quiet" onClick={(event) => add(event.currentTarget)}>Choose products</button>
-        <button type="button" className="quiet" onClick={() => setWhy((value) => !value)} aria-expanded={why}>What makes a ceiling available?</button>
+        <button type="button" className="quiet" onClick={(event) => practice ? practice() : add(event.currentTarget)}>Start with a sample break</button>
+        <button type="button" className="quiet" onClick={() => setWhy((value) => !value)} aria-expanded={why}>Why add products first?</button>
       </div>
-      {why && <p role="status">A bid ceiling needs complete product contents and current price data. You can still compare available values while you fill in the break.</p>}
+      {why && <p role="status">Products let ColorBreak calculate a cost basis and a practical break-even price.</p>}
     </section>
   );
 }

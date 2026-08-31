@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { BarChart3, Copy, Lock, Sparkles } from "lucide-react";
+import { Copy, Lock, Sparkles } from "lucide-react";
 import { productsForSet } from "../../data/catalog";
 import type { BreakAnalysis } from "../../data/evaluate";
 import { assessBuyerDecision, type BuyerDecisionAssessment, type PreparedProductSelection } from "../../domain/decision-evidence";
@@ -66,6 +66,7 @@ export function BuyerWorkspace({
     [selectedSlot, setSelectedSlot] = useState<SlotId>(() => {
       return sharedBuyer.selectedSlot ?? "W";
     }),
+    [slotChosen, setSlotChosen] = useState(() => Boolean(sharedBuyer.selectedSlot) || !startFresh),
     [busy, setBusy] = useState(false),
     [calculationGeneration, setCalculationGeneration] = useState(0);
   const [manualCapOpen, setManualCapOpen] = useState(false);
@@ -184,7 +185,8 @@ export function BuyerWorkspace({
     if (recovered) {
       setAuction(createAuction(recovered.remaining));
       setAssignmentMode(recovered.assignmentMode);
-      setSelectedSlot(recovered.selectedSlot);
+            setSelectedSlot(recovered.selectedSlot);
+            setSlotChosen(true);
       setBulkEnabled(recovered.bulkEnabled);
       setBulkThreshold(recovered.bulkThreshold);
       setLargeSpots(recovered.largeSpots);
@@ -282,6 +284,7 @@ export function BuyerWorkspace({
             setAuction(createAuction());
             setAssignmentMode("pick");
             setSelectedSlot("W");
+            setSlotChosen(false);
             setBulkEnabled(true);
             setBulkThreshold(2);
             setLargeSpots(120);
@@ -332,6 +335,8 @@ export function BuyerWorkspace({
               setAssignmentMode={setAssignmentMode}
               selected={selectedSlot}
               setSelected={setSelectedSlot}
+              slotChosen={slotChosen}
+              onSlotChosen={() => setSlotChosen(true)}
               bulkEnabled={bulkEnabled}
               bulkThreshold={bulkThreshold}
               setBulkEnabled={setBulkEnabled}
@@ -340,10 +345,10 @@ export function BuyerWorkspace({
               setLargeSpots={setLargeSpots}
             />
             <div id="buyer-large-result" className="results buyer-results">
-              {manualCapOpen ? <ManualBudgetCap onBack={() => { setManualCapOpen(false); openBuilder(); }} target={manualTarget} setTarget={setManualTarget} shipping={manualShipping} setShipping={setManualShipping} hammer={manualHammer} setHammer={setManualHammer} /> : !lines.length && <section className="buyer-awaiting-break"><span><BarChart3 /></span><h2>Your decision appears here</h2><p><b>1</b> Add every product · <b>2</b> Enter the spot price · <b>3</b> Compare value and risk.</p><p>Need a live bid limit without verified current product data? Set your own budget cap.</p><button type="button" className="primary" onClick={() => setManualCapOpen(true)}>Use manual budget cap</button></section>}
+              {manualCapOpen ? <ManualBudgetCap onBack={() => { setManualCapOpen(false); openBuilder(); }} target={manualTarget} setTarget={setManualTarget} shipping={manualShipping} setShipping={setManualShipping} hammer={manualHammer} setHammer={setManualHammer} /> : !lines.length && <section className="buyer-awaiting-break"><h2>Start with the break.</h2><p>Add the product being opened, then choose the slot and enter the current bid.</p><button type="button" className="primary" onClick={(event) => openBuilder(event.currentTarget)}>Search products</button></section>}
               {busy && <div className="calculating" role="status" aria-live="polite"><span />Calculating exact contents and prices…</div>}
               {error && <CompactWarning title="Couldn’t load this result" summary="No verified modeled ceiling can be offered until this data loads." className="load-warning"><p role="alert">{error}</p><div className="buyer-recovery-actions"><button type="button" className="quiet" onClick={() => setCalculationGeneration((value) => value + 1)}>Retry analysis</button><button type="button" className="quiet" onClick={() => setManualCapOpen(true)}>Use manual budget cap</button></div></CompactWarning>}
-              {analysis && (assignmentMode === "large" ? (
+              {analysis && slotChosen && (assignmentMode === "large" ? (
                 <LargeBreakView analysis={analysis} lines={lines} spots={largeSpots} bid={buyerBid} setBid={setBuyerBid} shipping={buyerShipping} setShipping={setBuyerShipping} />
               ) : (
                 <BuyerView
@@ -383,7 +388,6 @@ export function BuyerWorkspace({
           }
           track("product_selected", { mode, productCount: nextLines.length });
         }}
-        onUseManualCap={() => { setBuilder(false); setManualCapOpen(true); }}
       />
     </>
   );

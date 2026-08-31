@@ -456,24 +456,21 @@ export function Home({ choose, buildId, recentBuyerCount = 0, recentSellerCount 
         <span className="engine-ready" aria-label="Catalog ready"><i /> READY TO EXPLORE</span>
       </header>
       <section className="launcher-intro">
-        <InformationLabel>MAGIC: THE GATHERING COLOR BREAK PLANNER</InformationLabel>
-        <h1>Know the Magic: The Gathering break before you buy in.</h1>
-        <p>Build the exact boxes, choose a color, and see modeled card value, pull ranges, and a bid ceiling before you bid on a Magic: The Gathering color-break slot — not a marketplace, quote, or financial guarantee.</p>
+        <InformationLabel>MAGIC: THE GATHERING COLOR BREAKS</InformationLabel>
+        <h1>Check a color-break bid.</h1>
+        <p>See an estimated value and maximum bid before you buy a slot.</p>
       </section>
       <section className="mode-grid" aria-label="Choose a job">
         <button
           data-home-focus
           className="mode-card buyer-card"
-          aria-label="Bid Check — for buyers"
+          aria-label="Check a color-break bid"
           onClick={() => choose("buyer", true)}
         >
-          <span className="mode-number">01</span>
           <span className="mode-copy">
-            <small>FOR BUYERS · BUYING A COLOR SLOT</small>
-          <strong>Check a bid</strong>
-            <p>Set your color, price, and shipping to find a modeled ceiling before the hammer falls on a Magic: The Gathering pack break.</p>
+          <strong>Check a color-break bid</strong>
+            <p>Search a product, choose a slot, then compare the current bid.</p>
           </span>
-          <span className="mode-output"><small>BUYER TOOL</small><b>Bid ceiling</b><span>Value · pull range · risk</span></span>
           <ChevronRight />
         </button>
         <button
@@ -481,13 +478,10 @@ export function Home({ choose, buildId, recentBuyerCount = 0, recentSellerCount 
           aria-label="Plan a break — for sellers"
           onClick={() => choose("seller")}
         >
-          <span className="mode-number">02</span>
           <span className="mode-copy">
-            <small>FOR SELLERS · PLANNING A BREAK</small>
-            <strong>Plan a break</strong>
-            <p>Build a slot plan, model costs, and see where a Magic: The Gathering color break balances before you sell it.</p>
+            <strong>Planning a break?</strong>
+            <p>Open Seller Studio to set up products and costs.</p>
           </span>
-          <span className="mode-output"><small>SELLER TOOL</small><b>Slot plan</b><span>Costs · scenarios · balance</span></span>
           <ChevronRight />
         </button>
       </section>
@@ -501,11 +495,8 @@ export function Home({ choose, buildId, recentBuyerCount = 0, recentSellerCount 
       {recentSellerCount > 0 && <button className="resume-action" onClick={() => choose("seller", false)}>
         <RotateCw /><span><small>THIS BROWSER SESSION</small><strong>Resume seller plan · costs are session-only</strong></span><ChevronRight />
       </button>}
-      <footer className="launcher-footer">
-        <span>Exact-printing prices · Modeled pull ranges · No login</span>
-        <span><a href="./methodology.html">Methodology</a>{supportUrl && <> · <a href={supportUrl} rel="noreferrer" target="_blank">Support</a></>} {buildId && <> · <small aria-label="Build identifier">Build {buildId.slice(0, 12)}</small></>}</span>
-      </footer>
-      <button type="button" className="quiet" onClick={() => void clearDevice()}>Clear local ColorBreak app data</button>
+      <footer className="launcher-footer"><span><a href="./methodology.html">Estimates, not guarantees</a>{supportUrl && <> · <a href={supportUrl} rel="noreferrer" target="_blank">Support</a></>}</span></footer>
+      <details className="home-utility"><summary>App settings</summary><button type="button" className="quiet" onClick={() => void clearDevice()}>Clear local app data</button>{buildId && <small aria-label="Build identifier">Build {buildId.slice(0, 12)}</small>}</details>
       {cleared && <p role="status">Local ColorBreak data cleared.</p>}
     </main>
   );

@@ -69,12 +69,14 @@ describe("Bid Check command center", () => {
     expect(screen.queryByText("V2 RESEARCH PREVIEW")).not.toBeInTheDocument();
   });
 
-  it("keeps supporting analysis immediately available without a disclosure", async () => {
+  it("keeps supporting analysis behind a disclosure so the answer stays first", async () => {
     render(createElement(BuyerWorkspace, { exit: vi.fn(), startFresh: false, startReady: false }));
     await screen.findByRole("region", { name: "Live bid decision" });
 
-    const evidence = screen.getByText("Break evidence").closest("section");
+    const evidence = screen.getByText("Break evidence").closest("details");
     expect(evidence).not.toBeNull();
+    expect(evidence).not.toHaveAttribute("open");
+    fireEvent.click(within(evidence as HTMLElement).getByText("Break evidence"));
     await waitFor(() => expect(within(evidence as HTMLElement).getByText(/BREAK BALANCE/i)).toBeInTheDocument());
     expect(screen.queryByText("Chase Map")).not.toBeInTheDocument();
   });
@@ -120,32 +122,18 @@ describe("Bid Check command center", () => {
     expect(screen.getByLabelText("Current bid")).toHaveAttribute("id", "buyer-current-bid");
   });
 
-  it("offers the buyer-entered manual cap from the empty state without a modeled claim", () => {
+  it("keeps the empty state focused on choosing a product", () => {
     sessionStorage.removeItem("colorbreak:buyer:draft:v1");
     render(createElement(BuyerWorkspace, { exit: vi.fn(), startFresh: true, startReady: false }));
-    fireEvent.click(screen.getByRole("button", { name: "Use manual budget cap" }));
-    expect(screen.getByLabelText("Manual budget cap")).toHaveTextContent("not a ColorBreak modeled ceiling");
-    fireEvent.change(screen.getByLabelText("My total landed-cost cap"), { target: { value: "100" } });
-    fireEvent.change(screen.getByLabelText("Added shipping"), { target: { value: "12" } });
-    fireEvent.change(screen.getByLabelText("Optional: current hammer"), { target: { value: "80" } });
-    expect(screen.getByLabelText("Manual budget cap")).toHaveTextContent("Maximum hammer bid");
-    expect(screen.getByLabelText("Manual budget cap")).toHaveTextContent("$88.00");
-    expect(screen.getByLabelText("Manual budget cap")).toHaveTextContent("BID");
+    expect(screen.getByRole("heading", { name: "Start with the break." })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Search products" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Use manual budget cap" })).not.toBeInTheDocument();
   });
 
-  it("uses a same-unit all-in cap for the manual boundary", () => {
+  it("does not show a slot as selected until the buyer makes that choice", () => {
     sessionStorage.removeItem("colorbreak:buyer:draft:v1");
     render(createElement(BuyerWorkspace, { exit: vi.fn(), startFresh: true, startReady: false }));
-    fireEvent.click(screen.getByRole("button", { name: "Use manual budget cap" }));
-    fireEvent.change(screen.getByLabelText("My total landed-cost cap"), { target: { value: "88" } });
-    fireEvent.change(screen.getByLabelText("Added shipping"), { target: { value: "12" } });
-    fireEvent.change(screen.getByLabelText("Optional: current hammer"), { target: { value: "80" } });
-    const panel = screen.getByLabelText("Manual budget cap");
-    expect(panel).toHaveTextContent("$76.00");
-    expect(panel).toHaveTextContent("$92.00");
-    expect(panel).toHaveTextContent("$88.00");
-    expect(panel).toHaveTextContent("Over total cap by $4.00");
-    expect(panel).toHaveTextContent("DO NOT BID");
+    expect(screen.queryByText("White selected")).not.toBeInTheDocument();
   });
 
   it("names result navigation from the active assignment mode", async () => {

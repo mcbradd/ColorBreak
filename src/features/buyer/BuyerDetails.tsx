@@ -656,13 +656,13 @@ export function BuyerView({
         {simulation.error && <CompactWarning title="Pull ranges unavailable" summary="The non-simulation value remains visible." className="inline-warning"><p role="alert">{simulation.error}</p><button type="button" className="quiet" onClick={simulation.retry}>Retry pull ranges</button></CompactWarning>}
         <IncompleteDataWarning analysis={analysis} title="Some estimates may be low" />
       </section>
-      <section className="bid-explorer">
-        <header className="disclosure-summary">
+      <details className="bid-explorer">
+        <summary className="disclosure-summary">
           <span>
             <strong>Break evidence</strong>
             <small>Break value, pull range, data quality, and ranked cards</small>
           </span>
-        </header>
+        </summary>
         <div className="bid-explorer-body">
           <ValueSummary result={result} />
           <BreakBalance result={result} remaining={auction.remaining} simulation={simulation.result} />
@@ -673,7 +673,7 @@ export function BuyerView({
             onInspect={setInspectedCard}
           />
         </div>
-      </section>
+      </details>
       <CardInspector
         row={inspectedCard}
         status={result.status}

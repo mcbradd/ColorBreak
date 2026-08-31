@@ -438,6 +438,73 @@ nav { z-index: 200; isolation: isolate; }
 .candle-column > small { margin-top: 2px; color: var(--muted); font-size: 7px; white-space: nowrap; }
 .upside-chart > p { margin: 12px 0 0; color: var(--muted); font-size: 9px; line-height: 1.45; }
 
+/* First-use flow: one task column, readable choices, and no decorative dead ends. */
+.home.page { max-width: 720px; padding-top: 42px; }
+.launcher-intro { max-width: 620px; margin: 52px 0 26px; }
+.launcher-intro h1 { max-width: 600px; font-size: clamp(36px, 6vw, 62px); line-height: .98; }
+.launcher-intro p { max-width: 520px; font-size: 17px; line-height: 1.5; }
+.mode-grid { display: grid; grid-template-columns: 1fr; gap: 10px; max-width: 680px; }
+.mode-card { min-height: 88px; padding: 22px; text-align: left; }
+.mode-card.buyer-card { border-color: var(--accent); background: linear-gradient(100deg, rgba(174,255,94,.13), var(--panel)); }
+.mode-card .mode-copy strong { font-size: 20px; }
+.mode-card .mode-copy p { margin: 5px 0 0; font-size: 14px; line-height: 1.4; }
+.mode-card.seller-card { opacity: .88; }
+.home-utility { margin-top: 22px; color: var(--muted); font-size: 13px; }
+.home-utility summary { cursor: pointer; }
+.home-utility button,.home-utility small { display: block; margin-top: 10px; }
+
+.workspace.page { max-width: 760px; }
+.workspace-title { margin-bottom: 20px; }
+.workspace-title h1 { font-size: clamp(32px, 5vw, 48px); }
+.bid-check-workbench { display: block; }
+.bid-check-workbench.is-empty .buyer-setup { max-width: 680px; }
+.buyer-setup { display: grid; gap: 16px; }
+.buyer-setup .composition { margin: 0; }
+.buyer-advanced,.assignment-disclosure,.availability-editor { border: 1px solid var(--line); background: var(--panel); }
+.buyer-advanced > summary,.assignment-disclosure > summary,.availability-editor > summary { padding: 15px 18px; cursor: pointer; color: var(--ink); font-weight: 700; }
+.buyer-slot-control { margin: 0; padding: 20px; border: 1px solid var(--line); background: var(--panel); }
+.buyer-slot-heading h2 { margin: 5px 0; font-size: 24px; }
+.buyer-slot-heading p,.remaining-summary { font-size: 14px; }
+.assignment-disclosure { margin: 16px 0; }
+.assignment-disclosure .assignment-toggle { margin: 0 14px 14px; }
+.buyer-slot-rail { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 8px; overflow: visible; }
+.buyer-slot-tile { min-width: 0; }
+.buyer-slot-select { min-height: 82px; padding: 9px 5px; }
+.buyer-slot-select small { display: block !important; font-size: 13px; white-space: nowrap; }
+.buyer-slot-select b { display: none; }
+.buyer-slot-select span { font-size: 18px; }
+.buyer-slot-tile.active .buyer-slot-select { outline: 3px solid var(--accent); outline-offset: 2px; }
+.buyer-results:empty { display: none; }
+.buyer-awaiting-break { margin: 16px 0; padding: 22px; border-left: 3px solid var(--accent); background: var(--panel); }
+.buyer-awaiting-break h2 { margin: 0; font-size: 24px; }
+.buyer-awaiting-break p { font-size: 15px; line-height: 1.5; }
+.set-browser-tools { position: static; padding-top: 8px; }
+.sheet .search input { min-height: 48px; font-size: 16px; }
+.paste-break-action { margin: 0 16px 12px; }
+.composer-actions .primary:not(:disabled) { min-width: 150px; }
+.empty { max-width: 680px; margin: 0; padding: 28px; text-align: left; }
+.empty > span { display: none; }
+.empty h2 { font-size: 30px; }
+.empty p { max-width: 440px; font-size: 16px; }
+.empty-actions { justify-content: flex-start; }
+
+@media (max-width: 520px) {
+  .home.page { padding: 26px 18px; }
+  .launcher-intro { margin: 34px 0 22px; }
+  .launcher-intro h1 { font-size: 39px; }
+  .mode-card { min-height: 82px; padding: 18px; }
+  .workspace.page { padding-inline: 14px; }
+  .buyer-slot-control { padding: 16px; }
+  .buyer-slot-rail { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .buyer-slot-select { min-height: 62px; display: grid; grid-template-columns: 28px 1fr; align-items: center; text-align: left; }
+  .buyer-slot-select small { font-size: 15px; }
+  .buyer-slot-select span { font-size: 16px; }
+  .assignment-toggle { display: grid; grid-template-columns: 1fr; }
+  .assignment-toggle button { min-height: 44px; }
+  .sheet { max-height: 92dvh; }
+  .empty { padding: 22px; }
+}
+
 @media (max-width: 430px) {
   .profit-plan-summary,.scenario-economics { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .profit-plan-summary > div,.scenario-economics > div { padding-inline: 9px; }

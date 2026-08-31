@@ -85,7 +85,7 @@ describe("buyer bid persistence", () => {
     const first = render(createElement(BuyerWorkspace, { exit: vi.fn(), startFresh: false, startReady: false }));
     await screen.findByLabelText("Current bid");
     fireEvent.click(screen.getByRole("button", { name: "Random remaining" }));
-    fireEvent.click(screen.getByRole("button", { name: "Edit availability" }));
+    fireEvent.click(screen.getByText("Choose included slots"));
     fireEvent.click(screen.getByRole("button", { name: "Mark Blue taken" }));
     fireEvent.change(screen.getByLabelText("Current bid"), { target: { value: "12.50" } });
     fireEvent.blur(screen.getByLabelText("Current bid"));
@@ -95,7 +95,7 @@ describe("buyer bid persistence", () => {
 
     render(createElement(BuyerWorkspace, { exit: vi.fn(), startFresh: false, startReady: false }));
     expect(await screen.findByRole("button", { name: "Random remaining" })).toHaveClass("active");
-    fireEvent.click(screen.getByRole("button", { name: "Edit availability" }));
+    fireEvent.click(screen.getByText("Choose included slots"));
     expect(screen.getByRole("button", { name: "Restore Blue slot" })).toBeInTheDocument();
     expect(screen.getByLabelText("Current bid")).toHaveValue("12.5");
     expect(screen.getByLabelText("Your added shipping")).toHaveValue("4.25");
@@ -121,7 +121,7 @@ describe("buyer bid persistence", () => {
     history.replaceState(null, "", "/");
     render(createElement(App));
 
-    fireEvent.click(screen.getByRole("button", { name: /Bid Check/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Check a color-break bid/ }));
 
     expect(await screen.findByRole("heading", { name: "Bid Check" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "0 lines · 0 openings" })).toBeInTheDocument();
