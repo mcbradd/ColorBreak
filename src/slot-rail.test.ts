@@ -55,7 +55,7 @@ describe("buyer color controls", () => {
     render(createElement(Harness));
 
     expect(screen.queryByRole("button", { name: "Mark Blue taken" })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByText("Choose included slots"));
+    fireEvent.click(screen.getByRole("button", { name: "Edit availability" }));
     fireEvent.click(screen.getByRole("button", { name: "Mark Blue taken" }));
     expect(screen.getByRole("button", { name: "Random remaining" })).toHaveClass("active");
     expect(screen.getByRole("button", { name: "Blue slot" })).toBeDisabled();

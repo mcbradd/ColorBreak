@@ -61,7 +61,7 @@ describe("live random-slot buyer workflow", () => {
     fireEvent.blur(screen.getByLabelText("Current all-in bid"));
     await waitFor(() => expect(screen.getByText(/Chance card value covers your \$12\.50 cost/)).toBeInTheDocument());
 
-    fireEvent.click(screen.getByText("Choose included slots"));
+    fireEvent.click(screen.getByRole("button", { name: "Edit availability" }));
     fireEvent.click(screen.getByRole("button", { name: "Mark Blue taken" }));
     expect(screen.getByText("7 colors remain in the random pool")).toBeInTheDocument();
     expect(screen.getByRole("region", { name: "Live bid decision" })).toHaveTextContent("7 random colors");
@@ -99,7 +99,7 @@ describe("live random-slot buyer workflow", () => {
     const supporting = container.querySelector(".bid-explorer")!;
 
     expect(verdict.compareDocumentPosition(supporting) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(supporting.tagName).toBe("DETAILS");
+    expect(supporting.tagName).toBe("SECTION");
   });
 });
 
