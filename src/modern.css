@@ -841,6 +841,42 @@ body {
 }
 
 .bid-live-decision .number-field input { font-size: 21px; }
+.bid-recommendation {
+  display: grid;
+  grid-template-columns: minmax(138px, auto) minmax(0, 1fr);
+  gap: 14px;
+  align-items: center;
+  padding: 14px 20px;
+  border-top: 1px solid var(--line-strong);
+  background: #11161a;
+}
+
+.bid-recommendation > div { display: grid; gap: 3px; }
+.bid-recommendation small {
+  color: #c4cbd5;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+.bid-recommendation strong {
+  color: var(--ink);
+  font: 800 18px/1 Manrope, sans-serif;
+  letter-spacing: -.035em;
+}
+.bid-recommendation p {
+  margin: 0;
+  color: #cbd3df;
+  font-size: 12px;
+  line-height: 1.45;
+}
+.bid-recommendation p b { color: var(--ink); }
+.bid-recommendation-positive { border-left: 4px solid var(--safe); }
+.bid-recommendation-positive strong { color: var(--safe); }
+.bid-recommendation-warning { border-left: 4px solid #f2bd58; }
+.bid-recommendation-warning strong { color: #f2bd58; }
+.bid-recommendation-negative { border-left: 4px solid var(--danger); }
+.bid-recommendation-negative strong { color: var(--danger); }
 .bid-live-decision .delta { padding: 12px 20px; border-top-color: var(--line-strong); }
 
 .bid-live-decision .outcome-range-compact {
@@ -997,6 +1033,11 @@ body {
   .bid-live-decision .ev-orb { min-width: 112px; }
   .bid-live-decision .ev-orb .max-hammer { font-size: clamp(30px, 10vw, 42px); }
   .bid-live-decision .bid-inputs { padding: 14px; }
+  .bid-recommendation {
+    grid-template-columns: 1fr;
+    gap: 7px;
+    padding: 14px;
+  }
   .bid-live-decision .value-rule button { padding-inline: 4px; font-size: 9px; }
   .bid-live-decision .outcome-range-compact { padding: 14px; }
   .bid-check-workbench .buyer-slot-rail { grid-template-columns: repeat(8, minmax(0, 1fr)); }

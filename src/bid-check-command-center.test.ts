@@ -120,6 +120,57 @@ describe("Bid Check command center", () => {
     expect(screen.getByLabelText("Current all-in bid")).toHaveAttribute("id", "buyer-current-bid");
   });
 
+  it("turns an entered bid into an immediate, exact recommendation", async () => {
+    render(createElement(BuyerWorkspace, { exit: vi.fn(), startFresh: false, startReady: false }));
+
+    const decision = await screen.findByRole("region", { name: "Live bid decision" });
+    fireEvent.change(within(decision).getByLabelText("Current all-in bid"), { target: { value: "10" } });
+
+    const recommendation = await within(decision).findByLabelText("Bid recommendation");
+    expect(recommendation).toHaveTextContent("ROOM TO BID");
+    expect(recommendation).toHaveTextContent("$2.00 under the modeled max bid of $12.00");
+    expect(recommendation).toHaveTextContent("Bid only up to $12.00");
+  });
+
+  it("tells a buyer to pass when the entered bid exceeds the max bid", async () => {
+    render(createElement(BuyerWorkspace, { exit: vi.fn(), startFresh: false, startReady: false }));
+
+    const decision = await screen.findByRole("region", { name: "Live bid decision" });
+    fireEvent.change(within(decision).getByLabelText("Current all-in bid"), { target: { value: "15" } });
+
+    const recommendation = await within(decision).findByLabelText("Bid recommendation");
+    expect(recommendation).toHaveTextContent("OVER YOUR LIMIT — PASS");
+    expect(recommendation).toHaveTextContent("$3.00 over the modeled max bid of $12.00");
+    expect(recommendation).toHaveTextContent("Pass on this bid");
+  });
+
+  it("marks an exact-limit bid as the stopping point", async () => {
+    render(createElement(BuyerWorkspace, { exit: vi.fn(), startFresh: false, startReady: false }));
+
+    const decision = await screen.findByRole("region", { name: "Live bid decision" });
+    fireEvent.change(within(decision).getByLabelText("Current all-in bid"), { target: { value: "12" } });
+
+    const recommendation = await within(decision).findByLabelText("Bid recommendation");
+    expect(recommendation).toHaveTextContent("AT YOUR LIMIT — STOP HERE");
+    expect(recommendation).toHaveTextContent("matches the modeled max bid of $12.00");
+    expect(recommendation).toHaveTextContent("Do not bid higher");
+  });
+
+  it("retains the comparison for a stale estimate and labels that limitation", async () => {
+    evaluateBreakAnalysis.mockResolvedValue({
+      ...analysis,
+      valuation: { ...analysis.valuation, pricedAt: new Date(Date.now() - 7 * 60 * 60 * 1000).toISOString() },
+    });
+    render(createElement(BuyerWorkspace, { exit: vi.fn(), startFresh: false, startReady: false }));
+
+    const decision = await screen.findByRole("region", { name: "Live bid decision" });
+    fireEvent.change(within(decision).getByLabelText("Current all-in bid"), { target: { value: "15" } });
+
+    const recommendation = await within(decision).findByLabelText("Bid recommendation");
+    expect(recommendation).toHaveTextContent("$3.00 over the estimated max bid of $12.00");
+    expect(recommendation).toHaveTextContent("Prices are older than 6 hours, so recheck before bidding");
+  });
+
 
   it("names result navigation from the active assignment mode", async () => {
     render(createElement(BuyerWorkspace, { exit: vi.fn(), startFresh: false, startReady: false }));

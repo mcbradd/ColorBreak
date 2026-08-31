@@ -89,6 +89,18 @@ export type BidRecommendation =
   // target/shipping upstream) — the ceiling cannot be computed at all.
   | { action: "unknown-cost"; tone: "neutral" };
 
+export type ComparableBidRecommendation = Extract<BidRecommendation, { action: "bid" | "stop" | "pass" }>;
+
+export function recommendBid(
+  currentHammer: number,
+  cap: Extract<CapResult, { kind: "cap" }>,
+): ComparableBidRecommendation;
+
+export function recommendBid(
+  currentHammer: number | undefined,
+  cap: CapResult,
+): BidRecommendation;
+
 export function recommendBid(
   currentHammer: number | undefined,
   cap: CapResult,

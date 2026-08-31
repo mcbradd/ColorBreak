@@ -579,6 +579,13 @@ export function BuyerView({
       ? "75% coverage"
       : "Average outcome";
   const decisionKicker = `${breakLabel ? `${breakLabel} · ` : ""}Manual auction check · ${assignmentMode === "random" ? `${auction.remaining.length} random colors` : `${SLOT_NAMES[selected]} slot`}`;
+  const immediateCap = activeCap.kind === "cap" ? activeCap : undefined;
+  const immediateRecommendation = releasePresentation.canShowDecision
+    && (eligibility.status === "eligible" || eligibility.status === "stale")
+    && immediateCap
+    && bid != null
+    ? recommendBid(bid, immediateCap)
+    : undefined;
   return (
     <>
       <section
@@ -621,15 +628,36 @@ export function BuyerView({
           <button aria-pressed={valueRule.kind === "average"} onClick={() => setValueRule({ kind: "average" })}>Chase upside</button>
         </div>}
         <div className="bid-inputs">
-          <NumberField id="buyer-current-bid" label="Current all-in bid" value={bid} onChange={setBid} />
+          <NumberField id="buyer-current-bid" label="Current all-in bid" value={bid} onChange={setBid} live />
           <NumberField
             id="buyer-added-shipping"
             label={eligibility.status === "eligible" ? "Your added shipping" : "Optional: added shipping"}
             value={shipping}
             onChange={setShipping}
             hint="Only shipping added by this purchase—not your whole order."
+            live
           />
         </div>
+        {immediateRecommendation && immediateCap && (
+          <div
+            className={`bid-recommendation bid-recommendation-${immediateRecommendation.tone}`}
+            aria-live="polite"
+            aria-label="Bid recommendation"
+          >
+            <div>
+              <small>Bid recommendation</small>
+              <strong>{immediateRecommendation.action === "bid" ? "ROOM TO BID" : immediateRecommendation.action === "stop" ? "AT YOUR LIMIT — STOP HERE" : "OVER YOUR LIMIT — PASS"}</strong>
+            </div>
+            <p>
+              {immediateRecommendation.action === "bid"
+                ? <>Your current bid is <b>{fmt(immediateRecommendation.room)}</b> under the {eligibility.status === "stale" ? "estimated" : "modeled"} max bid of <b>{fmt(immediateCap.amount)}</b>. Bid only up to {fmt(immediateCap.amount)}.</>
+                : immediateRecommendation.action === "stop"
+                  ? <>Your current bid matches the {eligibility.status === "stale" ? "estimated" : "modeled"} max bid of <b>{fmt(immediateCap.amount)}</b>. Do not bid higher.</>
+                  : <>Your current bid is <b>{fmt(Math.abs(immediateRecommendation.room))}</b> over the {eligibility.status === "stale" ? "estimated" : "modeled"} max bid of <b>{fmt(immediateCap.amount)}</b>. Pass on this bid.</>}
+              {eligibility.status === "stale" && " Prices are older than 6 hours, so recheck before bidding."}
+            </p>
+          </div>
+        )}
         {bid != null && (
           <div className="delta">
             <span>
