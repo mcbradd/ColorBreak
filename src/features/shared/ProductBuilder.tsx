@@ -12,6 +12,7 @@ import {
   ChevronRight,
   PackagePlus,
   Search,
+  Trash2,
   X,
 } from "lucide-react";
 import { catalogSets, productsForSet } from "../../data/catalog";
@@ -134,6 +135,12 @@ export function Builder({
     });
   const add = (product: ProductChoice) => {
     setDraft((rows) => mergeBreakLines([...rows, choiceLine(product)]));
+  };
+  const updateDraftQuantity = (line: BreakLine, quantity: number) => {
+    setDraft((rows) => rows.map((row) => (row.id === line.id ? { ...row, quantity } : row)));
+  };
+  const removeDraftLine = (line: BreakLine) => {
+    setDraft((rows) => rows.filter((row) => row.id !== line.id));
   };
   const normalizeProduct = (value: string) => value.toLocaleLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
   const resolveImport = async () => {
@@ -312,26 +319,55 @@ export function Builder({
                         <InformationLabel>
                           {category.toUpperCase()}
                         </InformationLabel>
-                        {rows!.map((product) => (
-                          <button
-                            key={product.key}
-                            onClick={() => add(product)}
-                          >
-                            <span className="product-icon">
-                              <Boxes />
-                            </span>
-                            <span>
-                              <strong>{product.label}</strong>
-                              <small>
-                                {product.packCount && product.packCount > 1
-                                  ? `${product.packCount} packs · `
-                                  : ""}
-                                {prepared[product.key]?.assessment.presentation === "eligible" ? "Fresh estimate" : "Estimate may need an update"}
-                              </small>
-                            </span>
-                            {draft.some((line) => line.productKey === (product.sealedKey ? `sealed:${product.sealedKey}` : product.key)) ? <b className="product-added">Added</b> : <ChevronRight />}
-                          </button>
-                        ))}
+                        {rows!.map((product) => {
+                          const productKey = product.sealedKey ? `sealed:${product.sealedKey}` : product.key;
+                          const addedLine = draft.find((line) => line.productKey === productKey);
+                          const description = <>
+                            <strong>{product.label}</strong>
+                            <small>
+                              {product.packCount && product.packCount > 1
+                                ? `${product.packCount} packs · `
+                                : ""}
+                              {prepared[product.key]?.assessment.presentation === "eligible" ? "Fresh estimate" : "Estimate may need an update"}
+                            </small>
+                          </>;
+                          return addedLine ? (
+                            <div className="product-row-line" key={product.key}>
+                              <span className="product-icon">
+                                <Boxes />
+                              </span>
+                              <span>
+                                {description}
+                                <b className="product-added">Added</b>
+                              </span>
+                              <div className="line-controls">
+                                <QuantityControl line={addedLine} update={(quantity) => updateDraftQuantity(addedLine, quantity)} />
+                                <button
+                                  type="button"
+                                  className="remove-line"
+                                  aria-label={`Remove ${product.label} from break`}
+                                  title="Remove from break"
+                                  onClick={() => removeDraftLine(addedLine)}
+                                >
+                                  <Trash2 />
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <button
+                              key={product.key}
+                              onClick={() => add(product)}
+                            >
+                              <span className="product-icon">
+                                <Boxes />
+                              </span>
+                              <span>
+                                {description}
+                              </span>
+                              <ChevronRight />
+                            </button>
+                          );
+                        })}
                       </section>
                     ))}
                     {!Object.values(visibleProducts).some((rows) => rows.length) && (readyOnly ? <div className="empty-picker-state"><p>No products in this set currently have fresh estimate data.</p><button type="button" className="quiet" onClick={() => setReadyOnly(false)}>Show all products</button></div> : <p className="empty-picker-state">No products match this filter. Show all products to keep building your break.</p>)}

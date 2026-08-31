@@ -64,9 +64,11 @@ body {
 .choice-list,
 .product-groups,
 .choice-list button,
-.product-groups section > button { width: 100%; max-width: 100%; min-width: 0; }
+.product-groups section > button,
+.product-groups section > .product-row-line { width: 100%; max-width: 100%; min-width: 0; }
 .choice-list button > span:nth-child(2),
-.product-groups section > button > span:nth-child(2) { min-width: 0; overflow-wrap: anywhere; }
+.product-groups section > button > span:nth-child(2),
+.product-groups section > .product-row-line > span:nth-child(2) { min-width: 0; overflow-wrap: anywhere; }
 
 /* Major surfaces are crisp sections, not floating capsules. */
 .panel,
