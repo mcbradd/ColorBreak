@@ -102,4 +102,22 @@ describe("outcome simulation", () => {
     expect(summary.p01).toBeCloseTo(.99);
     expect(summary.p99).toBeCloseTo(98.01);
   });
+
+  // Guards the P0-3 fix: a heavily bulk-filtered slot can legitimately return
+  // $0 for the 10th/50th/90th percentiles while the 99th percentile and mean
+  // are pulled up by rare valuable hits. This must stay a correct, right-
+  // skewed result — never silently collapse into an actual computation bug.
+  it("lets p10/median/p90 all read zero while p99 and mean stay positive, for a right-skewed mostly-zero distribution", () => {
+    const values = [...Array(95).fill(0), ...Array(5).fill(200)];
+    const summary = summarizeDistribution(values);
+    expect(summary.p10).toBe(0);
+    expect(summary.median).toBe(0);
+    expect(summary.p90).toBe(0);
+    expect(summary.p99).toBeGreaterThan(0);
+    expect(summary.mean).toBeGreaterThan(0);
+    // Quantiles must stay monotone non-decreasing — if they didn't, the
+    // all-zero reading really would indicate broken math, not a fair skew.
+    const ordered = [summary.p01, summary.p10, summary.p25, summary.median, summary.p75, summary.p90, summary.p99];
+    for (let i = 1; i < ordered.length; i += 1) expect(ordered[i]).toBeGreaterThanOrEqual(ordered[i - 1]);
+  });
 });

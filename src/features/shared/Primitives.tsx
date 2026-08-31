@@ -456,36 +456,36 @@ export function Home({ choose, buildId, recentBuyerCount = 0, recentSellerCount 
         <span className="engine-ready" aria-label="Catalog ready"><i /> READY TO EXPLORE</span>
       </header>
       <section className="launcher-intro">
-        <InformationLabel>COLOR BREAK PLANNER</InformationLabel>
-        <h1>Know the break before you buy in.</h1>
-        <p>Build the exact boxes, choose a color, and see modeled value, pull ranges, and a bid ceiling in one place.</p>
+        <InformationLabel>MAGIC: THE GATHERING COLOR BREAK PLANNER</InformationLabel>
+        <h1>Know the Magic: The Gathering break before you buy in.</h1>
+        <p>Build the exact boxes, choose a color, and see modeled card value, pull ranges, and a bid ceiling before you bid on a Magic: The Gathering color-break slot — not a marketplace, quote, or financial guarantee.</p>
       </section>
       <section className="mode-grid" aria-label="Choose a job">
         <button
           data-home-focus
           className="mode-card buyer-card"
-          aria-label="Bid Check"
+          aria-label="Bid Check — for buyers"
           onClick={() => choose("buyer", true)}
         >
           <span className="mode-number">01</span>
           <span className="mode-copy">
-            <small>BUYING A COLOR SLOT</small>
+            <small>FOR BUYERS · BUYING A COLOR SLOT</small>
           <strong>Check a bid</strong>
-            <p>Set your color, price, and shipping to find a modeled ceiling before the hammer falls.</p>
+            <p>Set your color, price, and shipping to find a modeled ceiling before the hammer falls on a Magic: The Gathering pack break.</p>
           </span>
           <span className="mode-output"><small>BUYER TOOL</small><b>Bid ceiling</b><span>Value · pull range · risk</span></span>
           <ChevronRight />
         </button>
         <button
           className="mode-card seller-card"
-          aria-label="Seller break planner"
+          aria-label="Plan a break — for sellers"
           onClick={() => choose("seller")}
         >
           <span className="mode-number">02</span>
           <span className="mode-copy">
-            <small>PLANNING A BREAK</small>
+            <small>FOR SELLERS · PLANNING A BREAK</small>
             <strong>Plan a break</strong>
-            <p>Build a slot plan, model costs, and see where the break balances.</p>
+            <p>Build a slot plan, model costs, and see where a Magic: The Gathering color break balances before you sell it.</p>
           </span>
           <span className="mode-output"><small>SELLER TOOL</small><b>Slot plan</b><span>Costs · scenarios · balance</span></span>
           <ChevronRight />

@@ -4,7 +4,7 @@ import { ShieldAlert } from "lucide-react";
 import type { BreakAnalysis } from "../../data/evaluate";
 import type { AssignmentMode } from "../../domain/share-url";
 import { recommendBid, solveFinancialCap } from "../../domain/buyer-treatment";
-import type { ValueRule } from "../../domain/buyer-treatment";
+import type { BidRecommendation, ValueRule } from "../../domain/buyer-treatment";
 import { decisionEligibility, resolvedOnlyLimit } from "../../domain/valuation";
 import type { AuctionState } from "../../domain/auction";
 import { cardDisplayName } from "../../domain/card-label";
@@ -551,23 +551,31 @@ export function BuyerView({
     ? { kind: "cap" as const, amount: scoped.amount, allInAtCap: scoped.allIn }
     : cap;
   const recommendation = recommendBid(bid, activeCap);
+  // "no-room" is a fully resolved verdict (shipping alone meets or exceeds
+  // the modeled value) — render it in the same PASS class as an over-cap
+  // bid, never as an ambiguous placeholder. "unknown-cost" is the only
+  // genuinely-missing-data case and gets its own named label.
+  const verdictLabel = (action: BidRecommendation["action"]): string => {
+    switch (action) {
+      case "bid": return "BID";
+      case "stop": return "STOP HERE";
+      case "pass":
+      case "no-room": return "PASS";
+      case "unknown-cost": return "CEILING NOT AVAILABLE";
+      case "enter-bid": default: return "ENTER BID";
+    }
+  };
   const decision = !releasePresentation.canShowDecision
     ? releasePresentation.heading!
     : eligibility.status !== "eligible"
     ? eligibility.status === "material-incomplete" && resolvedOnlyRequested && scoped && reconfirmed
-      ? bid == null ? "ENTER BID" : recommendation.action === "bid" ? "BID" : recommendation.action === "stop" ? "STOP HERE" : recommendation.action === "pass" ? "PASS" : "NO CAP"
+      ? bid == null ? "ENTER BID" : verdictLabel(recommendation.action)
       : eligibility.status === "material-incomplete" ? `LIMIT UNAVAILABLE — ${eligibility.blockerCount} MATERIAL OMISSIONS` : "LIMIT UNAVAILABLE"
     : bid == null
     ? "ENTER BID"
     : shipping == null
       ? "ADD SHIPPING"
-      : recommendation.action === "bid"
-        ? "BID"
-        : recommendation.action === "stop"
-          ? "STOP HERE"
-          : recommendation.action === "pass"
-            ? "PASS"
-            : "NO CAP";
+      : verdictLabel(recommendation.action);
   const ruleLabel = valueRule.kind === "median"
     ? "Typical outcome"
     : valueRule.kind === "coverage"
@@ -601,10 +609,16 @@ export function BuyerView({
             {eligibility.status === "eligible" && recommendation.action === "pass" && (
               <p className="decision-reason">Current hammer is {fmt(Math.abs(recommendation.room))} beyond your modeled ceiling.</p>
             )}
+            {eligibility.status === "eligible" && recommendation.action === "no-room" && (
+              <p className="decision-reason">Shipping alone ({fmt(shipping)}) meets or exceeds the {ruleLabel.toLowerCase()} value ({fmt(valueTarget)}). No bid amount clears cost here — your modeled ceiling is $0.00.</p>
+            )}
+            {eligibility.status === "eligible" && recommendation.action === "unknown-cost" && (
+              <p className="decision-reason">{simulation.busy ? "Still checking possible openings for this slot." : "A modeled outcome value for this slot is not available yet."}</p>
+            )}
           </div>
           <div className="ev-orb">
             <small><span>{releasePresentation.canShowDecision ? "Your max hammer" : "Ceiling unavailable"}</span></small>
-            <strong className="max-hammer" aria-label="Maximum hammer" aria-live="polite">{releasePresentation.canShowDecision && reconfirmed && activeCap.kind === "cap" ? fmt(activeCap.amount) : "—"}</strong>
+            <strong className="max-hammer" aria-label="Maximum hammer" aria-live="polite">{releasePresentation.canShowDecision && reconfirmed ? (activeCap.kind === "cap" ? fmt(activeCap.amount) : activeCap.kind === "no-room" ? fmt(0) : "—") : "—"}</strong>
             <span>{releasePresentation.canShowDecision ? `${ruleLabel} limit` : "Update product data to calculate"}</span>
             <strong aria-label="Typical card value" aria-live="polite">{simulation.busy && !distribution ? "Checking…" : fmt(distribution?.median ?? fallbackMean)}</strong>
             {distribution?.median === 0 && <em>Usually no card above the bulk filter</em>}
@@ -617,13 +631,14 @@ export function BuyerView({
           <button aria-pressed={valueRule.kind === "average"} onClick={() => setValueRule({ kind: "average" })}>Chase upside</button>
         </div>}
         <div className="bid-inputs">
-          <NumberField id="buyer-current-bid" label={eligibility.status === "eligible" ? "Current bid" : "Optional: compare your current all-in cost"} value={bid} onChange={setBid} />
+          <NumberField id="buyer-current-bid" label={eligibility.status === "eligible" ? "Current bid" : "Optional: compare your current all-in cost"} value={bid} onChange={setBid} live />
           <NumberField
             id="buyer-added-shipping"
             label={eligibility.status === "eligible" ? "Your added shipping" : "Optional: added shipping"}
             value={shipping}
             onChange={setShipping}
             hint="Only shipping added by this purchase—not your whole order."
+            live
           />
         </div>
         {bid != null && (

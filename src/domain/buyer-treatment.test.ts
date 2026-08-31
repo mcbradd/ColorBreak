@@ -64,6 +64,19 @@ describe("V2 buyer treatment", () => {
     expect(recommendBid(19, { kind: "cap", amount: 18, allInAtCap: 22 }))
       .toEqual({ action: "pass", tone: "negative", room: -1 });
     expect(recommendBid(12, { kind: "unknown-cost" }))
-      .toEqual({ action: "no-cap", tone: "neutral" });
+      .toEqual({ action: "unknown-cost", tone: "neutral" });
+    expect(recommendBid(12, { kind: "no-room" }))
+      .toEqual({ action: "no-room", tone: "negative" });
+  });
+
+  it("treats a resolved no-room cap as distinct from a genuinely unknown one", () => {
+    // Shipping alone meets or exceeds the modeled value: fully resolved, not missing data.
+    const noRoom = solveFinancialCap({ valueTarget: 5, acceptedAmounts: [1, 2, 3], addedCost: () => 5 });
+    expect(noRoom).toEqual({ kind: "no-room" });
+    expect(recommendBid(undefined, noRoom)).toEqual({ action: "no-room", tone: "negative" });
+    // No cost function at all: genuinely unknown, must not collapse to the same state.
+    const unknown = solveFinancialCap({ valueTarget: 5, acceptedAmounts: [1, 2, 3] });
+    expect(unknown).toEqual({ kind: "unknown-cost" });
+    expect(recommendBid(undefined, unknown)).toEqual({ action: "unknown-cost", tone: "neutral" });
   });
 });
