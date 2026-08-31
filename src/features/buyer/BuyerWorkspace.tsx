@@ -341,7 +341,7 @@ export function BuyerWorkspace({
               largeSpots={largeSpots}
               setLargeSpots={setLargeSpots}
             />
-            <div id="buyer-large-result" className="results buyer-results">
+            <div id="buyer-large-result" className="results buyer-results buyer-decision-stage">
               {manualCapOpen ? <ManualBudgetCap onBack={() => { setManualCapOpen(false); openBuilder(); }} target={manualTarget} setTarget={setManualTarget} shipping={manualShipping} setShipping={setManualShipping} hammer={manualHammer} setHammer={setManualHammer} /> : !lines.length && <section className="buyer-awaiting-break"><span><BarChart3 /></span><h2>Add a product to begin</h2><p>Your estimated value and bid limit will appear here after you choose the break and slot.</p></section>}
               {busy && <div className="calculating" role="status" aria-live="polite"><span />Calculating exact contents and prices…</div>}
               {error && <CompactWarning title="Couldn’t load this result" summary="No verified modeled ceiling can be offered until this data loads." className="load-warning"><p role="alert">{error}</p><div className="buyer-recovery-actions"><button type="button" className="quiet" onClick={() => setCalculationGeneration((value) => value + 1)}>Retry analysis</button><button type="button" className="quiet" onClick={() => setManualCapOpen(true)}>Use manual budget cap</button></div></CompactWarning>}

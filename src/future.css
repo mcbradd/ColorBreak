@@ -951,6 +951,21 @@ input {
 .product-added { color: var(--safe); font-size: 13px; }
 .seller-studio-shell { max-width: 760px; }
 .seller-contents { border: var(--rule); background: var(--panel); }
+
+/* The buyer's live answer has one owner.  Keep that owner on the full phone
+ * measure even if an earlier desktop workbench rule is present in the cascade. */
+@media (max-width: 899px) {
+  .bid-check-workbench.has-break .buyer-decision-stage {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    margin-inline: 0;
+    position: static;
+  }
+  .bid-check-workbench.has-break .buyer-decision-stage > .bid-live-decision { width: 100%; }
+}
+
 @media (max-width: 430px) {
   .workspace.page { padding-inline: 12px; }
   .workspace-title { margin-top: 18px; }

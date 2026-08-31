@@ -62,6 +62,8 @@ describe("Bid Check command center", () => {
     render(createElement(BuyerWorkspace, { exit: vi.fn(), startFresh: false, startReady: false }));
 
     const decision = await screen.findByRole("region", { name: "Live bid decision" });
+    expect(screen.getAllByRole("region", { name: "Live bid decision" })).toHaveLength(1);
+    expect(screen.getAllByLabelText("Current bid")).toHaveLength(1);
     expect(within(decision).getByLabelText("Current bid")).toHaveValue("");
     expect(within(decision).getByLabelText("Your added shipping")).toHaveValue("");
     expect(within(decision).getByRole("group", { name: "Risk stance" })).toBeInTheDocument();
