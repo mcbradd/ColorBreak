@@ -31,6 +31,8 @@ jobs:
         run: npm ci
       - name: Refresh the published price snapshot for the six-hour buyer rule
         run: npm run data:prices
+      - name: Refresh the sealed-product price snapshot for the 36-hour freshness gate
+        run: npm run data:sealed-prices
       - name: Verify committed price snapshots
         run: npm run check:prices && npm run check:sealed-prices
       - name: Test and build
