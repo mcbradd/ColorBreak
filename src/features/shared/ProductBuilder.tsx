@@ -239,8 +239,11 @@ export function Builder({
               </div>
             </header>
             <div className="composer-status" aria-live="polite">
-              <span><small>Current break</small><b>{draft.length}</b> product line{draft.length === 1 ? "" : "s"}</span>
-              <span><small>Current break</small><b>{totalOpenings}</b> opening{totalOpenings === 1 ? "" : "s"}</span>
+              <small className="composer-status-label">Current break</small>
+              <div className="composer-status-tiles">
+                <span className="stat-tile"><b>{draft.length}</b><small>product line{draft.length === 1 ? "" : "s"}</small></span>
+                <span className="stat-tile"><b>{totalOpenings}</b><small>opening{totalOpenings === 1 ? "" : "s"}</small></span>
+              </div>
             </div>
             {composerMode === "paste" ? (
               <section className="break-import">
@@ -320,10 +323,10 @@ export function Builder({
                             <span>
                               <strong>{product.label}</strong>
                               <small>
-                                {product.packCount
+                                {product.packCount && product.packCount > 1
                                   ? `${product.packCount} packs · `
                                   : ""}
-                                {product.packCount ? "Ready to add" : "Ready to add"}{prepared[product.key]?.assessment.presentation === "eligible" ? " · Fresh estimate" : " · Estimate may need an update"}
+                                {prepared[product.key]?.assessment.presentation === "eligible" ? "Fresh estimate" : "Estimate may need an update"}
                               </small>
                             </span>
                             {draft.some((line) => line.productKey === (product.sealedKey ? `sealed:${product.sealedKey}` : product.key)) ? <b className="product-added">Added</b> : <ChevronRight />}

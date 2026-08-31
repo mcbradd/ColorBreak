@@ -458,7 +458,7 @@ export function Home({ choose, buildId, recentBuyerCount = 0, recentSellerCount 
       <section className="launcher-intro">
         <InformationLabel>MAGIC: THE GATHERING COLOR BREAKS</InformationLabel>
         <h1>Check a color-break bid.</h1>
-        <p>See an estimated value and maximum bid before you buy a slot.</p>
+        <p>Value and max bid, before you buy.</p>
       </section>
       <section className="mode-grid" aria-label="Choose a job">
         <button
@@ -468,8 +468,8 @@ export function Home({ choose, buildId, recentBuyerCount = 0, recentSellerCount 
           onClick={() => choose("buyer", true)}
         >
           <span className="mode-copy">
-          <strong>Check a color-break bid</strong>
-            <p>Search a product, choose a slot, then compare the current bid.</p>
+          <strong>Check a bid</strong>
+            <p>Product, slot, bid.</p>
           </span>
           <ChevronRight />
         </button>
@@ -480,7 +480,7 @@ export function Home({ choose, buildId, recentBuyerCount = 0, recentSellerCount 
         >
           <span className="mode-copy">
             <strong>Planning a break?</strong>
-            <p>Open Seller Studio to set up products and costs.</p>
+            <p>Products and costs.</p>
           </span>
           <ChevronRight />
         </button>
