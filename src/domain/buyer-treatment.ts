@@ -80,13 +80,21 @@ export type BidRecommendation =
   | { action: "bid"; tone: "positive"; room: number }
   | { action: "stop"; tone: "warning"; room: 0 }
   | { action: "pass"; tone: "negative"; room: number }
-  | { action: "no-cap"; tone: "neutral" };
+  // A fully resolved verdict: the cap solver had complete data and determined
+  // no positive hammer clears cost (e.g. shipping alone meets or exceeds the
+  // modeled value). This is a computed fact, not missing data — keep it
+  // distinct from `unknown-cost` so callers never render the two identically.
+  | { action: "no-room"; tone: "negative" }
+  // Genuinely missing inputs (no cost function, or an unresolved value
+  // target/shipping upstream) — the ceiling cannot be computed at all.
+  | { action: "unknown-cost"; tone: "neutral" };
 
 export function recommendBid(
   currentHammer: number | undefined,
   cap: CapResult,
 ): BidRecommendation {
-  if (cap.kind !== "cap") return { action: "no-cap", tone: "neutral" };
+  if (cap.kind === "unknown-cost") return { action: "unknown-cost", tone: "neutral" };
+  if (cap.kind === "no-room") return { action: "no-room", tone: "negative" };
   if (currentHammer == null) return { action: "enter-bid", tone: "neutral" };
   const room = cap.amount - currentHammer;
   if (room > 0) return { action: "bid", tone: "positive", room };
