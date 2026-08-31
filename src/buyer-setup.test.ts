@@ -34,7 +34,7 @@ const result = {
 } as ValuationResult;
 
 describe("Check a Bid setup order", () => {
-  it("puts break contents, color controls, and bid options in auction order", () => {
+  it("puts break contents before slot choice and keeps assumptions collapsed", () => {
     const { container } = render(createElement(BuyerSetup, {
       lines,
       add: vi.fn(),
@@ -59,9 +59,9 @@ describe("Check a Bid setup order", () => {
 
     expect(directSections[0]).toHaveClass("composition");
     expect(directSections[1]).toHaveClass("buyer-slot-control");
-    expect(directSections[2]).toHaveClass("buyer-advanced");
-    expect(screen.getByText("1 · WHAT'S IN THE BREAK?")).toBeInTheDocument();
-    expect(screen.getByText("2 · SLOT")).toBeInTheDocument();
+    expect(directSections[2].tagName).toBe("DETAILS");
+    expect(screen.getByText("1 · WHAT’S IN THE BREAK?")).toBeInTheDocument();
+    expect(screen.getByText("2 · YOUR SLOT")).toBeInTheDocument();
     expect(screen.getByText("Adjust assumptions")).toBeInTheDocument();
   });
 

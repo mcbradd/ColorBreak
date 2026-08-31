@@ -4,7 +4,7 @@ import { ShieldAlert } from "lucide-react";
 import type { BreakAnalysis } from "../../data/evaluate";
 import type { AssignmentMode } from "../../domain/share-url";
 import { recommendBid, solveFinancialCap } from "../../domain/buyer-treatment";
-import type { BidRecommendation, ValueRule } from "../../domain/buyer-treatment";
+import type { ValueRule } from "../../domain/buyer-treatment";
 import { decisionEligibility, resolvedOnlyLimit } from "../../domain/valuation";
 import type { AuctionState } from "../../domain/auction";
 import { cardDisplayName } from "../../domain/card-label";
@@ -537,45 +537,42 @@ export function BuyerView({
         : distribution.mean;
   const decisionInput = `${selected}|${assignmentMode}|${auction.remaining.join("")}|${bid ?? ""}|${shipping ?? ""}|${valueRule.kind}|${valueRule.kind === "coverage" ? valueRule.coverage : ""}|${eligibility.affectedGroups.map((group) => group.id).join("|")}`;
   const reconfirmed = reconfirmedInput === decisionInput && reconfirmedAt != null && Date.now() - reconfirmedAt <= 60_000;
-  const scoped = valueTarget == null || shipping == null ? undefined : resolvedOnlyLimit(valueTarget, shipping, eligibility);
-  const cap = eligibility.status !== "eligible" || valueTarget == null || shipping == null
+  const addedShipping = shipping ?? 0;
+  const scoped = valueTarget == null ? undefined : resolvedOnlyLimit(valueTarget, addedShipping, eligibility);
+  const cap = (eligibility.status !== "eligible" && eligibility.status !== "stale") || valueTarget == null
     ? { kind: "unknown-cost" as const }
     : solveFinancialCap({
         valueTarget,
-        acceptedAmounts: valueTarget > shipping
-          ? [Math.floor((valueTarget - shipping) * 100) / 100]
+        acceptedAmounts: valueTarget > addedShipping
+          ? [Math.floor((valueTarget - addedShipping) * 100) / 100]
           : [],
-        addedCost: () => shipping,
+        addedCost: () => addedShipping,
       });
   const activeCap = releasePresentation.canShowDecision && eligibility.status === "material-incomplete" && resolvedOnlyRequested && scoped && reconfirmed
     ? { kind: "cap" as const, amount: scoped.amount, allInAtCap: scoped.allIn }
     : cap;
   const recommendation = recommendBid(bid, activeCap);
-  // "no-room" is a fully resolved verdict (shipping alone meets or exceeds
-  // the modeled value) — render it in the same PASS class as an over-cap
-  // bid, never as an ambiguous placeholder. "unknown-cost" is the only
-  // genuinely-missing-data case and gets its own named label.
-  const verdictLabel = (action: BidRecommendation["action"]): string => {
-    switch (action) {
-      case "bid": return "BID";
-      case "stop": return "STOP HERE";
-      case "pass":
-      case "no-room": return "PASS";
-      case "unknown-cost": return "CEILING NOT AVAILABLE";
-      case "enter-bid": default: return "ENTER BID";
-    }
-  };
   const decision = !releasePresentation.canShowDecision
     ? releasePresentation.heading!
-    : eligibility.status !== "eligible"
+    : eligibility.status !== "eligible" && eligibility.status !== "stale"
     ? eligibility.status === "material-incomplete" && resolvedOnlyRequested && scoped && reconfirmed
-      ? bid == null ? "ENTER BID" : verdictLabel(recommendation.action)
+      ? bid == null ? "ENTER BID" : recommendation.action === "bid" ? "BID" : recommendation.action === "stop" ? "STOP HERE" : recommendation.action === "pass" ? "PASS" : "NO CAP"
       : eligibility.status === "material-incomplete" ? `LIMIT UNAVAILABLE — ${eligibility.blockerCount} MATERIAL OMISSIONS` : "LIMIT UNAVAILABLE"
+    : eligibility.status === "stale" && bid == null
+    ? "ESTIMATED MAX BID"
+    : eligibility.status === "stale"
+    ? recommendation.action === "pass" ? "ABOVE ESTIMATE" : recommendation.action === "stop" ? "AT ESTIMATE" : "UNDER ESTIMATE"
     : bid == null
-    ? "ENTER BID"
+    ? "BID UP TO"
     : shipping == null
       ? "ADD SHIPPING"
-      : verdictLabel(recommendation.action);
+      : recommendation.action === "bid"
+        ? "BID"
+        : recommendation.action === "stop"
+          ? "STOP HERE"
+          : recommendation.action === "pass"
+            ? "PASS"
+            : "NO CAP";
   const ruleLabel = valueRule.kind === "median"
     ? "Typical outcome"
     : valueRule.kind === "coverage"
@@ -590,7 +587,7 @@ export function BuyerView({
       >
         <div className="decision-kicker">
           <span title={decisionKicker}>{decisionKicker}</span>
-          <span className={`decision-evidence evidence-${result.status}`}>{eligibility.status === "eligible" ? "Data ready" : eligibility.status === "stale" ? "Prices need refresh" : result.status}</span>
+          <span className={`decision-evidence evidence-${result.status}`}>{eligibility.status === "eligible" ? "Fresh estimate" : eligibility.status === "stale" ? "Prices are older than 6 hours" : result.status}</span>
         </div>
         <div className="verdict-head">
           <div className="verdict-decision">
@@ -598,47 +595,39 @@ export function BuyerView({
             <h2 aria-live="polite">{decision}</h2>
             {!releasePresentation.canShowDecision && <div className="decision-reason buyer-recovery-choice"><p><strong>{eligibility.status === "stale" ? "Price evidence is stale." : eligibility.status === "material-incomplete" ? "Contents or exact prices are incomplete." : "Required evidence is unavailable."}</strong> {eligibility.status === "material-incomplete" && eligibility.affectedGroups.length ? eligibility.affectedGroups.map((item) => item.label).join(" ") : ""} Observed {eligibility.observedAt ? new Date(eligibility.observedAt).toLocaleString() : "unknown"} from {eligibility.observedSource ?? "the price snapshot"}. The modeled ceiling is withheld.</p><div className="buyer-recovery-actions"><button type="button" className="quiet" onClick={onChooseReady}>Choose a ready product</button><button type="button" className="quiet" onClick={onUseManualCap}>Use manual budget cap</button></div></div>}
             {releasePresentation.canShowDecision && (eligibility.status === "eligible" || (eligibility.status === "material-incomplete" && resolvedOnlyRequested && scoped)) && !reconfirmed && <p className="decision-reason"><button type="button" className="quiet" onClick={() => { setReconfirmedInput(decisionInput); setReconfirmedAt(Date.now()); }}>Reconfirm current bid</button> Reconfirm after changing bid, shipping, slot, or risk stance. Confirmation expires after one minute.</p>}
-            {releasePresentation.canShowDecision && eligibility.status === "eligible" && bid == null && <p className="decision-reason"><a href="#buyer-current-bid">Enter the current auction price</a> to compare it with your maximum hammer.</p>}
-            {bid != null && shipping == null && <p className="decision-reason"><a href="#buyer-added-shipping">Enter the extra shipping charged for this purchase</a>. It affects your landed cost and maximum hammer.</p>}
-            {eligibility.status === "eligible" && recommendation.action === "bid" && (
+            {releasePresentation.canShowDecision && bid == null && <p className="decision-reason"><a href="#buyer-current-bid">Enter the current all-in bid</a> to compare it with this estimate.</p>}
+            {(eligibility.status === "eligible" || eligibility.status === "stale") && recommendation.action === "bid" && (
               <p className="decision-reason">Current hammer is {fmt(recommendation.room)} below your modeled ceiling.</p>
             )}
-            {eligibility.status === "eligible" && recommendation.action === "stop" && (
+            {(eligibility.status === "eligible" || eligibility.status === "stale") && recommendation.action === "stop" && (
               <p className="decision-reason">The current hammer has reached your modeled ceiling.</p>
             )}
-            {eligibility.status === "eligible" && recommendation.action === "pass" && (
+            {(eligibility.status === "eligible" || eligibility.status === "stale") && recommendation.action === "pass" && (
               <p className="decision-reason">Current hammer is {fmt(Math.abs(recommendation.room))} beyond your modeled ceiling.</p>
-            )}
-            {eligibility.status === "eligible" && recommendation.action === "no-room" && (
-              <p className="decision-reason">Shipping alone ({fmt(shipping)}) meets or exceeds the {ruleLabel.toLowerCase()} value ({fmt(valueTarget)}). No bid amount clears cost here — your modeled ceiling is $0.00.</p>
-            )}
-            {eligibility.status === "eligible" && recommendation.action === "unknown-cost" && (
-              <p className="decision-reason">{simulation.busy ? "Still checking possible openings for this slot." : "A modeled outcome value for this slot is not available yet."}</p>
             )}
           </div>
           <div className="ev-orb">
-            <small><span>{releasePresentation.canShowDecision ? "Your max hammer" : "Ceiling unavailable"}</span></small>
-            <strong className="max-hammer" aria-label="Maximum hammer" aria-live="polite">{releasePresentation.canShowDecision && reconfirmed ? (activeCap.kind === "cap" ? fmt(activeCap.amount) : activeCap.kind === "no-room" ? fmt(0) : "—") : "—"}</strong>
-            <span>{releasePresentation.canShowDecision ? `${ruleLabel} limit` : "Update product data to calculate"}</span>
+            <small><span>{releasePresentation.canShowDecision ? eligibility.status === "stale" ? "Estimated max bid" : "Bid up to" : "Estimate unavailable"}</span></small>
+            <strong className="max-hammer" aria-label="Maximum bid" aria-live="polite">{releasePresentation.canShowDecision && activeCap.kind === "cap" ? fmt(activeCap.amount) : "Checking…"}</strong>
+            <span>{releasePresentation.canShowDecision ? `${ruleLabel} value` : "Choose another product"}</span>
             <strong aria-label="Typical card value" aria-live="polite">{simulation.busy && !distribution ? "Checking…" : fmt(distribution?.median ?? fallbackMean)}</strong>
             {distribution?.median === 0 && <em>Usually no card above the bulk filter</em>}
             <span>Average {fmt(distribution?.mean ?? fallbackMean)}</span>
           </div>
         </div>
-        {eligibility.status === "eligible" && <div className="value-rule" role="group" aria-label="Risk stance">
+        {(eligibility.status === "eligible" || eligibility.status === "stale") && <div className="value-rule" role="group" aria-label="Risk stance">
           <button aria-pressed={valueRule.kind === "coverage"} onClick={() => setValueRule({ kind: "coverage", coverage: .75 })}>Protect downside</button>
           <button aria-pressed={valueRule.kind === "median"} onClick={() => setValueRule({ kind: "median" })}>Balanced</button>
           <button aria-pressed={valueRule.kind === "average"} onClick={() => setValueRule({ kind: "average" })}>Chase upside</button>
         </div>}
         <div className="bid-inputs">
-          <NumberField id="buyer-current-bid" label={eligibility.status === "eligible" ? "Current bid" : "Optional: compare your current all-in cost"} value={bid} onChange={setBid} live />
+          <NumberField id="buyer-current-bid" label="Current all-in bid" value={bid} onChange={setBid} />
           <NumberField
             id="buyer-added-shipping"
             label={eligibility.status === "eligible" ? "Your added shipping" : "Optional: added shipping"}
             value={shipping}
             onChange={setShipping}
             hint="Only shipping added by this purchase—not your whole order."
-            live
           />
         </div>
         {bid != null && (
@@ -656,13 +645,13 @@ export function BuyerView({
         {simulation.error && <CompactWarning title="Pull ranges unavailable" summary="The non-simulation value remains visible." className="inline-warning"><p role="alert">{simulation.error}</p><button type="button" className="quiet" onClick={simulation.retry}>Retry pull ranges</button></CompactWarning>}
         <IncompleteDataWarning analysis={analysis} title="Some estimates may be low" />
       </section>
-      <details className="bid-explorer">
-        <summary className="disclosure-summary">
+      <section className="bid-explorer">
+        <header className="disclosure-summary">
           <span>
             <strong>Break evidence</strong>
             <small>Break value, pull range, data quality, and ranked cards</small>
           </span>
-        </summary>
+        </header>
         <div className="bid-explorer-body">
           <ValueSummary result={result} />
           <BreakBalance result={result} remaining={auction.remaining} simulation={simulation.result} />
@@ -673,7 +662,7 @@ export function BuyerView({
             onInspect={setInspectedCard}
           />
         </div>
-      </details>
+      </section>
       <CardInspector
         row={inspectedCard}
         status={result.status}

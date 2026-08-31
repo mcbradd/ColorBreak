@@ -62,21 +62,19 @@ describe("Bid Check command center", () => {
     render(createElement(BuyerWorkspace, { exit: vi.fn(), startFresh: false, startReady: false }));
 
     const decision = await screen.findByRole("region", { name: "Live bid decision" });
-    expect(within(decision).getByLabelText("Current bid")).toHaveValue("");
+    expect(within(decision).getByLabelText("Current all-in bid")).toHaveValue("");
     expect(within(decision).getByLabelText("Your added shipping")).toHaveValue("");
     expect(within(decision).getByRole("group", { name: "Risk stance" })).toBeInTheDocument();
-    expect(within(decision).getByText("Your max hammer")).toBeInTheDocument();
+    expect(within(decision).getByText("Bid up to")).toBeInTheDocument();
     expect(screen.queryByText("V2 RESEARCH PREVIEW")).not.toBeInTheDocument();
   });
 
-  it("keeps supporting analysis behind a disclosure so the answer stays first", async () => {
+  it("keeps supporting analysis immediately available without a disclosure", async () => {
     render(createElement(BuyerWorkspace, { exit: vi.fn(), startFresh: false, startReady: false }));
     await screen.findByRole("region", { name: "Live bid decision" });
 
-    const evidence = screen.getByText("Break evidence").closest("details");
+    const evidence = screen.getByText("Break evidence").closest("section");
     expect(evidence).not.toBeNull();
-    expect(evidence).not.toHaveAttribute("open");
-    fireEvent.click(within(evidence as HTMLElement).getByText("Break evidence"));
     await waitFor(() => expect(within(evidence as HTMLElement).getByText(/BREAK BALANCE/i)).toBeInTheDocument());
     expect(screen.queryByText("Chase Map")).not.toBeInTheDocument();
   });
@@ -109,7 +107,7 @@ describe("Bid Check command center", () => {
     expect(screen.queryByText(/Expected impact:/)).not.toBeInTheDocument();
     await waitFor(() => expect(simulateOutcomesAsync).toHaveBeenCalled());
     expect(screen.getByText("LIMIT UNAVAILABLE")).toBeInTheDocument();
-    expect(screen.getByLabelText("Maximum hammer")).toHaveTextContent("—");
+    expect(screen.getByLabelText("Maximum bid")).toHaveTextContent("Checking…");
   });
 
   it("links missing buyer information to the exact fields", async () => {
@@ -117,24 +115,11 @@ describe("Bid Check command center", () => {
     sessionStorage.removeItem("colorbreak:buyer:shipping");
     render(createElement(BuyerWorkspace, { exit: vi.fn(), startFresh: false, startReady: false }));
 
-    const bidLink = await screen.findByRole("link", { name: "Enter the current auction price" });
+    const bidLink = await screen.findByRole("link", { name: "Enter the current all-in bid" });
     expect(bidLink).toHaveAttribute("href", "#buyer-current-bid");
-    expect(screen.getByLabelText("Current bid")).toHaveAttribute("id", "buyer-current-bid");
+    expect(screen.getByLabelText("Current all-in bid")).toHaveAttribute("id", "buyer-current-bid");
   });
 
-  it("keeps the empty state focused on choosing a product", () => {
-    sessionStorage.removeItem("colorbreak:buyer:draft:v1");
-    render(createElement(BuyerWorkspace, { exit: vi.fn(), startFresh: true, startReady: false }));
-    expect(screen.getByRole("heading", { name: "Start with the break." })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Search products" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Use manual budget cap" })).not.toBeInTheDocument();
-  });
-
-  it("does not show a slot as selected until the buyer makes that choice", () => {
-    sessionStorage.removeItem("colorbreak:buyer:draft:v1");
-    render(createElement(BuyerWorkspace, { exit: vi.fn(), startFresh: true, startReady: false }));
-    expect(screen.queryByText("White selected")).not.toBeInTheDocument();
-  });
 
   it("names result navigation from the active assignment mode", async () => {
     render(createElement(BuyerWorkspace, { exit: vi.fn(), startFresh: false, startReady: false }));

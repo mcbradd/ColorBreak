@@ -7,9 +7,9 @@ describe("bid ceiling availability", () => {
       canShowDecision: true, heading: undefined, maxHammer: undefined,
     });
   });
-  it("withholds a ceiling when the selected data is not eligible", () => {
+  it("keeps a clearly labeled estimate when prices are stale", () => {
     expect(buyerDecisionPresentation("stale")).toEqual({
-      canShowDecision: false, heading: "LIMIT UNAVAILABLE", maxHammer: "—",
+      canShowDecision: true, heading: undefined, maxHammer: undefined,
     });
   });
 });

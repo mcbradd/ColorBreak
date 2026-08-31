@@ -52,13 +52,13 @@ describe("live random-slot buyer workflow", () => {
     fireEvent.click(screen.getByRole("button", { name: "Random remaining" }));
     expect(screen.getByText("8 colors remain in the random pool")).toBeInTheDocument();
     expect(screen.getByRole("region", { name: "Live bid decision" })).toHaveTextContent("8 random colors");
-    expect(screen.getByText("ENTER BID")).toBeInTheDocument();
+    expect(screen.getByText("BID UP TO")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Reconfirm current bid" })).toBeInTheDocument();
     await waitFor(() => expect(screen.getByLabelText("Possible opening values")).toBeInTheDocument());
     expect(screen.queryByLabelText("Twenty equal-probability modeled outcome bands")).not.toBeInTheDocument();
 
-    fireEvent.change(screen.getByLabelText("Current bid"), { target: { value: "12.50" } });
-    fireEvent.blur(screen.getByLabelText("Current bid"));
+    fireEvent.change(screen.getByLabelText("Current all-in bid"), { target: { value: "12.50" } });
+    fireEvent.blur(screen.getByLabelText("Current all-in bid"));
     await waitFor(() => expect(screen.getByText(/Chance card value covers your \$12\.50 cost/)).toBeInTheDocument());
 
     fireEvent.click(screen.getByText("Choose included slots"));

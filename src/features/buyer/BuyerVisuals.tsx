@@ -136,8 +136,8 @@ export function SlotRail({
   setAssignmentMode,
   selected,
   setSelected,
-  slotChosen,
-  onSlotChosen,
+  slotChosen = true,
+  setSlotChosen = () => {},
   largeSpots,
   setLargeSpots,
 }: {
@@ -148,41 +148,30 @@ export function SlotRail({
   setAssignmentMode: (mode: AssignmentMode) => void;
   selected: SlotId;
   setSelected: (id: SlotId) => void;
-  slotChosen: boolean;
-  onSlotChosen?: () => void;
+  slotChosen?: boolean;
+  setSlotChosen?: (chosen: boolean) => void;
   largeSpots: number;
   setLargeSpots: (spots: number) => void;
 }) {
   const [editingAvailability, setEditingAvailability] = useState(false);
-  const [modeSwitchUndo, setModeSwitchUndo] = useState<{ mode: AssignmentMode; selected: SlotId } | null>(null);
-  const isSlotChosen = slotChosen ?? true;
   return (
     <section className="buyer-slot-control" aria-labelledby="buyer-color-heading">
       <div className="buyer-slot-heading">
         <div>
-          <InformationLabel>2 · SLOT</InformationLabel>
-          <h2 id="buyer-color-heading">Which slot are you considering?</h2>
-          <p>{isSlotChosen ? `Selected: ${SLOT_NAMES[selected]}` : "Choose one slot to continue."}</p>
+          <InformationLabel>2 · YOUR SLOT</InformationLabel>
+          <h2 id="buyer-color-heading">{assignmentMode === "pick" ? "Which slot are you considering?" : assignmentMode === "random" ? "Mark colors already taken" : "Set the random spot count"}</h2>
+          <p>{assignmentMode === "large" ? "For top-value cards and the 17 catch-all spots." : editingAvailability ? "Availability editing is separate from color selection." : slotChosen ? `Selected: ${SLOT_NAMES[selected]}` : "Choose a color to continue."}</p>
         </div>
       </div>
-      <details className="assignment-disclosure"><summary>Other slot types</summary><div className="assignment-toggle buyer-assignment-toggle" role="group" aria-label="Break assignment mode">
+      <div className="assignment-toggle buyer-assignment-toggle" role="group" aria-label="Break assignment mode">
         <button aria-pressed={assignmentMode === "pick"} className={assignmentMode === "pick" ? "active" : ""} onClick={() => {
           const nextSelected = auction.remaining.includes(selected) ? selected : auction.remaining[0];
           if (nextSelected) setSelected(nextSelected);
           setAssignmentMode("pick");
-          setModeSwitchUndo(null);
         }}>Pick a color</button>
-        <button aria-pressed={assignmentMode === "random"} className={assignmentMode === "random" ? "active" : ""} onClick={() => { setAssignmentMode("random"); setModeSwitchUndo(null); }}>Random remaining</button>
-        <button aria-pressed={assignmentMode === "large"} className={assignmentMode === "large" ? "active" : ""} onClick={() => { setAssignmentMode("large"); setModeSwitchUndo(null); }}>Large break</button>
-      </div></details>
-      {modeSwitchUndo && <aside className="import-undo mode-switch-undo" role="status" aria-live="polite">
-        <span><b>Switched to Pick a color</b><small>Tapping a color chip while marking colors taken switches modes. Random remaining is now off.</small></span>
-        <button type="button" className="quiet" onClick={() => {
-          setAssignmentMode(modeSwitchUndo.mode);
-          setSelected(modeSwitchUndo.selected);
-          setModeSwitchUndo(null);
-        }}>Undo</button>
-      </aside>}
+        <button aria-pressed={assignmentMode === "random"} className={assignmentMode === "random" ? "active" : ""} onClick={() => setAssignmentMode("random")}>Random remaining</button>
+        <button aria-pressed={assignmentMode === "large"} className={assignmentMode === "large" ? "active" : ""} onClick={() => setAssignmentMode("large")}>Large break</button>
+      </div>
       {assignmentMode === "large" ? (
         <div className="large-break-spot-input">
           <div className="large-break-spot-label"><span>Random spots</span><small>Usually 100–200</small></div>
@@ -194,18 +183,17 @@ export function SlotRail({
           const slot = result?.slots.find((row) => row.id === id);
           const taken = !auction.remaining.includes(id);
           return (
-            <div className={`buyer-slot-tile slot-${id} ${isSlotChosen && selected === id && assignmentMode === "pick" ? "active" : ""} ${taken ? "taken" : ""}`} key={id}>
+          <div className={`buyer-slot-tile slot-${id} ${slotChosen && selected === id && assignmentMode === "pick" ? "active" : ""} ${taken ? "taken" : ""}`} key={id}>
               <button
                 type="button"
-                aria-pressed={isSlotChosen && selected === id && assignmentMode === "pick"}
+                aria-pressed={slotChosen && selected === id && assignmentMode === "pick"}
                 aria-label={`${SLOT_NAMES[id]} slot`}
                 disabled={taken}
                 className="buyer-slot-select"
                 onClick={() => {
-                  if (assignmentMode === "random") setModeSwitchUndo({ mode: assignmentMode, selected });
                   setSelected(id);
+                  setSlotChosen(true);
                   setAssignmentMode("pick");
-                  onSlotChosen?.();
                 }}
               >
                 <span>{id}</span>
@@ -216,8 +204,8 @@ export function SlotRail({
           );
         })}
       </div>
-      <details className="availability-editor" open={editingAvailability} onToggle={(event) => setEditingAvailability(event.currentTarget.open)}>
-        <summary onClick={() => setEditingAvailability(true)}>{editingAvailability ? "Done choosing included slots" : "Choose included slots"}</summary>
+      <div className="availability-editor">
+        <button type="button" className="quiet" aria-expanded={editingAvailability} onClick={() => setEditingAvailability((value) => !value)}>{editingAvailability ? "Done editing availability" : "Edit availability"}</button>
         {editingAvailability && <div className="availability-actions" role="group" aria-label="Color availability">
           {SLOT_IDS.map((id) => {
             const taken = !auction.remaining.includes(id);
@@ -231,8 +219,8 @@ export function SlotRail({
             }}>{taken ? `Restore ${id}` : `Mark ${id} taken`}</button>;
           })}
         </div>}
-      </details>
-      <p className="remaining-summary">{assignmentMode === "random" ? `${auction.remaining.length} colors remain in the random pool` : isSlotChosen ? `${SLOT_NAMES[selected]} selected` : "No slot selected"}</p></>}
+      </div>
+      <p className="remaining-summary">{assignmentMode === "random" ? `${auction.remaining.length} colors remain in the random pool` : slotChosen ? `${SLOT_NAMES[selected]} selected` : "No slot selected"}</p></>}
     </section>
   );
 }
@@ -543,9 +531,6 @@ function OutcomeRange({ summary, landed, compact = false }: { summary?: Distribu
           {!compact && <small>About 1 in 10 openings are worth this or more</small>}
         </div>
       </div>
-      {summary.p10 === 0 && summary.median === 0 && summary.p90 === 0 && (
-        <p className="outcome-range-note">Usually no card above the bulk filter — most openings land at $0. {(summary.p99 > 0 || summary.mean > 0) ? "Rare high-value pulls keep the average above $0." : "No simulated opening cleared the bulk filter."}</p>
-      )}
       {chanceToClear != null && landed != null && (
         <div className="clear-chance">
           <div><span>Chance card value covers your {fmt(landed)} cost</span><b>{Math.round(chanceToClear * 100)}%</b></div>

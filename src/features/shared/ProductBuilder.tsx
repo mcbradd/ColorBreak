@@ -46,9 +46,7 @@ export function Builder({
   const selectionRequest = useRef(0);
   const [sets, setSets] = useState<SetChoice[]>([]);
   const [query, setQuery] = useState("");
-  const [setSort, setSetSort] = useState<"release" | "alphabetical">(
-    "release",
-  );
+  const [setSort, setSetSort] = useState<"release" | "alphabetical">("release");
   const [selected, setSelected] = useState<SetChoice>();
   const [products, setProducts] = useState<ProductChoice[]>([]);
   const [prepared, setPrepared] = useState<Record<string, PreparedProductSelection>>({});
@@ -267,15 +265,15 @@ export function Builder({
                     <input
                       autoFocus
                       aria-label="Search sets by name or code"
-                      placeholder="Search a product or set"
+                      placeholder="Search a product or paste a break listing"
                       value={query}
                       onChange={(e) => setQuery(e.target.value)}
                     />
                   </label>
-                </div>
-                <div className="set-sort-tabs" role="group" aria-label="Sort sets">
-                  <button aria-pressed={setSort === "release"} onClick={() => setSetSort("release")}>Release date</button>
-                  <button aria-pressed={setSort === "alphabetical"} onClick={() => setSetSort("alphabetical")}>Alphabetical</button>
+                  <div className="set-sort-tabs" role="group" aria-label="Sort sets">
+                    <button aria-pressed={setSort === "release"} onClick={() => setSetSort("release")}>Release date</button>
+                    <button aria-pressed={setSort === "alphabetical"} onClick={() => setSetSort("alphabetical")}>Alphabetical</button>
+                  </div>
                 </div>
                 <button type="button" className="paste-break-action" onClick={() => setComposerMode("paste")}><PackagePlus />Paste a break listing</button>
                 <InformationLabel>
@@ -325,21 +323,20 @@ export function Builder({
                                 {product.packCount
                                   ? `${product.packCount} packs · `
                                   : ""}
-                                Contents: {product.status} · {prepared[product.key] ? prepared[product.key].assessment.presentation === "eligible" ? "Prices: fresh · Ceiling: available" : prepared[product.key].assessment.presentation === "stale" ? "Prices: stale · Ceiling: unavailable" : prepared[product.key].assessment.presentation === "material-incomplete" ? "Contents or prices incomplete · Ceiling: unavailable" : "Evidence unavailable · Ceiling: unavailable" : "Checking evidence…"}
+                                {product.packCount ? "Ready to add" : "Ready to add"}{prepared[product.key]?.assessment.presentation === "eligible" ? " · Fresh estimate" : " · Estimate may need an update"}
                               </small>
                             </span>
-                            <ChevronRight />
+                            {draft.some((line) => line.productKey === (product.sealedKey ? `sealed:${product.sealedKey}` : product.key)) ? <b className="product-added">Added</b> : <ChevronRight />}
                           </button>
                         ))}
                       </section>
                     ))}
-                    {!Object.values(visibleProducts).some((rows) => rows.length) && (readyOnly ? <div className="empty-picker-state"><p>No ready products match this filter.</p><button type="button" className="quiet" onClick={() => setReadyOnly(false)}>Show all products</button></div> : <p className="empty-picker-state">No products match this filter. Show all products to keep building your break.</p>)}
+                    {!Object.values(visibleProducts).some((rows) => rows.length) && (readyOnly ? <div className="empty-picker-state"><p>No products in this set currently have fresh estimate data.</p><button type="button" className="quiet" onClick={() => setReadyOnly(false)}>Show all products</button></div> : <p className="empty-picker-state">No products match this filter. Show all products to keep building your break.</p>)}
                   </div>
                 )}
               </>
             )}
             <footer className="composer-actions">
-              <button type="button" className="quiet" onClick={onClose}>Close</button>
               {composerMode === "review" ? (
                 <button type="button" className="primary" disabled={!importRows.length || importIssueCount > 0} onClick={applyImport}>
                   {importIssueCount > 0
@@ -357,23 +354,20 @@ export function Builder({
   );
 }
 
-function EmptyBreak({ add, practice }: { add: (opener?: HTMLElement) => void; practice?: () => void }) {
+function EmptyBreak({ add }: { add: (opener?: HTMLElement) => void }) {
   const [why, setWhy] = useState(false);
   return (
     <section className="empty">
       <span>
         <PackagePlus />
       </span>
-      <h2>Start a break plan</h2>
-      <p>Add the products being opened. You’ll enter the real cost next.</p>
+      <h2>Build your break</h2>
+      <p>Add each product that will be opened, then compare colors and value.</p>
       <button className="primary" onClick={(event) => add(event.currentTarget)}>
         <PackagePlus size={18} /> Add products
       </button>
-      <div className="empty-actions" aria-label="Break planning next steps">
-        <button type="button" className="quiet" onClick={(event) => practice ? practice() : add(event.currentTarget)}>Start with a sample break</button>
-        <button type="button" className="quiet" onClick={() => setWhy((value) => !value)} aria-expanded={why}>Why add products first?</button>
-      </div>
-      {why && <p role="status">Products let ColorBreak calculate a cost basis and a practical break-even price.</p>}
+      <button type="button" className="quiet" onClick={() => setWhy((value) => !value)} aria-expanded={why}>What makes a ceiling available?</button>
+      {why && <p role="status">A bid ceiling needs complete product contents and current price data. You can still compare available values while you fill in the break.</p>}
     </section>
   );
 }

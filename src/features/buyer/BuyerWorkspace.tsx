@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { Copy, Lock, Sparkles } from "lucide-react";
+import { BarChart3, Copy, Lock, Sparkles } from "lucide-react";
 import { productsForSet } from "../../data/catalog";
 import type { BreakAnalysis } from "../../data/evaluate";
 import { assessBuyerDecision, type BuyerDecisionAssessment, type PreparedProductSelection } from "../../domain/decision-evidence";
@@ -66,7 +66,7 @@ export function BuyerWorkspace({
     [selectedSlot, setSelectedSlot] = useState<SlotId>(() => {
       return sharedBuyer.selectedSlot ?? "W";
     }),
-    [slotChosen, setSlotChosen] = useState(() => Boolean(sharedBuyer.selectedSlot) || !startFresh),
+    [slotChosen, setSlotChosen] = useState(() => !startFresh || Boolean(sharedBuyer.selectedSlot)),
     [busy, setBusy] = useState(false),
     [calculationGeneration, setCalculationGeneration] = useState(0);
   const [manualCapOpen, setManualCapOpen] = useState(false);
@@ -185,8 +185,7 @@ export function BuyerWorkspace({
     if (recovered) {
       setAuction(createAuction(recovered.remaining));
       setAssignmentMode(recovered.assignmentMode);
-            setSelectedSlot(recovered.selectedSlot);
-            setSlotChosen(true);
+            setSelectedSlot(recovered.selectedSlot); setSlotChosen(true);
       setBulkEnabled(recovered.bulkEnabled);
       setBulkThreshold(recovered.bulkThreshold);
       setLargeSpots(recovered.largeSpots);
@@ -264,7 +263,7 @@ export function BuyerWorkspace({
             setLines(recoveryRecord.lines);
             setAuction(createAuction(recoveryRecord.remaining));
             setAssignmentMode(recoveryRecord.assignmentMode);
-            setSelectedSlot(recoveryRecord.selectedSlot);
+            setSelectedSlot(recoveryRecord.selectedSlot); setSlotChosen(true);
             setBulkEnabled(recoveryRecord.bulkEnabled);
             setBulkThreshold(recoveryRecord.bulkThreshold);
             setLargeSpots(recoveryRecord.largeSpots);
@@ -283,8 +282,7 @@ export function BuyerWorkspace({
             setLines([]);
             setAuction(createAuction());
             setAssignmentMode("pick");
-            setSelectedSlot("W");
-            setSlotChosen(false);
+            setSelectedSlot("W"); setSlotChosen(false);
             setBulkEnabled(true);
             setBulkThreshold(2);
             setLargeSpots(120);
@@ -299,10 +297,9 @@ export function BuyerWorkspace({
       <main className="workspace page" tabIndex={-1} data-focus-fallback>
         <header className="workspace-title">
           <div>
-            <p className="eyebrow">
-              {assignmentMode === "large" ? "BUYER · LARGE BREAK" : "BUYER · BID CHECK"}
-            </p>
-            <h1>{assignmentMode === "large" ? "Large Break" : "Bid Check"}</h1>
+            <p className="eyebrow">COLORBREAK</p>
+            <h1>{assignmentMode === "large" ? "Plan a large break" : "Check a color-break bid"}</h1>
+            {!lines.length && <p className="buyer-direct-intro">Select what’s in the break, then we’ll help you decide what to bid.</p>}
           </div>
         </header>
         {importUndo && <aside className="import-undo" aria-live="polite">
@@ -336,7 +333,7 @@ export function BuyerWorkspace({
               selected={selectedSlot}
               setSelected={setSelectedSlot}
               slotChosen={slotChosen}
-              onSlotChosen={() => setSlotChosen(true)}
+              setSlotChosen={setSlotChosen}
               bulkEnabled={bulkEnabled}
               bulkThreshold={bulkThreshold}
               setBulkEnabled={setBulkEnabled}
@@ -345,12 +342,13 @@ export function BuyerWorkspace({
               setLargeSpots={setLargeSpots}
             />
             <div id="buyer-large-result" className="results buyer-results">
-              {manualCapOpen ? <ManualBudgetCap onBack={() => { setManualCapOpen(false); openBuilder(); }} target={manualTarget} setTarget={setManualTarget} shipping={manualShipping} setShipping={setManualShipping} hammer={manualHammer} setHammer={setManualHammer} /> : !lines.length && <section className="buyer-awaiting-break"><h2>Start with the break.</h2><p>Add the product being opened, then choose the slot and enter the current bid.</p><button type="button" className="primary" onClick={(event) => openBuilder(event.currentTarget)}>Search products</button></section>}
+              {manualCapOpen ? <ManualBudgetCap onBack={() => { setManualCapOpen(false); openBuilder(); }} target={manualTarget} setTarget={setManualTarget} shipping={manualShipping} setShipping={setManualShipping} hammer={manualHammer} setHammer={setManualHammer} /> : !lines.length && <section className="buyer-awaiting-break"><span><BarChart3 /></span><h2>Add a product to begin</h2><p>Your estimated value and bid limit will appear here after you choose the break and slot.</p></section>}
               {busy && <div className="calculating" role="status" aria-live="polite"><span />Calculating exact contents and prices…</div>}
               {error && <CompactWarning title="Couldn’t load this result" summary="No verified modeled ceiling can be offered until this data loads." className="load-warning"><p role="alert">{error}</p><div className="buyer-recovery-actions"><button type="button" className="quiet" onClick={() => setCalculationGeneration((value) => value + 1)}>Retry analysis</button><button type="button" className="quiet" onClick={() => setManualCapOpen(true)}>Use manual budget cap</button></div></CompactWarning>}
-              {analysis && slotChosen && (assignmentMode === "large" ? (
+              {analysis && !slotChosen && assignmentMode !== "large" && <section className="buyer-awaiting-break buyer-awaiting-slot"><h2>Choose your slot</h2><p>Select the color you’re considering to see its estimated value and bid limit.</p></section>}
+              {analysis && (assignmentMode === "large" ? (
                 <LargeBreakView analysis={analysis} lines={lines} spots={largeSpots} bid={buyerBid} setBid={setBuyerBid} shipping={buyerShipping} setShipping={setBuyerShipping} />
-              ) : (
+              ) : slotChosen && (
                 <BuyerView
                   analysis={analysis}
                   eligibility={decisionAssessment?.eligibility}
