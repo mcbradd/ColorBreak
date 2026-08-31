@@ -578,6 +578,30 @@ export function BuyerView({
     : valueRule.kind === "coverage"
       ? "75% coverage"
       : "Average outcome";
+  // The max-hammer figure and its caption must always describe the same
+  // quantity: `activeCap.amount` is already shipping-netted whenever
+  // shipping > 0 (solveFinancialCap), so the caption has to say so instead of
+  // always claiming to show the raw rule value. And "Checking…" must only
+  // ever mean "still computing" — a resolved no-room fact or a permanently
+  // unavailable estimate get their own named, non-spinner states.
+  const maxHammerDisplay = !releasePresentation.canShowDecision
+    ? releasePresentation.maxHammer ?? "—"
+    : activeCap.kind === "cap"
+      ? fmt(activeCap.amount)
+      : activeCap.kind === "no-room"
+        ? fmt(0)
+        : simulation.busy
+          ? "Checking…"
+          : "—";
+  const maxHammerCaption = !releasePresentation.canShowDecision
+    ? "Choose another product"
+    : activeCap.kind === "cap"
+      ? (addedShipping > 0 ? `${ruleLabel}, minus ${fmt(addedShipping)} shipping` : `${ruleLabel} value`)
+      : activeCap.kind === "no-room"
+        ? "Shipping alone exceeds modeled value"
+        : simulation.busy
+          ? "Waiting on pull data"
+          : "Pull data unavailable";
   const decisionKicker = `${breakLabel ? `${breakLabel} · ` : ""}Manual auction check · ${assignmentMode === "random" ? `${auction.remaining.length} random colors` : `${SLOT_NAMES[selected]} slot`}`;
   const immediateCap = activeCap.kind === "cap" ? activeCap : undefined;
   const immediateRecommendation = releasePresentation.canShowDecision
@@ -615,8 +639,8 @@ export function BuyerView({
           </div>
           <div className="ev-orb">
             <small><span>{releasePresentation.canShowDecision ? "Estimated Max Bid" : "Estimate unavailable"}</span></small>
-            <strong className="max-hammer" aria-label="Maximum bid" aria-live="polite">{releasePresentation.canShowDecision && activeCap.kind === "cap" ? fmt(activeCap.amount) : "Checking…"}</strong>
-            <span>{releasePresentation.canShowDecision ? `${ruleLabel} value` : "Choose another product"}</span>
+            <strong className="max-hammer" aria-label="Maximum bid" aria-live="polite">{maxHammerDisplay}</strong>
+            <span>{maxHammerCaption}</span>
             <strong aria-label="Typical card value" aria-live="polite">{simulation.busy && !distribution ? "Checking…" : fmt(distribution?.median ?? fallbackMean)}</strong>
             {distribution?.median === 0 && <em>Usually no card above the bulk filter</em>}
             <span>Average {fmt(distribution?.mean ?? fallbackMean)}</span>
@@ -658,6 +682,22 @@ export function BuyerView({
             </p>
           </div>
         )}
+        {(eligibility.status === "eligible" || eligibility.status === "stale") && recommendation.action === "no-room" && (
+          <div
+            className="bid-recommendation bid-recommendation-negative"
+            aria-live="polite"
+            aria-label="Bid recommendation"
+          >
+            <div>
+              <small>Bid recommendation</small>
+              <strong>NO BID CLEARS COST</strong>
+            </div>
+            <p>
+              Shipping alone (<b>{fmt(addedShipping)}</b>) meets or exceeds the modeled value (<b>{fmt(valueTarget ?? 0)}</b>). This is a resolved outcome, not missing data — no bid amount clears cost here.
+              {eligibility.status === "stale" && " Prices are older than 6 hours, so recheck before bidding."}
+            </p>
+          </div>
+        )}
         {bid != null && (
           <div className="delta">
             <span>
@@ -673,13 +713,14 @@ export function BuyerView({
         {simulation.error && <CompactWarning title="Pull ranges unavailable" summary="The non-simulation value remains visible." className="inline-warning"><p role="alert">{simulation.error}</p><button type="button" className="quiet" onClick={simulation.retry}>Retry pull ranges</button></CompactWarning>}
         <IncompleteDataWarning analysis={analysis} title="Some estimates may be low" />
       </section>
-      <section className="bid-explorer">
-        <header className="disclosure-summary">
+      <details className="bid-explorer">
+        <summary className="disclosure-summary">
           <span>
             <strong>Break evidence</strong>
             <small>Break value, pull range, data quality, and ranked cards</small>
           </span>
-        </header>
+          <DisclosureArrow />
+        </summary>
         <div className="bid-explorer-body">
           <ValueSummary result={result} />
           <BreakBalance result={result} remaining={auction.remaining} simulation={simulation.result} />
@@ -690,7 +731,7 @@ export function BuyerView({
             onInspect={setInspectedCard}
           />
         </div>
-      </section>
+      </details>
       <CardInspector
         row={inspectedCard}
         status={result.status}

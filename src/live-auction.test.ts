@@ -99,7 +99,8 @@ describe("live random-slot buyer workflow", () => {
     const supporting = container.querySelector(".bid-explorer")!;
 
     expect(verdict.compareDocumentPosition(supporting) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(supporting.tagName).toBe("SECTION");
+    // "Break evidence" is a real <details> disclosure now, not a bare section.
+    expect(supporting.tagName).toBe("DETAILS");
   });
 });
 

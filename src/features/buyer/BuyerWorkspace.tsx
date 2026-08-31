@@ -303,7 +303,7 @@ export function BuyerWorkspace({
           </div>
         </header>
         {importUndo && <aside className="import-undo" aria-live="polite">
-          <span><b>Break updated</b><small>{lines.length} lines · practice composition updated</small></span>
+          <span><b>Break updated</b><small>{lines.length} line{lines.length === 1 ? "" : "s"} updated</small></span>
           <button type="button" className="quiet" onClick={() => {
             setLines(importUndo.lines);
             setAssignmentMode(importUndo.assignmentMode);

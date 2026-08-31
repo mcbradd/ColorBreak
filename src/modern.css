@@ -909,19 +909,16 @@ body {
   border-bottom: 1px solid var(--line-strong);
 }
 
-.bid-explorer > header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+.bid-explorer > summary {
   gap: 16px;
   min-height: 68px;
   padding: 12px 2px;
 }
 
-.bid-explorer > header strong,
-.bid-explorer > header small { display: block; }
-.bid-explorer > header strong { font-size: 14px; }
-.bid-explorer > header small { margin-top: 4px; color: var(--muted); font-size: 10px; }
+.bid-explorer > summary strong,
+.bid-explorer > summary small { display: block; }
+.bid-explorer > summary strong { font-size: 14px; }
+.bid-explorer > summary small { margin-top: 4px; color: var(--muted); font-size: 10px; }
 
 .bid-explorer-body {
   padding-top: 12px;
