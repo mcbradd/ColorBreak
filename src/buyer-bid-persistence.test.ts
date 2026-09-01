@@ -84,8 +84,7 @@ describe("buyer bid persistence", () => {
   it("restores a random pool only for the same saved composition", async () => {
     const first = render(createElement(BuyerWorkspace, { exit: vi.fn(), startFresh: false, startReady: false }));
     await screen.findByLabelText("Current bid");
-    fireEvent.click(screen.getByRole("button", { name: "Random remaining" }));
-    fireEvent.click(screen.getByRole("button", { name: "Edit availability" }));
+    fireEvent.click(screen.getByRole("button", { name: "Any remaining color (random)" }));
     fireEvent.click(screen.getByRole("button", { name: "Mark Blue taken" }));
     fireEvent.change(screen.getByLabelText("Current bid"), { target: { value: "12.50" } });
     fireEvent.blur(screen.getByLabelText("Current bid"));
@@ -94,8 +93,7 @@ describe("buyer bid persistence", () => {
     first.unmount();
 
     render(createElement(BuyerWorkspace, { exit: vi.fn(), startFresh: false, startReady: false }));
-    expect(await screen.findByRole("button", { name: "Random remaining" })).toHaveClass("active");
-    fireEvent.click(screen.getByRole("button", { name: "Edit availability" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Any remaining color (random)" })).toHaveAttribute("aria-pressed", "true"));
     expect(screen.getByRole("button", { name: "Restore Blue slot" })).toBeInTheDocument();
     expect(screen.getByLabelText("Current bid")).toHaveValue("12.5");
     expect(screen.getByLabelText("Your added shipping")).toHaveValue("4.25");

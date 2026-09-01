@@ -44,3 +44,20 @@ export function toggleSlotTaken(state: AuctionState, slot: SlotId): AuctionState
     assignments: state.assignments.filter((candidate) => candidate !== slot),
   };
 }
+
+/**
+ * Marks every given slot taken as one atomic transition — the model for a
+ * seller combining several slots into a single purchasable lot (colorless
+ * and lands are commonly sold together). Slots already taken are ignored;
+ * duplicates collapse. Refuses the whole batch, unchanged, rather than
+ * leave zero slots remaining.
+ */
+export function markSlotsTaken(state: AuctionState, slots: readonly SlotId[]): AuctionState {
+  const toTake = SLOT_IDS.filter((slot) => slots.includes(slot) && state.remaining.includes(slot));
+  if (toTake.length === 0) return state;
+  if (toTake.length >= state.remaining.length) return state;
+  return {
+    remaining: state.remaining.filter((slot) => !toTake.includes(slot)),
+    assignments: [...state.assignments, ...toTake],
+  };
+}

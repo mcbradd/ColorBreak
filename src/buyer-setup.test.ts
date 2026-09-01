@@ -45,8 +45,8 @@ describe("Check a Bid setup order", () => {
       setAuction: vi.fn(),
       assignmentMode: "pick",
       setAssignmentMode: vi.fn(),
-      selected: "W",
-      setSelected: vi.fn(),
+      selectedSlots: ["W"],
+      setSelectedSlots: vi.fn(),
       bulkEnabled: true,
       bulkThreshold: 2,
       setBulkEnabled: vi.fn(),
@@ -70,7 +70,7 @@ describe("Check a Bid setup order", () => {
     render(createElement(BuyerSetup, {
       lines, add: vi.fn(), update: vi.fn(), remove: vi.fn(), result,
       auction: createAuction(), setAuction: vi.fn(), assignmentMode: "large",
-      setAssignmentMode: vi.fn(), selected: "W", setSelected: vi.fn(),
+      setAssignmentMode: vi.fn(), selectedSlots: ["W"], setSelectedSlots: vi.fn(),
       bulkEnabled: true, bulkThreshold: 2, setBulkEnabled: vi.fn(), setBulkThreshold: vi.fn(),
       largeSpots: 120, setLargeSpots,
     }));

@@ -28,7 +28,7 @@ export function SellerWorkspace({ exit }: { exit: () => void }) {
   const [shareStatus, setShareStatus] = useState<string>();
   const request = useRef(0);
   const [transactionCount, setTransactionCount] = useState(() => sharedBuyer.assignmentMode === "large" ? (sharedBuyer.largeSpots ?? 120) : 8);
-  const sharedHref = createBreakShareUrl(`${location.origin}${location.pathname}#buyer`, { lines, assignmentMode: "pick", selectedSlot: "W", remaining: createAuction().remaining, bulkEnabled: true, bulkThreshold: 2, largeSpots: transactionCount });
+  const sharedHref = createBreakShareUrl(`${location.origin}${location.pathname}#buyer`, { lines, assignmentMode: "pick", selectedSlots: ["W"], remaining: createAuction().remaining, bulkEnabled: true, bulkThreshold: 2, largeSpots: transactionCount });
   useEffect(() => { if (cleanupLegacyStorage()) setLegacyNotice(true); }, []);
   useEffect(() => { try { writeSessionLines("seller", lines); } catch { /* session persistence is optional */ } }, [lines]);
   useEffect(() => { if (location.search) history.replaceState(null, "", `${location.pathname}#seller`); }, []);

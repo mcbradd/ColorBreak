@@ -214,11 +214,13 @@ export function SlotValueDetails({
   threshold,
   onInspect,
   className = "",
+  note,
 }: {
   slot: SlotValuation;
   threshold: number;
   onInspect: (row: Contributor) => void;
   className?: string;
+  note?: string;
 }) {
   const profileLabel = slotProfile(slot);
   const profileTip = (
@@ -245,6 +247,7 @@ export function SlotValueDetails({
         accessory={profileTip}
         description={<p className="risk-explainer">
             {slot.name} cards worth {fmt(threshold)} or more. Cheaper cards are ignored as bulk.
+            {note && <><br /><small>{note}</small></>}
           </p>}
       />
       <div className="concentration">
@@ -489,7 +492,7 @@ export function BuyerView({
   eligibility: assessedEligibility,
   auction,
   assignmentMode,
-  selected,
+  selectedSlots,
   breakLabel,
   bid,
   setBid,
@@ -502,7 +505,7 @@ export function BuyerView({
   eligibility?: DecisionEligibility;
   auction: AuctionState;
   assignmentMode: AssignmentMode;
-  selected: SlotId;
+  selectedSlots: SlotId[];
   breakLabel?: string;
   bid: number | undefined;
   setBid: (value: number | undefined) => void;
@@ -519,15 +522,24 @@ export function BuyerView({
   const [resolvedOnlyRequested] = useState(false);
   const [reconfirmedAt, setReconfirmedAt] = useState<number>();
   const [reconfirmedInput, setReconfirmedInput] = useState<string>();
-  const slot = result.slots.find((row) => row.id === selected)!;
+  // Random assignment always draws from the whole live remaining pool;
+  // picking specific colors — one or several considered/bid as a unit —
+  // draws only from the slots the buyer actually checked, pruned to
+  // whatever is still available.
+  const pool = assignmentMode === "random"
+    ? auction.remaining
+    : selectedSlots.filter((id) => auction.remaining.includes(id));
+  const effectivePool = pool.length ? pool : auction.remaining;
+  const poolSlots = result.slots.filter((row) => effectivePool.includes(row.id));
+  // The card-level breakdown below always focuses on one representative
+  // slot; with several chosen, that is simply the first one checked.
+  const slot = result.slots.find((row) => row.id === effectivePool[0]) ?? poolSlots[0] ?? result.slots[0];
   const landed = (bid ?? 0) + (shipping ?? 0);
-  const simulation = useOutcomeSimulation(analysis, auction.remaining, bid == null ? undefined : landed);
-  const distribution = assignmentMode === "random"
-    ? simulation.result?.remainingPool
-    : simulation.result?.slotDistributions[selected];
-  const fallbackMean = assignmentMode === "random"
-    ? result.slots.filter((row) => auction.remaining.includes(row.id)).reduce((sum, row) => sum + row.sellableEV, 0) / Math.max(1, auction.remaining.length)
-    : slot.sellableEV;
+  const simulation = useOutcomeSimulation(analysis, effectivePool, bid == null ? undefined : landed);
+  const distribution = simulation.result?.remainingPool;
+  const fallbackMean = poolSlots.length
+    ? poolSlots.reduce((sum, row) => sum + row.sellableEV, 0) / poolSlots.length
+    : 0;
   const valueTarget = distribution == null
     ? undefined
     : valueRule.kind === "median"
@@ -535,7 +547,7 @@ export function BuyerView({
       : valueRule.kind === "coverage"
         ? distribution.p25
         : distribution.mean;
-  const decisionInput = `${selected}|${assignmentMode}|${auction.remaining.join("")}|${bid ?? ""}|${shipping ?? ""}|${valueRule.kind}|${valueRule.kind === "coverage" ? valueRule.coverage : ""}|${eligibility.affectedGroups.map((group) => group.id).join("|")}`;
+  const decisionInput = `${effectivePool.join("")}|${assignmentMode}|${auction.remaining.join("")}|${bid ?? ""}|${shipping ?? ""}|${valueRule.kind}|${valueRule.kind === "coverage" ? valueRule.coverage : ""}|${eligibility.affectedGroups.map((group) => group.id).join("|")}`;
   const reconfirmed = reconfirmedInput === decisionInput && reconfirmedAt != null && Date.now() - reconfirmedAt <= 60_000;
   const addedShipping = shipping ?? 0;
   const scoped = valueTarget == null ? undefined : resolvedOnlyLimit(valueTarget, addedShipping, eligibility);
@@ -602,7 +614,7 @@ export function BuyerView({
         : simulation.busy
           ? "Waiting on pull data"
           : "Pull data unavailable";
-  const decisionKicker = `${breakLabel ? `${breakLabel} · ` : ""}Manual auction check · ${assignmentMode === "random" ? `${auction.remaining.length} random colors` : `${SLOT_NAMES[selected]} slot`}`;
+  const decisionKicker = `${breakLabel ? `${breakLabel} · ` : ""}Manual auction check · ${assignmentMode === "random" ? `${auction.remaining.length} random colors` : effectivePool.length > 1 ? `${effectivePool.length} chosen colors` : `${SLOT_NAMES[effectivePool[0]]} slot`}`;
   const immediateCap = activeCap.kind === "cap" ? activeCap : undefined;
   const immediateRecommendation = releasePresentation.canShowDecision
     && (eligibility.status === "eligible" || eligibility.status === "stale")
@@ -729,6 +741,9 @@ export function BuyerView({
             slot={slot}
             threshold={result.threshold}
             onInspect={setInspectedCard}
+            note={assignmentMode !== "random" && effectivePool.length > 1
+              ? `Card detail shown for ${slot.name} — ${effectivePool.length - 1} other chosen color${effectivePool.length > 2 ? "s" : ""} not shown here.`
+              : undefined}
           />
         </div>
       </details>

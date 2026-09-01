@@ -7,7 +7,7 @@ export const sessionKey = (mode: "buyer" | "seller") => `colorbreak:${mode}:draf
 export const rememberedKey = "colorbreak:buyer:composition:v1";
 export const sellerPlanKey = "colorbreak:seller:plan:v2";
 export const buyerDecisionKey = "colorbreak:buyer:decision:v1";
-const BUYER_DECISION_VERSION = 1;
+const BUYER_DECISION_VERSION = 2;
 
 /**
  * The operating plan is deliberately private and session-scoped.  Unlike a
@@ -182,7 +182,7 @@ export interface BuyerDecisionRecord {
   dataVersion: string;
   lines: ReturnType<typeof compositionProjection>;
   assignmentMode: AssignmentMode;
-  selectedSlot: SlotId;
+  selectedSlots: SlotId[];
   remaining: SlotId[];
   bulkEnabled: boolean;
   bulkThreshold: number;
@@ -196,7 +196,7 @@ export interface BuyerDecisionState {
   lines: BreakLine[];
   dataVersion: string;
   assignmentMode: AssignmentMode;
-  selectedSlot: SlotId;
+  selectedSlots: SlotId[];
   remaining: SlotId[];
   bulkEnabled: boolean;
   bulkThreshold: number;
@@ -221,7 +221,7 @@ export function buyerDecisionFingerprint(state: BuyerDecisionState): string {
     lines,
     dataVersion: state.dataVersion,
     assignmentMode: state.assignmentMode,
-    selectedSlot: state.selectedSlot,
+    selectedSlots: [...state.selectedSlots],
     remaining: [...state.remaining],
     bulkEnabled: state.bulkEnabled,
     bulkThreshold: state.bulkThreshold,
@@ -233,7 +233,12 @@ function validBuyerRecord(value: unknown): BuyerDecisionRecord | undefined {
   if (!value || typeof value !== "object") return undefined;
   const record = value as Partial<BuyerDecisionRecord>;
   if (record.schemaVersion !== BUYER_DECISION_VERSION || typeof record.fingerprint !== "string" || typeof record.dataVersion !== "string" || !Array.isArray(record.lines)
-    || !buyerModes.has(record.assignmentMode as AssignmentMode) || !buyerSlots.has(record.selectedSlot as SlotId)
+    || !buyerModes.has(record.assignmentMode as AssignmentMode)
+    // Random-pool mode legitimately has no explicit picks — only "pick" mode
+    // requires at least one checked slot to have been a real choice.
+    || !Array.isArray(record.selectedSlots) || !record.selectedSlots.every((slot) => buyerSlots.has(slot as SlotId))
+    || new Set(record.selectedSlots).size !== record.selectedSlots.length
+    || (record.assignmentMode === "pick" && record.selectedSlots.length === 0)
     || !Array.isArray(record.remaining) || record.remaining.length === 0 || !record.remaining.every((slot) => buyerSlots.has(slot as SlotId))
     || new Set(record.remaining).size !== record.remaining.length || typeof record.bulkEnabled !== "boolean"
     || safeNumber(record.bulkThreshold) == null || safeNumber(record.largeSpots, 1) == null || safeNumber(record.savedAt, 1) == null) return undefined;
@@ -244,7 +249,7 @@ function validBuyerRecord(value: unknown): BuyerDecisionRecord | undefined {
   if (record.shipping != null && safeNumber(record.shipping) == null) return undefined;
   const self = buyerDecisionFingerprint({
     lines: lines as BreakLine[], dataVersion: record.dataVersion, assignmentMode: record.assignmentMode as AssignmentMode,
-    selectedSlot: record.selectedSlot as SlotId, remaining: record.remaining as SlotId[], bulkEnabled: record.bulkEnabled,
+    selectedSlots: record.selectedSlots as SlotId[], remaining: record.remaining as SlotId[], bulkEnabled: record.bulkEnabled,
     bulkThreshold: record.bulkThreshold!, largeSpots: record.largeSpots!,
   });
   return self === record.fingerprint ? record as BuyerDecisionRecord : undefined;
@@ -271,7 +276,7 @@ export function writeBuyerDecisionRecord(state: BuyerDecisionState, money: { bid
     dataVersion: state.dataVersion,
     lines: compositionProjection(state.lines),
     assignmentMode: state.assignmentMode,
-    selectedSlot: state.selectedSlot,
+    selectedSlots: [...state.selectedSlots],
     remaining: [...state.remaining],
     bulkEnabled: state.bulkEnabled,
     bulkThreshold: state.bulkThreshold,
