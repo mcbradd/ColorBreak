@@ -6,8 +6,7 @@ import { Home } from "./features/shared/Primitives";
 import { BuyerWorkspace } from "./features/buyer/BuyerWorkspace";
 import { SellerWorkspace } from "./features/seller/SellerWorkspace";
 import { clearColorBreakBrowserStorage, readSessionDraft } from "./persistence";
-
-type Mode = "home" | "buyer" | "seller";
+import { hashForMode, modeFromHash, type Mode } from "./route-mode";
 
 /** Application shell: route selection and feature composition only. */
 export function App({ releaseContext = runtimeReleaseContext }: { releaseContext?: ReleaseContext } = {}) {
@@ -18,14 +17,17 @@ export function App({ releaseContext = runtimeReleaseContext }: { releaseContext
   const reducedMotion = useReducedMotion();
   // Bid checking is the product's default job. The former marketing launcher
   // added a choice before a buyer could name the break they were considering.
-  const routeMode = (): Mode => location.hash === "#seller" ? "seller" : "buyer";
+  const routeMode = (): Mode => modeFromHash(location.hash);
   const initial = routeMode();
   const [mode, setMode] = useState<Mode>(initial);
   const [startFreshBuyer, setStartFreshBuyer] = useState(initial === "buyer" && !location.search);
   const [startReadyBuyer, setStartReadyBuyer] = useState(false);
   const choose = (next: Mode, fresh = next === "buyer" && mode === "home", ready = false) => {
     setStartFreshBuyer(fresh); setStartReadyBuyer(ready); setMode(next);
-    history.replaceState(null, "", next === "home" ? `${location.pathname}${location.search}` : `#${next}`);
+    // Every mode - including "home" - gets its own hash, so a real (non-SPA)
+    // navigation back to this URL resolves to the same mode instead of
+    // falling through to the buyer-workspace default. See route-mode.ts.
+    history.replaceState(null, "", `${location.pathname}${location.search}${hashForMode(next)}`);
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
     if (next === "home") window.setTimeout(() => document.querySelector<HTMLElement>("[data-home-focus]")?.focus({ preventScroll: true }), 220);
   };

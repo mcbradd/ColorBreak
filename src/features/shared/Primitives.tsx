@@ -17,8 +17,9 @@ import {
   Sparkles,
 } from "lucide-react";
 import type { Contributor, ValuationResult } from "../../domain/types";
+import type { Mode } from "../../route-mode";
 
-export type Mode = "home" | "buyer" | "seller";
+export type { Mode };
 const money = new Intl.NumberFormat("en-US", {
   style: "currency",
   currency: "USD",
