@@ -232,7 +232,7 @@ describe("Bid Check command center", () => {
     expect(screen.queryByLabelText("Large Break sections")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Large break" }));
     expect(screen.getByLabelText("Large Break sections")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Pick a color" }));
+    fireEvent.click(screen.getByRole("button", { name: "Color slots" }));
     expect(screen.getByLabelText("Break sections")).toBeInTheDocument();
   });
 });

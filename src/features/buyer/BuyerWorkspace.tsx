@@ -63,10 +63,12 @@ export function BuyerWorkspace({
     [largeSpots, setLargeSpots] = useState<number>(() => {
       return sharedBuyer.largeSpots ?? 120;
     }),
-    [selectedSlot, setSelectedSlot] = useState<SlotId>(() => {
-      return sharedBuyer.selectedSlot ?? "W";
+    // A brand-new, unshared draft has genuinely chosen nothing yet; resuming
+    // an existing draft or an explicit share link both start pre-populated.
+    [selectedSlots, setSelectedSlots] = useState<SlotId[]>(() => {
+      if (sharedBuyer.selectedSlots?.length) return sharedBuyer.selectedSlots;
+      return startFresh ? [] : ["W"];
     }),
-    [slotChosen, setSlotChosen] = useState(() => !startFresh || Boolean(sharedBuyer.selectedSlot)),
     [busy, setBusy] = useState(false),
     [calculationGeneration, setCalculationGeneration] = useState(0);
   const [manualCapOpen, setManualCapOpen] = useState(false);
@@ -83,6 +85,9 @@ export function BuyerWorkspace({
     bulkThreshold: number;
   }>();
   const threshold = bulkEnabled ? bulkThreshold : 0;
+  // Random and large modes always have a live pool to evaluate; picking
+  // specific colors needs at least one actually checked.
+  const slotChosen = assignmentMode !== "pick" || selectedSlots.length > 0;
   useEffect(() => { if (startReady) setLines([readyExampleLine()]); }, [startReady]);
   useEffect(() => { if (cleanupLegacyStorage()) setLegacyNotice(true); }, []);
   useEffect(() => {
@@ -100,17 +105,17 @@ export function BuyerWorkspace({
       // pending marker keeps a brand-new local draft atomic before first load.
       dataVersion: analysis?.valuation.dataVersion ?? "pending",
       assignmentMode,
-      selectedSlot,
+      selectedSlots,
       remaining: auction.remaining,
       bulkEnabled,
       bulkThreshold,
       largeSpots,
     }, { bid: buyerBid, shipping: buyerShipping });
-  }, [analysis?.valuation.dataVersion, assignmentMode, auction.remaining, bulkEnabled, bulkThreshold, buyerBid, buyerRecoveryReady, buyerShipping, largeSpots, lines, selectedSlot]);
+  }, [analysis?.valuation.dataVersion, assignmentMode, auction.remaining, bulkEnabled, bulkThreshold, buyerBid, buyerRecoveryReady, buyerShipping, largeSpots, lines, selectedSlots]);
   const sharedHref = createBreakShareUrl(`${location.origin}${location.pathname}#buyer`, {
     lines,
     assignmentMode,
-    selectedSlot,
+    selectedSlots,
     remaining: auction.remaining,
     bulkEnabled,
     bulkThreshold,
@@ -176,7 +181,7 @@ export function BuyerWorkspace({
       lines,
       dataVersion: analysis.valuation.dataVersion,
       assignmentMode: initialBuyerRecord.assignmentMode,
-      selectedSlot: initialBuyerRecord.selectedSlot,
+      selectedSlots: initialBuyerRecord.selectedSlots,
       remaining: initialBuyerRecord.remaining,
       bulkEnabled: initialBuyerRecord.bulkEnabled,
       bulkThreshold: initialBuyerRecord.bulkThreshold,
@@ -185,7 +190,7 @@ export function BuyerWorkspace({
     if (recovered) {
       setAuction(createAuction(recovered.remaining));
       setAssignmentMode(recovered.assignmentMode);
-            setSelectedSlot(recovered.selectedSlot); setSlotChosen(true);
+      setSelectedSlots(recovered.selectedSlots);
       setBulkEnabled(recovered.bulkEnabled);
       setBulkThreshold(recovered.bulkThreshold);
       setLargeSpots(recovered.largeSpots);
@@ -263,7 +268,7 @@ export function BuyerWorkspace({
             setLines(recoveryRecord.lines);
             setAuction(createAuction(recoveryRecord.remaining));
             setAssignmentMode(recoveryRecord.assignmentMode);
-            setSelectedSlot(recoveryRecord.selectedSlot); setSlotChosen(true);
+            setSelectedSlots(recoveryRecord.selectedSlots);
             setBulkEnabled(recoveryRecord.bulkEnabled);
             setBulkThreshold(recoveryRecord.bulkThreshold);
             setLargeSpots(recoveryRecord.largeSpots);
@@ -282,7 +287,7 @@ export function BuyerWorkspace({
             setLines([]);
             setAuction(createAuction());
             setAssignmentMode("pick");
-            setSelectedSlot("W"); setSlotChosen(false);
+            setSelectedSlots([]);
             setBulkEnabled(true);
             setBulkThreshold(2);
             setLargeSpots(120);
@@ -330,10 +335,8 @@ export function BuyerWorkspace({
               setAuction={setAuction}
               assignmentMode={assignmentMode}
               setAssignmentMode={setAssignmentMode}
-              selected={selectedSlot}
-              setSelected={setSelectedSlot}
-              slotChosen={slotChosen}
-              setSlotChosen={setSlotChosen}
+              selectedSlots={selectedSlots}
+              setSelectedSlots={setSelectedSlots}
               bulkEnabled={bulkEnabled}
               bulkThreshold={bulkThreshold}
               setBulkEnabled={setBulkEnabled}
@@ -345,7 +348,7 @@ export function BuyerWorkspace({
               {manualCapOpen ? <ManualBudgetCap onBack={() => { setManualCapOpen(false); openBuilder(); }} target={manualTarget} setTarget={setManualTarget} shipping={manualShipping} setShipping={setManualShipping} hammer={manualHammer} setHammer={setManualHammer} /> : !lines.length && <section className="buyer-awaiting-break"><span><BarChart3 /></span><h2>Add a product to begin</h2><p>Your estimated value and bid limit will appear here after you choose the break and slot.</p></section>}
               {busy && <div className="calculating" role="status" aria-live="polite"><span />Calculating exact contents and prices…</div>}
               {error && <CompactWarning title="Couldn’t load this result" summary="No verified modeled ceiling can be offered until this data loads." className="load-warning"><p role="alert">{error}</p><div className="buyer-recovery-actions"><button type="button" className="quiet" onClick={() => setCalculationGeneration((value) => value + 1)}>Retry analysis</button><button type="button" className="quiet" onClick={() => setManualCapOpen(true)}>Use manual budget cap</button></div></CompactWarning>}
-              {analysis && !slotChosen && assignmentMode !== "large" && <section className="buyer-awaiting-break buyer-awaiting-slot"><h2>Choose your slot</h2><p>Select the color you’re considering to see its estimated value and bid limit.</p></section>}
+              {analysis && !slotChosen && <section className="buyer-awaiting-break buyer-awaiting-slot"><h2>Choose your slot</h2><p>Select the color you’re considering to see its estimated value and bid limit.</p></section>}
               {analysis && (assignmentMode === "large" ? (
                 <LargeBreakView analysis={analysis} lines={lines} spots={largeSpots} bid={buyerBid} setBid={setBuyerBid} shipping={buyerShipping} setShipping={setBuyerShipping} />
               ) : slotChosen && (
@@ -354,7 +357,7 @@ export function BuyerWorkspace({
                   eligibility={decisionAssessment?.eligibility}
                   auction={auction}
                   assignmentMode={assignmentMode}
-                  selected={selectedSlot}
+                  selectedSlots={selectedSlots}
                   breakLabel={lines.length === 1 ? `${lines[0].quantity}× ${lines[0].set} ${lines[0].productLabel}` : `${lines.length} products`}
                   bid={buyerBid}
                   setBid={setBuyerBid}

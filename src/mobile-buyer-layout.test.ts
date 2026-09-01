@@ -6,9 +6,12 @@ const modernCss = readFileSync(join(process.cwd(), "src", "modern.css"), "utf8")
 const finalCss = readFileSync(join(process.cwd(), "src", "future.css"), "utf8");
 
 describe("mobile buyer landing layout", () => {
-  it("keeps entry controls before results and uses a compact one-row slot rail", () => {
+  it("keeps entry controls before results and uses a full-width, readable slot list", () => {
     expect(modernCss).toContain(".bid-check-workbench .buyer-results { order: initial; }");
-    expect(modernCss).toContain("grid-template-columns: repeat(8, minmax(0, 1fr))");
+    // Each slot is its own named row (name, select, and taken controls) rather
+    // than a compressed multi-column grid of letter-only tiles.
+    expect(modernCss).toContain(".buyer-slot-list {");
+    expect(modernCss).toContain(".buyer-slot-row {");
     expect(modernCss).toContain(".bid-check-workbench .buyer-options-heading h2 { display: none; }");
     expect(modernCss).toContain(".bid-check-workbench .bulk-filter-details { display: none; }");
   });

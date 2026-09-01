@@ -19,10 +19,8 @@ export function BuyerSetup({
   setAuction,
   assignmentMode,
   setAssignmentMode,
-  selected,
-  setSelected,
-  slotChosen = true,
-  setSlotChosen = () => {},
+  selectedSlots,
+  setSelectedSlots,
   bulkEnabled,
   bulkThreshold,
   setBulkEnabled,
@@ -39,10 +37,8 @@ export function BuyerSetup({
   setAuction: (state: AuctionState) => void;
   assignmentMode: AssignmentMode;
   setAssignmentMode: (mode: AssignmentMode) => void;
-  selected: SlotId;
-  setSelected: (slot: SlotId) => void;
-  slotChosen?: boolean;
-  setSlotChosen?: (chosen: boolean) => void;
+  selectedSlots: SlotId[];
+  setSelectedSlots: (ids: SlotId[]) => void;
   bulkEnabled: boolean;
   bulkThreshold: number;
   setBulkEnabled: (enabled: boolean) => void;
@@ -66,10 +62,8 @@ export function BuyerSetup({
         setAuction={setAuction}
         assignmentMode={assignmentMode}
         setAssignmentMode={setAssignmentMode}
-        selected={selected}
-        setSelected={setSelected}
-        slotChosen={slotChosen}
-        setSlotChosen={setSlotChosen}
+        selectedSlots={selectedSlots}
+        setSelectedSlots={setSelectedSlots}
         largeSpots={largeSpots}
         setLargeSpots={setLargeSpots}
       />}

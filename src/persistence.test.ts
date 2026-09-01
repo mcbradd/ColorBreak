@@ -95,7 +95,7 @@ describe("buyer decision session persistence", () => {
     lines: [{ id: "line-1", set: "TST", productKey: "play-box", productLabel: "Play Booster Box", quantity: 1 }],
     dataVersion: "TST:play-box:1@2026-08-30",
     assignmentMode: "random" as const,
-    selectedSlot: "U" as const,
+    selectedSlots: ["U"] as const,
     remaining: ["W", "U", "B"] as const,
     bulkEnabled: true,
     bulkThreshold: 2,
@@ -125,5 +125,22 @@ describe("buyer decision session persistence", () => {
     sessionStorage.setItem(buyerDecisionKey, JSON.stringify({ bid: 99, shipping: 2, remaining: ["U"] }));
     expect(readBuyerDecisionRecord()).toBeUndefined();
     expect(sessionStorage.getItem(buyerDecisionKey)).toBeNull();
+  });
+
+  it("round-trips several selected slots as one combined lot", () => {
+    const combined = { ...state, assignmentMode: "pick" as const, selectedSlots: ["C", "L"] as const };
+    writeBuyerDecisionRecord(combined, {});
+    expect(readBuyerDecisionRecord(combined)).toMatchObject({ selectedSlots: ["C", "L"] });
+  });
+
+  it("accepts a random-pool record with no explicit picks, but rejects that for pick mode", () => {
+    const random = { ...state, assignmentMode: "random" as const, selectedSlots: [] as const };
+    writeBuyerDecisionRecord(random, {});
+    expect(readBuyerDecisionRecord(random)).toMatchObject({ selectedSlots: [] });
+
+    sessionStorage.clear();
+    const pickWithNothingChosen = { ...state, assignmentMode: "pick" as const, selectedSlots: [] as const };
+    writeBuyerDecisionRecord(pickWithNothingChosen, {});
+    expect(readBuyerDecisionRecord(pickWithNothingChosen)).toBeUndefined();
   });
 });

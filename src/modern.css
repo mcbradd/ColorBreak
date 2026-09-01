@@ -297,64 +297,132 @@ body {
   line-height: 1.4;
 }
 .buyer-assignment-toggle {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  width: min(460px, 100%);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  width: min(320px, 100%);
   margin: 14px 0 12px;
   border-radius: 2px;
 }
 .buyer-assignment-toggle button { border-radius: 1px; }
-.buyer-slot-rail {
+
+/* One row per slot: name first, then a select (check) and a taken (ban)
+ * control — no separate screen or mode switch to mark availability. */
+.buyer-slot-list {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 6px;
+  margin: 4px 0 10px;
 }
-.buyer-slot-tile {
-  position: relative;
+.buyer-slot-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
   min-width: 0;
+  padding: 10px 12px;
   border: 1px solid var(--line);
   border-radius: 2px;
   background: var(--panel);
 }
-.buyer-slot-tile.active {
+.buyer-slot-row.selected {
   border-color: var(--accent);
-  box-shadow: inset 0 -3px 0 var(--accent);
+  box-shadow: inset 3px 0 0 var(--accent);
 }
-.buyer-slot-tile.taken { background: #0b0d11; }
-.buyer-slot-select {
-  display: grid;
-  justify-items: center;
-  width: 100%;
-  min-width: 44px;
-  min-height: 82px;
-  padding: 10px 6px 8px;
-  border: 0;
-  color: var(--ink);
-  background: transparent;
-  cursor: pointer;
-}
-.buyer-slot-select:disabled { opacity: .3; cursor: not-allowed; }
-.buyer-slot-select > span {
-  display: grid;
-  place-items: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  font: 800 11px Manrope, sans-serif;
-}
-.buyer-slot-select b { margin-top: 5px; font-size: 11px; }
-.buyer-slot-select small {
-  max-width: 100%;
-  margin-top: 1px;
+.buyer-slot-row.taken { background: #0b0d11; opacity: .7; }
+.buyer-slot-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
   overflow: hidden;
-  color: var(--muted);
-  font-size: 8px;
+  color: var(--ink);
+  font: 700 13px Manrope, sans-serif;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.availability-editor { margin-top: 10px; }
-.availability-actions { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin-top: 8px; }
-.availability-actions button { min-height: 44px; padding: 6px 4px; font-size: 10px; }
-.availability-actions button[aria-pressed="true"] { color: #ffb2bf; background: #321820; }
+.buyer-slot-swatch {
+  width: 11px;
+  height: 11px;
+  flex: none;
+  border: 1px solid rgba(255, 255, 255, .28);
+  border-radius: 50%;
+}
+.buyer-slot-swatch.slot-W { background: #ffd23f; }
+.buyer-slot-swatch.slot-U { background: #2ec4ff; }
+.buyer-slot-swatch.slot-B { background: #8b14e0; }
+.buyer-slot-swatch.slot-R { background: #c81736; }
+.buyer-slot-swatch.slot-G { background: #00e28a; }
+.buyer-slot-swatch.slot-M { background: #c4116c; }
+.buyer-slot-swatch.slot-C { background: #7c8cff; }
+.buyer-slot-swatch.slot-L { background: #ff8a00; }
+.buyer-slot-value {
+  margin-left: 2px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+.buyer-slot-taken-tag {
+  margin-left: auto;
+  padding: 2px 6px;
+  color: #ffb2bf;
+  background: #321820;
+  border-radius: 2px;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+.buyer-slot-actions { display: flex; flex: none; gap: 6px; }
+.slot-check-btn,
+.slot-disable-btn {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  color: var(--muted);
+  background: transparent;
+  cursor: pointer;
+}
+.slot-check-btn svg,
+.slot-disable-btn svg { width: 18px; height: 18px; }
+.slot-check-btn[aria-pressed="true"] {
+  color: #10140b;
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.slot-disable-btn[aria-pressed="true"] {
+  color: #ffb2bf;
+  background: #321820;
+  border-color: #5c2430;
+}
+.slot-disable-btn.staged {
+  color: #ffb2bf;
+  border-color: #ff627d;
+  box-shadow: inset 0 0 0 1px #ff627d;
+}
+.slot-check-btn:disabled,
+.slot-disable-btn:disabled { opacity: .3; cursor: not-allowed; }
+.buyer-slot-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+.buyer-combine-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px dashed var(--line-strong);
+  border-radius: 2px;
+  color: var(--muted);
+  font-size: 11px;
+}
+.buyer-combine-actions { display: flex; gap: 6px; }
 .remaining-summary {
   margin: 10px 0 0;
   color: var(--muted);
@@ -364,11 +432,6 @@ body {
 .buyer-options-heading { padding: 18px 2px 10px; }
 .buyer-setup > .bulk-filter-control { margin-bottom: 0; }
 .buyer-results > .verdict { margin-top: 0; }
-
-@media (min-width: 720px) {
-  .buyer-slot-rail { grid-template-columns: repeat(8, minmax(0, 1fr)); }
-  .buyer-slot-select { min-height: 88px; }
-}
 
 .large-break-spot-input {
   display: grid;
@@ -504,20 +567,12 @@ body {
 .sheet > header .icon-button,
 .evidence-dialog > header .icon-button,
 .assignment-toggle button,
-.availability-actions button {
+.slot-check-btn,
+.slot-disable-btn {
   min-width: 44px;
   min-height: 44px;
 }
 @media (max-width: 719px) {
-  .buyer-slot-rail,
-  .bid-check-workbench .buyer-slot-rail {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    grid-auto-flow: row;
-    grid-auto-columns: auto;
-    overflow: visible;
-    padding-bottom: 0;
-  }
-  .buyer-slot-select { min-inline-size: 44px; min-block-size: 44px; }
   .bid-check-workbench .buyer-assignment-toggle button { min-height: 44px; }
 }
 
@@ -630,8 +685,6 @@ body {
   .buyer-slot-heading p:last-child { display: none; }
   .buyer-assignment-toggle { margin-block: 9px; }
   .buyer-assignment-toggle button { min-height: 44px; }
-  .buyer-slot-select { min-height: 66px; padding-block: 6px; }
-  .buyer-slot-select > span { width: 27px; height: 27px; }
   .remaining-summary { margin-top: 7px; }
   .buyer-options-heading { padding-block: 12px 7px; }
   .buyer-options-heading h2 { font-size: 18px; }
@@ -719,12 +772,12 @@ body {
   box-shadow: inset 0 -3px 0 var(--accent);
 }
 
-.bid-check-workbench .buyer-slot-tile {
+.bid-check-workbench .buyer-slot-row {
   border-color: var(--line-strong);
   background: transparent;
 }
 
-.bid-check-workbench .buyer-slot-tile.active {
+.bid-check-workbench .buyer-slot-row.selected {
   border-color: var(--accent);
   background: rgba(174, 255, 94, .045);
 }
@@ -979,14 +1032,12 @@ body {
   .bid-check-workbench .buyer-slot-heading p:last-child { display: none; }
   .bid-check-workbench .buyer-assignment-toggle { margin: 5px 0; }
   .bid-check-workbench .buyer-assignment-toggle button { min-height: 33px; padding: 4px 2px; font-size: 8px; line-height: 1.1; }
-  .bid-check-workbench .buyer-slot-rail { grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 3px; }
-  .bid-check-workbench .buyer-slot-select { min-height: 44px; padding: 4px 1px; }
-  .bid-check-workbench .buyer-slot-select > span { width: 23px; height: 23px; font-size: 9px; }
-  .bid-check-workbench .buyer-slot-select b,
-  .bid-check-workbench .buyer-slot-select small { display: none; }
-  .bid-check-workbench .availability-editor { margin-top: 5px; }
-  .bid-check-workbench .availability-editor > button { min-height: 44px; }
-  .bid-check-workbench .availability-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .bid-check-workbench .buyer-slot-row { padding: 7px 8px; }
+  .bid-check-workbench .buyer-slot-name { font-size: 11px; }
+  .bid-check-workbench .buyer-slot-value { display: none; }
+  .bid-check-workbench .slot-check-btn,
+  .bid-check-workbench .slot-disable-btn { width: 40px; height: 40px; }
+  .bid-check-workbench .buyer-slot-footer { font-size: 10px; }
   .bid-check-workbench .remaining-summary { margin-top: 4px; font-size: 8px; }
   .bid-check-workbench .large-break-spot-input { grid-template-columns: minmax(0, 1fr) 88px; gap: 7px; padding: 7px 8px; }
   .bid-check-workbench .large-break-spot-label small,
@@ -1039,7 +1090,6 @@ body {
   }
   .bid-live-decision .value-rule button { padding-inline: 4px; font-size: 9px; }
   .bid-live-decision .outcome-range-compact { padding: 14px; }
-  .bid-check-workbench .buyer-slot-rail { grid-template-columns: repeat(8, minmax(0, 1fr)); }
 }
 
 /* Seller Studio is one operating screen: contents, costs, bid economics, enticement. */
@@ -1343,10 +1393,4 @@ body {
 /* Keep the strict target invariant after compact-workbench overrides. */
 @media (max-width: 719px) {
   .bid-check-workbench .buyer-assignment-toggle button { min-height: 44px; }
-  .bid-check-workbench .buyer-slot-rail {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    grid-auto-flow: row;
-    grid-auto-columns: auto;
-    overflow: visible;
-  }
 }

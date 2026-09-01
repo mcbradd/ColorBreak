@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { assignSlot, createAuction, toggleSlotTaken, undoAssignment } from "./auction";
+import { assignSlot, createAuction, markSlotsTaken, toggleSlotTaken, undoAssignment } from "./auction";
 
 describe("remaining-slot auction", () => {
   it("removes one assigned slot per sale and can undo the latest assignment", () => {
@@ -31,5 +31,31 @@ describe("remaining-slot auction", () => {
   it("keeps the final available color enabled", () => {
     const finalWhite = createAuction(["W"]);
     expect(toggleSlotTaken(finalWhite, "W")).toBe(finalWhite);
+  });
+
+  it("marks a combined lot of several slots taken as one atomic transition", () => {
+    // A seller commonly sells Colorless and Lands together as one lot.
+    const combined = markSlotsTaken(createAuction(), ["C", "L"]);
+    expect(combined.remaining).toEqual(["W", "U", "B", "R", "G", "M"]);
+    expect(combined.assignments).toEqual(["C", "L"]);
+  });
+
+  it("ignores slots already taken and duplicates within one combined batch", () => {
+    const oneTaken = toggleSlotTaken(createAuction(), "C");
+    const combined = markSlotsTaken(oneTaken, ["C", "C", "L"]);
+    expect(combined.remaining).toEqual(["W", "U", "B", "R", "G", "M"]);
+    expect(combined.assignments).toEqual(["C", "L"]);
+  });
+
+  it("refuses a combined batch that would leave zero slots remaining", () => {
+    const downToTwo = createAuction(["W", "U"]);
+    expect(markSlotsTaken(downToTwo, ["W", "U"])).toBe(downToTwo);
+  });
+
+  it("is a no-op for an empty or entirely-already-taken batch", () => {
+    const auction = createAuction();
+    expect(markSlotsTaken(auction, [])).toBe(auction);
+    const withoutBlue = toggleSlotTaken(auction, "U");
+    expect(markSlotsTaken(withoutBlue, ["U"])).toBe(withoutBlue);
   });
 });

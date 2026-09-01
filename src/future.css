@@ -309,13 +309,12 @@ nav {
 
 .bid-check-workbench .buyer-results { top: 74px; }
 
-.buyer-slot-select,
-.buyer-slot-tile,
+.buyer-slot-row,
 .assignment-slots button,
 .slot,
 .large-break-spot-input { background: #070a0f; }
 
-.buyer-slot-tile.active,
+.buyer-slot-row.selected,
 .slot.active {
   border-color: var(--accent);
   color: var(--ink);
@@ -932,7 +931,7 @@ input {
 /* Product-first redesign: a buyer gets one calm, sequential task column.
  * Scoped to the phone/compact layout only — at 900px+ the desktop two-column
  * .bid-check-workbench grid (defined above) and the computed per-slot $
- * values in .buyer-slot-select b must stay intact and visible. */
+ * values in .buyer-slot-value must stay intact and visible. */
 @media (max-width: 899px) {
   .workspace.page { max-width: 760px; margin-inline: auto; padding-bottom: 48px; }
   .workspace-title { margin: 24px 0 18px; }
@@ -946,15 +945,14 @@ input {
   .buyer-slot-control { padding: 16px; }
   .buyer-slot-heading h2 { margin: 2px 0 6px; font-size: 23px; }
   .buyer-slot-heading p { margin: 0; color: var(--muted); line-height: 1.4; }
-  .buyer-assignment-toggle { display: grid; grid-template-columns: 1fr 1fr; margin-top: 16px; }
+  /* "Large break" is a secondary, desktop-reachable escape hatch — hiding
+   * it here leaves only the primary "Color slots" button, so the toggle
+   * collapses to one column instead of leaving an empty cell beside it. */
+  .buyer-assignment-toggle { display: grid; grid-template-columns: 1fr; margin-top: 16px; }
   .buyer-assignment-toggle button { min-height: 46px; font-size: 14px; }
   .buyer-assignment-toggle button:last-child { display: none; }
-  .buyer-slot-rail { display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 8px; overflow: visible !important; }
-  .buyer-slot-tile { min-width: 0 !important; }
-  .buyer-slot-select { min-height: 62px; padding: 8px !important; }
-  .buyer-slot-select small { font-size: 13px !important; }
-  .buyer-slot-select b { display: none !important; }
-  .buyer-slot-select span { display: inline-grid; margin-right: 7px; }
+  .buyer-slot-row { min-width: 0 !important; padding: 10px !important; }
+  .buyer-slot-name { font-size: 15px !important; }
   .buyer-assumptions { border: var(--rule); background: var(--panel); }
   .buyer-assumptions > summary { min-height: 48px; padding: 14px 16px; font-weight: 800; }
   .buyer-results { margin-top: 14px; }
@@ -998,7 +996,6 @@ input {
 @media (max-width: 430px) {
   .workspace.page { padding-inline: 12px; }
   .workspace-title { margin-top: 18px; }
-  .buyer-slot-rail { grid-template-columns: 1fr 1fr !important; }
   .buyer-slot-control { padding: 14px; }
   .sheet { max-height: 92dvh; }
 }

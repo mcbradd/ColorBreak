@@ -3,6 +3,8 @@ import type { ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "motion/react";
 import {
+  Ban,
+  Check,
   ChevronRight,
   PackagePlus,
   RotateCw,
@@ -11,7 +13,7 @@ import {
   X,
 } from "lucide-react";
 import type { BreakAnalysis } from "../../data/evaluate";
-import { toggleSlotTaken } from "../../domain/auction";
+import { markSlotsTaken, toggleSlotTaken } from "../../domain/auction";
 import type { AuctionState } from "../../domain/auction";
 import type { AssignmentMode } from "../../domain/share-url";
 import { cardDisplayName, cardTreatmentLabel } from "../../domain/card-label";
@@ -134,10 +136,8 @@ export function SlotRail({
   setAuction,
   assignmentMode,
   setAssignmentMode,
-  selected,
-  setSelected,
-  slotChosen = true,
-  setSlotChosen = () => {},
+  selectedSlots,
+  setSelectedSlots,
   largeSpots,
   setLargeSpots,
 }: {
@@ -146,30 +146,42 @@ export function SlotRail({
   setAuction: (state: AuctionState) => void;
   assignmentMode: AssignmentMode;
   setAssignmentMode: (mode: AssignmentMode) => void;
-  selected: SlotId;
-  setSelected: (id: SlotId) => void;
-  slotChosen?: boolean;
-  setSlotChosen?: (chosen: boolean) => void;
+  selectedSlots: SlotId[];
+  setSelectedSlots: (ids: SlotId[]) => void;
   largeSpots: number;
   setLargeSpots: (spots: number) => void;
 }) {
-  const [editingAvailability, setEditingAvailability] = useState(false);
+  const [combining, setCombining] = useState(false);
+  const [staged, setStaged] = useState<SlotId[]>([]);
+  const startCombining = () => { setCombining(true); setStaged([]); };
+  const stopCombining = () => { setCombining(false); setStaged([]); };
+  // Marking a taken slot always drops it from consideration too — a buyer
+  // cannot still be weighing a slot that just left the pool.
+  const applyTaken = (next: AuctionState) => {
+    setAuction(next);
+    if (selectedSlots.some((id) => !next.remaining.includes(id))) {
+      setSelectedSlots(selectedSlots.filter((id) => next.remaining.includes(id)));
+    }
+  };
+  const slotChosen = assignmentMode === "large" || assignmentMode === "random" || selectedSlots.length > 0;
+  const chosenSummary = assignmentMode === "random"
+    ? `Any of the ${auction.remaining.length} remaining colors`
+    : selectedSlots.length === 0
+      ? "No slot selected"
+      : selectedSlots.length === 1
+        ? `${SLOT_NAMES[selectedSlots[0]]} selected`
+        : `${selectedSlots.length} colors selected: ${selectedSlots.map((id) => SLOT_NAMES[id]).join(", ")}`;
   return (
     <section className="buyer-slot-control" aria-labelledby="buyer-color-heading">
       <div className="buyer-slot-heading">
         <div>
           <InformationLabel>2 · YOUR SLOT</InformationLabel>
-          <h2 id="buyer-color-heading">{assignmentMode === "pick" ? "Which slot are you considering?" : assignmentMode === "random" ? "Mark colors already taken" : "Set the random spot count"}</h2>
-          <p>{assignmentMode === "large" ? "For top-value cards and the 17 catch-all spots." : editingAvailability ? "Availability editing is separate from color selection." : slotChosen ? `Selected: ${SLOT_NAMES[selected]}` : "Choose a color to continue."}</p>
+          <h2 id="buyer-color-heading">{assignmentMode === "large" ? "Set the random spot count" : "Which slots are you considering?"}</h2>
+          <p>{assignmentMode === "large" ? "For top-value cards and the 17 catch-all spots." : "Tap the check to consider a slot — tap more than one if you’re bidding on a combined lot. Tap the cancel mark to say a slot is already taken."}</p>
         </div>
       </div>
-      <div className="assignment-toggle buyer-assignment-toggle" role="group" aria-label="Break assignment mode">
-        <button aria-pressed={assignmentMode === "pick"} className={assignmentMode === "pick" ? "active" : ""} onClick={() => {
-          const nextSelected = auction.remaining.includes(selected) ? selected : auction.remaining[0];
-          if (nextSelected) setSelected(nextSelected);
-          setAssignmentMode("pick");
-        }}>Pick a color</button>
-        <button aria-pressed={assignmentMode === "random"} className={assignmentMode === "random" ? "active" : ""} onClick={() => setAssignmentMode("random")}>Random remaining</button>
+      <div className="assignment-toggle buyer-assignment-toggle" role="group" aria-label="Break type">
+        <button aria-pressed={assignmentMode !== "large"} className={assignmentMode !== "large" ? "active" : ""} onClick={() => setAssignmentMode(selectedSlots.length ? "pick" : "random")}>Color slots</button>
         <button aria-pressed={assignmentMode === "large"} className={assignmentMode === "large" ? "active" : ""} onClick={() => setAssignmentMode("large")}>Large break</button>
       </div>
       {assignmentMode === "large" ? (
@@ -178,59 +190,86 @@ export function SlotRail({
           <NumericInput value={largeSpots} onCommit={(value) => setLargeSpots(Math.max(1, Math.min(500, Math.round(value ?? 1))))} ariaLabel="Large break spot count" live />
           <p><b>17</b> catch-all spots · remaining spots use top-value cards, with characters grouped by name</p>
         </div>
-      ) : <><div className="buyer-slot-rail" role="group" aria-label="Color slots">
+      ) : <>
+      <div className="buyer-slot-list" role="group" aria-label="Color slots">
         {SLOT_IDS.map((id) => {
           const slot = result?.slots.find((row) => row.id === id);
           const taken = !auction.remaining.includes(id);
+          const isSelected = assignmentMode !== "random" && selectedSlots.includes(id);
+          const isStaged = combining && staged.includes(id);
+          // Deliberately no bare `slot-${id}` class on this row: a legacy
+          // global `.slot-X span` rule (styles.css) would repaint any span
+          // inside it — the swatch below carries the color instead, scoped
+          // to an element with no span descendant.
           return (
-          <div className={`buyer-slot-tile slot-${id} ${slotChosen && selected === id && assignmentMode === "pick" ? "active" : ""} ${taken ? "taken" : ""}`} key={id}>
-              <button
-                type="button"
-                aria-pressed={slotChosen && selected === id && assignmentMode === "pick"}
-                aria-label={`${SLOT_NAMES[id]} slot`}
-                disabled={taken}
-                className="buyer-slot-select"
-                onClick={() => {
-                  if (assignmentMode === "random") {
-                    // Random remaining mode's own heading says "Mark colors
-                    // already taken" — tapping a swatch here must mark it
-                    // taken from the random pool, not silently switch modes.
+            <div className={`buyer-slot-row ${isSelected ? "selected" : ""} ${taken ? "taken" : ""}`} key={id}>
+              <span className="buyer-slot-name">
+                <i className={`buyer-slot-swatch slot-${id}`} aria-hidden="true" />
+                {SLOT_NAMES[id]}
+                <b className="buyer-slot-value">{slot ? fmt(slot.sellableEV) : "—"}</b>
+                {taken && <b className="buyer-slot-taken-tag">Taken</b>}
+              </span>
+              <div className="buyer-slot-actions">
+                <button
+                  type="button"
+                  className="slot-check-btn"
+                  aria-pressed={isSelected}
+                  disabled={taken}
+                  aria-label={`${isSelected ? "Remove" : "Add"} ${SLOT_NAMES[id]} ${isSelected ? "from" : "to"} the slots you’re considering`}
+                  onClick={() => {
+                    if (assignmentMode === "random") {
+                      setAssignmentMode("pick");
+                      setSelectedSlots([id]);
+                      return;
+                    }
+                    setSelectedSlots(isSelected ? selectedSlots.filter((slotId) => slotId !== id) : [...selectedSlots, id]);
+                  }}
+                >
+                  <Check aria-hidden="true" />
+                </button>
+                <button
+                  type="button"
+                  className={`slot-disable-btn ${isStaged ? "staged" : ""}`}
+                  aria-pressed={combining ? isStaged : taken}
+                  disabled={combining ? taken : (!taken && auction.remaining.length === 1)}
+                  aria-label={combining
+                    ? `${isStaged ? "Remove" : "Add"} ${SLOT_NAMES[id]} ${isStaged ? "from" : "to"} the combined taken group`
+                    : taken ? `Restore ${SLOT_NAMES[id]} slot` : `Mark ${SLOT_NAMES[id]} taken`}
+                  onClick={() => {
+                    if (combining) {
+                      setStaged(isStaged ? staged.filter((slotId) => slotId !== id) : [...staged, id]);
+                      return;
+                    }
                     const next = toggleSlotTaken(auction, id);
                     if (next === auction) return;
-                    setAuction(next);
-                    if (!next.remaining.includes(selected)) setSelected(next.remaining[0]);
-                    return;
-                  }
-                  setSelected(id);
-                  setSlotChosen(true);
-                  setAssignmentMode("pick");
-                }}
-              >
-                <span>{id}</span>
-                <b>{slot ? fmt(slot.sellableEV) : "—"}</b>
-                <small>{taken ? "Taken" : SLOT_NAMES[id]}</small>
-              </button>
+                    applyTaken(next);
+                  }}
+                >
+                  <Ban aria-hidden="true" />
+                </button>
+              </div>
             </div>
           );
         })}
       </div>
-      <div className="availability-editor">
-        <button type="button" className="quiet" aria-expanded={editingAvailability} onClick={() => setEditingAvailability((value) => !value)}>{editingAvailability ? "Done editing availability" : "Edit availability"}</button>
-        {editingAvailability && <div className="availability-actions" role="group" aria-label="Color availability">
-          {SLOT_IDS.map((id) => {
-            const taken = !auction.remaining.includes(id);
-            const finalAvailable = !taken && auction.remaining.length === 1;
-            return <button type="button" key={id} aria-label={taken ? `Restore ${SLOT_NAMES[id]} slot` : `Mark ${SLOT_NAMES[id]} taken`} aria-pressed={taken} disabled={finalAvailable} onClick={() => {
-              const next = toggleSlotTaken(auction, id);
-              if (next === auction) return;
-              setAuction(next);
-              setAssignmentMode("random");
-              if (!next.remaining.includes(selected)) setSelected(next.remaining[0]);
-            }}>{taken ? `Restore ${id}` : `Mark ${id} taken`}</button>;
-          })}
-        </div>}
+      <div className="buyer-slot-footer">
+        <button type="button" className="quiet" aria-pressed={assignmentMode === "random"} onClick={() => { setSelectedSlots([]); setAssignmentMode("random"); }}>Any remaining color (random)</button>
+        {!combining
+          ? <button type="button" className="quiet" onClick={startCombining}>Mark several as one combined lot…</button>
+          : <div className="buyer-combine-bar" role="group" aria-label="Combined taken group">
+            <span>{staged.length ? `${staged.length} slot${staged.length === 1 ? "" : "s"} staged` : "Tap the cancel mark on each slot in the lot"}</span>
+            <div className="buyer-combine-actions">
+              <button type="button" className="quiet" onClick={stopCombining}>Cancel</button>
+              <button type="button" className="primary" disabled={staged.length === 0} onClick={() => {
+                const next = markSlotsTaken(auction, staged);
+                applyTaken(next);
+                stopCombining();
+              }}>Mark {staged.length || ""} taken</button>
+            </div>
+          </div>}
       </div>
-      <p className="remaining-summary">{assignmentMode === "random" ? `${auction.remaining.length} colors remain in the random pool` : slotChosen ? `${SLOT_NAMES[selected]} selected` : "No slot selected"}</p></>}
+      <p className="remaining-summary">{chosenSummary}{!slotChosen && " · choose a color to continue"}</p>
+      </>}
     </section>
   );
 }

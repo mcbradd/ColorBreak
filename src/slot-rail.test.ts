@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { SlotRail } from "./features/buyer/BuyerVisuals";
 import { createAuction } from "./domain/auction";
 import type { AuctionState } from "./domain/auction";
+import type { AssignmentMode } from "./domain/share-url";
 import type { SlotId, ValuationResult } from "./domain/types";
 
 const result = {
@@ -27,62 +28,94 @@ const result = {
 } as ValuationResult;
 
 function Harness() {
-  const [selected, setSelected] = useState<SlotId>("W");
+  const [selectedSlots, setSelectedSlots] = useState<SlotId[]>([]);
   const [auction, setAuction] = useState<AuctionState>(() => createAuction());
-  const [assignmentMode, setAssignmentMode] = useState<"pick" | "random">("pick");
+  const [assignmentMode, setAssignmentMode] = useState<AssignmentMode>("pick");
   return createElement(SlotRail, {
     result,
     auction,
     setAuction,
     assignmentMode,
     setAssignmentMode,
-    selected,
-    setSelected,
+    selectedSlots,
+    setSelectedSlots,
+    largeSpots: 120,
+    setLargeSpots: () => undefined,
   });
 }
 
 describe("buyer color controls", () => {
-  it("selects a color for pick mode", () => {
+  it("selects a single slot with the checkmark control", () => {
     render(createElement(Harness));
 
-    fireEvent.click(screen.getByRole("button", { name: "Green slot" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add Green to the slots you’re considering" }));
 
-    expect(screen.getByRole("button", { name: "Pick a color" })).toHaveClass("active");
-    expect(screen.getByText("Selected: Green")).toBeInTheDocument();
+    expect(screen.getByText("Green selected")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Remove Green from the slots you’re considering" })).toHaveAttribute("aria-pressed", "true");
   });
 
-  it("changes availability only in the separate deliberate editing mode", () => {
+  it("selects multiple slots without leaving the screen or switching modes", () => {
     render(createElement(Harness));
 
-    expect(screen.queryByRole("button", { name: "Mark Blue taken" })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Edit availability" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add Green to the slots you’re considering" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add Blue to the slots you’re considering" }));
+
+    expect(screen.getByText("2 colors selected: Green, Blue")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Remove Green from the slots you’re considering" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Remove Blue from the slots you’re considering" })).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("marks one slot taken immediately from the same row, no separate editing screen", () => {
+    render(createElement(Harness));
+
+    expect(screen.queryByText("Edit availability")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Mark Blue taken" }));
-    expect(screen.getByRole("button", { name: "Random remaining" })).toHaveClass("active");
-    expect(screen.getByRole("button", { name: "Blue slot" })).toBeDisabled();
+
+    expect(screen.getByRole("button", { name: "Add Blue to the slots you’re considering" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Restore Blue slot" })).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByText("7 colors remain in the random pool")).toBeInTheDocument();
+    expect(screen.getByText("Taken")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Restore Blue slot" }));
-    expect(screen.getByRole("button", { name: "Blue slot" })).toBeEnabled();
-    expect(screen.getByText("8 colors remain in the random pool")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Add Blue to the slots you’re considering" })).toBeEnabled();
   });
 
-  it("tapping a color swatch in random remaining mode marks it taken, matching the mode's own copy", () => {
+  it("drops a slot from consideration the moment it is marked taken", () => {
     render(createElement(Harness));
 
-    fireEvent.click(screen.getByRole("button", { name: "Random remaining" }));
-    expect(screen.getByText("Mark colors already taken")).toBeInTheDocument();
-    expect(screen.getByText("8 colors remain in the random pool")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Add Blue to the slots you’re considering" }));
+    expect(screen.getByText("Blue selected")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Blue slot" }));
+    fireEvent.click(screen.getByRole("button", { name: "Mark Blue taken" }));
+    expect(screen.getByText("No slot selected · choose a color to continue")).toBeInTheDocument();
+  });
 
-    // The heading says "Mark colors already taken" — a tap must mark the
-    // color taken from the random pool, not silently flip the toggle back
-    // to Pick a color (the bug this test guards against).
-    expect(screen.getByRole("button", { name: "Random remaining" })).toHaveClass("active");
-    expect(screen.getByRole("button", { name: "Pick a color" })).not.toHaveClass("active");
-    expect(screen.getByRole("button", { name: "Blue slot" })).toBeDisabled();
-    expect(screen.getByText("7 colors remain in the random pool")).toBeInTheDocument();
+  it("marks a combined lot of several slots taken as one atomic unit", () => {
+    render(createElement(Harness));
+
+    fireEvent.click(screen.getByRole("button", { name: "Mark several as one combined lot…" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add Colorless to the combined taken group" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add Lands to the combined taken group" }));
+    expect(screen.getByText("2 slots staged")).toBeInTheDocument();
+
+    // Neither slot is actually taken until the combined action commits.
+    expect(screen.getByRole("button", { name: "Add Colorless to the slots you’re considering" })).toBeEnabled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Mark 2 taken" }));
+
+    expect(screen.getByRole("button", { name: "Restore Colorless slot" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Restore Lands slot" })).toHaveAttribute("aria-pressed", "true");
+    // The combine bar closes itself after committing.
+    expect(screen.getByRole("button", { name: "Mark several as one combined lot…" })).toBeInTheDocument();
+  });
+
+  it("switches out of random mode and picks the tapped color when a checkmark is used", () => {
+    render(createElement(Harness));
+
+    fireEvent.click(screen.getByRole("button", { name: "Any remaining color (random)" }));
+    expect(screen.getByText("Any of the 8 remaining colors")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Add Red to the slots you’re considering" }));
+    expect(screen.getByText("Red selected")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Any remaining color (random)" })).toHaveAttribute("aria-pressed", "false");
   });
 });
-
