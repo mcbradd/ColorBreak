@@ -3,14 +3,18 @@ import {
   useId,
   useRef,
   useState,
+  type ChangeEvent,
+  type ClipboardEvent,
 } from "react";
 import { createPortal } from "react-dom";
 import { motion } from "motion/react";
 import {
+  AlertTriangle,
   ArrowLeft,
   Boxes,
   ChevronRight,
   PackagePlus,
+  ScanText,
   Search,
   Trash2,
   X,
@@ -25,6 +29,12 @@ import type {
   SetChoice,
 } from "../../domain/types";
 import { manualBudgetCap } from "../../domain/manual-budget";
+import {
+  ScreenshotOcrError,
+  transcribeScreenshot,
+  type TranscriptionProgress,
+  type UncertainLine,
+} from "./screenshot-ocr";
 import { fmt, InformationLabel, NumberField, useDialogOwnership } from "./Primitives";
 
 export function Builder({
@@ -60,6 +70,12 @@ export function Builder({
   const [importErrors, setImportErrors] = useState<string[]>([]);
   const importErrorsId = useId();
   const [importing, setImporting] = useState(false);
+  const screenshotInput = useRef<HTMLInputElement>(null);
+  const [scanProgress, setScanProgress] = useState<TranscriptionProgress>();
+  const [scanError, setScanError] = useState<string>();
+  const [scanUncertain, setScanUncertain] = useState<UncertainLine[]>([]);
+  const [scanLineCount, setScanLineCount] = useState(0);
+  const scanNoticeId = useId();
   const [importSettings, setImportSettings] = useState<{ assignmentMode: AssignmentMode; largeSpots?: number; bulkEnabled?: boolean; bulkThreshold?: number }>();
   useEffect(() => {
     if (open)
@@ -105,6 +121,10 @@ export function Builder({
       setImportErrors([]);
       setImportSettings(undefined);
       setReadyOnly(false);
+      setScanProgress(undefined);
+      setScanError(undefined);
+      setScanUncertain([]);
+      setScanLineCount(0);
     } else {
       setDraft(lines);
     }
@@ -143,6 +163,49 @@ export function Builder({
     setDraft((rows) => rows.filter((row) => row.id !== line.id));
   };
   const normalizeProduct = (value: string) => value.toLocaleLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  /**
+   * Reads a screenshot of a seller's show notes into the same text box the
+   * buyer would have pasted into. The transcript is never applied to the break
+   * directly: it is deliberately dropped into the composer so it goes through
+   * the one `parseBreakImport` path and the one review screen, with the buyer
+   * able to correct any misread character first.
+   */
+  const scanScreenshot = async (image: File) => {
+    setComposerMode("paste");
+    setImportErrors([]);
+    setScanError(undefined);
+    setScanUncertain([]);
+    setScanLineCount(0);
+    setScanProgress({ label: "Loading the text-recognition engine" });
+    try {
+      const transcript = await transcribeScreenshot(image, setScanProgress);
+      // Appending, never replacing: long show notes take two screenshots, and
+      // anything the buyer has already typed must survive.
+      setImportSource((current) => (current.trim() ? `${current.replace(/\s+$/, "")}\n${transcript.text}` : transcript.text));
+      setScanUncertain(transcript.uncertain);
+      setScanLineCount(transcript.lineCount);
+    } catch (error) {
+      setScanError(error instanceof ScreenshotOcrError || error instanceof Error
+        ? error.message
+        : "That screenshot could not be read. Try a sharper screenshot, or paste the show notes as text.");
+    } finally {
+      setScanProgress(undefined);
+    }
+  };
+  const chooseScreenshot = () => screenshotInput.current?.click();
+  const onScreenshotChosen = (event: ChangeEvent<HTMLInputElement>) => {
+    const image = event.target.files?.[0];
+    // Reset so re-picking the same file still fires a change event.
+    event.target.value = "";
+    if (image) void scanScreenshot(image);
+  };
+  /** Lets an image on the clipboard be pasted straight into the text box. */
+  const onComposerPaste = (event: ClipboardEvent<HTMLTextAreaElement>) => {
+    const image = [...event.clipboardData.files].find((file) => file.type.startsWith("image/"));
+    if (!image) return;
+    event.preventDefault();
+    void scanScreenshot(image);
+  };
   const resolveImport = async () => {
     setImporting(true);
     setImportRows([]);
@@ -242,9 +305,18 @@ export function Builder({
               </button>
               <div>
                 <small>ADD TO BREAK</small>
-                <h2>{composerMode === "paste" ? "Paste a break" : composerMode === "review" ? "Review matches" : selected ? selected.name : "Add products"}</h2>
+                <h2>{composerMode === "paste" ? "Paste or scan a break" : composerMode === "review" ? "Review matches" : selected ? selected.name : "Add products"}</h2>
               </div>
             </header>
+            <input
+              ref={screenshotInput}
+              type="file"
+              accept="image/*"
+              hidden
+              aria-hidden="true"
+              tabIndex={-1}
+              onChange={onScreenshotChosen}
+            />
             <div className="composer-status" aria-live="polite">
               <small className="composer-status-label">Current break</small>
               <div className="composer-status-tiles">
@@ -256,7 +328,11 @@ export function Builder({
               <section className="break-import">
                 <p><strong>Paste a ColorBreak link or product list</strong> — accepted formats are a ColorBreak link or one canonical product per line.</p>
                 <code>SPM | Play Booster Pack | 10</code>
-                <textarea autoFocus value={importSource} onChange={(event) => setImportSource(event.target.value)} placeholder="Paste link or product list" aria-label="Break link or product list" aria-describedby={importErrors.length ? importErrorsId : undefined} />
+                <button type="button" className="screenshot-action" onClick={chooseScreenshot} disabled={Boolean(scanProgress)}>
+                  <ScanText />{scanProgress ? "Reading screenshot…" : "Read a screenshot of the show notes"}
+                </button>
+                <ScanFeedback progress={scanProgress} error={scanError} uncertain={scanUncertain} lineCount={scanLineCount} noticeId={scanNoticeId} />
+                <textarea autoFocus value={importSource} onChange={(event) => setImportSource(event.target.value)} onPaste={onComposerPaste} placeholder="Paste link or product list, or read a screenshot" aria-label="Break link or product list" aria-describedby={[importErrors.length ? importErrorsId : "", scanUncertain.length || scanError ? scanNoticeId : ""].filter(Boolean).join(" ") || undefined} />
                 {importErrors.length > 0 && <ul id={importErrorsId} className="import-errors" role="alert">{importErrors.map((error) => <li key={error}>{error}</li>)}</ul>}
               </section>
             ) : composerMode === "review" ? (
@@ -285,7 +361,10 @@ export function Builder({
                     <button aria-pressed={setSort === "alphabetical"} onClick={() => setSetSort("alphabetical")}>Alphabetical</button>
                   </div>
                 </div>
-                <button type="button" className="paste-break-action" onClick={() => setComposerMode("paste")}><PackagePlus />Paste a break listing</button>
+                <div className="break-input-actions">
+                  <button type="button" className="paste-break-action" onClick={() => setComposerMode("paste")}><PackagePlus />Paste a break listing</button>
+                  <button type="button" className="paste-break-action" onClick={chooseScreenshot}><ScanText />Read a screenshot</button>
+                </div>
                 <InformationLabel>
                   {visible.length} {query ? "MATCHING SETS" : "SETS"}
                 </InformationLabel>
@@ -390,6 +469,62 @@ export function Builder({
             </footer>
           </motion.section>
         </motion.div>, document.body,
+  );
+}
+
+/**
+ * Progress, failure and low-confidence reporting for a screenshot read.
+ *
+ * Recognition takes seconds and downloads the engine on first use, so the
+ * stage is always named rather than left as a silent wait. Lines the engine was
+ * unsure of are listed by number and quoted verbatim: a misread set code or
+ * quantity changes what a break is worth, so it is stated plainly instead of
+ * being repaired behind the buyer's back. Meaning never rests on colour — every
+ * state carries an icon and a sentence.
+ */
+function ScanFeedback({ progress, error, uncertain, lineCount, noticeId }: {
+  progress?: TranscriptionProgress;
+  error?: string;
+  uncertain: UncertainLine[];
+  lineCount: number;
+  noticeId: string;
+}) {
+  if (progress) {
+    const percent = progress.ratio == null ? undefined : Math.round(progress.ratio * 100);
+    return (
+      <div className="scan-progress" role="status" aria-live="polite">
+        <p>{progress.label}{percent == null ? "…" : ` — ${percent}%`}</p>
+        <progress max={100} value={percent} aria-label={progress.label} />
+        <small>The engine downloads once, then stays on this device.</small>
+      </div>
+    );
+  }
+  if (error) {
+    return (
+      <p className="scan-note scan-note-error" id={noticeId} role="alert">
+        <AlertTriangle aria-hidden="true" /><span>{error}</span>
+      </p>
+    );
+  }
+  if (!lineCount) return null;
+  return (
+    <div className="scan-note scan-note-result" id={noticeId} role="status" aria-live="polite">
+      <p>
+        <ScanText aria-hidden="true" />
+        <span>Read {lineCount} line{lineCount === 1 ? "" : "s"} from the screenshot. Nothing has been added to your break yet — check the text below, delete anything that is not a product, then choose Review products.</span>
+      </p>
+      {uncertain.length > 0 && (
+        <>
+          <strong><AlertTriangle aria-hidden="true" />Not confidently read: {uncertain.length} line{uncertain.length === 1 ? "" : "s"}</strong>
+          <p>These lines are in the box exactly as they were read. Text recognition mistakes set codes, punctuation and quantities most often, so compare each one against the screenshot before continuing.</p>
+          <ul>
+            {uncertain.map((line) => (
+              <li key={line.number}>Line {line.number}, read as “{line.text}” — {line.confidence}% confident.</li>
+            ))}
+          </ul>
+        </>
+      )}
+    </div>
   );
 }
 

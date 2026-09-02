@@ -10,3 +10,4 @@ coverage/
 *.tsbuildinfo
 .preview*.log
 .preview*.err
+public/ocr/

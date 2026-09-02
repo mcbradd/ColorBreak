@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 import { validatePublicConfig } from "./tools/public-config.mjs";
+import { stageOcrAssets } from "./tools/stage-ocr-assets.mjs";
 
 export default defineConfig(({ mode }) => ({
   base: "./",
@@ -16,6 +17,16 @@ export default defineConfig(({ mode }) => ({
       name: "colorbreak-public-config",
       config() {
         if (mode !== "test") validatePublicConfig(process.env);
+      },
+    },
+    {
+      // Stages the self-hosted OCR engine into `public/` before Vite copies
+      // that directory, so the screenshot import never reaches a third-party
+      // CDN at runtime. Runs for `dev` too, so the local server serves the
+      // same same-origin paths the deployment does.
+      name: "colorbreak-ocr-assets",
+      async buildStart() {
+        if (mode !== "test") await stageOcrAssets();
       },
     },
     react(),
