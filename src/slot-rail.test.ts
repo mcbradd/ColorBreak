@@ -39,8 +39,6 @@ function Harness() {
     setAssignmentMode,
     selectedSlots,
     setSelectedSlots,
-    largeSpots: 120,
-    setLargeSpots: () => undefined,
   });
 }
 

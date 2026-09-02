@@ -304,7 +304,7 @@ export function BuyerWorkspace({
           <div>
             <p className="eyebrow">COLORBREAK</p>
             <h1>{assignmentMode === "large" ? "Plan a large break" : "Check a color-break bid"}</h1>
-            {!lines.length && <p className="buyer-direct-intro">Select what’s in the break, then we’ll help you decide what to bid.</p>}
+            {!lines.length && <p className="buyer-direct-intro">Pick the format and what’s in the break — then we’ll help you decide what to bid.</p>}
           </div>
         </header>
         {importUndo && <aside className="import-undo" aria-live="polite">

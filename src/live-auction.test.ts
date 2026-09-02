@@ -42,7 +42,7 @@ function Harness() {
   const [bid, setBid] = useState<number>();
   const [shipping, setShipping] = useState<number>();
   return createElement(Fragment, null,
-    createElement(SlotRail, { result: valuation, auction, setAuction, assignmentMode, setAssignmentMode, selectedSlots, setSelectedSlots, largeSpots: 120, setLargeSpots: () => undefined }),
+    createElement(SlotRail, { result: valuation, auction, setAuction, assignmentMode, setAssignmentMode, selectedSlots, setSelectedSlots }),
     createElement(BuyerView, { analysis, auction, assignmentMode, selectedSlots, bid, setBid, shipping, setShipping }),
   );
 }

@@ -296,14 +296,6 @@ body {
   font-size: 11px;
   line-height: 1.4;
 }
-.buyer-assignment-toggle {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  width: min(320px, 100%);
-  margin: 14px 0 12px;
-  border-radius: 2px;
-}
-.buyer-assignment-toggle button { border-radius: 1px; }
-
 /* One row per slot: name first, then a select (check) and a taken (ban)
  * control — no separate screen or mode switch to mark availability. */
 .buyer-slot-list {
@@ -573,7 +565,7 @@ body {
   min-height: 44px;
 }
 @media (max-width: 719px) {
-  .bid-check-workbench .buyer-assignment-toggle button { min-height: 44px; }
+  .bid-check-workbench .break-format-option { min-height: 44px; }
 }
 
 @media (max-width: 719px) {
@@ -683,8 +675,6 @@ body {
   .buyer-setup > .composition .set-glyph { width: 34px; height: 34px; }
   .buyer-slot-control { padding-block: 12px; }
   .buyer-slot-heading p:last-child { display: none; }
-  .buyer-assignment-toggle { margin-block: 9px; }
-  .buyer-assignment-toggle button { min-height: 44px; }
   .remaining-summary { margin-top: 7px; }
   .buyer-options-heading { padding-block: 12px 7px; }
   .buyer-options-heading h2 { font-size: 18px; }
@@ -757,15 +747,6 @@ body {
   max-width: none;
 }
 
-.bid-check-workbench .buyer-assignment-toggle {
-  width: 100%;
-  margin: 14px 0 10px;
-  padding: 0;
-  border-color: var(--line-strong);
-  background: transparent;
-}
-
-.bid-check-workbench .buyer-assignment-toggle button.active,
 .bid-check-workbench .value-rule button[aria-pressed="true"] {
   color: var(--ink);
   background: #253519;
@@ -1004,8 +985,6 @@ body {
   .bid-check-workbench .buyer-slot-control { padding-block: 12px; }
   .bid-check-workbench .buyer-slot-heading h2 { font-size: 17px; }
   .bid-check-workbench .buyer-slot-heading p:last-child { margin-top: 3px; font-size: 10px; }
-  .bid-check-workbench .buyer-assignment-toggle { margin-block: 9px 7px; }
-  .bid-check-workbench .buyer-assignment-toggle button { min-height: 38px; }
   .bid-check-workbench .composition > .panel-heading { min-height: 58px; padding-block: 10px; }
   .bid-check-workbench .composition .line { padding-block: 8px; }
   .bid-check-workbench .buyer-options-heading { padding-block: 12px 7px; }
@@ -1030,8 +1009,6 @@ body {
   .bid-check-workbench .buyer-slot-heading .section-label { margin: 0; font-size: 8px; }
   .bid-check-workbench .buyer-slot-heading h2,
   .bid-check-workbench .buyer-slot-heading p:last-child { display: none; }
-  .bid-check-workbench .buyer-assignment-toggle { margin: 5px 0; }
-  .bid-check-workbench .buyer-assignment-toggle button { min-height: 33px; padding: 4px 2px; font-size: 8px; line-height: 1.1; }
   .bid-check-workbench .buyer-slot-row { padding: 7px 8px; }
   .bid-check-workbench .buyer-slot-name { font-size: 11px; }
   .bid-check-workbench .buyer-slot-value { display: none; }
@@ -1392,5 +1369,80 @@ body {
 
 /* Keep the strict target invariant after compact-workbench overrides. */
 @media (max-width: 719px) {
-  .bid-check-workbench .buyer-assignment-toggle button { min-height: 44px; }
+  .bid-check-workbench .break-format-option { min-height: 44px; }
+}
+
+/* ------------------------------------------------------------------ */
+/* Step 1: break format. The format decides what every later step means,
+ * so it leads the buyer flow and is present before any product exists. */
+.break-format-choice {
+  padding: 18px 2px 16px;
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+}
+.break-format-heading .section-label { margin-bottom: 6px; }
+.break-format-heading h2 {
+  margin: 0;
+  font: 700 20px Manrope, sans-serif;
+  letter-spacing: -.025em;
+}
+.break-format-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+.break-format-option {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 0;
+  min-height: 48px;
+  padding: 10px 12px;
+  border: 1px solid var(--line-strong);
+  color: var(--muted);
+  background: #0c0f13;
+  font: 700 14px Manrope, sans-serif;
+  cursor: pointer;
+}
+.break-format-option:hover { background: var(--panel-raised); }
+.break-format-option.active {
+  border-color: var(--accent);
+  color: var(--ink);
+  background: #253519;
+  box-shadow: inset 0 -3px 0 var(--accent);
+}
+/* The tick is the non-color signal for "this is the chosen format"; the
+ * accent border and fill never carry the state on their own. */
+.break-format-tick { width: 17px; height: 17px; flex: none; visibility: hidden; }
+.break-format-option.active .break-format-tick { visibility: visible; color: var(--accent); }
+.break-format-note {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+.break-format-note b { color: var(--ink); }
+.break-format-choice .large-break-spot-input { margin-top: 12px; }
+
+.format-carryover-notice {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--line-strong);
+  background: var(--panel-raised);
+}
+.format-carryover-notice > svg { width: 17px; height: 17px; }
+.format-carryover-notice b { display: block; font-size: 12px; }
+.format-carryover-notice p { margin: 4px 0 0; font-size: 11px; line-height: 1.45; }
+
+@media (max-width: 520px) {
+  .break-format-choice { padding-block: 12px; }
+  .break-format-options { gap: 7px; margin-top: 10px; }
+  .break-format-option { min-height: 44px; padding: 8px 9px; }
+  .format-carryover-notice { gap: 8px; padding: 10px 12px; }
 }
