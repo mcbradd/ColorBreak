@@ -321,7 +321,6 @@ nav {
   background: #151c08;
 }
 
-.buyer-assignment-toggle,
 .assignment-toggle,
 .scenario-tabs,
 .value-rule {
@@ -331,14 +330,14 @@ nav {
   background: transparent;
 }
 
-:where(.buyer-assignment-toggle, .assignment-toggle, .scenario-tabs, .value-rule) button {
+:where(.assignment-toggle, .scenario-tabs, .value-rule) button {
   border-right: var(--rule);
   background: transparent;
 }
 
-:where(.buyer-assignment-toggle, .assignment-toggle, .scenario-tabs, .value-rule) button:last-child { border-right: 0; }
+:where(.assignment-toggle, .scenario-tabs, .value-rule) button:last-child { border-right: 0; }
 
-:where(.buyer-assignment-toggle, .assignment-toggle, .scenario-tabs, .value-rule) button[aria-pressed="true"],
+:where(.assignment-toggle, .scenario-tabs, .value-rule) button[aria-pressed="true"],
 .scenario-tabs button.active,
 .assignment-toggle button.active {
   color: var(--accent-ink) !important;
@@ -403,6 +402,7 @@ input {
 .distribution-unavailable,
 .distribution-data-note,
 .scenario-policy-note,
+.format-carryover-notice,
 .compliance-warning {
   border-color: var(--warning) !important;
   color: #fff5a8 !important;
@@ -945,11 +945,6 @@ input {
   .buyer-slot-control { padding: 16px; }
   .buyer-slot-heading h2 { margin: 2px 0 6px; font-size: 23px; }
   .buyer-slot-heading p { margin: 0; color: var(--muted); line-height: 1.4; }
-  /* Large break is a required buyer spot format (SPEC.md buyer #6), not a
-   * desktop-only extra — mobile touch is the primary input, so both the
-   * "Color slots" and "Large break" buttons must stay reachable here. */
-  .buyer-assignment-toggle { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 16px; }
-  .buyer-assignment-toggle button { min-height: 46px; font-size: 14px; }
   .buyer-slot-row { min-width: 0 !important; padding: 10px !important; }
   .buyer-slot-name { font-size: 15px !important; }
   .buyer-assumptions { border: var(--rule); background: var(--panel); }
@@ -998,3 +993,24 @@ input {
   .buyer-slot-control { padding: 14px; }
   .sheet { max-height: 92dvh; }
 }
+
+/* The break format is step 1: it decides what every later step means, so it
+ * must lead the phone flow too — ahead of the composition panel, which an
+ * earlier rule pulls to the top of the setup grid. Large break is a required
+ * buyer spot format (SPEC.md buyer #6), not a desktop-only extra: mobile touch
+ * is the primary input, so both format buttons stay reachable here. */
+@media (max-width: 899px) {
+  .buyer-setup > .break-format-choice { order: -3; border: var(--rule); background: var(--panel); padding: 16px; }
+  .break-format-heading h2 { margin: 2px 0 0; font-size: 23px; }
+  .break-format-options { gap: 10px; margin-top: 14px; }
+  .break-format-option { min-height: 48px; }
+  .break-format-note { margin-top: 12px; color: var(--muted); line-height: 1.45; }
+}
+
+@media (max-width: 430px) {
+  .buyer-setup > .break-format-choice { padding: 14px; }
+  .break-format-heading h2 { font-size: 20px; }
+  .format-carryover-notice { padding: 12px 14px; }
+}
+
+

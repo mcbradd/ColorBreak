@@ -1,8 +1,8 @@
 import { createElement } from "react";
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { BuyerSetup } from "./features/buyer/BuyerSetup";
-import { createAuction } from "./domain/auction";
+import { createAuction, markSlotsTaken } from "./domain/auction";
 import type { BreakLine, ValuationResult } from "./domain/types";
 
 const lines: BreakLine[] = [{
@@ -34,49 +34,143 @@ const result = {
 } as ValuationResult;
 
 describe("Check a Bid setup order", () => {
-  it("puts break contents before slot choice and keeps assumptions collapsed", () => {
+  const baseProps = {
+    lines,
+    add: vi.fn(),
+    update: vi.fn(),
+    remove: vi.fn(),
+    result,
+    setAuction: vi.fn(),
+    setAssignmentMode: vi.fn(),
+    setSelectedSlots: vi.fn(),
+    bulkEnabled: true,
+    bulkThreshold: 2,
+    setBulkEnabled: vi.fn(),
+    setBulkThreshold: vi.fn(),
+    largeSpots: 120,
+    setLargeSpots: vi.fn(),
+  };
+
+  afterEach(cleanup);
+
+  it("asks the format question first, then contents, then the slot", () => {
     const { container } = render(createElement(BuyerSetup, {
-      lines,
-      add: vi.fn(),
-      update: vi.fn(),
-      remove: vi.fn(),
-      result,
+      ...baseProps,
       auction: createAuction(),
-      setAuction: vi.fn(),
       assignmentMode: "pick",
-      setAssignmentMode: vi.fn(),
       selectedSlots: ["W"],
-      setSelectedSlots: vi.fn(),
-      bulkEnabled: true,
-      bulkThreshold: 2,
-      setBulkEnabled: vi.fn(),
-      setBulkThreshold: vi.fn(),
-      largeSpots: 120,
-      setLargeSpots: vi.fn(),
     }));
     const setup = container.querySelector(".buyer-setup")!;
     const directSections = Array.from(setup.children);
 
-    expect(directSections[0]).toHaveClass("composition");
-    expect(directSections[1]).toHaveClass("buyer-slot-control");
-    expect(directSections[2].tagName).toBe("DETAILS");
-    expect(screen.getByText("1 · WHAT’S IN THE BREAK?")).toBeInTheDocument();
-    expect(screen.getByText("2 · YOUR SLOT")).toBeInTheDocument();
+    expect(directSections[0]).toHaveClass("break-format-choice");
+    expect(directSections[1]).toHaveClass("composition");
+    expect(directSections[2]).toHaveClass("buyer-slot-control");
+    expect(directSections[3].tagName).toBe("DETAILS");
+    expect(screen.getByText("1 · WHAT KIND OF BREAK?")).toBeInTheDocument();
+    expect(screen.getByText("2 · WHAT’S IN THE BREAK?")).toBeInTheDocument();
+    expect(screen.getByText("3 · YOUR SLOT")).toBeInTheDocument();
     expect(screen.getByText("Adjust assumptions")).toBeInTheDocument();
   });
 
-  it("offers a third large-break mode with an editable spot count", () => {
-    const setLargeSpots = vi.fn();
+  it("offers both formats before a single product exists", () => {
     render(createElement(BuyerSetup, {
-      lines, add: vi.fn(), update: vi.fn(), remove: vi.fn(), result,
-      auction: createAuction(), setAuction: vi.fn(), assignmentMode: "large",
-      setAssignmentMode: vi.fn(), selectedSlots: ["W"], setSelectedSlots: vi.fn(),
-      bulkEnabled: true, bulkThreshold: 2, setBulkEnabled: vi.fn(), setBulkThreshold: vi.fn(),
-      largeSpots: 120, setLargeSpots,
+      ...baseProps,
+      lines: [],
+      auction: createAuction(),
+      assignmentMode: "pick",
+      selectedSlots: [],
     }));
-    expect(screen.getByRole("button", { name: "Large break" })).toHaveClass("active");
+
+    // The format question is the whole point of leading with it: a buyer
+    // looking for a large break must not have to build a break to find it.
+    expect(screen.getByRole("group", { name: "Break format" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Color slots" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Large break" })).toHaveAttribute("aria-pressed", "false");
+    expect(screen.queryByRole("group", { name: "Color slots" })).toBeNull();
+
+    // Both formats are explained where they are offered, so a first-time
+    // buyer can tell which auction they are actually looking at.
+    expect(screen.getByRole("button", { name: "Color slots" })).toHaveAccessibleDescription(/standard prize wheel/);
+    expect(screen.getByRole("button", { name: "Large break" })).toHaveAccessibleDescription(/many random spots/i);
+    expect(screen.getByText(/Sellers change format between auctions/)).toBeInTheDocument();
+  });
+
+  it("switches to a large break from the format step without a product", () => {
+    const setAssignmentMode = vi.fn();
+    render(createElement(BuyerSetup, {
+      ...baseProps,
+      lines: [],
+      auction: createAuction(),
+      assignmentMode: "pick",
+      selectedSlots: [],
+      setAssignmentMode,
+    }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Large break" }));
+    expect(setAssignmentMode).toHaveBeenCalledWith("large");
+  });
+
+  it("replaces the color-slot step with the large-break spot count", () => {
+    render(createElement(BuyerSetup, {
+      ...baseProps,
+      auction: createAuction(),
+      assignmentMode: "large",
+      selectedSlots: [],
+    }));
+
+    expect(screen.getByRole("button", { name: "Large break" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByLabelText("Large break spot count")).toHaveValue("120");
     expect(screen.getByText(/remaining spots use top-value cards/i)).toHaveTextContent("17 catch-all spots");
+    // No color-slot step in this format, so the value filter is step 3.
+    expect(screen.queryByText("3 · YOUR SLOT")).toBeNull();
+    expect(screen.getByText("3 · VALUE FILTER")).toBeInTheDocument();
+    expect(screen.queryByRole("group", { name: "Color slots" })).toBeNull();
+  });
+
+  it("keeps the break contents when the format changes", () => {
+    const colorFormat = render(createElement(BuyerSetup, {
+      ...baseProps,
+      auction: createAuction(),
+      assignmentMode: "pick",
+      selectedSlots: ["W"],
+    }));
+    expect(screen.getByText("Play Booster Box")).toBeInTheDocument();
+    colorFormat.unmount();
+
+    render(createElement(BuyerSetup, {
+      ...baseProps,
+      auction: createAuction(),
+      assignmentMode: "large",
+      selectedSlots: ["W"],
+    }));
+    expect(screen.getByText("Play Booster Box")).toBeInTheDocument();
+    expect(screen.getByText("2 · WHAT’S IN THE BREAK?")).toBeInTheDocument();
+  });
+
+  it("names the color-slot choices a large break cannot use instead of dropping them silently", () => {
+    render(createElement(BuyerSetup, {
+      ...baseProps,
+      auction: markSlotsTaken(createAuction(), ["R"]),
+      assignmentMode: "large",
+      selectedSlots: ["W", "U"],
+    }));
+
+    const notice = screen.getByRole("status", { name: "Color-slot choices a large break does not use" });
+    expect(notice).toHaveTextContent("Kept, but not used by a large break");
+    expect(notice).toHaveTextContent("the White, Blue slots you were considering");
+    expect(notice).toHaveTextContent("the Red slot you marked taken");
+    expect(notice).toHaveTextContent("Nothing was deleted");
+  });
+
+  it("stays quiet when a large break has nothing set aside", () => {
+    render(createElement(BuyerSetup, {
+      ...baseProps,
+      auction: createAuction(),
+      assignmentMode: "large",
+      selectedSlots: [],
+    }));
+
+    expect(screen.queryByRole("status", { name: "Color-slot choices a large break does not use" })).toBeNull();
   });
 });
-

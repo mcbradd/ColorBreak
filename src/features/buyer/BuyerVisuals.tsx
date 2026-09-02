@@ -130,6 +130,106 @@ export function ValueSummary({ result }: { result: ValuationResult }) {
   );
 }
 
+/**
+ * The break format is the "what kind of auction is this?" question, and it
+ * decides what every later step means. Sellers change it between auctions, so
+ * it leads the buyer flow and stays visible before any product exists — a
+ * buyer looking for a large break must never have to build a break first to
+ * discover the option. Color slots is pre-selected because it is the common
+ * case, so the standard path still costs zero extra taps.
+ */
+export function BreakFormatChoice({
+  assignmentMode,
+  setAssignmentMode,
+  selectedSlots,
+  largeSpots,
+  setLargeSpots,
+  takenSlots = [],
+  stepLabel = "1 · WHAT KIND OF BREAK?",
+}: {
+  assignmentMode: AssignmentMode;
+  setAssignmentMode: (mode: AssignmentMode) => void;
+  selectedSlots: SlotId[];
+  largeSpots: number;
+  setLargeSpots: (spots: number) => void;
+  takenSlots?: SlotId[];
+  stepLabel?: string;
+}) {
+  const isLarge = assignmentMode === "large";
+  return (
+    <section className="break-format-choice" aria-labelledby="break-format-heading">
+      <div className="break-format-heading">
+        <InformationLabel>{stepLabel}</InformationLabel>
+        <h2 id="break-format-heading">How is this break sold?</h2>
+      </div>
+      <div className="break-format-options" role="group" aria-label="Break format">
+        <button
+          type="button"
+          aria-pressed={!isLarge}
+          aria-describedby="break-format-color-note"
+          className={`break-format-option ${isLarge ? "" : "active"}`}
+          onClick={() => setAssignmentMode(selectedSlots.length ? "pick" : "random")}
+        >
+          <Check className="break-format-tick" aria-hidden="true" />
+          Color slots
+        </button>
+        <button
+          type="button"
+          aria-pressed={isLarge}
+          aria-describedby="break-format-large-note"
+          className={`break-format-option ${isLarge ? "active" : ""}`}
+          onClick={() => setAssignmentMode("large")}
+        >
+          <Check className="break-format-tick" aria-hidden="true" />
+          Large break
+        </button>
+      </div>
+      <p className="break-format-note">
+        <span id="break-format-color-note"><b>Color slots</b>: the standard prize wheel, one slot per color.</span>{" "}
+        <span id="break-format-large-note"><b>Large break</b>: many random spots, usually 100–200.</span>{" "}
+        Sellers change format between auctions — match the listing.
+      </p>
+      {isLarge && <>
+        <div className="large-break-spot-input">
+          <div className="large-break-spot-label"><span>Random spots</span><small>Usually 100–200</small></div>
+          <NumericInput value={largeSpots} onCommit={(value) => setLargeSpots(Math.max(1, Math.min(500, Math.round(value ?? 1))))} ariaLabel="Large break spot count" live />
+          <p><b>17</b> catch-all spots · remaining spots use top-value cards, with characters grouped by name</p>
+        </div>
+        <FormatCarryOverNotice selectedSlots={selectedSlots} takenSlots={takenSlots} />
+      </>}
+    </section>
+  );
+}
+
+/**
+ * Switching to a large break keeps every color-slot choice in state, but a
+ * large break cannot use them. Naming what is set aside — and saying plainly
+ * that nothing was deleted — keeps the change visible instead of silent.
+ */
+export function FormatCarryOverNotice({
+  selectedSlots,
+  takenSlots,
+}: {
+  selectedSlots: SlotId[];
+  takenSlots: SlotId[];
+}) {
+  const names = (ids: SlotId[]) => ids.map((id) => SLOT_NAMES[id]).join(", ");
+  const parts = [
+    selectedSlots.length ? `the ${names(selectedSlots)} slot${selectedSlots.length === 1 ? "" : "s"} you were considering` : "",
+    takenSlots.length ? `the ${names(takenSlots)} slot${takenSlots.length === 1 ? "" : "s"} you marked taken` : "",
+  ].filter(Boolean);
+  if (!parts.length) return null;
+  return (
+    <aside className="format-carryover-notice" role="status" aria-label="Color-slot choices a large break does not use">
+      <ShieldAlert aria-hidden="true" />
+      <div>
+        <b>Kept, but not used by a large break</b>
+        <p>A large break sells random spots drawn from the whole break, so it ignores {parts.join(" and ")}. Nothing was deleted — switch back to Color slots and every choice is still there.</p>
+      </div>
+    </aside>
+  );
+}
+
 export function SlotRail({
   result,
   auction,
@@ -138,8 +238,7 @@ export function SlotRail({
   setAssignmentMode,
   selectedSlots,
   setSelectedSlots,
-  largeSpots,
-  setLargeSpots,
+  stepLabel = "3 · YOUR SLOT",
 }: {
   result?: ValuationResult;
   auction: AuctionState;
@@ -148,8 +247,7 @@ export function SlotRail({
   setAssignmentMode: (mode: AssignmentMode) => void;
   selectedSlots: SlotId[];
   setSelectedSlots: (ids: SlotId[]) => void;
-  largeSpots: number;
-  setLargeSpots: (spots: number) => void;
+  stepLabel?: string;
 }) {
   const [combining, setCombining] = useState(false);
   const [staged, setStaged] = useState<SlotId[]>([]);
@@ -163,7 +261,7 @@ export function SlotRail({
       setSelectedSlots(selectedSlots.filter((id) => next.remaining.includes(id)));
     }
   };
-  const slotChosen = assignmentMode === "large" || assignmentMode === "random" || selectedSlots.length > 0;
+  const slotChosen = assignmentMode === "random" || selectedSlots.length > 0;
   const chosenSummary = assignmentMode === "random"
     ? `Any of the ${auction.remaining.length} remaining colors`
     : selectedSlots.length === 0
@@ -175,22 +273,11 @@ export function SlotRail({
     <section className="buyer-slot-control" aria-labelledby="buyer-color-heading">
       <div className="buyer-slot-heading">
         <div>
-          <InformationLabel>2 · YOUR SLOT</InformationLabel>
-          <h2 id="buyer-color-heading">{assignmentMode === "large" ? "Set the random spot count" : "Which slots are you considering?"}</h2>
-          <p>{assignmentMode === "large" ? "For top-value cards and the 17 catch-all spots." : "Tap the check to consider a slot — tap more than one if you’re bidding on a combined lot. Tap the cancel mark to say a slot is already taken."}</p>
+          <InformationLabel>{stepLabel}</InformationLabel>
+          <h2 id="buyer-color-heading">Which slots are you considering?</h2>
+          <p>Tap the check to consider a slot — tap more than one if you’re bidding on a combined lot. Tap the cancel mark to say a slot is already taken.</p>
         </div>
       </div>
-      <div className="assignment-toggle buyer-assignment-toggle" role="group" aria-label="Break type">
-        <button aria-pressed={assignmentMode !== "large"} className={assignmentMode !== "large" ? "active" : ""} onClick={() => setAssignmentMode(selectedSlots.length ? "pick" : "random")}>Color slots</button>
-        <button aria-pressed={assignmentMode === "large"} className={assignmentMode === "large" ? "active" : ""} onClick={() => setAssignmentMode("large")}>Large break</button>
-      </div>
-      {assignmentMode === "large" ? (
-        <div className="large-break-spot-input">
-          <div className="large-break-spot-label"><span>Random spots</span><small>Usually 100–200</small></div>
-          <NumericInput value={largeSpots} onCommit={(value) => setLargeSpots(Math.max(1, Math.min(500, Math.round(value ?? 1))))} ariaLabel="Large break spot count" live />
-          <p><b>17</b> catch-all spots · remaining spots use top-value cards, with characters grouped by name</p>
-        </div>
-      ) : <>
       <div className="buyer-slot-list" role="group" aria-label="Color slots">
         {SLOT_IDS.map((id) => {
           const slot = result?.slots.find((row) => row.id === id);
@@ -269,7 +356,6 @@ export function SlotRail({
           </div>}
       </div>
       <p className="remaining-summary">{chosenSummary}{!slotChosen && " · choose a color to continue"}</p>
-      </>}
     </section>
   );
 }

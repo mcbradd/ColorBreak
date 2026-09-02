@@ -5,8 +5,9 @@ import type {
 } from "../../domain/types";
 import type { AuctionState } from "../../domain/auction";
 import type { AssignmentMode } from "../../domain/share-url";
+import { SLOT_IDS } from "../../domain/types";
 import { InformationLabel } from "../shared/Primitives";
-import { Composition, SlotRail } from "./BuyerVisuals";
+import { BreakFormatChoice, Composition, SlotRail } from "./BuyerVisuals";
 import { BulkFilterControl } from "./BuyerDetails";
 
 export function BuyerSetup({
@@ -46,17 +47,30 @@ export function BuyerSetup({
   largeSpots: number;
   setLargeSpots: (spots: number) => void;
 }) {
+  const isLarge = assignmentMode === "large";
+  // A large break has no per-color slot step, so the value filter moves up a
+  // number rather than leaving a gap the buyer has to explain to themselves.
+  const valueFilterStep = isLarge ? "3 · VALUE FILTER" : "4 · VALUE FILTER";
+  const takenSlots = SLOT_IDS.filter((id) => !auction.remaining.includes(id));
   return (
     <section id="buyer-break-setup" className="buyer-setup" aria-label="Bid setup">
+      <BreakFormatChoice
+        assignmentMode={assignmentMode}
+        setAssignmentMode={setAssignmentMode}
+        selectedSlots={selectedSlots}
+        largeSpots={largeSpots}
+        setLargeSpots={setLargeSpots}
+        takenSlots={takenSlots}
+      />
       <Composition
         lines={lines}
         add={add}
         update={update}
         remove={remove}
-        headingLabel="1 · WHAT’S IN THE BREAK?"
+        headingLabel="2 · WHAT’S IN THE BREAK?"
         showHelp={false}
       />
-      {lines.length > 0 && <SlotRail
+      {lines.length > 0 && !isLarge && <SlotRail
         result={result}
         auction={auction}
         setAuction={setAuction}
@@ -64,13 +78,11 @@ export function BuyerSetup({
         setAssignmentMode={setAssignmentMode}
         selectedSlots={selectedSlots}
         setSelectedSlots={setSelectedSlots}
-        largeSpots={largeSpots}
-        setLargeSpots={setLargeSpots}
       />}
       {lines.length > 0 && <details className="buyer-assumptions">
       <summary>Adjust assumptions</summary>
       <div className="buyer-options-heading">
-        <InformationLabel>3 · VALUE FILTER</InformationLabel>
+        <InformationLabel>{valueFilterStep}</InformationLabel>
         <h2>Set what counts as value</h2>
       </div>
       <BulkFilterControl
@@ -85,4 +97,3 @@ export function BuyerSetup({
     </section>
   );
 }
-
