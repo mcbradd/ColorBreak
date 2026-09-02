@@ -505,6 +505,46 @@ input {
   line-height: 1.5;
 }
 .import-errors { margin: 0; padding-left: 22px; color: var(--danger); }
+
+/* Screenshot import. Both break-input actions stack under 360px so the 320px
+   layout keeps full-width touch targets instead of two cramped half buttons. */
+.break-input-actions { display: grid; gap: 10px; margin: 16px; }
+.break-input-actions .paste-break-action { margin: 0; width: 100%; }
+@media (min-width: 400px) { .break-input-actions { grid-template-columns: 1fr 1fr; } }
+.screenshot-action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  width: 100%;
+  min-height: 52px;
+  border: 1px solid var(--accent);
+  border-radius: 12px;
+  color: var(--accent);
+  background: #121808;
+  font-weight: 850;
+  cursor: pointer;
+}
+.screenshot-action svg { width: 19px; flex: none; }
+.screenshot-action[disabled] { opacity: .6; cursor: progress; }
+.scan-progress { display: grid; gap: 8px; padding: 14px; border: var(--rule); border-radius: 12px; background: #0b1018; }
+.scan-progress p { margin: 0; color: var(--ink); font-size: 13px; font-weight: 700; }
+.scan-progress small { color: var(--muted); font-size: 11px; }
+.scan-progress progress { width: 100%; height: 8px; border: 0; border-radius: 5px; background: #232a36; }
+.scan-progress progress::-webkit-progress-bar { border-radius: 5px; background: #232a36; }
+.scan-progress progress::-webkit-progress-value { border-radius: 5px; background: var(--accent); transition: width .2s linear; }
+.scan-progress progress::-moz-progress-bar { border-radius: 5px; background: var(--accent); }
+.scan-note { display: grid; gap: 8px; margin: 0; padding: 13px 14px; border-radius: 12px; font-size: 12.5px; line-height: 1.5; }
+.scan-note p { display: flex; align-items: start; gap: 9px; margin: 0; font-weight: 400; }
+.scan-note svg { width: 16px; flex: none; margin-top: 2px; }
+.scan-note-result { border: var(--rule); border-left: 4px solid var(--accent); background: #0b1018; color: #c3cad6; }
+.scan-note-error { border: 1px solid #5d2634; border-left: 4px solid var(--danger); background: #24141a; color: #ffb3c0; }
+.scan-note-result strong { display: flex; align-items: center; gap: 9px; color: var(--warning); font-size: 12.5px; }
+.scan-note-result ul { margin: 0; padding-left: 22px; color: #d6c39a; }
+.scan-note-result li { margin-top: 4px; overflow-wrap: anywhere; }
+@media (prefers-reduced-motion: reduce) {
+  .scan-progress progress::-webkit-progress-value { transition: none; }
+}
 .import-review { padding-bottom: 88px; }
 .import-review-summary { display: flex; justify-content: space-between; gap: 14px; padding: 14px 16px; border-bottom: var(--rule); }
 .import-review-summary b { color: var(--accent); }
