@@ -3,6 +3,7 @@ import { choicesFromSealed, expectedDraws, loadSealed } from "./sealed";
 import { prepareProductSelection } from "../domain/decision-evidence";
 import type { DecisionReadiness } from "../domain/decision-readiness";
 import type { BreakLine } from "../domain/types";
+import { breakLineKeyForChoice, productKeyForChoice } from "../domain/break-line-identity";
 
 interface CatalogFile {
   sets: Record<string, {
@@ -64,7 +65,7 @@ export async function productsForSet(set: string): Promise<ProductChoice[]> {
 export async function readinessForProduct(product: ProductChoice, now?: number | Date): Promise<DecisionReadiness> {
   // The picker asks this for each row. Sharing the in-flight work avoids both
   // duplicate local snapshot reads and a thundering herd when a set is reopened.
-  const cacheKey = `${product.set}:${product.sealedKey ?? product.key}`;
+  const cacheKey = breakLineKeyForChoice(product);
   if (now == null) {
     const cached = readinessCache.get(cacheKey);
     if (cached) return cached;
@@ -78,7 +79,7 @@ async function readinessForProductUncached(product: ProductChoice, now?: number 
   const line: BreakLine = {
     id: `catalog:${product.key}`,
     set: product.set,
-    productKey: product.sealedKey ? `sealed:${product.sealedKey}` : product.key,
+    productKey: productKeyForChoice(product),
     productLabel: product.label,
     quantity: 1,
     packCount: product.packCount,

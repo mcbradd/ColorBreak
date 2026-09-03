@@ -1,6 +1,8 @@
 import { decodeLegacySearch } from "./legacy";
 import type { BreakLine } from "./types";
 
+export { mergeBreakLines } from "./break-line-identity";
+
 export interface ParsedBreakLine {
   source: string;
   set: string;
@@ -48,15 +50,4 @@ export function parseBreakImport(source: string): BreakImportParseResult {
   }
   if (!lines.length && !errors.length) errors.push("Paste a ColorBreak link or one product per line.");
   return { kind: "list", lines, errors };
-}
-
-export function mergeBreakLines(lines: BreakLine[]): BreakLine[] {
-  const merged = new Map<string, BreakLine>();
-  for (const line of lines) {
-    const key = `${line.set.toUpperCase()}|${line.productKey}`;
-    const current = merged.get(key);
-    if (current) current.quantity += line.quantity;
-    else merged.set(key, { ...line, set: line.set.toUpperCase() });
-  }
-  return [...merged.values()];
 }

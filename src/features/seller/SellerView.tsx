@@ -16,6 +16,7 @@ import type {
   ValuationResult,
 } from "../../domain/types";
 import { SLOT_IDS, SLOT_NAMES } from "../../domain/types";
+import { breakLineKeyForChoice, productKeyForChoice } from "../../domain/break-line-identity";
 import {
   defaultSellerPlanDraft,
   readSellerPlanDraft,
@@ -171,7 +172,7 @@ export function SellerScenarioLab({
   const [bonusCostOverride, setBonusCostOverride] = useState<number>();
   const [useRandom, setUseRandom] = useState(false);
   const setCodes = [...new Set(lines.map((line) => line.set))];
-  const productRef = (product: ProductChoice) => `${product.set}|${product.sealedKey ?? product.key}`;
+  const productRef = breakLineKeyForChoice;
   useEffect(() => {
     let cancelled = false;
     Promise.all(setCodes.map(productsForSet)).then((groups) => {
@@ -198,7 +199,7 @@ export function SellerScenarioLab({
     const bonusLine: BreakLine = {
       id: "seller-bonus-preview",
       set: selected.set,
-      productKey: selected.sealedKey ? `sealed:${selected.sealedKey}` : selected.key,
+      productKey: productKeyForChoice(selected),
       productLabel: selected.label,
       quantity: 1,
       packCount: selected.packCount,
@@ -288,7 +289,7 @@ function SellerEnticement({
   const [costOverride, setCostOverride] = useState<number>();
   const [loading, setLoading] = useState(false);
   const setCodes = [...new Set(lines.map((line) => line.set))];
-  const productRef = (product: ProductChoice) => `${product.set}|${product.sealedKey ?? product.key}`;
+  const productRef = breakLineKeyForChoice;
 
   useEffect(() => {
     let cancelled = false;
@@ -320,7 +321,7 @@ function SellerEnticement({
     const bonusLine: BreakLine = {
       id: "seller-enticement-preview",
       set: selected.set,
-      productKey: selected.sealedKey ? `sealed:${selected.sealedKey}` : selected.key,
+      productKey: productKeyForChoice(selected),
       productLabel: selected.label,
       quantity: 1,
       packCount: selected.packCount,
