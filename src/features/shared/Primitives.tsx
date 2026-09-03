@@ -145,6 +145,8 @@ function NumericInput({
   ariaLabel,
   live = false,
   id,
+  min = 0,
+  max,
 }: {
   value: number | undefined;
   onCommit: (value: number | undefined) => void;
@@ -153,15 +155,22 @@ function NumericInput({
   ariaLabel?: string;
   live?: boolean;
   id?: string;
+  min?: number;
+  max?: number;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [draft, setDraft] = useState(value == null ? "" : String(value));
+  const [editing, setEditing] = useState(false);
 
+  // While the field is being edited the draft is the source of truth, so a
+  // half-typed or fully cleared entry survives the parent clamping its state.
+  // Leaving the field hands authority back to the committed value, which is
+  // what stops a cleared field from displaying blank over a non-zero value.
   useEffect(() => {
-    if (document.activeElement !== inputRef.current) {
-      setDraft(value == null ? "" : String(value));
-    }
-  }, [value]);
+    if (!editing) setDraft(value == null ? "" : String(value));
+  }, [editing, value]);
+
+  const clamp = (parsed: number) => Math.min(max ?? Number.POSITIVE_INFINITY, Math.max(min, parsed));
 
   const commit = () => {
     const normalized = draft.trim().replace(",", ".");
@@ -173,7 +182,7 @@ function NumericInput({
 
     const parsed = Number(normalized);
     if (Number.isFinite(parsed)) {
-      const next = Math.max(0, parsed);
+      const next = clamp(parsed);
       setDraft(String(next));
       onCommit(next);
       return;
@@ -182,40 +191,71 @@ function NumericInput({
     setDraft(value == null ? "" : String(value));
   };
 
+  const finish = () => {
+    commit();
+    setEditing(false);
+    inputRef.current?.blur();
+  };
+
   return (
-    <input
-      id={id}
-      ref={inputRef}
-      type="text"
-      inputMode="decimal"
-      enterKeyHint="done"
-      pattern="[0-9]*[.,]?[0-9]*"
-      value={draft}
-      placeholder={placeholder}
-      disabled={disabled}
-      aria-label={ariaLabel}
-      onChange={(event) => {
-        const next = event.target.value;
-        if (!/^\d*(?:[.,]\d*)?$/.test(next)) return;
-        setDraft(next);
-        if (!live) return;
-        const normalized = next.trim().replace(",", ".");
-        if (!normalized || normalized === ".") {
-          onCommit(undefined);
-          return;
-        }
-        const parsed = Number(normalized);
-        if (Number.isFinite(parsed)) onCommit(Math.max(0, parsed));
-      }}
-      onBlur={commit}
-      onKeyDown={(event) => {
-        if (event.key === "Enter") {
-          event.preventDefault();
+    <span className="numeric-input">
+      <input
+        id={id}
+        ref={inputRef}
+        type="text"
+        inputMode="decimal"
+        enterKeyHint="done"
+        pattern="[0-9]*[.,]?[0-9]*"
+        value={draft}
+        placeholder={placeholder}
+        disabled={disabled}
+        aria-label={ariaLabel}
+        onFocus={() => setEditing(true)}
+        onChange={(event) => {
+          const next = event.target.value;
+          if (!/^\d*(?:[.,]\d*)?$/.test(next)) return;
+          setDraft(next);
+          if (!live) return;
+          const normalized = next.trim().replace(",", ".");
+          if (!normalized || normalized === ".") {
+            onCommit(undefined);
+            return;
+          }
+          const parsed = Number(normalized);
+          if (Number.isFinite(parsed)) onCommit(clamp(parsed));
+        }}
+        onBlur={(event) => {
           commit();
-          event.currentTarget.blur();
-        }
-      }}
-    />
+          // Keep the draft authoritative while focus moves to the Done button,
+          // which lives inside this field and commits on its own.
+          if (!event.currentTarget.parentElement?.contains(event.relatedTarget)) {
+            setEditing(false);
+          }
+        }}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") {
+            event.preventDefault();
+            finish();
+          }
+        }}
+      />
+      {editing && !disabled && (
+        <button
+          type="button"
+          className="numeric-done"
+          // The numeric keypad has no return key on mobile, so this is the only
+          // way to close it. Holding focus on pointer down keeps the tap from
+          // unmounting the button before the click lands.
+          onPointerDown={(event) => event.preventDefault()}
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={finish}
+          onBlur={() => setEditing(false)}
+          aria-label={ariaLabel ? `Done entering ${ariaLabel}` : "Done"}
+        >
+          Done
+        </button>
+      )}
+    </span>
   );
 }
 
@@ -227,6 +267,7 @@ export function NumberField({
   hint,
   live = false,
   id,
+  max,
 }: {
   label: string;
   value: number | undefined;
@@ -235,6 +276,7 @@ export function NumberField({
   hint?: string;
   live?: boolean;
   id?: string;
+  max?: number;
 }) {
   return (
     <label className="number-field">
@@ -251,6 +293,7 @@ export function NumberField({
           onCommit={onChange}
           ariaLabel={label}
           live={live}
+          max={max}
         />
       </div>
     </label>

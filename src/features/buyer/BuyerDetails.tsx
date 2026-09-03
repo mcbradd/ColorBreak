@@ -384,7 +384,7 @@ export function LargeBreakView({
           <NumberField id="large-break-bid" label="Bid for one spot" value={bid} onChange={setBid} />
           <NumberField id="large-break-shipping" label="Allocated shipping" value={shipping} onChange={setShipping} />
           <NumberField id="large-break-tax" label="Estimated tax" value={tax} onChange={setTax} />
-          <label className="large-break-haircut"><span>Listed card value you expect to recover</span><div><input aria-label="Percent of listed card value you expect to recover" type="number" inputMode="numeric" min="0" max="100" value={100 - haircut} onChange={(event) => setHaircut(Math.max(0, 100 - Math.min(100, Number(event.target.value) || 0)))} /><b>%</b></div><small>After selling fees and typical discounts</small></label>
+          <label className="large-break-haircut"><span>Listed card value you expect to recover</span><div><NumericInput value={100 - haircut} max={100} ariaLabel="Percent of listed card value you expect to recover" onCommit={(value) => setHaircut(value == null ? haircut : 100 - Math.min(100, Math.max(0, value)))} /><b>%</b></div><small>After selling fees and typical discounts</small></label>
         </div>
         <div className="large-break-cost-equation">
           <span>One-spot bid {fmt(bid)}</span><b>+</b><span>shipping {fmt(shipping ?? 0)}</span><b>+</b><span>tax {fmt(tax ?? 0)}</span><b>=</b><strong>{fmt(allIn)} total paid</strong>

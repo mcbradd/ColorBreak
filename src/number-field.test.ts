@@ -60,3 +60,88 @@ describe("mobile numeric entry", () => {
   });
 });
 
+
+function ClampedHarness() {
+  const [value, setValue] = useState<number>(100);
+  return createElement(
+    "div",
+    null,
+    createElement(NumberField, {
+      label: "Recovery",
+      value,
+      onChange: (next: number | undefined) => setValue(next ?? value),
+      prefix: "%",
+      max: 100,
+    }),
+    createElement("output", { "data-testid": "committed-value" }, value),
+  );
+}
+
+describe("clearing a numeric field", () => {
+  it("lets the keypad delete the last digit and accepts a single zero", () => {
+    render(createElement(Harness));
+    const input = screen.getByRole("textbox", { name: /Cost/ });
+    input.focus();
+
+    fireEvent.change(input, { target: { value: "10" } });
+    fireEvent.change(input, { target: { value: "1" } });
+    expect(input).toHaveValue("1");
+
+    fireEvent.change(input, { target: { value: "" } });
+    expect(input).toHaveValue("");
+
+    fireEvent.change(input, { target: { value: "0" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    expect(input).toHaveValue("0");
+    expect(screen.getByTestId("committed-value")).toHaveTextContent("0");
+  });
+
+  it("restores the committed value when a cleared field is left empty", () => {
+    render(createElement(ClampedHarness));
+    const input = screen.getByRole("textbox", { name: /Recovery/ });
+    input.focus();
+
+    fireEvent.change(input, { target: { value: "" } });
+    expect(input).toHaveValue("");
+
+    fireEvent.blur(input);
+    expect(input).toHaveValue("100");
+    expect(screen.getByTestId("committed-value")).toHaveTextContent("100");
+  });
+
+  it("clamps an entry above the field maximum", () => {
+    render(createElement(ClampedHarness));
+    const input = screen.getByRole("textbox", { name: /Recovery/ });
+    input.focus();
+
+    fireEvent.change(input, { target: { value: "540" } });
+    fireEvent.blur(input);
+
+    expect(input).toHaveValue("100");
+  });
+});
+
+describe("dismissing the numeric keypad", () => {
+  it("offers a Done control only while the field is being edited", () => {
+    render(createElement(Harness));
+    const input = screen.getByRole("textbox", { name: /Cost/ });
+    expect(screen.queryByRole("button", { name: /Done entering Cost/ })).toBeNull();
+
+    fireEvent.focus(input);
+    expect(screen.getByRole("button", { name: /Done entering Cost/ })).toBeInTheDocument();
+  });
+
+  it("commits the draft and releases focus when Done is pressed", () => {
+    render(createElement(Harness));
+    const input = screen.getByRole("textbox", { name: /Cost/ }) as HTMLInputElement;
+    input.focus();
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: "18.5" } });
+
+    fireEvent.click(screen.getByRole("button", { name: /Done entering Cost/ }));
+
+    expect(screen.getByTestId("committed-value")).toHaveTextContent("18.5");
+    expect(input).not.toHaveFocus();
+    expect(screen.queryByRole("button", { name: /Done entering Cost/ })).toBeNull();
+  });
+});
