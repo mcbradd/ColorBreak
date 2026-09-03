@@ -19,3 +19,18 @@ describe("legacy composition migration", () => {
     expect(encodeComposition(lines)).toBe("EOE.play-box.2");
   });
 });
+
+describe("shared composition identity", () => {
+  it("keeps the same product key in two sets as two lines", () => {
+    const lines = decodeComposition("MSH.sealed:play-booster-pack.3~EOE.sealed:play-booster-pack.1");
+    expect(lines.map((line) => [line.set, line.productKey, line.quantity])).toEqual([
+      ["MSH", "sealed:play-booster-pack", 3],
+      ["EOE", "sealed:play-booster-pack", 1],
+    ]);
+  });
+
+  it("folds a repeated set-and-product into one line the picker can fully edit", () => {
+    const lines = decodeComposition("MSH.sealed:play-booster-pack.2~MSH.sealed:play-booster-pack.1");
+    expect(lines.map((line) => [line.set, line.quantity])).toEqual([["MSH", 3]]);
+  });
+});

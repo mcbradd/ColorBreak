@@ -1,3 +1,4 @@
+import { mergeBreakLines } from "./break-line-identity";
 import type { BreakLine } from "./types";
 
 const LEGACY_PRODUCT: Record<string, string> = {
@@ -8,7 +9,9 @@ const LEGACY_PACKS: Record<string, number> = { play: 36, playUB: 36, collector: 
 
 export function decodeComposition(value: string): BreakLine[] {
   if (!value) return [];
-  return value.split("~").flatMap((part, index) => {
+  // A share can name the same set-and-product twice; that is one product line
+  // of the combined quantity, never two lines the picker could only half see.
+  return mergeBreakLines(value.split("~").flatMap((part, index) => {
     const [set, productKey, rawQuantity] = part.split(".");
     const quantity = Number.parseInt(rawQuantity, 10);
     if (!set || !productKey || !Number.isFinite(quantity) || quantity <= 0) return [];
@@ -19,7 +22,7 @@ export function decodeComposition(value: string): BreakLine[] {
       productLabel: productKey,
       quantity: Math.min(quantity, 99),
     }];
-  });
+  })).map((line) => ({ ...line, quantity: Math.min(line.quantity, 99) }));
 }
 
 export function decodeLegacySearch(search: string): BreakLine[] {

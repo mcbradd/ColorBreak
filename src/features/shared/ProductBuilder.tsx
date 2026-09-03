@@ -21,7 +21,12 @@ import {
 } from "lucide-react";
 import { catalogSets, productsForSet } from "../../data/catalog";
 import { prepareProductSelection, type PreparedProductSelection } from "../../domain/decision-evidence";
-import { mergeBreakLines, parseBreakImport } from "../../domain/break-import";
+import { parseBreakImport } from "../../domain/break-import";
+import {
+  findBreakLineForChoice,
+  mergeBreakLines,
+  productKeyForChoice,
+} from "../../domain/break-line-identity";
 import { decodeBuyerShare, type AssignmentMode } from "../../domain/share-url";
 import type {
   BreakLine,
@@ -145,9 +150,7 @@ export function Builder({
   const choiceLine = (product: ProductChoice, quantity = 1): BreakLine => ({
       id: crypto.randomUUID(),
       set: product.set,
-      productKey: product.sealedKey
-        ? `sealed:${product.sealedKey}`
-        : product.key,
+      productKey: productKeyForChoice(product),
       productLabel: product.label,
       quantity,
       packCount: product.packCount,
@@ -399,8 +402,9 @@ export function Builder({
                           {category.toUpperCase()}
                         </InformationLabel>
                         {rows!.map((product) => {
-                          const productKey = product.sealedKey ? `sealed:${product.sealedKey}` : product.key;
-                          const addedLine = draft.find((line) => line.productKey === productKey);
+                          // Set-scoped: MSH and EOE both publish a
+                          // `play-booster-pack`, and each keeps its own line.
+                          const addedLine = findBreakLineForChoice(draft, product);
                           const description = <>
                             <strong>{product.label}</strong>
                             <small>
