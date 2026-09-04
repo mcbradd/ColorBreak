@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { BuyerSetup } from "./features/buyer/BuyerSetup";
 import { createAuction, markSlotsTaken } from "./domain/auction";
 import type { BreakLine, ValuationResult } from "./domain/types";
+import { DEFAULT_BUYER_COSTS } from "./domain/bid-ceiling";
 
 const lines: BreakLine[] = [{
   id: "line-1",
@@ -47,6 +48,8 @@ describe("Check a Bid setup order", () => {
     bulkThreshold: 2,
     setBulkEnabled: vi.fn(),
     setBulkThreshold: vi.fn(),
+    costs: DEFAULT_BUYER_COSTS,
+    setCosts: vi.fn(),
     largeSpots: 120,
     setLargeSpots: vi.fn(),
   };
@@ -57,7 +60,7 @@ describe("Check a Bid setup order", () => {
     const { container } = render(createElement(BuyerSetup, {
       ...baseProps,
       auction: createAuction(),
-      assignmentMode: "pick",
+      assignmentMode: "random",
       selectedSlots: ["W"],
     }));
     const setup = container.querySelector(".buyer-setup")!;
@@ -67,9 +70,9 @@ describe("Check a Bid setup order", () => {
     expect(directSections[1]).toHaveClass("composition");
     expect(directSections[2]).toHaveClass("buyer-slot-control");
     expect(directSections[3].tagName).toBe("DETAILS");
-    expect(screen.getByText("1 · WHAT KIND OF BREAK?")).toBeInTheDocument();
-    expect(screen.getByText("2 · WHAT’S IN THE BREAK?")).toBeInTheDocument();
-    expect(screen.getByText("3 · YOUR SLOT")).toBeInTheDocument();
+    expect(screen.getByText("1 · TYPE OF BREAK")).toBeInTheDocument();
+    expect(screen.getByText("2 · WHAT’S IN IT")).toBeInTheDocument();
+    expect(screen.getByText("3 · MY SLOTS")).toBeInTheDocument();
     expect(screen.getByText("Adjust assumptions")).toBeInTheDocument();
   });
 
@@ -78,22 +81,23 @@ describe("Check a Bid setup order", () => {
       ...baseProps,
       lines: [],
       auction: createAuction(),
-      assignmentMode: "pick",
+      assignmentMode: "random",
       selectedSlots: [],
     }));
 
     // The format question is the whole point of leading with it: a buyer
     // looking for a large break must not have to build a break to find it.
-    expect(screen.getByRole("group", { name: "Break format" })).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Type of break" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Color slots" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByRole("button", { name: "Large break" })).toHaveAttribute("aria-pressed", "false");
     expect(screen.queryByRole("group", { name: "Color slots" })).toBeNull();
 
-    // Both formats are explained where they are offered, so a first-time
-    // buyer can tell which auction they are actually looking at.
-    expect(screen.getByRole("button", { name: "Color slots" })).toHaveAccessibleDescription(/standard prize wheel/);
-    expect(screen.getByRole("button", { name: "Large break" })).toHaveAccessibleDescription(/many random spots/i);
-    expect(screen.getByText(/Sellers change format between auctions/)).toBeInTheDocument();
+    // The difference between the two formats is one tap away, in a popover,
+    // rather than a paragraph of standing explanation nobody reads.
+    fireEvent.click(screen.getByRole("button", { name: "What the two break types mean" }));
+    const explanation = screen.getByRole("tooltip");
+    expect(explanation).toHaveTextContent(/standard prize wheel/);
+    expect(explanation).toHaveTextContent(/many random spots/i);
   });
 
   it("switches to a large break from the format step without a product", () => {
@@ -102,7 +106,7 @@ describe("Check a Bid setup order", () => {
       ...baseProps,
       lines: [],
       auction: createAuction(),
-      assignmentMode: "pick",
+      assignmentMode: "random",
       selectedSlots: [],
       setAssignmentMode,
     }));
@@ -121,10 +125,9 @@ describe("Check a Bid setup order", () => {
 
     expect(screen.getByRole("button", { name: "Large break" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByLabelText("Large break spot count")).toHaveValue("120");
-    expect(screen.getByText(/remaining spots use top-value cards/i)).toHaveTextContent("17 catch-all spots");
-    // No color-slot step in this format, so the value filter is step 3.
-    expect(screen.queryByText("3 · YOUR SLOT")).toBeNull();
-    expect(screen.getByText("3 · VALUE FILTER")).toBeInTheDocument();
+    // No color-slot step in this format, so costs are step 3.
+    expect(screen.queryByText("3 · MY SLOTS")).toBeNull();
+    expect(screen.getByText("3 · MY COSTS")).toBeInTheDocument();
     expect(screen.queryByRole("group", { name: "Color slots" })).toBeNull();
   });
 
@@ -132,7 +135,7 @@ describe("Check a Bid setup order", () => {
     const colorFormat = render(createElement(BuyerSetup, {
       ...baseProps,
       auction: createAuction(),
-      assignmentMode: "pick",
+      assignmentMode: "random",
       selectedSlots: ["W"],
     }));
     expect(screen.getByText("Play Booster Box")).toBeInTheDocument();
@@ -145,7 +148,7 @@ describe("Check a Bid setup order", () => {
       selectedSlots: ["W"],
     }));
     expect(screen.getByText("Play Booster Box")).toBeInTheDocument();
-    expect(screen.getByText("2 · WHAT’S IN THE BREAK?")).toBeInTheDocument();
+    expect(screen.getByText("2 · WHAT’S IN IT")).toBeInTheDocument();
   });
 
   it("names the color-slot choices a large break cannot use instead of dropping them silently", () => {
@@ -158,7 +161,7 @@ describe("Check a Bid setup order", () => {
 
     const notice = screen.getByRole("status", { name: "Color-slot choices a large break does not use" });
     expect(notice).toHaveTextContent("Kept, but not used by a large break");
-    expect(notice).toHaveTextContent("the White, Blue slots you were considering");
+    expect(notice).toHaveTextContent("the White, Blue slots you marked as yours");
     expect(notice).toHaveTextContent("the Red slot you marked taken");
     expect(notice).toHaveTextContent("Nothing was deleted");
   });

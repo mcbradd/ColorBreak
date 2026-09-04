@@ -264,6 +264,7 @@ export function NumberField({
   value,
   onChange,
   prefix = "$",
+  suffix,
   hint,
   live = false,
   id,
@@ -273,6 +274,7 @@ export function NumberField({
   value: number | undefined;
   onChange: (n: number | undefined) => void;
   prefix?: string;
+  suffix?: string;
   hint?: string;
   live?: boolean;
   id?: string;
@@ -285,7 +287,7 @@ export function NumberField({
         {hint && <Tip text={hint} />}
       </span>
       <div>
-        <b>{prefix}</b>
+        {prefix && <b>{prefix}</b>}
         <NumericInput
           id={id}
           value={value}
@@ -295,6 +297,7 @@ export function NumberField({
           live={live}
           max={max}
         />
+        {suffix && <b className="number-field-suffix">{suffix}</b>}
       </div>
     </label>
   );
@@ -497,34 +500,26 @@ export function Home({ choose, buildId, recentBuyerCount = 0, recentSellerCount 
           <span className="brand-mark"><Sparkles /></span>
           <span>COLORBREAK</span>
         </div>
-        <span className="engine-ready" aria-label="Catalog ready"><i /> READY TO EXPLORE</span>
       </header>
-      <section className="launcher-intro">
-        <InformationLabel>MAGIC: THE GATHERING COLOR BREAKS</InformationLabel>
-        <h1>Check a color-break bid.</h1>
-        <p>Value and max bid, before you buy.</p>
-      </section>
-      <section className="mode-grid" aria-label="Choose a job">
+      <section className="mode-grid" aria-label="Buyer or seller">
         <button
           data-home-focus
           className="mode-card buyer-card"
-          aria-label="Check a color-break bid"
           onClick={() => choose("buyer", true)}
         >
           <span className="mode-copy">
-          <strong>Check a bid</strong>
-            <p>Product, slot, bid.</p>
+            <strong>Buyer</strong>
+            <p>Check a bid.</p>
           </span>
           <ChevronRight />
         </button>
         <button
           className="mode-card seller-card"
-          aria-label="Plan a break — for sellers"
           onClick={() => choose("seller")}
         >
           <span className="mode-copy">
-            <strong>Planning a break?</strong>
-            <p>Products and costs.</p>
+            <strong>Seller</strong>
+            <p>Plan a break.</p>
           </span>
           <ChevronRight />
         </button>
@@ -532,15 +527,20 @@ export function Home({ choose, buildId, recentBuyerCount = 0, recentSellerCount 
       {recentBuyerCount > 0 && (
         <button className="resume-action" onClick={() => choose("buyer", false)}>
           <RotateCw />
-          <span><small>LAST BUYER SETUP</small><strong>Resume {recentBuyerCount} product{recentBuyerCount === 1 ? "" : "s"}</strong></span>
+          <span><strong>Resume {recentBuyerCount} product{recentBuyerCount === 1 ? "" : "s"}</strong></span>
           <ChevronRight />
         </button>
       )}
       {recentSellerCount > 0 && <button className="resume-action" onClick={() => choose("seller", false)}>
-        <RotateCw /><span><small>THIS BROWSER SESSION</small><strong>Resume seller plan · costs are session-only</strong></span><ChevronRight />
+        <RotateCw /><span><strong>Resume seller plan</strong></span><ChevronRight />
       </button>}
-      <footer className="launcher-footer"><span><a href="./methodology.html">Estimates, not guarantees</a>{supportUrl && <> · <a href={supportUrl} rel="noreferrer" target="_blank">Support</a></>}</span></footer>
-      <details className="home-utility"><summary>App settings</summary><button type="button" className="quiet" onClick={() => void clearDevice()}>Clear local app data</button>{buildId && <small aria-label="Build identifier">Build {buildId.slice(0, 12)}</small>}</details>
+      <details className="home-utility">
+        <summary>App settings</summary>
+        <button type="button" className="quiet" onClick={() => void clearDevice()}>Clear local app data</button>
+        <a href="./methodology.html">How the numbers are made</a>
+        {supportUrl && <a href={supportUrl} rel="noreferrer" target="_blank">Support</a>}
+        {buildId && <small aria-label="Build number">Build {buildId}</small>}
+      </details>
       {cleared && <p role="status">Local ColorBreak data cleared.</p>}
     </main>
   );

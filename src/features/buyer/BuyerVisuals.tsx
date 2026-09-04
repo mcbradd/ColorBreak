@@ -9,11 +9,10 @@ import {
   PackagePlus,
   RotateCw,
   ShieldAlert,
-  Trash2,
   X,
 } from "lucide-react";
 import type { BreakAnalysis } from "../../data/evaluate";
-import { markSlotsTaken, toggleSlotTaken } from "../../domain/auction";
+import { toggleSlotTaken } from "../../domain/auction";
 import type { AuctionState } from "../../domain/auction";
 import type { AssignmentMode } from "../../domain/share-url";
 import { cardDisplayName, cardTreatmentLabel } from "../../domain/card-label";
@@ -46,45 +45,34 @@ export function Composition({
   headingLabel?: string;
   showHelp?: boolean;
 }) {
-  const [expanded, setExpanded] = useState(lines.length <= 4);
-  useEffect(() => {
-    if (lines.length <= 4) setExpanded(true);
-  }, [lines.length]);
-  const totalOpenings = lines.reduce((total, line) => total + line.quantity * Math.max(1, line.packCount ?? 1), 0);
   const rows = lines.map((line) => (
     <div className="line" key={line.id}>
       <span className="set-glyph">{line.set}</span>
       <span className="line-identity">
         <strong>{line.productLabel}</strong>
-        <small>{line.set} · {line.packCount && line.packCount > 1 ? `${line.packCount} openings each` : "1 opening each"}</small>
+        <small>{line.set}</small>
       </span>
-      <div className="line-controls">
-        <QuantityControl line={line} update={(quantity) => update(line.id, { quantity })} />
-        <button
-          className="remove-line"
-          aria-label={`Remove ${line.productLabel} from break`}
-          title="Remove from break"
-          onClick={() => remove(line.id)}
-        >
-          <Trash2 />
-        </button>
-      </div>
+      <QuantityControl
+        line={line}
+        update={(quantity) => update(line.id, { quantity })}
+        onEmpty={() => remove(line.id)}
+      />
     </div>
   ));
   return (
-    <section className="composition panel">
-      <PanelHeading
-        label={headingLabel}
-        help={showHelp ? "The sealed products and quantities being opened in this break. Changing any line immediately recalculates card contents, prices, color value, and possible opening values." : undefined}
-        title={<>{lines.length} line{lines.length === 1 ? "" : "s"} · {totalOpenings} opening{totalOpenings === 1 ? "" : "s"}</>}
-        accessory={<button className={lines.length ? "quiet" : "primary composition-add-primary"} onClick={(event) => add(event.currentTarget)}>
-          <PackagePlus /> Add products
-        </button>}
-      />
-      {lines.length > 4 ? <details className="composition-roster" open={expanded} onToggle={(event) => setExpanded(event.currentTarget.open)}>
-        <summary className="disclosure-summary"><span>{expanded ? "Hide product editor" : `Review ${lines.length} product lines`}</span><b>{totalOpenings} openings</b><DisclosureArrow /></summary>
-        <div>{rows}</div>
-      </details> : rows}
+    <section className="composition" aria-label="What is in the break">
+      <div className="step-heading">
+        <InformationLabel>{headingLabel}</InformationLabel>
+        {showHelp && <Tip label="What products do here" text="The sealed products being opened in this break. Changing any line recalculates card contents, prices, and color value straight away." />}
+      </div>
+      {rows}
+      <button
+        type="button"
+        className={`add-products ${lines.length ? "quiet" : "primary"}`}
+        onClick={(event) => add(event.currentTarget)}
+      >
+        <PackagePlus /> Add products
+      </button>
     </section>
   );
 }
@@ -131,12 +119,10 @@ export function ValueSummary({ result }: { result: ValuationResult }) {
 }
 
 /**
- * The break format is the "what kind of auction is this?" question, and it
- * decides what every later step means. Sellers change it between auctions, so
- * it leads the buyer flow and stays visible before any product exists — a
- * buyer looking for a large break must never have to build a break first to
- * discover the option. Color slots is pre-selected because it is the common
- * case, so the standard path still costs zero extra taps.
+ * The break format decides what every later step means, so it leads the flow
+ * and stays visible before any product exists. Color slots is pre-selected
+ * because it is the common case. The difference between the two formats lives
+ * behind one help icon rather than in a paragraph nobody reads mid-auction.
  */
 export function BreakFormatChoice({
   assignmentMode,
@@ -145,7 +131,7 @@ export function BreakFormatChoice({
   largeSpots,
   setLargeSpots,
   takenSlots = [],
-  stepLabel = "1 · WHAT KIND OF BREAK?",
+  stepLabel = "1 · TYPE OF BREAK",
 }: {
   assignmentMode: AssignmentMode;
   setAssignmentMode: (mode: AssignmentMode) => void;
@@ -157,18 +143,20 @@ export function BreakFormatChoice({
 }) {
   const isLarge = assignmentMode === "large";
   return (
-    <section className="break-format-choice" aria-labelledby="break-format-heading">
-      <div className="break-format-heading">
+    <section className="break-format-choice" aria-label="Type of break">
+      <div className="step-heading">
         <InformationLabel>{stepLabel}</InformationLabel>
-        <h2 id="break-format-heading">How is this break sold?</h2>
+        <Tip
+          label="What the two break types mean"
+          text="Color slots: one slot per color, the standard prize wheel. Large break: many random spots, usually 100–200. Sellers change this between auctions, so match the listing."
+        />
       </div>
-      <div className="break-format-options" role="group" aria-label="Break format">
+      <div className="break-format-options" role="group" aria-label="Type of break">
         <button
           type="button"
           aria-pressed={!isLarge}
-          aria-describedby="break-format-color-note"
           className={`break-format-option ${isLarge ? "" : "active"}`}
-          onClick={() => setAssignmentMode(selectedSlots.length ? "pick" : "random")}
+          onClick={() => setAssignmentMode("random")}
         >
           <Check className="break-format-tick" aria-hidden="true" />
           Color slots
@@ -176,7 +164,6 @@ export function BreakFormatChoice({
         <button
           type="button"
           aria-pressed={isLarge}
-          aria-describedby="break-format-large-note"
           className={`break-format-option ${isLarge ? "active" : ""}`}
           onClick={() => setAssignmentMode("large")}
         >
@@ -184,16 +171,10 @@ export function BreakFormatChoice({
           Large break
         </button>
       </div>
-      <p className="break-format-note">
-        <span id="break-format-color-note"><b>Color slots</b>: the standard prize wheel, one slot per color.</span>{" "}
-        <span id="break-format-large-note"><b>Large break</b>: many random spots, usually 100–200.</span>{" "}
-        Sellers change format between auctions — match the listing.
-      </p>
       {isLarge && <>
         <div className="large-break-spot-input">
-          <div className="large-break-spot-label"><span>Random spots</span><small>Usually 100–200</small></div>
+          <div className="large-break-spot-label"><span>Random spots</span><Tip label="What the spot count means" text="How many random spots the seller is selling. Usually 100–200. 17 are catch-all spots; the rest use top-value cards, with characters grouped by name." /></div>
           <NumericInput value={largeSpots} onCommit={(value) => setLargeSpots(Math.max(1, Math.min(500, Math.round(value ?? 1))))} ariaLabel="Large break spot count" live />
-          <p><b>17</b> catch-all spots · remaining spots use top-value cards, with characters grouped by name</p>
         </div>
         <FormatCarryOverNotice selectedSlots={selectedSlots} takenSlots={takenSlots} />
       </>}
@@ -215,7 +196,7 @@ export function FormatCarryOverNotice({
 }) {
   const names = (ids: SlotId[]) => ids.map((id) => SLOT_NAMES[id]).join(", ");
   const parts = [
-    selectedSlots.length ? `the ${names(selectedSlots)} slot${selectedSlots.length === 1 ? "" : "s"} you were considering` : "",
+    selectedSlots.length ? `the ${names(selectedSlots)} slot${selectedSlots.length === 1 ? "" : "s"} you marked as yours` : "",
     takenSlots.length ? `the ${names(takenSlots)} slot${takenSlots.length === 1 ? "" : "s"} you marked taken` : "",
   ].filter(Boolean);
   if (!parts.length) return null;
@@ -230,132 +211,134 @@ export function FormatCarryOverNotice({
   );
 }
 
+/**
+ * One shared horizontal scale for every slot, so two candles can be compared
+ * by eye. The wick is the practical 1st-to-99th percentile, the body is the
+ * middle half, and the marker is the pull-rate average.
+ */
+export function SlotCandle({
+  distribution,
+  expectedValue,
+  scaleMax,
+  label,
+}: {
+  distribution?: DistributionSummary;
+  expectedValue: number;
+  scaleMax: number;
+  label: string;
+}) {
+  const position = (value: number) => Math.min(100, Math.max(0, value / Math.max(scaleMax, 0.01) * 100));
+  const low = distribution?.p01 ?? expectedValue;
+  const high = distribution?.p99 ?? expectedValue;
+  const bodyLow = Math.min(high, Math.max(low, distribution?.p25 ?? expectedValue));
+  const bodyHigh = Math.max(bodyLow, Math.min(high, distribution?.p75 ?? expectedValue));
+  return (
+    <div className="slot-candle" aria-label={`${label}: low ${fmt(low)}, expected ${fmt(expectedValue)}, high ${fmt(high)}`}>
+      <div className="slot-candle-track" aria-hidden="true">
+        <span className="slot-candle-wick" style={{ left: `${position(low)}%`, width: `${Math.max(0, position(high) - position(low))}%` }} />
+        <span className="slot-candle-body" style={{ left: `${position(bodyLow)}%`, width: `${Math.max(1, position(bodyHigh) - position(bodyLow))}%` }} />
+        <span className="slot-candle-ev" style={{ left: `${position(expectedValue)}%` }} />
+      </div>
+      <div className="slot-candle-values" aria-hidden="true">
+        <span><small>LOW</small>{fmtChart(low)}</span>
+        <b><small>EV</small>{fmtChart(expectedValue)}</b>
+        <span><small>HIGH</small>{fmtChart(high)}</span>
+      </div>
+    </div>
+  );
+}
+
+const SLOT_HELP = "Tap the check on every slot you have already bought. Tap the cancel mark on every slot another buyer has taken. What is left is the pool your next bid draws from. LOW and HIGH are the 1st and 99th percentile of modeled openings, so the most extreme results are left out; EV is the average.";
+
+/**
+ * The slot rail is the buyer's whole picture of the break: what each colour is
+ * worth, what they already own, and what is still in the pool. Meaning never
+ * rests on colour alone — every state carries an icon and a word.
+ */
 export function SlotRail({
   result,
   auction,
   setAuction,
-  assignmentMode,
-  setAssignmentMode,
   selectedSlots,
   setSelectedSlots,
-  stepLabel = "3 · YOUR SLOT",
+  distributions,
+  stepLabel = "3 · MY SLOTS",
 }: {
   result?: ValuationResult;
   auction: AuctionState;
   setAuction: (state: AuctionState) => void;
-  assignmentMode: AssignmentMode;
-  setAssignmentMode: (mode: AssignmentMode) => void;
   selectedSlots: SlotId[];
   setSelectedSlots: (ids: SlotId[]) => void;
+  distributions?: Record<SlotId, DistributionSummary>;
   stepLabel?: string;
 }) {
-  const [combining, setCombining] = useState(false);
-  const [staged, setStaged] = useState<SlotId[]>([]);
-  const startCombining = () => { setCombining(true); setStaged([]); };
-  const stopCombining = () => { setCombining(false); setStaged([]); };
-  // Marking a taken slot always drops it from consideration too — a buyer
-  // cannot still be weighing a slot that just left the pool.
-  const applyTaken = (next: AuctionState) => {
-    setAuction(next);
-    if (selectedSlots.some((id) => !next.remaining.includes(id))) {
-      setSelectedSlots(selectedSlots.filter((id) => next.remaining.includes(id)));
-    }
+  const scaleMax = Math.max(
+    1,
+    ...SLOT_IDS.map((id) => distributions?.[id]?.p99 ?? 0),
+    ...(result?.slots.map((slot) => slot.sellableEV) ?? []),
+  );
+  const setOwned = (id: SlotId, owned: boolean) => {
+    setSelectedSlots(owned ? [...selectedSlots, id] : selectedSlots.filter((slot) => slot !== id));
+    const next = toggleSlotTaken(auction, id);
+    if (next !== auction) setAuction(next);
   };
-  const slotChosen = assignmentMode === "random" || selectedSlots.length > 0;
-  const chosenSummary = assignmentMode === "random"
-    ? `Any of the ${auction.remaining.length} remaining colors`
-    : selectedSlots.length === 0
-      ? "No slot selected"
-      : selectedSlots.length === 1
-        ? `${SLOT_NAMES[selectedSlots[0]]} selected`
-        : `${selectedSlots.length} colors selected: ${selectedSlots.map((id) => SLOT_NAMES[id]).join(", ")}`;
   return (
-    <section className="buyer-slot-control" aria-labelledby="buyer-color-heading">
-      <div className="buyer-slot-heading">
-        <div>
-          <InformationLabel>{stepLabel}</InformationLabel>
-          <h2 id="buyer-color-heading">Which slots are you considering?</h2>
-          <p>Tap the check to consider a slot — tap more than one if you’re bidding on a combined lot. Tap the cancel mark to say a slot is already taken.</p>
-        </div>
+    <section className="buyer-slot-control" aria-label="My slots">
+      <div className="step-heading">
+        <InformationLabel>{stepLabel}</InformationLabel>
+        <Tip label="What the slot controls do" text={SLOT_HELP} />
       </div>
       <div className="buyer-slot-list" role="group" aria-label="Color slots">
         {SLOT_IDS.map((id) => {
           const slot = result?.slots.find((row) => row.id === id);
-          const taken = !auction.remaining.includes(id);
-          const isSelected = assignmentMode !== "random" && selectedSlots.includes(id);
-          const isStaged = combining && staged.includes(id);
-          // Deliberately no bare `slot-${id}` class on this row: a legacy
-          // global `.slot-X span` rule (styles.css) would repaint any span
-          // inside it — the swatch below carries the color instead, scoped
-          // to an element with no span descendant.
+          const mine = selectedSlots.includes(id);
+          const available = auction.remaining.includes(id);
+          const taken = !available && !mine;
           return (
-            <div className={`buyer-slot-row ${isSelected ? "selected" : ""} ${taken ? "taken" : ""}`} key={id}>
-              <span className="buyer-slot-name">
-                <i className={`buyer-slot-swatch slot-${id}`} aria-hidden="true" />
-                {SLOT_NAMES[id]}
-                <b className="buyer-slot-value">{slot ? fmt(slot.sellableEV) : "—"}</b>
-                {taken && <b className="buyer-slot-taken-tag">Taken</b>}
-              </span>
-              <div className="buyer-slot-actions">
-                <button
-                  type="button"
-                  className="slot-check-btn"
-                  aria-pressed={isSelected}
-                  disabled={taken}
-                  aria-label={`${isSelected ? "Remove" : "Add"} ${SLOT_NAMES[id]} ${isSelected ? "from" : "to"} the slots you’re considering`}
-                  onClick={() => {
-                    if (assignmentMode === "random") {
-                      setAssignmentMode("pick");
-                      setSelectedSlots([id]);
-                      return;
-                    }
-                    setSelectedSlots(isSelected ? selectedSlots.filter((slotId) => slotId !== id) : [...selectedSlots, id]);
-                  }}
-                >
-                  <Check aria-hidden="true" />
-                </button>
-                <button
-                  type="button"
-                  className={`slot-disable-btn ${isStaged ? "staged" : ""}`}
-                  aria-pressed={combining ? isStaged : taken}
-                  disabled={combining ? taken : (!taken && auction.remaining.length === 1)}
-                  aria-label={combining
-                    ? `${isStaged ? "Remove" : "Add"} ${SLOT_NAMES[id]} ${isStaged ? "from" : "to"} the combined taken group`
-                    : taken ? `Restore ${SLOT_NAMES[id]} slot` : `Mark ${SLOT_NAMES[id]} taken`}
-                  onClick={() => {
-                    if (combining) {
-                      setStaged(isStaged ? staged.filter((slotId) => slotId !== id) : [...staged, id]);
-                      return;
-                    }
-                    const next = toggleSlotTaken(auction, id);
-                    if (next === auction) return;
-                    applyTaken(next);
-                  }}
-                >
-                  <Ban aria-hidden="true" />
-                </button>
+            <div className={`buyer-slot-row ${mine ? "mine" : ""} ${taken ? "taken" : ""}`} key={id}>
+              <div className="buyer-slot-top">
+                <span className="buyer-slot-name">
+                  <i className={`buyer-slot-swatch slot-${id}`} aria-hidden="true" />
+                  {SLOT_NAMES[id]}
+                  {mine && <b className="buyer-slot-tag buyer-slot-mine-tag">Mine</b>}
+                  {taken && <b className="buyer-slot-tag buyer-slot-taken-tag">Taken</b>}
+                </span>
+                <div className="buyer-slot-actions">
+                  <button
+                    type="button"
+                    className="slot-check-btn"
+                    aria-pressed={mine}
+                    disabled={taken}
+                    aria-label={mine ? `${SLOT_NAMES[id]} is mine — undo` : `Mark ${SLOT_NAMES[id]} as mine`}
+                    onClick={() => setOwned(id, !mine)}
+                  >
+                    <Check aria-hidden="true" />
+                  </button>
+                  <button
+                    type="button"
+                    className="slot-disable-btn"
+                    aria-pressed={taken}
+                    disabled={mine || (available && auction.remaining.length === 1)}
+                    aria-label={taken ? `Restore ${SLOT_NAMES[id]}` : `Mark ${SLOT_NAMES[id]} taken by another buyer`}
+                    onClick={() => {
+                      const next = toggleSlotTaken(auction, id);
+                      if (next !== auction) setAuction(next);
+                    }}
+                  >
+                    <Ban aria-hidden="true" />
+                  </button>
+                </div>
               </div>
+              <SlotCandle
+                distribution={distributions?.[id]}
+                expectedValue={slot?.sellableEV ?? 0}
+                scaleMax={scaleMax}
+                label={SLOT_NAMES[id]}
+              />
             </div>
           );
         })}
       </div>
-      <div className="buyer-slot-footer">
-        <button type="button" className="quiet" aria-pressed={assignmentMode === "random"} onClick={() => { setSelectedSlots([]); setAssignmentMode("random"); }}>Any remaining color (random)</button>
-        {!combining
-          ? <button type="button" className="quiet" onClick={startCombining}>Mark several as one combined lot…</button>
-          : <div className="buyer-combine-bar" role="group" aria-label="Combined taken group">
-            <span>{staged.length ? `${staged.length} slot${staged.length === 1 ? "" : "s"} staged` : "Tap the cancel mark on each slot in the lot"}</span>
-            <div className="buyer-combine-actions">
-              <button type="button" className="quiet" onClick={stopCombining}>Cancel</button>
-              <button type="button" className="primary" disabled={staged.length === 0} onClick={() => {
-                const next = markSlotsTaken(auction, staged);
-                applyTaken(next);
-                stopCombining();
-              }}>Mark {staged.length || ""} taken</button>
-            </div>
-          </div>}
-      </div>
-      <p className="remaining-summary">{chosenSummary}{!slotChosen && " · choose a color to continue"}</p>
     </section>
   );
 }
@@ -513,7 +496,7 @@ export function CardInspector({
             </header>
             <div className="card-inspector-body">
               <div className="card-art">
-                <PublicCardPlaceholder name={activeFace?.name ?? row.card.name} />
+                <PublicCardPlaceholder name={activeFace?.name ?? row.card.name} image={activeFace?.image ?? row.card.image} />
                 {faces.length > 1 && (
                   <button
                     type="button"
@@ -527,7 +510,7 @@ export function CardInspector({
               </div>
               <div className="card-info">
                 <div className="card-stat primary-stat">
-                  <span>Pull odds in this break</span>
+                  <span>Chance to pull<Tip label="What the pull chance means" text="How often opening this whole break turns up at least one copy of this exact card version. It answers “will I see one at all”, not “how many”." /></span>
                   <strong>{oddsLabel(odds)}</strong>
                   <small>
                     {odds > 0 && odds < 1
@@ -553,15 +536,16 @@ export function CardInspector({
                   <small>{row ? `${cardTreatmentLabel(row.card, selectedFinish)} · ${selectedPriceSource}` : selectedPriceSource}</small>
                 </div>}
                 <div className="card-stat">
-                  <span>Average copies per break</span>
+                  <span>Copies per break<Tip label="Why copies can differ from the pull chance" text="The average number of copies this break produces, counting every copy. It can be higher than the pull chance because some openings produce two or more copies while others produce none — the chance only counts whether you saw at least one." /></span>
                   <strong>
                     {row.sellableCopies.toFixed(3).replace(/0+$/, "").replace(/\.$/, "")}
                   </strong>
-                  <small>
-                    {status === "verified"
-                      ? `Card versions worth ${fmt(threshold)} or more are included.`
-                      : "This uses the product information currently available. Missing details could change it."}
-                  </small>
+                  {threshold > 0 && <Tip
+                    className="card-stat-flag"
+                    label="A value filter is active"
+                    text={`Card versions worth less than ${fmt(threshold)} are left out of this number. Turn the value filter off in Adjust assumptions to include them.`}
+                  />}
+                  {status !== "verified" && <small>Some product details are missing, so this could change.</small>}
                 </div>
                 {activeOracleText && (
                   <p className="oracle-text">{activeOracleText}</p>
@@ -587,16 +571,26 @@ export function CardInspector({
   );
 }
 
+export type OutcomeSimulation = {
+  result?: SimulationResult;
+  error?: string;
+  busy: boolean;
+  retry: () => void;
+};
+
 export function useOutcomeSimulation(
-  analysis: BreakAnalysis,
+  analysis: BreakAnalysis | undefined,
   remaining: SlotId[],
   landedCost: number | undefined,
-): { result?: SimulationResult; error?: string; busy: boolean; retry: () => void } {
+): OutcomeSimulation {
   const [state, setState] = useState<{ result?: SimulationResult; error?: string; busy: boolean }>({ busy: false });
   const [generation, setGeneration] = useState(0);
-  const modelKey = analysis.outcomeModel.cacheKey ?? JSON.stringify(analysis.outcomeModel);
-  const key = `${analysis.valuation.dataVersion}|${analysis.valuation.status}|${modelKey}|${analysis.valuation.threshold}|${remaining.join("")}|${landedCost ?? "none"}`;
+  const modelKey = analysis ? analysis.outcomeModel.cacheKey ?? JSON.stringify(analysis.outcomeModel) : "none";
+  const key = analysis
+    ? `${analysis.valuation.dataVersion}|${analysis.valuation.status}|${modelKey}|${analysis.valuation.threshold}|${remaining.join("")}|${landedCost ?? "none"}`
+    : "none";
   useEffect(() => {
+    if (!analysis) { setState({ busy: false }); return; }
     let current = true;
     let refinementId: number | undefined;
     setState((previous) => ({ ...previous, busy: true, error: undefined }));
@@ -606,10 +600,11 @@ export function useOutcomeSimulation(
       remaining,
       landedCost,
     };
-    simulateOutcomesAsync(analysis.outcomeModel, options).then((result) => {
+    const model = analysis.outcomeModel;
+    simulateOutcomesAsync(model, options).then((result) => {
       if (!current) return;
       setState({ result, busy: false });
-      const refine = () => simulateOutcomesAsync(analysis.outcomeModel, { ...options, sampleCount: 50_000 })
+      const refine = () => simulateOutcomesAsync(model, { ...options, sampleCount: 50_000 })
         .then((refined) => { if (current) setState({ result: refined, busy: false }); })
         .catch(() => { /* keep the valid interactive result */ });
       const idleWindow = window as Window & {
@@ -679,102 +674,6 @@ function OutcomeRange({ summary, landed, compact = false }: { summary?: Distribu
       )}
       {!compact && <p>Possible results from simulations—not a prediction of the next opening.</p>}
     </div>
-  );
-}
-
-export function BreakBalance({
-  result, remaining, simulation,
-}: {
-  result: ValuationResult;
-  remaining: SlotId[];
-  simulation?: SimulationResult;
-}) {
-  const rows = result.slots.filter((slot) => remaining.includes(slot.id));
-  const distributions = simulation?.slotDistributions;
-  const weakest = Math.min(...rows.map((slot) => slot.sellableEV));
-  const strongest = Math.max(...rows.map((slot) => slot.sellableEV), 0);
-  const balanceTip = (
-    <Tip
-      className="balance-score"
-      text={strongest
-        ? `The weakest remaining slot has ${Math.round(weakest / strongest * 100)}% as much average card value after the bulk filter as the strongest remaining slot. 100% would mean equal slot values; a lower percentage means a more uneven break.`
-        : "There is not enough counted value to compare the weakest and strongest remaining slots."}
-      label="Explain the Break Balance percentage"
-    >
-      <b>{strongest ? `${Math.round(weakest / strongest * 100)}%` : "—"}</b>
-      <span>weakest vs strongest</span>
-    </Tip>
-  );
-  if (!distributions) return (
-    <section className="panel balance-panel">
-      <PanelHeading
-        label="BREAK BALANCE"
-        help="ColorBreak is checking thousands of pack openings using the published pull weights and pack-collation rules."
-        title="Building realistic pull ranges"
-        accessory={balanceTip}
-      />
-      <div className="distribution-unavailable" role="status"><b>Calculating ranges</b><span>The rest of the page remains available while this finishes.</span></div>
-    </section>
-  );
-  const scaleMax = Math.max(...SLOT_IDS.flatMap((id) => [
-    distributions[id].p99,
-    result.slots.find((slot) => slot.id === id)?.sellableEV ?? 0,
-  ]), 1);
-  const positionOnScale = (value: number) => Math.min(100, Math.max(0, value / scaleMax * 100));
-  const axisTicks = [0, .25, .5, .75, 1].map((fraction) => ({
-    fraction,
-    value: scaleMax * fraction,
-  }));
-  return (
-    <section className="panel balance-panel">
-      <PanelHeading
-        label="BREAK BALANCE"
-        help="Each wick shows the middle 98% of modeled openings, trimming the most extreme 1% at both ends. The white body contains the middle half. The EV marker is the pull-rate average after serialized and one-of-one collector outliers are removed."
-        title="Equal chance, unequal pools"
-        accessory={balanceTip}
-      />
-      <p className="balance-note">Each remaining slot is equally likely. The card value assigned to each slot is not equal.</p>
-      <p className="balance-scale-note">Shared linear scale · practical 1-in-100 maximum excludes the most extreme opening results</p>
-      <div className="balance-chart" aria-label="Practical modeled card-value range and pull-rate expected value by color">
-        <div className="balance-axis" aria-hidden="true">
-          <span />
-          <div className="balance-axis-track">
-            {axisTicks.map((tick) => <span key={tick.fraction} style={{ left: `${tick.fraction * 100}%` }}>{fmtChart(tick.value)}</span>)}
-          </div>
-        </div>
-        {rows.map((slot) => {
-          const distribution = distributions[slot.id];
-          const rangeLow = distribution.p01;
-          const rangeHigh = distribution.p99;
-          const expectedValue = slot.sellableEV;
-          const bodyLow = Math.min(rangeHigh, Math.max(rangeLow, distribution.p25));
-          const bodyHigh = Math.max(bodyLow, Math.min(rangeHigh, Math.max(rangeLow, distribution.p75)));
-          const lowPosition = positionOnScale(rangeLow);
-          const highPosition = positionOnScale(rangeHigh);
-          const evPosition = positionOnScale(expectedValue);
-          const bodyLowPosition = positionOnScale(bodyLow);
-          const bodyHighPosition = positionOnScale(bodyHigh);
-          return (
-            <div className={`balance-column slot-${slot.id}`} key={slot.id} aria-label={`${slot.name}: practical range ${fmt(rangeLow)} to ${fmt(rangeHigh)}, pull-rate expected value ${fmt(expectedValue)}, middle half ${fmt(bodyLow)} to ${fmt(bodyHigh)}`}>
-              <strong className="balance-slot"><span>{slot.id}</span><small>{slot.name}</small></strong>
-              <div className="balance-track">
-                <span className="balance-whisker" style={{ left: `${lowPosition}%`, width: `${Math.max(0, highPosition - lowPosition)}%` }} />
-                <span className="balance-cap balance-cap-high" style={{ left: `${highPosition}%` }} />
-                <span className="balance-cap balance-cap-low" style={{ left: `${lowPosition}%` }} />
-                <span className="balance-body" style={{ left: `${bodyLowPosition}%`, width: `${Math.max(0, bodyHighPosition - bodyLowPosition)}%` }} />
-                <span className="balance-ev-marker" style={{ left: `${evPosition}%` }} />
-                <div className="balance-values">
-                  <div className="balance-worst"><small>LOW</small>{fmtChart(rangeLow)}</div>
-                  <div className="balance-ev"><small>EV</small>{fmtChart(expectedValue)}</div>
-                  <div className="balance-best"><small>HIGH</small>{fmtChart(rangeHigh)}</div>
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-      <p className="balance-caption"><b>Low / high</b> practical 1st-to-99th percentile · <strong>outlined bar</strong> middle half of modeled openings · <span>EV marker</span> pull-rate average. Every slot uses the same linear scale from $0 to {fmtChart(scaleMax)}. Serialized and one-of-one collector outliers are excluded.</p>
-    </section>
   );
 }
 

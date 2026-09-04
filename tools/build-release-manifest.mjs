@@ -80,7 +80,15 @@ export async function scanReleaseAssets(outputDir) {
     ?? index.match(/content="([^"]*)"[^>]*Content-Security-Policy/i)?.[1];
   if (!csp) throw new Error("Release artifact is missing a Content-Security-Policy");
   const imgSource = csp.split(";").find((directive) => directive.trim().startsWith("img-src"));
-  if (!imgSource || /https?:/i.test(imgSource)) throw new Error("Release CSP img-src must not permit remote origins");
+  if (!imgSource) throw new Error("Release artifact is missing an img-src directive");
+  // Card art is served by Scryfall, whose image terms ColorBreak follows, and
+  // that one origin is the only remote image source a release may name. Every
+  // other host - analytics pixels, CDNs, ad beacons - stays forbidden.
+  const IMAGE_ORIGIN_ALLOWLIST = new Set(["https://cards.scryfall.io"]);
+  const remoteImageSources = imgSource.trim().split(/\s+/).slice(1)
+    .filter((source) => /^https?:/i.test(source))
+    .filter((source) => !IMAGE_ORIGIN_ALLOWLIST.has(source.replace(/\/$/, "")));
+  if (remoteImageSources.length) throw new Error(`Release CSP img-src must not permit remote origins: ${remoteImageSources.join(", ")}`);
   const findings = [];
   for (const file of files) {
     if (!/\.(?:html|css|js|mjs|json|svg|webmanifest)$/i.test(file)) continue;

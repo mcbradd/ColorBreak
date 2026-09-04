@@ -1088,3 +1088,214 @@ input {
 @media (max-width: 899px) {
   .numeric-done { min-height: 40px; min-width: 56px; padding: 0 12px; font-size: 11px; }
 }
+
+/* ---- Build 1: stripped-down buyer flow ----------------------------------
+ * Every step is one heading label and one help icon; the explanation lives in
+ * the popover, not in a paragraph the buyer has to read mid-auction. */
+.step-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 0 0 8px;
+}
+.step-heading .section-label { margin: 0; }
+
+/* Slot rail: value candles read left to right on one shared scale. */
+.buyer-slot-row {
+  display: block;
+  padding: 10px 12px;
+}
+.buyer-slot-top {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+}
+.buyer-slot-row.mine { border-color: var(--accent); box-shadow: inset 3px 0 0 var(--accent); }
+.buyer-slot-row.taken { background: #0b0d11; opacity: .65; }
+.buyer-slot-tag {
+  margin-left: auto;
+  padding: 2px 6px;
+  border-radius: 2px;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+.buyer-slot-mine-tag { color: #10140b; background: var(--accent); }
+.buyer-slot-taken-tag { color: #ffb2bf; background: #321820; }
+
+.slot-candle { margin-top: 9px; }
+.slot-candle-track {
+  position: relative;
+  height: 12px;
+  border-radius: 2px;
+  background: #0d1016;
+}
+.slot-candle-wick {
+  position: absolute;
+  top: 50%;
+  height: 2px;
+  transform: translateY(-50%);
+  background: #39424f;
+}
+.slot-candle-body {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  border: 1px solid #79879b;
+  border-radius: 1px;
+  background: #1a2029;
+}
+.slot-candle-ev {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--accent);
+}
+.slot-candle-values {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+.slot-candle-values small {
+  display: block;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: .08em;
+}
+.slot-candle-values > :nth-child(2) { text-align: center; color: var(--ink); font-weight: 800; }
+.slot-candle-values > :last-child { text-align: right; }
+
+/* Composition: products go straight on the page, no panel around a panel. */
+.composition { margin: 0 0 18px; }
+.composition .line {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 0;
+  border-bottom: var(--rule);
+}
+.add-products {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  margin-top: 12px;
+  min-height: 48px;
+}
+
+/* Costs the buyer actually pays, entered once. */
+.buyer-cost-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 18px;
+}
+.number-field-suffix { margin-left: 4px; }
+.buyer-assumptions-body { padding-top: 12px; }
+
+.owned-slot-value {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.owned-slot-value b { color: var(--ink); font: 900 16px Manrope, sans-serif; }
+
+/* Picker: the current break is the list of what is in it. */
+.composer-draft-list {
+  display: grid;
+  gap: 4px;
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+  max-height: 108px;
+  overflow-y: auto;
+}
+.composer-draft-list li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink);
+  font-size: 12px;
+}
+.composer-draft-list li span:nth-child(2) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.composer-draft-list li b { color: var(--muted); font-size: 11px; }
+
+/* Ranked cards: find one by name, then page the rest in. */
+.contributor-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 0 2px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  background: #0d1016;
+}
+.contributor-search svg { width: 15px; height: 15px; color: var(--muted); }
+.contributor-search input {
+  flex: 1;
+  min-width: 0;
+  padding: 11px 0;
+  border: 0;
+  color: var(--ink);
+  background: transparent;
+  font-size: 14px;
+}
+.show-more-cards { width: 100%; margin-top: 10px; min-height: 44px; }
+.contributor-columns span:last-child { display: flex; align-items: center; justify-content: flex-end; gap: 4px; }
+
+/* Card art, with the letter tile as the fallback rather than the only state. */
+img.card-placeholder,
+img.card-thumbnail { object-fit: cover; background: #171b23; }
+.card-stat-flag { margin-left: 6px; }
+
+@media (max-width: 380px) {
+  .buyer-cost-fields { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* Steps sit directly on the page. The panel-inside-panel-inside-panel stack —
+ * a bordered step box, holding a bordered row, holding a bordered control —
+ * cost vertical space on a 320px screen and made nothing easier to read. One
+ * rule between steps is enough to separate them. */
+@media (max-width: 899px) {
+  .buyer-setup { gap: 22px; }
+  .buyer-slot-control,
+  .buyer-setup > .composition,
+  .buyer-setup > .break-format-choice,
+  .buyer-assumptions {
+    padding: 0 !important;
+    border: 0;
+    border-top: var(--rule);
+    background: transparent;
+  }
+  .buyer-setup > :first-child { border-top: 0; }
+  .buyer-setup > .composition .panel-heading,
+  .buyer-setup > .composition header { padding: 0; }
+  .buyer-slot-control,
+  .buyer-setup > .composition,
+  .buyer-setup > .break-format-choice,
+  .buyer-assumptions { padding-top: 20px !important; }
+  .buyer-assumptions > summary { min-height: 48px; padding: 0 0 4px; font-weight: 800; }
+  .break-format-options { gap: 10px; margin-top: 0; }
+}
+.keyboard-open .set-browser-tools .set-sort-tabs,
+.keyboard-open .break-input-actions { display: none; }

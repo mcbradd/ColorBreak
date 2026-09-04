@@ -1,10 +1,10 @@
 import { createElement } from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { Composition } from "./features/buyer/BuyerVisuals";
 
 describe("break composition", () => {
-  it("explicitly removes the final line without overloading quantity controls", () => {
+  it("removes the final line by stepping its quantity below one", async () => {
     const remove = vi.fn();
     render(createElement(Composition, {
       lines: [{
@@ -19,13 +19,13 @@ describe("break composition", () => {
       remove,
     }));
 
-    expect(
-      screen.getByRole("button", { name: "Decrease Play Booster Box quantity" }),
-    ).toBeDisabled();
-    fireEvent.click(
+    // Quantity is the only removal control: a separate bin icon beside it was
+    // a second control for the same job.
+    expect(screen.queryByRole("button", { name: /Remove Play Booster Box from break/ })).toBe(
       screen.getByRole("button", { name: "Remove Play Booster Box from break" }),
     );
-    expect(remove).toHaveBeenCalledWith("only-line");
+    fireEvent.click(screen.getByRole("button", { name: "Remove Play Booster Box from break" }));
+    await waitFor(() => expect(remove).toHaveBeenCalledWith("only-line"));
   });
 });
 

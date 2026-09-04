@@ -15,9 +15,7 @@ export function App({ releaseContext = runtimeReleaseContext }: { releaseContext
   // mirrors that for the JS-driven route transition, which otherwise plays
   // its translateY/opacity animation unconditionally.
   const reducedMotion = useReducedMotion();
-  // Bid checking is the product's default job. The former marketing launcher
-  // added a choice before a buyer could name the break they were considering.
-  const routeMode = (): Mode => modeFromHash(location.hash);
+  const routeMode = (): Mode => modeFromHash(location.hash, location.search);
   const initial = routeMode();
   const [mode, setMode] = useState<Mode>(initial);
   const [startFreshBuyer, setStartFreshBuyer] = useState(initial === "buyer" && !location.search);

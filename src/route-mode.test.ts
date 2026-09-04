@@ -2,14 +2,19 @@ import { describe, expect, it } from "vitest";
 import { hashForMode, modeFromHash, type Mode } from "./route-mode";
 
 describe("route-mode", () => {
-  it("defaults a hash-less or unrecognized URL to the buyer workspace", () => {
-    // Bid checking is the product's default job: a true first visit, a
-    // bookmark to the bare origin, or a malformed hash should not land on
-    // the marketing front page.
-    expect(modeFromHash("")).toBe("buyer");
-    expect(modeFromHash("#")).toBe("buyer");
-    expect(modeFromHash("#nope")).toBe("buyer");
+  it("sends a hash-less or unrecognized URL to the job chooser", () => {
+    // A first visit, a bookmark to the bare origin, or a malformed hash must
+    // land where both jobs are visible. Landing straight in the buyer
+    // workspace hid the seller job behind an unlabelled wordmark link.
+    expect(modeFromHash("")).toBe("home");
+    expect(modeFromHash("#")).toBe("home");
+    expect(modeFromHash("#nope")).toBe("home");
     expect(modeFromHash("#buyer")).toBe("buyer");
+  });
+
+  it("opens a shared break in the buyer workspace even with no fragment", () => {
+    expect(modeFromHash("", "?b=abc&m=pick")).toBe("buyer");
+    expect(modeFromHash("", "?utm=x")).toBe("home");
   });
 
   it("recognizes the seller and home hashes", () => {

@@ -1,6 +1,7 @@
 import type { AssignmentMode } from "./domain/share-url";
 import type { BreakLine, SlotId } from "./domain/types";
 import { emptyActualLedger, validateActualLedger, type ActualLedger } from "./domain/actual-ledger";
+import type { BuyerCosts } from "./domain/bid-ceiling";
 
 const VERSION = 1;
 export const sessionKey = (mode: "buyer" | "seller") => `colorbreak:${mode}:draft:v${VERSION}`;
@@ -286,6 +287,37 @@ export function writeBuyerDecisionRecord(state: BuyerDecisionState, money: { bid
     savedAt: Date.now(),
   };
   try { sessionStorage.setItem(buyerDecisionKey, JSON.stringify(record)); } catch { /* optional */ }
+}
+
+export const buyerCostsKey = "colorbreak:buyer:costs:v1";
+
+/**
+ * The buyer's standing cost assumptions - shipping, tax, fees. These are
+ * settings, not a bid: a buyer sets them once and expects them to still be
+ * there next time. They stay in sessionStorage all the same, because the
+ * same rule that keeps a hammer price out of durable storage applies to
+ * anything that describes what a person pays.
+ */
+export function readBuyerCosts(): BuyerCosts | undefined {
+  try {
+    const value: unknown = JSON.parse(sessionStorage.getItem(buyerCostsKey) ?? "null");
+    if (!value || typeof value !== "object") return undefined;
+    const record = value as Record<string, unknown>;
+    const number = (key: string) => {
+      const candidate = record[key];
+      return typeof candidate === "number" && Number.isFinite(candidate) && candidate >= 0 ? candidate : 0;
+    };
+    return {
+      shipping: number("shipping"),
+      taxPercent: number("taxPercent"),
+      feePercent: number("feePercent"),
+      fixedFee: number("fixedFee"),
+    };
+  } catch { return undefined; }
+}
+
+export function writeBuyerCosts(costs: BuyerCosts) {
+  try { sessionStorage.setItem(buyerCostsKey, JSON.stringify(costs)); } catch { /* optional */ }
 }
 
 /** Remove the former durable drafts, especially seller cost records, before any new write. */

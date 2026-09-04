@@ -24,7 +24,7 @@ const analysis: BreakAnalysis = {
   outcomeOmissions: [],
 };
 
-describe("buyer bid persistence", () => {
+describe("buyer assumption persistence", () => {
   beforeEach(() => {
     sessionStorage.setItem("colorbreak:buyer:draft:v1", JSON.stringify([{
       id: "line-1",
@@ -45,92 +45,70 @@ describe("buyer bid persistence", () => {
     evaluateBreakAnalysis.mockReset();
   });
 
-  it("keeps bid and shipping values while the bulk setting recalculates results", async () => {
-    render(createElement(BuyerWorkspace, { exit: vi.fn(), startFresh: false, startReady: false }));
-    const bid = await screen.findByLabelText("Current bid");
-    const shipping = screen.getByLabelText("Your added shipping");
+  const openAssumptions = async () => {
+    const summary = await screen.findByText("Adjust assumptions");
+    fireEvent.click(summary);
+    summary.closest("details")!.open = true;
+  };
 
-    fireEvent.change(bid, { target: { value: "12.50" } });
-    fireEvent.blur(bid);
+  it("keeps the buyer's costs while the bulk setting recalculates results", async () => {
+    render(createElement(BuyerWorkspace, { exit: vi.fn(), startFresh: false, startReady: false }));
+    await openAssumptions();
+
+    const shipping = screen.getByLabelText("Shipping");
     fireEvent.change(shipping, { target: { value: "4.25" } });
     fireEvent.blur(shipping);
-    // Wait for the controlled inputs to commit before triggering the separate
-    // bulk recalculation; otherwise a fast analysis response can race this
-    // test's synthetic blur sequence on CI.
-    await waitFor(() => expect(screen.getByLabelText("Current bid")).toHaveValue("12.5"));
-    expect(screen.getByLabelText("Your added shipping")).toHaveValue("4.25");
+    await waitFor(() => expect(screen.getByLabelText("Shipping")).toHaveValue("4.25"));
+
     evaluateBreakAnalysis.mockClear();
     fireEvent.click(screen.getByRole("switch", { name: /Bulk filter/ }));
 
     await waitFor(() => expect(evaluateBreakAnalysis).toHaveBeenCalled());
-    expect(await screen.findByLabelText("Current bid")).toHaveValue("12.5");
-    expect(screen.getByLabelText("Your added shipping")).toHaveValue("4.25");
+    expect(screen.getByLabelText("Shipping")).toHaveValue("4.25");
   });
 
-  it("restores bid and shipping after a cold remount", async () => {
+  it("restores the buyer's costs after a cold remount", async () => {
     const first = render(createElement(BuyerWorkspace, { exit: vi.fn(), startFresh: false, startReady: false }));
-    fireEvent.change(await screen.findByLabelText("Current bid"), { target: { value: "12.50" } });
-    fireEvent.blur(screen.getByLabelText("Current bid"));
-    fireEvent.change(screen.getByLabelText("Your added shipping"), { target: { value: "4.25" } });
-    fireEvent.blur(screen.getByLabelText("Your added shipping"));
+    await openAssumptions();
+    fireEvent.change(screen.getByLabelText("Shipping"), { target: { value: "4.25" } });
+    fireEvent.blur(screen.getByLabelText("Shipping"));
+    fireEvent.change(screen.getByLabelText("Tax"), { target: { value: "8" } });
+    fireEvent.blur(screen.getByLabelText("Tax"));
+    await waitFor(() => expect(screen.getByLabelText("Tax")).toHaveValue("8"));
     first.unmount();
     history.replaceState(null, "", "/#buyer");
 
     render(createElement(BuyerWorkspace, { exit: vi.fn(), startFresh: false, startReady: false }));
-    expect(await screen.findByLabelText("Current bid")).toHaveValue("12.5");
-    expect(screen.getByLabelText("Your added shipping")).toHaveValue("4.25");
+    await openAssumptions();
+    // A buyer sets these once and expects them to still be there.
+    expect(screen.getByLabelText("Shipping")).toHaveValue("4.25");
+    expect(screen.getByLabelText("Tax")).toHaveValue("8");
   });
 
-  it("restores a random pool only for the same saved composition", async () => {
+  it("restores the remaining pool only for the same saved composition", async () => {
     const first = render(createElement(BuyerWorkspace, { exit: vi.fn(), startFresh: false, startReady: false }));
-    await screen.findByLabelText("Current bid");
-    fireEvent.click(screen.getByRole("button", { name: "Any remaining color (random)" }));
-    fireEvent.click(screen.getByRole("button", { name: "Mark Blue taken" }));
-    fireEvent.change(screen.getByLabelText("Current bid"), { target: { value: "12.50" } });
-    fireEvent.blur(screen.getByLabelText("Current bid"));
-    fireEvent.change(screen.getByLabelText("Your added shipping"), { target: { value: "4.25" } });
-    fireEvent.blur(screen.getByLabelText("Your added shipping"));
+    fireEvent.click(await screen.findByRole("button", { name: "Mark Blue taken by another buyer" }));
     first.unmount();
 
     render(createElement(BuyerWorkspace, { exit: vi.fn(), startFresh: false, startReady: false }));
-    await waitFor(() => expect(screen.getByRole("button", { name: "Any remaining color (random)" })).toHaveAttribute("aria-pressed", "true"));
-    expect(screen.getByRole("button", { name: "Restore Blue slot" })).toBeInTheDocument();
-    expect(screen.getByLabelText("Current bid")).toHaveValue("12.5");
-    expect(screen.getByLabelText("Your added shipping")).toHaveValue("4.25");
+    await waitFor(() => expect(screen.getByRole("button", { name: "Restore Blue" })).toBeInTheDocument());
   });
 
-  it("offers a shared break without carrying private bid or shipping into it", async () => {
-    const first = render(createElement(BuyerWorkspace, { exit: vi.fn(), startFresh: false, startReady: false }));
-    fireEvent.change(await screen.findByLabelText("Current bid"), { target: { value: "12.50" } });
-    fireEvent.blur(screen.getByLabelText("Current bid"));
-    fireEvent.change(screen.getByLabelText("Your added shipping"), { target: { value: "4.25" } });
-    fireEvent.blur(screen.getByLabelText("Your added shipping"));
-    first.unmount();
-
-    history.replaceState(null, "", "/?b=TST.play-box.2&m=pick&s=W&r=WUBRGMCL&f=1&t=2#buyer");
-    render(createElement(BuyerWorkspace, { exit: vi.fn(), startFresh: false, startReady: false }));
-    expect(await screen.findByRole("button", { name: "Use this shared break" })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Use this shared break" }));
-    expect(screen.getByLabelText("Current bid")).toHaveValue("");
-    expect(screen.getByLabelText("Your added shipping")).toHaveValue("");
-  });
-
-  it("opens directly to an empty product-first bid check from the base page", async () => {
+  it("opens the front page from the base URL so both jobs are visible", async () => {
     history.replaceState(null, "", "/");
     render(createElement(App));
 
-    expect(await screen.findByRole("heading", { name: "Check a color-break bid" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "0 lines · 0 openings" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: /Buyer/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Seller/ })).toBeInTheDocument();
     expect(screen.queryByText("Play Booster Box")).not.toBeInTheDocument();
   });
 
   it("starts a new decision instead of silently resuming a prior buyer setup", async () => {
-    history.replaceState(null, "", "/");
+    history.replaceState(null, "", "/#buyer");
     render(createElement(App));
 
-    expect(await screen.findByRole("heading", { name: "0 lines · 0 openings" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Check a bid" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Add products/ })).toBeInTheDocument();
     expect(screen.queryByText("Play Booster Box")).not.toBeInTheDocument();
   });
 });
-
-

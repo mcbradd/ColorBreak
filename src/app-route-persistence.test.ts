@@ -24,18 +24,20 @@ describe("App route persistence (methodology-page back-navigation regression)", 
     history.replaceState(null, "", "/");
   });
 
-  it("lands in the buyer workspace by default (bid checking is the default job)", () => {
+  it("lands on the job chooser by default, so the seller job is discoverable", () => {
     render(createElement(App));
-    expect(screen.getByText("Exit buyer workspace")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Buyer/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Seller/ })).toBeInTheDocument();
   });
 
   it("leaving the buyer workspace for the front page sets a real, round-trippable hash", async () => {
+    history.replaceState(null, "", "/#buyer");
     render(createElement(App));
     fireEvent.click(screen.getByText("Exit buyer workspace"));
 
     // This is the exact bug: exiting to the front page must not just clear
     // the hash, because a hash-less URL is indistinguishable from a fresh
-    // visit (which correctly defaults to buyer). A real navigation away and
+    // visit. A real navigation away and
     // back - methodology.html's link, browser back/forward, a full reload -
     // re-derives the mode from nothing but this URL.
     expect(location.hash).not.toBe("");
@@ -44,14 +46,14 @@ describe("App route persistence (methodology-page back-navigation regression)", 
     // The front page itself must actually be showing, not just the URL.
     // (AnimatePresence's exit-before-enter transition mounts it a beat
     // later, hence the async find.)
-    expect(await screen.findByText("Estimates, not guarantees")).toBeInTheDocument();
+    expect(await screen.findByText("App settings")).toBeInTheDocument();
   });
 
   it("leaving the seller workspace for the front page also sets the home hash", async () => {
     history.replaceState(null, "", "/#seller");
     render(createElement(App));
     fireEvent.click(screen.getByText("Exit seller workspace"));
-    await screen.findByText("Estimates, not guarantees");
+    await screen.findByText("App settings");
     expect(modeFromHash(location.hash)).toBe("home");
   });
 
@@ -61,6 +63,6 @@ describe("App route persistence (methodology-page back-navigation regression)", 
     // whatever hash is already in the URL.
     history.replaceState(null, "", "/#home");
     render(createElement(App));
-    expect(screen.getByText("Estimates, not guarantees")).toBeInTheDocument();
+    expect(screen.getByText("App settings")).toBeInTheDocument();
   });
 });
