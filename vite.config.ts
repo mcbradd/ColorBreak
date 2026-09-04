@@ -1,4 +1,5 @@
 import { cp, mkdir } from "node:fs/promises";
+import { readFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -10,7 +11,10 @@ import { stageOcrAssets } from "./tools/stage-ocr-assets.mjs";
 export default defineConfig(({ mode }) => ({
   base: "./",
   define: mode === "test" ? {} : {
-    __COLORBREAK_BUILD_ID__: JSON.stringify(process.env.GITHUB_SHA ?? execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim()),
+    // Human-countable build number. `build-number.txt` holds a single integer
+    // that is incremented by one for every release; a commit SHA is not a
+    // build number a person can hold in their head.
+    __COLORBREAK_BUILD_ID__: JSON.stringify(readFileSync(new URL("./build-number.txt", import.meta.url), "utf8").trim()),
   },
   plugins: [
     {

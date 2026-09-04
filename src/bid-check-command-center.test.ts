@@ -58,22 +58,22 @@ describe("Bid Check command center", () => {
     simulateOutcomesAsync.mockReset();
   });
 
-  it("keeps the live decision and its controls in one primary surface", async () => {
+  it("keeps the decision in one primary surface, with nothing to type into it", async () => {
     render(createElement(BuyerWorkspace, { exit: vi.fn(), startFresh: false, startReady: false }));
 
-    const decision = await screen.findByRole("region", { name: "Live bid decision" });
-    expect(screen.getAllByRole("region", { name: "Live bid decision" })).toHaveLength(1);
-    expect(screen.getAllByLabelText("Current bid")).toHaveLength(1);
-    expect(within(decision).getByLabelText("Current bid")).toHaveValue("");
-    expect(within(decision).getByLabelText("Your added shipping")).toHaveValue("");
-    expect(within(decision).getByRole("group", { name: "Risk stance" })).toBeInTheDocument();
-    expect(within(decision).getByText("BID UP TO")).toBeInTheDocument();
-    expect(screen.queryByText("V2 RESEARCH PREVIEW")).not.toBeInTheDocument();
+    const decision = await screen.findByRole("region", { name: "Bid decision" });
+    expect(screen.getAllByRole("region", { name: "Bid decision" })).toHaveLength(1);
+    // An auction gives about ten seconds. Nothing here asks the buyer to
+    // enter a bid, a shipping figure, or a risk stance mid-auction.
+    expect(screen.queryByLabelText("Current bid")).not.toBeInTheDocument();
+    expect(screen.queryByRole("group", { name: "Risk stance" })).not.toBeInTheDocument();
+    expect(within(decision).getByText("DON’T BID OVER")).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByLabelText("Highest bid to make")).toHaveTextContent("$12.00"));
   });
 
   it("keeps break evidence — the only audit trail for the model — behind a real, keyboard-operable disclosure", async () => {
     render(createElement(BuyerWorkspace, { exit: vi.fn(), startFresh: false, startReady: false }));
-    await screen.findByRole("region", { name: "Live bid decision" });
+    await screen.findByRole("region", { name: "Bid decision" });
 
     const summary = screen.getByText("Break evidence").closest("summary");
     expect(summary).not.toBeNull();
@@ -81,15 +81,26 @@ describe("Bid Check command center", () => {
     expect(evidence).not.toBeNull();
     // Dense evidence stays collapsed until the buyer asks for it (CLAUDE.md),
     // but it must be reachable — a bare, unwired <header> that merely looked
-    // clickable is the exact regression this guards against: it could never
-    // gain the native open state below, by click or by keyboard.
+    // clickable is the exact regression this guards against.
     expect(evidence).not.toHaveAttribute("open");
 
     fireEvent.click(summary!);
 
     expect(evidence).toHaveAttribute("open");
-    await waitFor(() => expect(within(evidence as HTMLElement).getByText(/BREAK BALANCE/i)).toBeInTheDocument());
+    await waitFor(() => expect(within(evidence as HTMLElement).getByText(/Data confidence/i)).toBeInTheDocument());
     expect(screen.queryByText("Chase Map")).not.toBeInTheDocument();
+    // The candlesticks live on the slot rail now; repeating them down here
+    // was the reason nobody found them in the first place.
+    expect(screen.queryByText(/BREAK BALANCE/i)).not.toBeInTheDocument();
+  });
+
+  it("shows low, expected and high value on each slot, at the point of decision", async () => {
+    render(createElement(BuyerWorkspace, { exit: vi.fn(), startFresh: false, startReady: false }));
+    await screen.findByRole("region", { name: "Bid decision" });
+
+    await waitFor(() => expect(document.querySelectorAll(".slot-candle")).toHaveLength(8));
+    const white = screen.getByLabelText(/^White: low/);
+    expect(white).toHaveAccessibleName(/low \$0\.00, expected \$20\.00, high \$30\.00/);
   });
 
   it("shows incomplete projections with the exact omission warning", async () => {
@@ -117,113 +128,44 @@ describe("Bid Check command center", () => {
     expect(technicalSummary).toHaveTextContent("1 issue");
     expect(technicalSummary.closest("details")).not.toHaveAttribute("open");
     expect(screen.getAllByText("1× foil box topper has no verified card list.").length).toBeGreaterThan(0);
-    expect(screen.queryByText(/Expected impact:/)).not.toBeInTheDocument();
     await waitFor(() => expect(simulateOutcomesAsync).toHaveBeenCalled());
     expect(screen.getByText("LIMIT UNAVAILABLE")).toBeInTheDocument();
     // Materially incomplete evidence is a permanent, named block for this
-    // calculation — never a stuck spinner. The recovery actions beside it
-    // ("Choose a ready product" / "Use manual budget cap") already explain
-    // and offer a way forward.
-    expect(screen.getByLabelText("Maximum bid")).toHaveTextContent("—");
-    expect(screen.getByLabelText("Maximum bid")).not.toHaveTextContent("Checking…");
+    // calculation — never a stuck spinner.
+    expect(screen.getByLabelText("Highest bid to make")).toHaveTextContent("—");
+    expect(screen.getByLabelText("Highest bid to make")).not.toHaveTextContent("Checking…");
     expect(screen.getByRole("button", { name: "Choose a ready product" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Use manual budget cap" })).toBeInTheDocument();
   });
 
-  it("links missing buyer information to the exact fields", async () => {
-    sessionStorage.removeItem("colorbreak:buyer:bid");
-    sessionStorage.removeItem("colorbreak:buyer:shipping");
+  it("takes the buyer's standing costs out of the ceiling", async () => {
     render(createElement(BuyerWorkspace, { exit: vi.fn(), startFresh: false, startReady: false }));
+    await screen.findByRole("region", { name: "Bid decision" });
+    await waitFor(() => expect(screen.getByLabelText("Highest bid to make")).toHaveTextContent("$12.00"));
 
-    const bidLink = await screen.findByRole("link", { name: "Enter the current bid" });
-    expect(bidLink).toHaveAttribute("href", "#buyer-current-bid");
-    expect(screen.getByLabelText("Current bid")).toHaveAttribute("id", "buyer-current-bid");
+    const summary = screen.getByText("Adjust assumptions");
+    fireEvent.click(summary);
+    summary.closest("details")!.open = true;
+    fireEvent.change(screen.getByLabelText("Shipping"), { target: { value: "5" } });
+
+    await waitFor(() => expect(screen.getByLabelText("Highest bid to make")).toHaveTextContent("$7.00"));
   });
 
-  it("turns an entered bid into an immediate, exact recommendation", async () => {
+  it("resolves a costs-exceed-value verdict to a named fact instead of a stuck spinner", async () => {
     render(createElement(BuyerWorkspace, { exit: vi.fn(), startFresh: false, startReady: false }));
+    await screen.findByRole("region", { name: "Bid decision" });
 
-    const decision = await screen.findByRole("region", { name: "Live bid decision" });
-    fireEvent.change(within(decision).getByLabelText("Current bid"), { target: { value: "10" } });
+    const summary = screen.getByText("Adjust assumptions");
+    fireEvent.click(summary);
+    summary.closest("details")!.open = true;
+    fireEvent.change(screen.getByLabelText("Shipping"), { target: { value: "20" } });
 
-    const recommendation = await within(decision).findByLabelText("Bid recommendation");
-    expect(recommendation).toHaveTextContent("BID — $2.00 ROOM");
-    expect(recommendation).toHaveTextContent("$2.00 under your Estimated Max Bid of $12.00");
-    expect(recommendation).toHaveTextContent("Bid only up to $12.00");
-  });
-
-  it("tells a buyer to pass when the entered bid exceeds the max bid", async () => {
-    render(createElement(BuyerWorkspace, { exit: vi.fn(), startFresh: false, startReady: false }));
-
-    const decision = await screen.findByRole("region", { name: "Live bid decision" });
-    fireEvent.change(within(decision).getByLabelText("Current bid"), { target: { value: "15" } });
-
-    const recommendation = await within(decision).findByLabelText("Bid recommendation");
-    expect(recommendation).toHaveTextContent("STOP — $3.00 OVER");
-    expect(recommendation).toHaveTextContent("$3.00 over your Estimated Max Bid of $12.00");
-    expect(recommendation).toHaveTextContent("Stop bidding");
-  });
-
-  it("marks an exact-limit bid as the stopping point", async () => {
-    render(createElement(BuyerWorkspace, { exit: vi.fn(), startFresh: false, startReady: false }));
-
-    const decision = await screen.findByRole("region", { name: "Live bid decision" });
-    fireEvent.change(within(decision).getByLabelText("Current bid"), { target: { value: "12" } });
-
-    const recommendation = await within(decision).findByLabelText("Bid recommendation");
-    expect(recommendation).toHaveTextContent("AT LIMIT");
-    expect(recommendation).toHaveTextContent("matches your Estimated Max Bid of $12.00");
-    expect(recommendation).toHaveTextContent("Do not bid higher");
-  });
-
-  it("retains the comparison for a stale estimate and labels that limitation", async () => {
-    evaluateBreakAnalysis.mockResolvedValue({
-      ...analysis,
-      valuation: { ...analysis.valuation, pricedAt: new Date(Date.now() - 7 * 60 * 60 * 1000).toISOString() },
-    });
-    render(createElement(BuyerWorkspace, { exit: vi.fn(), startFresh: false, startReady: false }));
-
-    const decision = await screen.findByRole("region", { name: "Live bid decision" });
-    fireEvent.change(within(decision).getByLabelText("Current bid"), { target: { value: "15" } });
-
-    const recommendation = await within(decision).findByLabelText("Bid recommendation");
-    expect(recommendation).toHaveTextContent("$3.00 over your Estimated Max Bid of $12.00");
-    expect(recommendation).toHaveTextContent("Prices are older than 6 hours, so recheck before bidding");
-  });
-
-  it("relabels the max-bid caption once shipping nets the figure down, instead of leaving the old caption lying about what it shows", async () => {
-    render(createElement(BuyerWorkspace, { exit: vi.fn(), startFresh: false, startReady: false }));
-
-    const decision = await screen.findByRole("region", { name: "Live bid decision" });
-    await waitFor(() => expect(screen.getByLabelText("Maximum bid")).toHaveTextContent("$12.00"));
-    // With no shipping entered the figure is the plain rule value, and the
-    // caption says exactly that.
-    expect(screen.getByText("Typical outcome value")).toBeInTheDocument();
-
-    fireEvent.change(within(decision).getByLabelText("Your added shipping"), { target: { value: "5" } });
-
-    await waitFor(() => expect(screen.getByLabelText("Maximum bid")).toHaveTextContent("$7.00"));
-    // The figure is now shipping-netted (12 - 5): the caption must say so,
-    // not keep claiming to show the un-netted rule value.
-    expect(screen.queryByText("Typical outcome value")).not.toBeInTheDocument();
-    expect(screen.getByText(/Typical outcome, minus \$5\.00 shipping/)).toBeInTheDocument();
-  });
-
-  it("resolves a shipping-exceeds-value verdict to a named fact instead of a stuck spinner", async () => {
-    render(createElement(BuyerWorkspace, { exit: vi.fn(), startFresh: false, startReady: false }));
-
-    const decision = await screen.findByRole("region", { name: "Live bid decision" });
-    fireEvent.change(within(decision).getByLabelText("Your added shipping"), { target: { value: "20" } });
-
-    // Shipping alone ($20) exceeds the modeled value ($12): this is a
-    // resolved PASS-class fact from solveFinancialCap's "no-room" branch,
+    // Shipping alone ($20) exceeds the typical value ($12): a resolved fact,
     // not missing data, so it must never render as "Checking…".
-    await waitFor(() => expect(screen.getByLabelText("Maximum bid")).toHaveTextContent("$0.00"));
-    expect(screen.getByLabelText("Maximum bid")).not.toHaveTextContent("Checking…");
-    expect(screen.getByText("Shipping alone exceeds modeled value")).toBeInTheDocument();
-    const recommendation = await within(decision).findByLabelText("Bid recommendation");
-    expect(recommendation).toHaveTextContent("NO BID CLEARS COST");
-    expect(recommendation).toHaveTextContent("no bid amount clears cost here");
+    await waitFor(() => expect(screen.getByLabelText("Highest bid to make")).toHaveTextContent("$0.00"));
+    expect(screen.getByLabelText("Highest bid to make")).not.toHaveTextContent("Checking…");
+    expect(screen.getByText("DO NOT BID")).toBeInTheDocument();
+    expect(screen.getByText(/already meet the typical card value/)).toBeInTheDocument();
   });
 
   it("names result navigation from the active assignment mode", async () => {

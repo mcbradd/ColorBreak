@@ -37,17 +37,19 @@ const slot: SlotValuation = {
 };
 
 describe("shared contributor rows", () => {
-  it("shows pull odds before average contribution and opens from the whole card row", () => {
+  it("shows the pull chance before the value it adds and opens from the whole card row", () => {
     const inspect = vi.fn();
     const { container } = render(createElement(ContributorRows, { slot, onInspect: inspect }));
 
     const headers = [...container.querySelectorAll(".contributor-columns > span")].map((node) => node.textContent);
-    expect(headers).toEqual(["Card and exact printing", "Pull odds", "Adds to average"]);
+    expect(headers).toEqual(["Card", "Chance", "Adds"]);
 
     const row = screen.getByRole("button", { name: /Open Helpful Dragon/ });
     expect(row).toHaveTextContent("25.0%");
     expect(row).toHaveTextContent("$12.00 · Nonfoil · TST");
-    expect(row.querySelector(".card-thumbnail")).toHaveAttribute("aria-label", "Helpful Dragon card image unavailable");
+    // Card art loads from the snapshot's own Scryfall URL; the initial-letter
+    // tile is only the fallback when there is no image or it fails to load.
+    expect(row.querySelector("img.card-thumbnail")).toHaveAttribute("src", "https://cards.scryfall.io/example.jpg");
     fireEvent.click(row);
     expect(inspect).toHaveBeenCalledWith(contributor);
   });

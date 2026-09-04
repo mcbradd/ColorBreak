@@ -67,8 +67,10 @@ describe("break format sequencing", () => {
   it("shows both formats on arrival, before any product is added", () => {
     render(createElement(BuyerWorkspace, { exit: vi.fn(), startFresh: true, startReady: false }));
 
-    expect(screen.getByText("0 lines · 0 openings")).toBeInTheDocument();
-    const formats = screen.getByRole("group", { name: "Break format" });
+    // Nothing is in the break yet, and the page says so by showing an Add
+    // products button rather than a count of zero.
+    expect(screen.getByRole("button", { name: /Add products/ })).toBeInTheDocument();
+    const formats = screen.getByRole("group", { name: "Type of break" });
     expect(within(formats).getByRole("button", { name: "Color slots" })).toHaveAttribute("aria-pressed", "true");
     expect(within(formats).getByRole("button", { name: "Large break" })).toBeInTheDocument();
   });
@@ -78,7 +80,7 @@ describe("break format sequencing", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Large break" }));
 
-    expect(screen.getByRole("heading", { name: "Plan a large break" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Large break" })).toBeInTheDocument();
     expect(screen.getByLabelText("Large break spot count")).toHaveValue("120");
     expect(screen.getByRole("button", { name: "Large break" })).toHaveAttribute("aria-pressed", "true");
   });
@@ -89,7 +91,7 @@ describe("break format sequencing", () => {
     fireEvent.click(screen.getByRole("button", { name: "Large break" }));
     fireEvent.click(screen.getByRole("button", { name: "Color slots" }));
 
-    expect(screen.getByRole("heading", { name: "Check a color-break bid" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Check a bid" })).toBeInTheDocument();
     expect(screen.queryByLabelText("Large break spot count")).toBeNull();
   });
 
@@ -97,28 +99,28 @@ describe("break format sequencing", () => {
     sessionStorage.setItem("colorbreak:buyer:draft:v1", JSON.stringify([savedLine]));
     render(createElement(BuyerWorkspace, { exit: vi.fn(), startFresh: false, startReady: false }));
 
-    await screen.findByRole("region", { name: "Live bid decision" });
-    fireEvent.click(screen.getByRole("button", { name: "Add Blue to the slots you’re considering" }));
-    fireEvent.click(screen.getByRole("button", { name: "Mark Red taken" }));
+    await screen.findByRole("region", { name: "Bid decision" });
+    fireEvent.click(screen.getByRole("button", { name: "Mark White as mine" }));
+    fireEvent.click(screen.getByRole("button", { name: "Mark Blue as mine" }));
+    fireEvent.click(screen.getByRole("button", { name: "Mark Red taken by another buyer" }));
 
     fireEvent.click(screen.getByRole("button", { name: "Large break" }));
 
     // The break itself survives the format change untouched.
     await waitFor(() => expect(screen.getByRole("region", { name: "Large break spot value" })).toBeInTheDocument());
     expect(screen.getByText("Play Booster Box")).toBeInTheDocument();
-    expect(screen.getByText("1 line · 1 opening")).toBeInTheDocument();
 
     // The color-slot choices are not silently discarded: they are named.
     const notice = screen.getByRole("status", { name: "Color-slot choices a large break does not use" });
-    expect(notice).toHaveTextContent("the White, Blue slots you were considering");
+    expect(notice).toHaveTextContent("the White, Blue slots you marked as yours");
     expect(notice).toHaveTextContent("the Red slot you marked taken");
     expect(notice).toHaveTextContent("Nothing was deleted");
 
     // Switching back restores every choice rather than resetting them.
     fireEvent.click(screen.getByRole("button", { name: "Color slots" }));
-    await waitFor(() => expect(screen.getByRole("button", { name: "Remove Blue from the slots you’re considering" })).toHaveAttribute("aria-pressed", "true"));
-    expect(screen.getByRole("button", { name: "Remove White from the slots you’re considering" })).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByRole("button", { name: "Restore Red slot" })).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole("button", { name: "Blue is mine — undo" })).toHaveAttribute("aria-pressed", "true"));
+    expect(screen.getByRole("button", { name: "White is mine — undo" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Restore Red" })).toBeInTheDocument();
     expect(screen.getByText("Play Booster Box")).toBeInTheDocument();
   });
 });

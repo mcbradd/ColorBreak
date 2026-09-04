@@ -1,11 +1,10 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { CSSProperties } from "react";
-import { ShieldAlert } from "lucide-react";
+import { Search, ShieldAlert } from "lucide-react";
 import type { BreakAnalysis } from "../../data/evaluate";
-import type { AssignmentMode } from "../../domain/share-url";
-import { recommendBid, solveFinancialCap } from "../../domain/buyer-treatment";
-import type { ValueRule } from "../../domain/buyer-treatment";
-import { decisionEligibility, resolvedOnlyLimit } from "../../domain/valuation";
+import { bidCeiling } from "../../domain/bid-ceiling";
+import type { BuyerCosts } from "../../domain/bid-ceiling";
+import { decisionEligibility } from "../../domain/valuation";
 import type { AuctionState } from "../../domain/auction";
 import { cardDisplayName } from "../../domain/card-label";
 import { deduplicateOmissions } from "../../domain/omissions";
@@ -23,7 +22,8 @@ import { buyerDecisionPresentation } from "../../release-context";
 import { createLargeBreakPlan, sortNamedCards, summarizeAssignmentValues } from "../../domain/large-break";
 import type { TopCardSort } from "../../domain/large-break";
 import { DisclosureArrow, fmt, InformationLabel, NumberField, PanelHeading, Status, Tip, countedPriceLabel, oddsLabel, NumericInput } from "../shared/Primitives";
-import { cardPreviewSubtitle, CardInspector, CompactWarning, IncompleteDataWarning, OutcomeRange, EvidenceDialog, EvidenceLens, BreakBalance, useOutcomeSimulation, ValueSummary } from "./BuyerVisuals";
+import { cardPreviewSubtitle, CardInspector, CompactWarning, IncompleteDataWarning, OutcomeRange, EvidenceDialog, EvidenceLens, ValueSummary } from "./BuyerVisuals";
+import type { OutcomeSimulation } from "./BuyerVisuals";
 import { PublicCardPlaceholder } from "./CardPlaceholder";
 
 export function ChaseConstellation({
@@ -128,7 +128,7 @@ export function BulkFilterControl({
     <section className={`bulk-filter-control ${enabled ? "enabled" : "disabled"}`}>
       <div className="bulk-filter-main">
         <button type="button" className="bulk-toggle" role="switch" aria-checked={enabled} onClick={() => onToggle(!enabled)}>
-          <span aria-hidden="true"><i /></span><b>Bulk filter</b><small>{enabled ? "On" : "Off"}</small>
+          <span aria-hidden="true"><i /></span><b>Bulk filter</b>
         </button>
         <label className="bulk-value-field">
           <span>Ignore cards under</span>
@@ -162,29 +162,55 @@ function slotProfile(slot: SlotValuation) {
 }
 
 function CardThumbnail({ row }: { row: Contributor }) {
-  return <PublicCardPlaceholder name={row.card.name} className="card-thumbnail" />;
+  return <PublicCardPlaceholder name={row.card.name} image={row.card.image} className="card-thumbnail" />;
 }
 
+const CONTRIBUTOR_PAGE = 10;
+
+const CONTRIBUTOR_COLUMN_HELP = "Chance: how often at least one copy of this exact card version turns up when this break is opened. Adds: how much that card contributes to the colour's average value, which is its price multiplied by the average number of copies opened.";
+
+/**
+ * The ranked card list is long — hundreds of printings in a big break — so it
+ * pages in ten at a time and takes a search box rather than making the buyer
+ * scroll for a card they can name.
+ */
 export function ContributorRows({
   slot,
   onInspect,
-  limit = 8,
+  limit = CONTRIBUTOR_PAGE,
 }: {
   slot: SlotValuation;
   onInspect: (row: Contributor) => void;
   limit?: number;
 }) {
+  const [query, setQuery] = useState("");
+  const [shown, setShown] = useState(limit);
+  useEffect(() => { setShown(limit); }, [limit, slot.id, query]);
+  const normalized = query.trim().toLocaleLowerCase();
+  const matches = normalized
+    ? slot.contributors.filter((row) => row.card.name.toLocaleLowerCase().includes(normalized))
+    : slot.contributors;
   if (!slot.contributors.length) {
     return <p className="no-contributors">No cards in this color are above the current bulk limit.</p>;
   }
   return (
     <>
+      {slot.contributors.length > CONTRIBUTOR_PAGE && <label className="contributor-search">
+        <Search aria-hidden="true" />
+        <input
+          type="search"
+          value={query}
+          placeholder="Find a card"
+          aria-label="Find a card in this color"
+          onChange={(event) => setQuery(event.target.value)}
+        />
+      </label>}
       <div className="contributor-columns">
-        <span>Card and exact printing</span>
-        <span>Pull odds</span>
-        <span>Adds to average</span>
+        <span>Card</span>
+        <span>Chance</span>
+        <span>Adds<Tip label="What Chance and Adds mean" text={CONTRIBUTOR_COLUMN_HELP} /></span>
       </div>
-      {slot.contributors.slice(0, limit).map((row) => (
+      {matches.slice(0, shown).map((row) => (
         <button
           type="button"
           className="card-row contributor-card"
@@ -205,6 +231,12 @@ export function ContributorRows({
           </span>
         </button>
       ))}
+      {!matches.length && <p className="no-contributors">No card in this color matches “{query}”.</p>}
+      {matches.length > shown && <button
+        type="button"
+        className="quiet show-more-cards"
+        onClick={() => setShown((current) => current + CONTRIBUTOR_PAGE)}
+      >Show {Math.min(CONTRIBUTOR_PAGE, matches.length - shown)} more</button>}
     </>
   );
 }
@@ -446,7 +478,7 @@ export function LargeBreakView({
             return <div className={`large-break-card large-break-slot ${isOpen ? "open" : ""}`} key={card.key}>
             <button type="button" className="large-break-card-main" onClick={() => setOpenSlot(isOpen ? null : slotKey)} aria-expanded={isOpen} aria-label={`${isOpen ? "Hide" : "Show"} cards in ${card.name} slot`}>
               <span className="large-break-rank">{String(index + 1).padStart(2, "0")}</span>
-              <PublicCardPlaceholder name={card.name} />
+              <PublicCardPlaceholder name={card.name} image={card.row.card.image} />
               <span className="large-break-card-copy"><strong>{card.name}</strong><small>{card.cards.length} card{card.cards.length === 1 ? "" : "s"} · {cardPreviewSubtitle(card.row, card.marketPrice)}</small></span>
             </button>
             <div className="large-break-card-value"><span>Pull EV</span>{card.pullRateVerified
@@ -491,26 +523,20 @@ export function BuyerView({
   analysis,
   eligibility: assessedEligibility,
   auction,
-  assignmentMode,
   selectedSlots,
   breakLabel,
-  bid,
-  setBid,
-  shipping,
-  setShipping,
+  costs,
+  simulation,
   onChooseReady,
   onUseManualCap,
 }: {
   analysis: BreakAnalysis;
   eligibility?: DecisionEligibility;
   auction: AuctionState;
-  assignmentMode: AssignmentMode;
   selectedSlots: SlotId[];
   breakLabel?: string;
-  bid: number | undefined;
-  setBid: (value: number | undefined) => void;
-  shipping: number | undefined;
-  setShipping: (value: number | undefined) => void;
+  costs: BuyerCosts;
+  simulation: OutcomeSimulation;
   onChooseReady?: () => void;
   onUseManualCap?: () => void;
 }) {
@@ -518,209 +544,61 @@ export function BuyerView({
   const eligibility = assessedEligibility ?? decisionEligibility(result);
   const releasePresentation = buyerDecisionPresentation(eligibility.status);
   const [inspectedCard, setInspectedCard] = useState<Contributor | null>(null);
-  const [valueRule, setValueRule] = useState<ValueRule>({ kind: "median" });
-  const [resolvedOnlyRequested] = useState(false);
-  const [reconfirmedAt, setReconfirmedAt] = useState<number>();
-  const [reconfirmedInput, setReconfirmedInput] = useState<string>();
-  // Random assignment always draws from the whole live remaining pool;
-  // picking specific colors — one or several considered/bid as a unit —
-  // draws only from the slots the buyer actually checked, pruned to
-  // whatever is still available.
-  const pool = assignmentMode === "random"
-    ? auction.remaining
-    : selectedSlots.filter((id) => auction.remaining.includes(id));
-  const effectivePool = pool.length ? pool : auction.remaining;
-  const poolSlots = result.slots.filter((row) => effectivePool.includes(row.id));
-  // The card-level breakdown below always focuses on one representative
-  // slot; with several chosen, that is simply the first one checked.
-  const slot = result.slots.find((row) => row.id === effectivePool[0]) ?? poolSlots[0] ?? result.slots[0];
-  const landed = (bid ?? 0) + (shipping ?? 0);
-  const simulation = useOutcomeSimulation(analysis, effectivePool, bid == null ? undefined : landed);
+  // The next auction hands the winner a random slot from whatever is left:
+  // slots the buyer already owns and slots another buyer took are both out.
+  const pool = auction.remaining;
+  const poolSlots = result.slots.filter((row) => pool.includes(row.id));
+  // The card-level breakdown below always focuses on one representative slot.
+  const slot = result.slots.find((row) => row.id === pool[0]) ?? poolSlots[0] ?? result.slots[0];
   const distribution = simulation.result?.remainingPool;
   const fallbackMean = poolSlots.length
     ? poolSlots.reduce((sum, row) => sum + row.sellableEV, 0) / poolSlots.length
     : 0;
-  const valueTarget = distribution == null
-    ? undefined
-    : valueRule.kind === "median"
-      ? distribution.median
-      : valueRule.kind === "coverage"
-        ? distribution.p25
-        : distribution.mean;
-  const decisionInput = `${effectivePool.join("")}|${assignmentMode}|${auction.remaining.join("")}|${bid ?? ""}|${shipping ?? ""}|${valueRule.kind}|${valueRule.kind === "coverage" ? valueRule.coverage : ""}|${eligibility.affectedGroups.map((group) => group.id).join("|")}`;
-  const reconfirmed = reconfirmedInput === decisionInput && reconfirmedAt != null && Date.now() - reconfirmedAt <= 60_000;
-  const addedShipping = shipping ?? 0;
-  const scoped = valueTarget == null ? undefined : resolvedOnlyLimit(valueTarget, addedShipping, eligibility);
-  const cap = (eligibility.status !== "eligible" && eligibility.status !== "stale") || valueTarget == null
-    ? { kind: "unknown-cost" as const }
-    : solveFinancialCap({
-        valueTarget,
-        acceptedAmounts: valueTarget > addedShipping
-          ? [Math.floor((valueTarget - addedShipping) * 100) / 100]
-          : [],
-        addedCost: () => addedShipping,
-      });
-  const activeCap = releasePresentation.canShowDecision && eligibility.status === "material-incomplete" && resolvedOnlyRequested && scoped && reconfirmed
-    ? { kind: "cap" as const, amount: scoped.amount, allInAtCap: scoped.allIn }
-    : cap;
-  const recommendation = recommendBid(bid, activeCap);
-  const decision = !releasePresentation.canShowDecision
-    ? releasePresentation.heading!
-    : eligibility.status !== "eligible" && eligibility.status !== "stale"
-    ? eligibility.status === "material-incomplete" && resolvedOnlyRequested && scoped && reconfirmed
-      ? bid == null ? "ENTER BID" : recommendation.action === "bid" ? "BID" : recommendation.action === "stop" ? "STOP HERE" : recommendation.action === "pass" ? "PASS" : "NO CAP"
-      : eligibility.status === "material-incomplete" ? `LIMIT UNAVAILABLE — ${eligibility.blockerCount} MATERIAL OMISSIONS` : "LIMIT UNAVAILABLE"
-    : eligibility.status === "stale" && bid == null
-    ? "ESTIMATED MAX BID"
-    : eligibility.status === "stale"
-    ? recommendation.action === "pass" ? "ABOVE ESTIMATE" : recommendation.action === "stop" ? "AT ESTIMATE" : "UNDER ESTIMATE"
-    : bid == null
-    ? "BID UP TO"
-    : shipping == null
-      ? "ADD SHIPPING"
-      : recommendation.action === "bid"
-        ? "BID"
-        : recommendation.action === "stop"
-          ? "STOP HERE"
-          : recommendation.action === "pass"
-            ? "PASS"
-            : "NO CAP";
-  const ruleLabel = valueRule.kind === "median"
-    ? "Typical outcome"
-    : valueRule.kind === "coverage"
-      ? "75% coverage"
-      : "Average outcome";
-  // The max-hammer figure and its caption must always describe the same
-  // quantity: `activeCap.amount` is already shipping-netted whenever
-  // shipping > 0 (solveFinancialCap), so the caption has to say so instead of
-  // always claiming to show the raw rule value. And "Checking…" must only
-  // ever mean "still computing" — a resolved no-room fact or a permanently
-  // unavailable estimate get their own named, non-spinner states.
-  const maxHammerDisplay = !releasePresentation.canShowDecision
+  const typicalValue = distribution?.median ?? fallbackMean;
+  const ownedValue = result.slots
+    .filter((row) => selectedSlots.includes(row.id))
+    .reduce((sum, row) => sum + row.sellableEV, 0);
+  const ceiling = releasePresentation.canShowDecision ? bidCeiling(typicalValue, costs) : undefined;
+  const waiting = simulation.busy && !distribution;
+  const ceilingDisplay = !releasePresentation.canShowDecision
     ? releasePresentation.maxHammer ?? "—"
-    : activeCap.kind === "cap"
-      ? fmt(activeCap.amount)
-      : activeCap.kind === "no-room"
-        ? fmt(0)
-        : simulation.busy
-          ? "Checking…"
-          : "—";
-  const maxHammerCaption = !releasePresentation.canShowDecision
-    ? "Choose another product"
-    : activeCap.kind === "cap"
-      ? (addedShipping > 0 ? `${ruleLabel}, minus ${fmt(addedShipping)} shipping` : `${ruleLabel} value`)
-      : activeCap.kind === "no-room"
-        ? "Shipping alone exceeds modeled value"
-        : simulation.busy
-          ? "Waiting on pull data"
-          : "Pull data unavailable";
-  const decisionKicker = `${breakLabel ? `${breakLabel} · ` : ""}Manual auction check · ${assignmentMode === "random" ? `${auction.remaining.length} random colors` : effectivePool.length > 1 ? `${effectivePool.length} chosen colors` : `${SLOT_NAMES[effectivePool[0]]} slot`}`;
-  const immediateCap = activeCap.kind === "cap" ? activeCap : undefined;
-  const immediateRecommendation = releasePresentation.canShowDecision
-    && (eligibility.status === "eligible" || eligibility.status === "stale")
-    && immediateCap
-    && bid != null
-    ? recommendBid(bid, immediateCap)
-    : undefined;
+    : waiting
+      ? "Checking…"
+      : ceiling?.kind === "ceiling"
+        ? fmt(ceiling.hammer)
+        : fmt(0);
+  const heading = !releasePresentation.canShowDecision
+    ? releasePresentation.heading!
+    : ceiling?.kind === "no-room" && !waiting
+      ? "DO NOT BID"
+      : "DON’T BID OVER";
+  const decisionKicker = `${breakLabel ? `${breakLabel} · ` : ""}${pool.length} slot${pool.length === 1 ? "" : "s"} left`;
   return (
     <>
-      <section
-        className={`bid-live-decision decision-${recommendation.tone} verdict-${decision.replace(/[^A-Z]/g, "").toLowerCase()}`}
-        aria-label="Live bid decision"
-      >
+      <section className="bid-live-decision" aria-label="Bid decision">
         <div className="decision-kicker">
           <span title={decisionKicker}>{decisionKicker}</span>
-          <span className={`decision-evidence evidence-${result.status}`}>{eligibility.status === "eligible" ? "Fresh estimate" : eligibility.status === "stale" ? "Prices are older than 6 hours" : result.status}</span>
+          <span className={`decision-evidence evidence-${result.status}`}>{eligibility.status === "eligible" ? "Fresh estimate" : eligibility.status === "stale" ? "Prices over 6 hours old" : result.status}</span>
         </div>
         <div className="verdict-head">
           <div className="verdict-decision">
-            <InformationLabel>Recommendation</InformationLabel>
-            <h2 aria-live="polite">{decision}</h2>
-            {!releasePresentation.canShowDecision && <div className="decision-reason buyer-recovery-choice"><p><strong>{eligibility.status === "stale" ? "Price evidence is stale." : eligibility.status === "material-incomplete" ? "Contents or exact prices are incomplete." : "Required evidence is unavailable."}</strong> {eligibility.status === "material-incomplete" && eligibility.affectedGroups.length ? eligibility.affectedGroups.map((item) => item.label).join(" ") : ""} Observed {eligibility.observedAt ? new Date(eligibility.observedAt).toLocaleString() : "unknown"} from {eligibility.observedSource ?? "the price snapshot"}. The modeled ceiling is withheld.</p><div className="buyer-recovery-actions"><button type="button" className="quiet" onClick={onChooseReady}>Choose a ready product</button><button type="button" className="quiet" onClick={onUseManualCap}>Use manual budget cap</button></div></div>}
-            {releasePresentation.canShowDecision && (eligibility.status === "eligible" || (eligibility.status === "material-incomplete" && resolvedOnlyRequested && scoped)) && !reconfirmed && <p className="decision-reason"><button type="button" className="quiet" onClick={() => { setReconfirmedInput(decisionInput); setReconfirmedAt(Date.now()); }}>Reconfirm current bid</button> Reconfirm after changing bid, shipping, slot, or risk stance. Confirmation expires after one minute.</p>}
-            {releasePresentation.canShowDecision && bid == null && <p className="decision-reason"><a href="#buyer-current-bid">Enter the current bid</a> to compare it with this estimate.</p>}
-            {(eligibility.status === "eligible" || eligibility.status === "stale") && recommendation.action === "bid" && (
-              <p className="decision-reason">Current hammer is {fmt(recommendation.room)} below your modeled ceiling.</p>
-            )}
-            {(eligibility.status === "eligible" || eligibility.status === "stale") && recommendation.action === "stop" && (
-              <p className="decision-reason">The current hammer has reached your modeled ceiling.</p>
-            )}
-            {(eligibility.status === "eligible" || eligibility.status === "stale") && recommendation.action === "pass" && (
-              <p className="decision-reason">Current hammer is {fmt(Math.abs(recommendation.room))} beyond your modeled ceiling.</p>
-            )}
-          </div>
-          <div className="ev-orb">
-            <small><span>{releasePresentation.canShowDecision ? "Estimated Max Bid" : "Estimate unavailable"}</span></small>
-            <strong className="max-hammer" aria-label="Maximum bid" aria-live="polite">{maxHammerDisplay}</strong>
-            <span>{maxHammerCaption}</span>
-            <strong aria-label="Typical card value" aria-live="polite">{simulation.busy && !distribution ? "Checking…" : fmt(distribution?.median ?? fallbackMean)}</strong>
-            {distribution?.median === 0 && <em>Usually no card above the bulk filter</em>}
-            <span>Average {fmt(distribution?.mean ?? fallbackMean)}</span>
+            <h2 aria-live="polite">{heading}</h2>
+            <strong className="max-hammer" aria-label="Highest bid to make" aria-live="polite">{ceilingDisplay}</strong>
+            <p className="decision-reason">
+              {!releasePresentation.canShowDecision
+                ? "The modeled ceiling is withheld until this break's evidence resolves."
+                : ceiling?.kind === "no-room" && !waiting
+                  ? "Your shipping, tax and fees already meet the typical card value."
+                  : <>Typical card value {fmt(typicalValue)}, average {fmt(distribution?.mean ?? fallbackMean)}.</>}
+            </p>
+            {!releasePresentation.canShowDecision && <div className="buyer-recovery-actions"><button type="button" className="quiet" onClick={onChooseReady}>Choose a ready product</button><button type="button" className="quiet" onClick={onUseManualCap}>Use manual budget cap</button></div>}
           </div>
         </div>
-        {(eligibility.status === "eligible" || eligibility.status === "stale") && <div className="value-rule" role="group" aria-label="Risk stance">
-          <button aria-pressed={valueRule.kind === "coverage"} onClick={() => setValueRule({ kind: "coverage", coverage: .75 })}>Protect downside</button>
-          <button aria-pressed={valueRule.kind === "median"} onClick={() => setValueRule({ kind: "median" })}>Balanced</button>
-          <button aria-pressed={valueRule.kind === "average"} onClick={() => setValueRule({ kind: "average" })}>Chase upside</button>
-        </div>}
-        <div className="bid-inputs">
-          <NumberField id="buyer-current-bid" label="Current bid" value={bid} onChange={setBid} hint="Before the added shipping shown here." live />
-          <NumberField
-            id="buyer-added-shipping"
-            label={eligibility.status === "eligible" ? "Your added shipping" : "Optional: added shipping"}
-            value={shipping}
-            onChange={setShipping}
-            hint="Only shipping added by this purchase—not your whole order."
-            live
-          />
-        </div>
-        {immediateRecommendation && immediateCap && (
-          <div
-            className={`bid-recommendation bid-recommendation-${immediateRecommendation.tone}`}
-            aria-live="polite"
-            aria-label="Bid recommendation"
-          >
-            <div>
-              <small>Bid recommendation</small>
-              <strong>{immediateRecommendation.action === "bid" ? `BID — ${fmt(immediateRecommendation.room)} ROOM` : immediateRecommendation.action === "stop" ? "AT LIMIT" : `STOP — ${fmt(Math.abs(immediateRecommendation.room))} OVER`}</strong>
-            </div>
-            <p>
-              {immediateRecommendation.action === "bid"
-                ? <>Current bid is <b>{fmt(immediateRecommendation.room)}</b> under your Estimated Max Bid of <b>{fmt(immediateCap.amount)}</b>. Bid only up to {fmt(immediateCap.amount)}.</>
-                : immediateRecommendation.action === "stop"
-                  ? <>Current bid matches your Estimated Max Bid of <b>{fmt(immediateCap.amount)}</b>. Do not bid higher.</>
-                  : <>Current bid is <b>{fmt(Math.abs(immediateRecommendation.room))}</b> over your Estimated Max Bid of <b>{fmt(immediateCap.amount)}</b>. Stop bidding.</>}
-              {eligibility.status === "stale" && " Prices are older than 6 hours, so recheck before bidding."}
-            </p>
-          </div>
-        )}
-        {(eligibility.status === "eligible" || eligibility.status === "stale") && recommendation.action === "no-room" && (
-          <div
-            className="bid-recommendation bid-recommendation-negative"
-            aria-live="polite"
-            aria-label="Bid recommendation"
-          >
-            <div>
-              <small>Bid recommendation</small>
-              <strong>NO BID CLEARS COST</strong>
-            </div>
-            <p>
-              Shipping alone (<b>{fmt(addedShipping)}</b>) meets or exceeds the modeled value (<b>{fmt(valueTarget ?? 0)}</b>). This is a resolved outcome, not missing data — no bid amount clears cost here.
-              {eligibility.status === "stale" && " Prices are older than 6 hours, so recheck before bidding."}
-            </p>
-          </div>
-        )}
-        {bid != null && (
-          <div className="delta">
-            <span>
-              Landed cost <b>{fmt(landed)}</b>
-            </span>
-            <span>
-              Average gap <b>{fmt((distribution?.mean ?? fallbackMean) - landed)}</b>
-            </span>
-          </div>
-        )}
-        <OutcomeRange summary={distribution} landed={bid == null ? undefined : landed} compact />
+        {selectedSlots.length > 0 && <p className="owned-slot-value">
+          <span>My {selectedSlots.length === 1 ? "slot" : "slots"}: {selectedSlots.map((id) => SLOT_NAMES[id]).join(", ")}</span>
+          <b>{fmt(ownedValue)}</b>
+        </p>}
+        <OutcomeRange summary={distribution} compact />
         {simulation.busy && <p className="simulation-state" role="status" aria-live="polite">Checking more possible openings…</p>}
         {simulation.error && <CompactWarning title="Pull ranges unavailable" summary="The non-simulation value remains visible." className="inline-warning"><p role="alert">{simulation.error}</p><button type="button" className="quiet" onClick={simulation.retry}>Retry pull ranges</button></CompactWarning>}
         <IncompleteDataWarning analysis={analysis} title="Some estimates may be low" />
@@ -729,21 +607,17 @@ export function BuyerView({
         <summary className="disclosure-summary">
           <span>
             <strong>Break evidence</strong>
-            <small>Break value, pull range, data quality, and ranked cards</small>
+            <small>Break value, data quality, and ranked cards</small>
           </span>
           <DisclosureArrow />
         </summary>
         <div className="bid-explorer-body">
           <ValueSummary result={result} />
-          <BreakBalance result={result} remaining={auction.remaining} simulation={simulation.result} />
           <EvidenceLens analysis={analysis} />
           <SlotValueDetails
             slot={slot}
             threshold={result.threshold}
             onInspect={setInspectedCard}
-            note={assignmentMode !== "random" && effectivePool.length > 1
-              ? `Card detail shown for ${slot.name} — ${effectivePool.length - 1} other chosen color${effectivePool.length > 2 ? "s" : ""} not shown here.`
-              : undefined}
           />
         </div>
       </details>
@@ -756,4 +630,3 @@ export function BuyerView({
     </>
   );
 }
-

@@ -15,7 +15,7 @@ ColorBreak supports two time-sensitive jobs: a buyer deciding whether to bid on 
 - **Counted EV**: expected value from card finishes at or above the user’s “Ignore bulk under” threshold. The threshold is a value filter, not a liquidity claim.
   _Avoid_: Sellable EV
 - **Known EV**: priced value that is safe to claim after unresolved contents are omitted. It equals Market EV when the result is complete.
-- **Landed bid**: hammer price plus shipping added by the current purchase. Tax is disclosed but not modeled in the buyer verdict.
+- **Landed bid**: hammer price plus every buyer cost the purchase adds — shipping, tax, fees.
 - **Transaction**: one buyer purchase. Commission, percentage processing, and the fixed processing fee apply here.
 - **Shipment**: buyer-grouped fulfillment. Packing and seller-covered shipping apply here; a shipment is not automatically one color slot.
 - **Target plan**: proposed asks needed to achieve a margin. It is not an actual outcome.
@@ -30,10 +30,10 @@ ColorBreak supports two time-sensitive jobs: a buyer deciding whether to bid on 
 - **Residual category spot**: one indivisible slot that receives the entire remaining creature-color or card-type pool after all named spots are excluded. A slot is never repeated or split among buyers.
 - **Seller Studio**: the seller's planning workspace for deciding whether to run a break, pricing it, checking downside, and producing policy-safe launch assets.
 - **Truth engine**: the shared composition, collation, pricing, evidence, simulation, auction, and fee model used by both workspaces. A seller-authored link supplies assumptions but never overrides buyer-visible evidence.
-- **Bid ceiling**: the greatest hammer price consistent with the buyer's selected risk stance after incremental shipping and any explicitly modeled costs. It is a limit, not a prediction or encouragement to bid.
+- **Bid ceiling**: the greatest hammer price whose landed cost still fits inside the typical modeled value of the remaining pool, after the buyer's standing costs. It is a limit, not a prediction or encouragement to bid.
 - **Viability decision**: the Seller Studio result: Run, Reprice, Change mix, or Do not run, supported by net profit, break-even fill, and explicit assumptions.
 - **Break-even fill**: the minimum number or percentage of planned spots that must sell at the modeled prices for seller net profit to reach zero.
-- **Risk stance**: a buyer-selected interpretation of modeled outcomes (Protect downside, Balanced, or Chase upside) used to derive a bid ceiling. It never changes the underlying distribution.
+- **Buyer costs**: the buyer's standing assumptions about what a winning purchase costs on top of the hammer price — added shipping, sales tax, platform or payment fees, and any flat per-purchase fee. Set once, kept for the session, and removed from the modeled value to produce the bid ceiling.
 - **Launch pack**: buyer-facing and operational assets generated from the same modeled break: rules, spot labels, listing copy, show notes, a portrait graphic, and a checklist.
 
 ## Source policy

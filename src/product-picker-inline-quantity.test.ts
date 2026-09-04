@@ -21,6 +21,8 @@ vi.mock("./domain/decision-evidence", () => ({ prepareProductSelection }));
 
 import { Builder } from "./features/shared/ProductBuilder";
 
+const draftEntries = () => [...document.querySelectorAll(".composer-draft-list li")].map((node) => node.textContent);
+
 describe("Add to Break product picker — single-screen add/remove/quantity", () => {
   it("adds a product on tap, adjusts its quantity, and removes it — all on the same product-list screen", async () => {
     render(createElement(Builder, { open: true, onClose: vi.fn(), lines: [], onApply: vi.fn() }));
@@ -33,10 +35,9 @@ describe("Add to Break product picker — single-screen add/remove/quantity", ()
 
     fireEvent.click(boxRow);
 
-    // The stat tile reflects the add immediately: 1 product line, 12
-    // openings (its packCount), without leaving the product list.
-    await waitFor(() => expect(document.querySelectorAll(".stat-tile")[0].querySelector("b")).toHaveTextContent("1"));
-    expect(document.querySelectorAll(".stat-tile")[1].querySelector("b")).toHaveTextContent("12");
+    // The current break reflects the add immediately, as the product itself
+    // rather than a count, without leaving the product list.
+    await waitFor(() => expect(draftEntries()).toEqual(["TSTCollector Booster Box×1"]));
 
     // A quantity stepper is now visible right in the list for this row —
     // no navigation to a separate screen is required to change it.
@@ -46,16 +47,14 @@ describe("Add to Break product picker — single-screen add/remove/quantity", ()
     const increase = screen.getByRole("button", { name: /Increase Collector Booster Box quantity/i });
     fireEvent.click(increase);
     expect(quantityInput).toHaveValue(2);
-    await waitFor(() => expect(document.querySelectorAll(".stat-tile")[1].querySelector("b")).toHaveTextContent("24"));
     // Still exactly one product line — quantity changed, not line count.
-    expect(document.querySelectorAll(".stat-tile")[0].querySelector("b")).toHaveTextContent("1");
+    await waitFor(() => expect(draftEntries()).toEqual(["TSTCollector Booster Box×2"]));
 
-    // The row's own remove control takes it back out, without leaving this
-    // screen, and the stat tiles fall back to zero.
-    const remove = screen.getByRole("button", { name: /Remove Collector Booster Box from break/i });
-    fireEvent.click(remove);
-    await waitFor(() => expect(document.querySelectorAll(".stat-tile")[0].querySelector("b")).toHaveTextContent("0"));
-    expect(document.querySelectorAll(".stat-tile")[1].querySelector("b")).toHaveTextContent("0");
+    // Stepping the quantity below one is the removal control: there is no
+    // second bin icon doing the same job.
+    fireEvent.click(screen.getByRole("button", { name: /Decrease Collector Booster Box quantity/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Remove Collector Booster Box from break/i }));
+    await waitFor(() => expect(draftEntries()).toEqual([]));
 
     // The row is back to its unselected, single-tap-to-add state.
     expect(await screen.findByRole("button", { name: /Collector Booster Box/ })).toBeInTheDocument();
@@ -69,25 +68,25 @@ describe("Add to Break product picker — single-screen add/remove/quantity", ()
     fireEvent.click(await screen.findByRole("button", { name: /Collector Booster Box/ }));
     fireEvent.click(await screen.findByRole("button", { name: /Play Booster Pack/ }));
 
-    await waitFor(() => expect(document.querySelectorAll(".stat-tile")[0].querySelector("b")).toHaveTextContent("2"));
-    // 12 (box) + 1 (pack) = 13 openings.
-    expect(document.querySelectorAll(".stat-tile")[1].querySelector("b")).toHaveTextContent("13");
+    await waitFor(() => expect(draftEntries()).toEqual([
+      "TSTCollector Booster Box×1",
+      "TSTPlay Booster Pack×1",
+    ]));
 
     // Removing just the box leaves the pack's own line and quantity intact.
     fireEvent.click(screen.getByRole("button", { name: /Remove Collector Booster Box from break/i }));
-    await waitFor(() => expect(document.querySelectorAll(".stat-tile")[0].querySelector("b")).toHaveTextContent("1"));
-    expect(document.querySelectorAll(".stat-tile")[1].querySelector("b")).toHaveTextContent("1");
+    await waitFor(() => expect(draftEntries()).toEqual(["TSTPlay Booster Pack×1"]));
     expect(screen.getByLabelText("Play Booster Pack quantity in openings")).toHaveValue(1);
   });
 
-  it("commits the in-screen additions to the break when Add to break is pressed", async () => {
+  it("commits the in-screen additions to the break when the picker is finished", async () => {
     const onApply = vi.fn();
     render(createElement(Builder, { open: true, onClose: vi.fn(), lines: [], onApply }));
     fireEvent.click(await screen.findByRole("button", { name: /Test Set/ }));
     fireEvent.click(await screen.findByRole("button", { name: /Collector Booster Box/ }));
     fireEvent.click(screen.getByRole("button", { name: /Increase Collector Booster Box quantity/i }));
 
-    fireEvent.click(screen.getByRole("button", { name: /Add to break/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^Done/i }));
 
     await waitFor(() => expect(onApply).toHaveBeenCalled());
     const [appliedLines] = onApply.mock.calls[0];

@@ -14,13 +14,16 @@ import { track } from "../../analytics";
 import { readyExampleLine } from "../../data/ready-examples";
 import {
   cleanupLegacyStorage,
+  readBuyerCosts,
   readBuyerDecisionRecord,
   readSessionDraft,
+  writeBuyerCosts,
   writeBuyerDecisionRecord,
   writeSessionLines,
 } from "../../persistence";
+import { DEFAULT_BUYER_COSTS, type BuyerCosts } from "../../domain/bid-ceiling";
 import { Builder, ManualBudgetCap } from "../shared/ProductBuilder";
-import { CompactWarning } from "./BuyerVisuals";
+import { CompactWarning, useOutcomeSimulation } from "./BuyerVisuals";
 import { BuyerSetup } from "./BuyerSetup";
 import { BuyerView, LargeBreakView } from "./BuyerDetails";
 
@@ -57,18 +60,21 @@ export function BuyerWorkspace({
     [error, setError] = useState<string>(),
     [bulkThreshold, setBulkThreshold] = useState(() => sharedBuyer.bulkThreshold ?? 2),
     [bulkEnabled, setBulkEnabled] = useState(() => sharedBuyer.bulkEnabled ?? true),
-    [assignmentMode, setAssignmentMode] = useState<AssignmentMode>(() => sharedBuyer.assignmentMode),
+    // Colour-slot breaks always price the pool the next auction draws from,
+    // so "pick" no longer exists as a separate mode: the slots a buyer checks
+    // are the ones they already own, not the ones being valued.
+    [assignmentMode, setAssignmentMode] = useState<AssignmentMode>(() => sharedBuyer.assignmentMode === "large" ? "large" : "random"),
     [buyerBid, setBuyerBid] = useState<number | undefined>(),
     [buyerShipping, setBuyerShipping] = useState<number | undefined>(),
+    // Costs the buyer pays on top of the hammer price. Set once, then left
+    // alone: an auction gives about ten seconds, which is no time to type.
+    [costs, setCosts] = useState<BuyerCosts>(() => readBuyerCosts() ?? DEFAULT_BUYER_COSTS),
     [largeSpots, setLargeSpots] = useState<number>(() => {
       return sharedBuyer.largeSpots ?? 120;
     }),
-    // A brand-new, unshared draft has genuinely chosen nothing yet; resuming
-    // an existing draft or an explicit share link both start pre-populated.
-    [selectedSlots, setSelectedSlots] = useState<SlotId[]>(() => {
-      if (sharedBuyer.selectedSlots?.length) return sharedBuyer.selectedSlots;
-      return startFresh ? [] : ["W"];
-    }),
+    // Checked slots are the slots the buyer already owns, so nothing is
+    // checked until they say so.
+    [selectedSlots, setSelectedSlots] = useState<SlotId[]>(() => sharedBuyer.selectedSlots ?? []),
     [busy, setBusy] = useState(false),
     [calculationGeneration, setCalculationGeneration] = useState(0);
   const [manualCapOpen, setManualCapOpen] = useState(false);
@@ -85,9 +91,7 @@ export function BuyerWorkspace({
     bulkThreshold: number;
   }>();
   const threshold = bulkEnabled ? bulkThreshold : 0;
-  // Random and large modes always have a live pool to evaluate; picking
-  // specific colors needs at least one actually checked.
-  const slotChosen = assignmentMode !== "pick" || selectedSlots.length > 0;
+  useEffect(() => { writeBuyerCosts(costs); }, [costs]);
   useEffect(() => { if (startReady) setLines([readyExampleLine()]); }, [startReady]);
   useEffect(() => { if (cleanupLegacyStorage()) setLegacyNotice(true); }, []);
   useEffect(() => {
@@ -232,6 +236,9 @@ export function BuyerWorkspace({
     return () => { cancelled = true; };
   }, [lines.map((line) => `${line.id}:${line.productKey}:${line.tcgId ?? ""}`).join("|")]);
   const [shareStatus, setShareStatus] = useState<string>();
+  // One simulation for the whole workspace: the slot rail's candles and the
+  // decision's outcome range are two views of the same modeled openings.
+  const simulation = useOutcomeSimulation(analysis, auction.remaining, undefined);
   const share = async () => {
     try { await navigator.clipboard.writeText(sharedHref); setShareStatus("Buyer setup link copied"); }
     catch { setShareStatus("Clipboard unavailable — copy the displayed buyer setup URL."); }
@@ -302,9 +309,7 @@ export function BuyerWorkspace({
       <main className="workspace page" tabIndex={-1} data-focus-fallback>
         <header className="workspace-title">
           <div>
-            <p className="eyebrow">COLORBREAK</p>
-            <h1>{assignmentMode === "large" ? "Plan a large break" : "Check a color-break bid"}</h1>
-            {!lines.length && <p className="buyer-direct-intro">Pick the format and what’s in the break — then we’ll help you decide what to bid.</p>}
+            <h1>{assignmentMode === "large" ? "Large break" : "Check a bid"}</h1>
           </div>
         </header>
         {importUndo && <aside className="import-undo" aria-live="polite">
@@ -341,28 +346,27 @@ export function BuyerWorkspace({
               bulkThreshold={bulkThreshold}
               setBulkEnabled={setBulkEnabled}
               setBulkThreshold={setBulkThreshold}
+              distributions={simulation.result?.slotDistributions}
+              costs={costs}
+              setCosts={setCosts}
               largeSpots={largeSpots}
               setLargeSpots={setLargeSpots}
             />
             <div id="buyer-large-result" className="results buyer-results buyer-decision-stage">
-              {manualCapOpen ? <ManualBudgetCap onBack={() => { setManualCapOpen(false); openBuilder(); }} target={manualTarget} setTarget={setManualTarget} shipping={manualShipping} setShipping={setManualShipping} hammer={manualHammer} setHammer={setManualHammer} /> : !lines.length && <section className="buyer-awaiting-break"><span><BarChart3 /></span><h2>Add a product to begin</h2><p>Your estimated value and bid limit will appear here after you choose the break and slot.</p></section>}
+              {manualCapOpen ? <ManualBudgetCap onBack={() => { setManualCapOpen(false); openBuilder(); }} target={manualTarget} setTarget={setManualTarget} shipping={manualShipping} setShipping={setManualShipping} hammer={manualHammer} setHammer={setManualHammer} /> : !lines.length && <section className="buyer-awaiting-break"><span><BarChart3 /></span><h2>Add a product to begin</h2></section>}
               {busy && <div className="calculating" role="status" aria-live="polite"><span />Calculating exact contents and prices…</div>}
               {error && <CompactWarning title="Couldn’t load this result" summary="No verified modeled ceiling can be offered until this data loads." className="load-warning"><p role="alert">{error}</p><div className="buyer-recovery-actions"><button type="button" className="quiet" onClick={() => setCalculationGeneration((value) => value + 1)}>Retry analysis</button><button type="button" className="quiet" onClick={() => setManualCapOpen(true)}>Use manual budget cap</button></div></CompactWarning>}
-              {analysis && !slotChosen && <section className="buyer-awaiting-break buyer-awaiting-slot"><h2>Choose your slot</h2><p>Select the color you’re considering to see its estimated value and bid limit.</p></section>}
               {analysis && (assignmentMode === "large" ? (
                 <LargeBreakView analysis={analysis} lines={lines} spots={largeSpots} bid={buyerBid} setBid={setBuyerBid} shipping={buyerShipping} setShipping={setBuyerShipping} />
-              ) : slotChosen && (
+              ) : (
                 <BuyerView
                   analysis={analysis}
                   eligibility={decisionAssessment?.eligibility}
                   auction={auction}
-                  assignmentMode={assignmentMode}
                   selectedSlots={selectedSlots}
                   breakLabel={lines.length === 1 ? `${lines[0].quantity}× ${lines[0].set} ${lines[0].productLabel}` : `${lines.length} products`}
-                  bid={buyerBid}
-                  setBid={setBuyerBid}
-                  shipping={buyerShipping}
-                  setShipping={setBuyerShipping}
+                  costs={costs}
+                  simulation={simulation}
                   onChooseReady={() => setLines([readyExampleLine()])}
                   onUseManualCap={() => setManualCapOpen(true)}
                 />

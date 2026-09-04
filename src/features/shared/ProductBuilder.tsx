@@ -16,7 +16,6 @@ import {
   PackagePlus,
   ScanText,
   Search,
-  Trash2,
   X,
 } from "lucide-react";
 import { catalogSets, productsForSet } from "../../data/catalog";
@@ -66,7 +65,6 @@ export function Builder({
   const [selected, setSelected] = useState<SetChoice>();
   const [products, setProducts] = useState<ProductChoice[]>([]);
   const [prepared, setPrepared] = useState<Record<string, PreparedProductSelection>>({});
-  const [readyOnly, setReadyOnly] = useState(false);
   const [loading, setLoading] = useState(false);
   const [draft, setDraft] = useState<BreakLine[]>([]);
   const [composerMode, setComposerMode] = useState<"search" | "paste" | "review">("search");
@@ -82,6 +80,8 @@ export function Builder({
   const [scanLineCount, setScanLineCount] = useState(0);
   const scanNoticeId = useId();
   const [importSettings, setImportSettings] = useState<{ assignmentMode: AssignmentMode; largeSpots?: number; bulkEnabled?: boolean; bulkThreshold?: number }>();
+  const linesRef = useRef(lines);
+  linesRef.current = lines;
   useEffect(() => {
     if (open)
       catalogSets().then((rows) =>
@@ -115,6 +115,9 @@ export function Builder({
       }
     })();
   }, [selected, lines, valueThreshold]);
+  // Seeded once per opening, never re-seeded from `lines`: the workspace
+  // re-creates that array whenever a sealed price resolves, and re-seeding on
+  // identity wiped whatever the buyer had just added to the draft.
   useEffect(() => {
     if (!open) {
       setSelected(undefined);
@@ -125,16 +128,34 @@ export function Builder({
       setImportRows([]);
       setImportErrors([]);
       setImportSettings(undefined);
-      setReadyOnly(false);
       setScanProgress(undefined);
       setScanError(undefined);
       setScanUncertain([]);
       setScanLineCount(0);
-    } else {
-      setDraft(lines);
+      return;
     }
-  }, [open, lines]);
-  useDialogOwnership(open, onClose, dialogRef, closeRef, invokingElement);
+    setDraft(linesRef.current);
+  }, [open]);
+  const draftSignature = (rows: BreakLine[]) => rows.map((row) => `${row.set}|${row.productKey}|${row.quantity}`).join(",");
+  /**
+   * Leaving the picker is what commits it. Products are chosen in batches, so
+   * the sheet stays open while the buyer keeps adding; the X, the Done button,
+   * Escape and the scrim all mean "I am finished choosing".
+   */
+  const commit = () => {
+    if (draftSignature(draft) === draftSignature(linesRef.current)) { onClose(); return; }
+    void prepareProductSelection(draft, valueThreshold).then((selection) => {
+      onApply(draft, undefined, selection);
+      onClose();
+    });
+  };
+  const commitRef = useRef(commit);
+  commitRef.current = commit;
+  useDialogOwnership(open, () => commitRef.current(), dialogRef, closeRef, invokingElement);
+  // A tap that opens the sheet can land a synthesized pointer event on the
+  // freshly mounted scrim, which read as "opened, then nothing happened".
+  const openedAt = useRef(0);
+  useEffect(() => { if (open) openedAt.current = Date.now(); }, [open]);
   const normalizedQuery = query.trim().toLocaleLowerCase();
   const visible = sets
     .filter((set) =>
@@ -272,8 +293,7 @@ export function Builder({
     },
     {},
   );
-  const visibleProducts = Object.fromEntries(Object.entries(groupedProducts).map(([category, rows]) => [category, rows.filter((product) => !readyOnly || prepared[product.key]?.assessment.presentation === "eligible")]));
-  const readyCount = products.filter((product) => prepared[product.key]?.assessment.presentation === "eligible").length;
+  const visibleProducts = groupedProducts;
   // Unmount before the ownership hook restores focus: no exit animation may
   // leave an active dialog exposed alongside the active workspace.
   if (!open) return null;
@@ -283,7 +303,10 @@ export function Builder({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          onMouseDown={onClose}
+          onPointerDown={(event) => {
+            if (event.target !== event.currentTarget || Date.now() - openedAt.current < 300) return;
+            commit();
+          }}
         >
           <motion.section
             ref={dialogRef}
@@ -295,13 +318,13 @@ export function Builder({
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
             transition={{ type: "spring", damping: 28, stiffness: 320 }}
-            onMouseDown={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}
           >
             <header>
               <button
                 ref={closeRef}
                 className="icon-button"
-                onClick={selected ? () => setSelected(undefined) : composerMode !== "search" ? () => setComposerMode("search") : onClose}
+                onClick={selected ? () => setSelected(undefined) : composerMode !== "search" ? () => setComposerMode("search") : commit}
                 aria-label={selected || composerMode !== "search" ? "Back" : "Close"}
               >
                 {selected || composerMode !== "search" ? <ArrowLeft /> : <X />}
@@ -320,13 +343,18 @@ export function Builder({
               tabIndex={-1}
               onChange={onScreenshotChosen}
             />
-            <div className="composer-status" aria-live="polite">
+            {draft.length > 0 && <div className="composer-status" aria-live="polite">
               <small className="composer-status-label">Current break</small>
-              <div className="composer-status-tiles">
-                <span className="stat-tile"><b>{draft.length}</b><small>product line{draft.length === 1 ? "" : "s"}</small></span>
-                <span className="stat-tile"><b>{totalOpenings}</b><small>opening{totalOpenings === 1 ? "" : "s"}</small></span>
-              </div>
-            </div>
+              <ul className="composer-draft-list">
+                {draft.map((line) => (
+                  <li key={line.id}>
+                    <span className="set-glyph">{line.set}</span>
+                    <span>{line.productLabel}</span>
+                    <b>×{line.quantity}</b>
+                  </li>
+                ))}
+              </ul>
+            </div>}
             {composerMode === "paste" ? (
               <section className="break-import">
                 <p><strong>Paste a ColorBreak link or product list</strong> — accepted formats are a ColorBreak link or one canonical product per line.</p>
@@ -354,7 +382,7 @@ export function Builder({
                     <input
                       autoFocus
                       aria-label="Search sets by name or code"
-                      placeholder="Search a product or paste a break listing"
+                      placeholder="Search sets"
                       value={query}
                       onChange={(e) => setQuery(e.target.value)}
                     />
@@ -365,11 +393,11 @@ export function Builder({
                   </div>
                 </div>
                 <div className="break-input-actions">
-                  <button type="button" className="paste-break-action" onClick={() => setComposerMode("paste")}><PackagePlus />Paste a break listing</button>
+                  <button type="button" className="paste-break-action" onClick={() => setComposerMode("paste")}><PackagePlus />Paste a listing</button>
                   <button type="button" className="paste-break-action" onClick={chooseScreenshot}><ScanText />Read a screenshot</button>
                 </div>
                 <InformationLabel>
-                  {visible.length} {query ? "MATCHING SETS" : "SETS"}
+                  {visible.length} {visible.length === 1 ? "SET" : "SETS"}
                 </InformationLabel>
                 <div className="choice-list">
                   {visible.map((set) => (
@@ -388,7 +416,6 @@ export function Builder({
               </>
             ) : (
               <>
-                <label className="ready-only-filter"><input type="checkbox" checked={readyOnly} onChange={(event) => setReadyOnly(event.target.checked)} /> Ready for bid check <small aria-live="polite">{readyCount} ready in this snapshot</small></label>
                 {loading ? (
                   <div className="loader">
                     <span />
@@ -423,18 +450,11 @@ export function Builder({
                                 {description}
                                 <b className="product-added">Added</b>
                               </span>
-                              <div className="line-controls">
-                                <QuantityControl line={addedLine} update={(quantity) => updateDraftQuantity(addedLine, quantity)} />
-                                <button
-                                  type="button"
-                                  className="remove-line"
-                                  aria-label={`Remove ${product.label} from break`}
-                                  title="Remove from break"
-                                  onClick={() => removeDraftLine(addedLine)}
-                                >
-                                  <Trash2 />
-                                </button>
-                              </div>
+                              <QuantityControl
+                                line={addedLine}
+                                update={(quantity) => updateDraftQuantity(addedLine, quantity)}
+                                onEmpty={() => removeDraftLine(addedLine)}
+                              />
                             </div>
                           ) : (
                             <button
@@ -453,7 +473,7 @@ export function Builder({
                         })}
                       </section>
                     ))}
-                    {!Object.values(visibleProducts).some((rows) => rows.length) && (readyOnly ? <div className="empty-picker-state"><p>No products in this set currently have fresh estimate data.</p><button type="button" className="quiet" onClick={() => setReadyOnly(false)}>Show all products</button></div> : <p className="empty-picker-state">No products match this filter. Show all products to keep building your break.</p>)}
+                    {!Object.values(visibleProducts).some((rows) => rows.length) && <p className="empty-picker-state">This set has no sealed products in the catalog yet.</p>}
                   </div>
                 )}
               </>
@@ -467,9 +487,9 @@ export function Builder({
                 </button>
               ) : composerMode === "paste" ? (
                 <button type="button" className="primary" disabled={!importSource.trim() || importing} onClick={resolveImport}>{importing ? "Checking products…" : "Review products"}</button>
-              ) : (
-                <button type="button" className="primary" disabled={!draft.length} onClick={() => { void prepareProductSelection(draft, valueThreshold).then((selection) => { onApply(draft, undefined, selection); onClose(); }); }}>Add to break{draft.length ? ` · ${draft.length}` : ""}</button>
-              )}
+              ) : draft.length ? (
+                <button type="button" className="primary" onClick={commit}>Done · {draft.length} product{draft.length === 1 ? "" : "s"} · {totalOpenings} opening{totalOpenings === 1 ? "" : "s"}</button>
+              ) : null}
             </footer>
           </motion.section>
         </motion.div>, document.body,
@@ -582,27 +602,47 @@ function ManualBudgetCap({ onBack, target, setTarget, shipping, setShipping, ham
   </section>;
 }
 
-function QuantityControl({ line, update }: { line: BreakLine; update: (quantity: number) => void }) {
+/**
+ * Quantity is also the only way to remove a line: stepping below one shows a
+ * zero for a beat so the removal is legible, then drops the line. A separate
+ * bin icon beside it would be a second control for the same job.
+ */
+function QuantityControl({ line, update, onEmpty }: { line: BreakLine; update: (quantity: number) => void; onEmpty?: () => void }) {
   const unit = line.packCount && line.packCount > 1 ? "products" : "openings";
+  const [removing, setRemoving] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  useEffect(() => () => clearTimeout(timer.current), []);
+  const cancelRemoval = () => {
+    clearTimeout(timer.current);
+    setRemoving(false);
+  };
+  const decrease = () => {
+    if (line.quantity > 1) { update(line.quantity - 1); return; }
+    if (!onEmpty || removing) return;
+    setRemoving(true);
+    timer.current = setTimeout(onEmpty, 400);
+  };
+  const shown = removing ? 0 : line.quantity;
   return (
     <label className="quantity-control">
       <span>Quantity</span>
       <div>
-        <button type="button" disabled={line.quantity <= 1} aria-label={`Decrease ${line.productLabel} quantity`} onClick={() => update(Math.max(1, line.quantity - 1))}>−</button>
+        <button type="button" disabled={!onEmpty && line.quantity <= 1} aria-label={line.quantity <= 1 ? `Remove ${line.productLabel} from break` : `Decrease ${line.productLabel} quantity`} onClick={decrease}>−</button>
         <input
           type="number"
           inputMode="numeric"
-          min={1}
+          min={0}
           max={999}
-          value={line.quantity}
+          value={shown}
           aria-label={`${line.productLabel} quantity in ${unit}`}
           onFocus={(event) => event.currentTarget.select()}
           onChange={(event) => {
             const value = Number.parseInt(event.target.value, 10);
-            if (Number.isFinite(value) && value >= 1 && value <= 999) update(value);
+            if (value === 0 && onEmpty) { decrease(); return; }
+            if (Number.isFinite(value) && value >= 1 && value <= 999) { cancelRemoval(); update(value); }
           }}
         />
-        <button type="button" aria-label={`Increase ${line.productLabel} quantity`} onClick={() => update(Math.min(999, line.quantity + 1))}>+</button>
+        <button type="button" aria-label={`Increase ${line.productLabel} quantity`} onClick={() => { cancelRemoval(); update(Math.min(999, line.quantity + 1)); }}>+</button>
       </div>
     </label>
   );

@@ -13,6 +13,8 @@ Read `CONTEXT.md` for domain language and `SPEC.md` for the current acceptance c
 
 Product-facing work is complete when the GitHub Pages deployment succeeds and the changed flow passes a live-site check. Treat local tests and builds as pre-deployment validation, not completion.
 
+`build-number.txt` holds the human-facing build number: one integer, incremented by exactly one for every release. It is what the app shows under App settings; the commit SHA stays the provenance record in the release manifest.
+
 The deployable output is `dist/`. GitHub Pages must receive the built assets plus `data/` and `public/` content.
 
 ## Architecture boundaries
@@ -26,7 +28,7 @@ The deployable output is `dist/`. GitHub Pages must receive the built assets plu
 
 ## Experience constraints
 
-Mobile touch is the primary input. Preserve the buyer’s fast path: choose product, enter bid and incremental shipping, then tap each assigned random remaining slot. Pick My Color is alternate mode. Calculation starts on product selection. Keep dense evidence behind progressive disclosure. Materially incomplete data never suppresses projections, verdicts, or outcome distributions. Show the result using resolved data, place a specific warning beside it, name every missing item in plain language, and explain how the gap may affect the result. If a result needs user input, link the message directly to the exact field.
+Mobile touch is the primary input. Preserve the buyer’s fast path: choose the break type, add products, then tap the slots already sold. The live decision asks for no typing — costs are standing assumptions set once. Calculation starts on product selection. Keep dense evidence behind progressive disclosure, and keep explanations behind a help icon rather than in standing prose. If one word can replace ten, use the one word. Materially incomplete data never suppresses projections, verdicts, or outcome distributions. Show the result using resolved data, place a specific warning beside it, name every missing item in plain language, and explain how the gap may affect the result. If a result needs user input, link the message directly to the exact field.
 
 Maintain keyboard operation, visible focus, reduced-motion behavior, and a usable 320px layout. Slot meaning cannot rely on color alone.
 

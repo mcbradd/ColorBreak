@@ -35,7 +35,7 @@ describe("screenshot break import", () => {
   it("offers the screenshot path beside the paste path, taking any image the phone can supply", async () => {
     render(createElement(Builder, { open: true, onClose: vi.fn(), lines: [], onApply: vi.fn() }));
 
-    expect(await screen.findByRole("button", { name: /Paste a break listing/i })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: /Paste a listing/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Read a screenshot/i })).toBeInTheDocument();
     // "image/*" is what makes iOS offer Photo Library and Take Photo.
     expect(fileInput().accept).toBe("image/*");
