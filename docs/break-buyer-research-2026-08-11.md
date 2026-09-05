@@ -263,6 +263,8 @@ Each proposal states the problem, the evidence, the change, acceptance criteria,
 
 **Change.** Where a sheet carries `balanceColors`, surface a named omission stating that per-colour counts on that sheet are not derivable, and treat the slot's card count as a range rather than a point value. Where a sheet does not carry the flag, per-card weights are usable directly and confidence stays higher.
 
+**Superseded (2026-09).** The omission told the buyer about a gap they could do nothing about, while the simulator drew the sheet as if unbalanced — which understates every mono colour's floor, because a modelled opening could miss a colour that a real pack cannot. Sampling now applies the one guarantee the flag does carry: the sheet spends its first five picks on one card of each mono colour, and draws the remainder by its own printed weights. No stronger per-colour distribution is claimed, and nothing is excluded — colourless and land commons still come through the free picks. The omission now fires only when the resolved sheet has lost a whole colour and the guarantee therefore cannot be honoured.
+
 **Acceptance.** No code path infers a colour split from an unbalanced-unknown sheet. The omission is named specifically enough for a reviewer to act on.
 
 **Constraint.** This is the CLAUDE.md rule applied literally: never silently infer sheet weights, emit a named omission and lower confidence.

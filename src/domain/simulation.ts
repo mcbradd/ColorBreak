@@ -13,6 +13,13 @@ export interface OutcomeSheet {
   totalWeight: number;
   cards: OutcomeCard[];
   allowDuplicates?: boolean;
+  /**
+   * MTGJSON's color-balanced collation. The sheet spends its first five picks
+   * on one card of each mono color, then draws the rest from the whole sheet.
+   * That is the printed guarantee a draft booster makes, so the floor of every
+   * mono color is a real card rather than zero.
+   */
+  balanceColors?: boolean;
 }
 
 export interface OutcomeVariant {
@@ -65,26 +72,60 @@ export interface SimulationResult {
 
 export type SlotBounds = Record<SlotId, { min: number; max: number }>;
 
+/** The five mono colors a balanced sheet guarantees, in SLOT_IDS order. */
+const BALANCED_SLOTS: SlotId[] = ["W", "U", "B", "R", "G"];
+
+/** Balancing is only real when the sheet can actually satisfy it. */
+function balancedColorGroups<T extends { slot: SlotId; weight?: number }>(cards: readonly T[]): T[][] | null {
+  const groups = BALANCED_SLOTS.map((slot) => cards.filter((card) => card.slot === slot && (card.weight ?? 1) > 0));
+  return groups.every((group) => group.length) ? groups : null;
+}
+
+/** Whether this sheet balances colors for this many picks. */
+export function sheetBalancesColors(sheet: OutcomeSheet, picks: number): boolean {
+  return sheet.balanceColors === true
+    && picks >= BALANCED_SLOTS.length
+    && balancedColorGroups(sheet.cards) !== null;
+}
+
+function sumOf(values: readonly number[]): number {
+  return values.reduce((sum, value) => sum + value, 0);
+}
+
 function sheetSlotBounds(sheet: OutcomeSheet, picks: number, slot: SlotId): { min: number; max: number } {
   if (!Number.isInteger(picks) || picks < 0) throw new Error("Sheet picks must be a non-negative integer");
-  const contributions = sheet.cards
-    .filter((card) => (card.weight ?? 1) > 0)
-    .map((card) => card.slot === slot ? card.value : 0);
-  if (!contributions.length && picks > 0) throw new Error("Outcome model contains an empty weighted choice");
+  const drawable = sheet.cards.filter((card) => (card.weight ?? 1) > 0);
+  if (!drawable.length && picks > 0) throw new Error("Outcome model contains an empty weighted choice");
   // MTGJSON's flag is optional. Repeating the same printing is only safe when
   // the source explicitly says the sheet allows it; otherwise draw distinct
   // printing identities within this sheet for the current pack.
-  if (sheet.allowDuplicates !== true) {
-    if (picks > contributions.length) throw new Error("Outcome model requests more unique cards than a sheet contains");
-    const ordered = [...contributions].sort((a, b) => a - b);
+  const distinct = sheet.allowDuplicates !== true;
+  if (distinct && picks > drawable.length) {
+    throw new Error("Outcome model requests more unique cards than a sheet contains");
+  }
+  const inSlot = drawable.filter((card) => card.slot === slot).map((card) => card.value);
+  const balanced = sheetBalancesColors(sheet, picks);
+  const guaranteed = balanced && BALANCED_SLOTS.includes(slot) ? 1 : 0;
+  const free = balanced ? picks - BALANCED_SLOTS.length : picks;
+  // The other balanced colors each consume one off-slot printing before the
+  // free picks are drawn.
+  const otherGuaranteed = balanced ? BALANCED_SLOTS.length - guaranteed : 0;
+  const highest = [...inSlot].sort((a, b) => b - a);
+  const lowest = [...inSlot].sort((a, b) => a - b);
+  if (!distinct) {
     return {
-      min: ordered.slice(0, picks).reduce((sum, value) => sum + value, 0),
-      max: ordered.slice(-picks).reduce((sum, value) => sum + value, 0),
+      min: guaranteed ? lowest[0] ?? 0 : 0,
+      max: (guaranteed ? highest[0] ?? 0 : 0) + free * (highest[0] ?? 0),
     };
   }
+  // Distinct draws cap how often one color can repeat, and let it be avoided
+  // only while off-color printings remain to draw instead.
+  const freeInSlot = Math.min(free, Math.max(0, inSlot.length - guaranteed));
+  const offSlot = drawable.length - inSlot.length - otherGuaranteed;
+  const forcedInSlot = Math.min(Math.max(0, free - offSlot), Math.max(0, inSlot.length - guaranteed));
   return {
-    min: picks * Math.min(...contributions),
-    max: picks * Math.max(...contributions),
+    min: (guaranteed ? lowest[0] ?? 0 : 0) + sumOf(lowest.slice(guaranteed, guaranteed + forcedInSlot)),
+    max: (guaranteed ? highest[0] ?? 0 : 0) + sumOf(highest.slice(guaranteed, guaranteed + freeInSlot)),
   };
 }
 
@@ -176,7 +217,7 @@ function weightedIndex<T>(table: WeightedTable<T>, random: () => number): number
 
 function distinctWeightedIndex<T>(
   table: WeightedTable<T>,
-  selected: ReadonlySet<number>,
+  isTaken: (row: T) => boolean,
   random: () => number,
 ): number {
   // Most collation sheets draw only one or a few cards. Rejection sampling
@@ -184,16 +225,16 @@ function distinctWeightedIndex<T>(
   // remaining weights. Fall back to a direct scan for heavily skewed sheets.
   for (let attempt = 0; attempt < 16; attempt += 1) {
     const index = weightedIndex(table, random);
-    if (!selected.has(index)) return index;
+    if (!isTaken(table.rows[index])) return index;
   }
 
   let remainingWeight = 0;
   for (let index = 0; index < table.weights.length; index += 1) {
-    if (!selected.has(index)) remainingWeight += table.weights[index];
+    if (!isTaken(table.rows[index])) remainingWeight += table.weights[index];
   }
   let cursor = random() * remainingWeight;
   for (let index = 0; index < table.weights.length; index += 1) {
-    if (selected.has(index)) continue;
+    if (isTaken(table.rows[index])) continue;
     cursor -= table.weights[index];
     if (cursor < 0) return index;
   }
@@ -201,13 +242,19 @@ function distinctWeightedIndex<T>(
 }
 
 interface CompiledCard {
+  /** Identity within its sheet, so a distinct draw can reject a repeat drawn
+   * through a color group rather than through the whole sheet. */
+  id: number;
   slotIndex: number;
   value: number;
+  weight: number;
 }
 
 interface CompiledSheet {
   cards: WeightedTable<CompiledCard>;
   allowDuplicates: boolean;
+  /** One table per mono color, present only when the sheet balances colors. */
+  balancedGroups?: WeightedTable<CompiledCard>[];
 }
 
 interface CompiledPick {
@@ -226,17 +273,33 @@ interface CompiledPack {
 }
 
 const SLOT_INDEX = new Map<SlotId, number>(SLOT_IDS.map((slot, index) => [slot, index]));
+const NEVER_TAKEN = () => false;
 
 function compilePacks(packs: readonly OutcomePack[]): CompiledPack[] {
   return packs.map((pack) => {
-    const sheets = new Map(Object.entries(pack.sheets).map(([name, sheet]) => [name, {
-      cards: compileWeightedTable(sheet.cards.map((card) => ({
+    const sheets = new Map(Object.entries(pack.sheets).map(([name, sheet]) => {
+      const drawable = sheet.cards.filter((card) => (card.weight ?? 1) > 0);
+      const compiled = drawable.map((card, id): CompiledCard => ({
+        id,
         slotIndex: SLOT_INDEX.get(card.slot)!,
         value: card.value,
         weight: card.weight ?? 1,
-      })), (card) => card.weight),
-      allowDuplicates: sheet.allowDuplicates === true,
-    }] as const));
+      }));
+      const groups = sheet.balanceColors === true ? balancedColorGroups(drawable) : null;
+      return [name, {
+        cards: compileWeightedTable(compiled, (card) => card.weight),
+        allowDuplicates: sheet.allowDuplicates === true,
+        // A sheet missing a whole color cannot honor its own balancing flag.
+        // The outcome model names that as an omission; the simulation then
+        // draws the sheet unbalanced rather than inventing a card.
+        balancedGroups: groups
+          ? BALANCED_SLOTS.map((slot) => compileWeightedTable(
+            compiled.filter((card) => card.slotIndex === SLOT_INDEX.get(slot)!),
+            (card) => card.weight,
+          ))
+          : undefined,
+      }] as const;
+    }));
     const variants = pack.variants.map((variant): CompiledVariant => ({
       weight: variant.weight,
       picks: Object.entries(variant.picks).map(([sheetName, count]) => {
@@ -307,13 +370,26 @@ export function simulateOutcomes(model: PackOutcomeModel, options: SimulationOpt
         const variant = pack.variants.rows[weightedIndex(pack.variants, random)];
         for (const { sheet, count } of variant.picks) {
           const selected = sheet.allowDuplicates ? undefined : new Set<number>();
-          for (let pick = 0; pick < count; pick += 1) {
-            const cardIndex = selected
-              ? distinctWeightedIndex(sheet.cards, selected, random)
-              : weightedIndex(sheet.cards, random);
-            const card = sheet.cards.rows[cardIndex];
+          const isTaken = selected ? (card: CompiledCard) => selected.has(card.id) : NEVER_TAKEN;
+          // Color balancing spends the sheet's first five picks on one card of
+          // each mono color; the remainder are ordinary draws from the whole
+          // sheet. Fewer than five picks cannot carry the guarantee.
+          const groups = sheet.balancedGroups && count >= sheet.balancedGroups.length
+            ? sheet.balancedGroups
+            : undefined;
+          for (const group of groups ?? []) {
+            const card = group.rows[selected
+              ? distinctWeightedIndex(group, isTaken, random)
+              : weightedIndex(group, random)];
             slots[card.slotIndex] += card.value;
-            selected?.add(cardIndex);
+            selected?.add(card.id);
+          }
+          for (let pick = groups?.length ?? 0; pick < count; pick += 1) {
+            const card = sheet.cards.rows[selected
+              ? distinctWeightedIndex(sheet.cards, isTaken, random)
+              : weightedIndex(sheet.cards, random)];
+            slots[card.slotIndex] += card.value;
+            selected?.add(card.id);
           }
         }
       }

@@ -1,4 +1,5 @@
 import type { CardPrice, Finish, Omission } from "../domain/types";
+import { sheetBalancesColors } from "../domain/simulation";
 import type { OutcomeCard, OutcomePack, PackOutcomeModel } from "../domain/simulation";
 import { loadCorrections, loadSealed } from "./sealed";
 import type { BoosterSheet, SealedDocument } from "./sealed";
@@ -68,6 +69,7 @@ function sheetCards(
   threshold: number,
   omissions: Omission[],
   expectedSheetCopies: number,
+  picks: number,
 ): OutcomeCard[] {
   const finish: Finish = sheet.finish ?? (sheet.foil ? "foil" : "nonfoil");
   const cards: OutcomeCard[] = [];
@@ -87,10 +89,13 @@ function sheetCards(
       material: true,
     });
   }
-  if (sheet.balanceColors) {
+  // Color balancing is simulated (see sheetBalancesColors). It is only
+  // unresolvable when the resolved sheet has lost a whole mono color, which
+  // means printings dropped out of the price source.
+  if (sheet.balanceColors && picks >= 5 && !sheetBalancesColors({ totalWeight: sheet.total, cards, balanceColors: true }, picks)) {
     omissions.push({
-      code: "unsupported-color-balancing",
-      message: `${sheetName} uses color balancing that is not yet preserved by the simulator.`,
+      code: "unbalanceable-color-sheet",
+      message: `${sheetName} guarantees one card of each color, but at least one color has no resolved printing, so this pack's color floor is modeled as $0.`,
       material: true,
     });
   }
@@ -155,8 +160,10 @@ export async function outcomeModelForProduct(
         threshold,
         omissions,
         unitCount * multiplier * (booster.picks[name] ?? 0),
+        booster.picks[name] ?? 0,
       ),
       allowDuplicates: sheet.allowDuplicates,
+      balanceColors: sheet.balanceColors,
     }]));
     outcomePacks.push({
       count: unitCount * multiplier,
