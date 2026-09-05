@@ -1,10 +1,11 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { BarChart3, Copy, Lock, Sparkles } from "lucide-react";
+import { BarChart3, Lock, Share2, Sparkles } from "lucide-react";
 import { productsForSet } from "../../data/catalog";
 import type { BreakAnalysis } from "../../data/evaluate";
 import { assessBuyerDecision, type BuyerDecisionAssessment, type PreparedProductSelection } from "../../domain/decision-evidence";
 import { canonicalCompositionFingerprint } from "../../domain/canonical-composition";
 import { sealedMarketPrice } from "../../data/sealed-prices";
+import { refreshPriceSnapshot } from "../../data/scryfall";
 import { createAuction } from "../../domain/auction";
 import type { AuctionState } from "../../domain/auction";
 import { decodeLegacySearch } from "../../domain/legacy";
@@ -40,7 +41,11 @@ export function BuyerWorkspace({
   const mode = "buyer" as const;
   const legacy = useMemo(() => decodeLegacySearch(location.search), []);
   const sharedBuyer = useMemo(() => decodeBuyerShare(location.search), []);
-  const isSharedBreak = legacy.length > 0;
+  // The workspace keeps the break in the address bar, so a reload lands on a
+  // URL this browser wrote itself. The history entry says which it is; without
+  // that marker your own reload would be announced as someone else's link.
+  const ownUrl = useMemo(() => (history.state as { colorbreakOwn?: boolean } | null)?.colorbreakOwn === true, []);
+  const isSharedBreak = legacy.length > 0 && !ownUrl;
   const initialBuyerRecord = useMemo(() => readBuyerDecisionRecord(), []);
   const firstResultTracked = useRef(false);
   const [legacyNotice, setLegacyNotice] = useState(false);
@@ -76,7 +81,11 @@ export function BuyerWorkspace({
     // checked until they say so.
     [selectedSlots, setSelectedSlots] = useState<SlotId[]>(() => sharedBuyer.selectedSlots ?? []),
     [busy, setBusy] = useState(false),
+    // "unchanged" is the honest answer to a refresh that found no newer
+    // publication: the buyer asked, so the buyer gets told.
+    [priceRefresh, setPriceRefresh] = useState<"idle" | "busy" | "unchanged">("idle"),
     [calculationGeneration, setCalculationGeneration] = useState(0);
+  const refreshedFrom = useRef<string>(undefined);
   const [manualCapOpen, setManualCapOpen] = useState(false);
   const [manualTarget, setManualTarget] = useState<number>();
   const [manualShipping, setManualShipping] = useState<number>();
@@ -125,9 +134,17 @@ export function BuyerWorkspace({
     bulkThreshold,
     largeSpots,
   });
+  // A link only propagates a break if the address bar carries one. Stripping
+  // the query on arrival meant the only shareable URL lived behind the share
+  // control, and a recipient who forwarded what they saw sent an empty break.
   useEffect(() => {
-    if (location.search) history.replaceState(null, "", `${location.pathname}#buyer`);
-  }, []);
+    const target = lines.length ? new URL(sharedHref) : null;
+    history.replaceState(
+      { ...(history.state as object | null), colorbreakOwn: true },
+      "",
+      target ? `${target.pathname}${target.search}${target.hash}` : `${location.pathname}#buyer`,
+    );
+  }, [sharedHref, lines.length]);
   useLayoutEffect(() => {
     if (!lines.length) {
       setAnalysis(undefined);
@@ -159,6 +176,9 @@ export function BuyerWorkspace({
         if (request !== analysisRequest.current) return;
         setAnalysis(next.analysis);
         setDecisionAssessment(next);
+        setPriceRefresh((current) => current !== "busy"
+          ? current
+          : next.analysis.priceAvailability?.observedAt === refreshedFrom.current ? "unchanged" : "idle");
         if (!firstResultTracked.current) {
           const elapsed = Date.now() - calculationStarted.current;
           track("calculation_completed", {
@@ -172,6 +192,7 @@ export function BuyerWorkspace({
       })
       .catch((e) => {
         if (request !== analysisRequest.current) return;
+        setPriceRefresh("idle");
         setError(e instanceof Error ? e.message : String(e));
         // Errors are intentionally not transmitted: failure details can be sensitive.
       })
@@ -179,6 +200,17 @@ export function BuyerWorkspace({
         if (request === analysisRequest.current) setBusy(false);
       });
   }, [lines, threshold, calculationGeneration]);
+  useEffect(() => { setPriceRefresh((current) => current === "unchanged" ? "idle" : current); }, [lines, threshold]);
+  const refreshPrices = () => {
+    if (priceRefresh === "busy") return;
+    refreshedFrom.current = analysis?.priceAvailability?.observedAt;
+    setPriceRefresh("busy");
+    // Prices are published by the build, so this re-reads the snapshot past
+    // every cache rather than quoting a live market the app never queries.
+    refreshPriceSnapshot();
+    setCalculationGeneration((generation) => generation + 1);
+    track("price_refresh_requested", { mode, productCount: lines.length });
+  };
   useEffect(() => {
     if (buyerRecoveryReady || !initialBuyerRecord || !analysis || recoveryRecord) return;
     const recovered = readBuyerDecisionRecord({
@@ -232,7 +264,9 @@ export function BuyerWorkspace({
           ...(line.marketCost == null && row.price != null ? { marketCost: row.price } : {}),
         };
       }));
-    });
+    // A catalog or sealed-price fetch that fails leaves the break lines as the
+    // buyer entered them; it must not surface as an unhandled rejection.
+    }).catch(() => undefined);
     return () => { cancelled = true; };
   }, [lines.map((line) => `${line.id}:${line.productKey}:${line.tcgId ?? ""}`).join("|")]);
   const [shareStatus, setShareStatus] = useState<string>();
@@ -240,8 +274,20 @@ export function BuyerWorkspace({
   // decision's outcome range are two views of the same modeled openings.
   const simulation = useOutcomeSimulation(analysis, auction.remaining, undefined);
   const share = async () => {
-    try { await navigator.clipboard.writeText(sharedHref); setShareStatus("Buyer setup link copied"); }
-    catch { setShareStatus("Clipboard unavailable — copy the displayed buyer setup URL."); }
+    track("break_link_shared", { mode, productCount: lines.length });
+    // Mobile touch is the primary input, so the platform share sheet comes
+    // first; the clipboard is the desktop path and the readable URL is the
+    // fallback when neither is permitted.
+    if (typeof navigator.share === "function") {
+      try {
+        await navigator.share({ title: "ColorBreak break", url: sharedHref });
+        return;
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+      }
+    }
+    try { await navigator.clipboard.writeText(sharedHref); setShareStatus("Break link copied"); }
+    catch { setShareStatus("Clipboard unavailable — copy the break link below."); }
     track("buyer_setup_copied", { mode, productCount: lines.length });
   };
   return (
@@ -255,12 +301,13 @@ export function BuyerWorkspace({
         </button>
         <div className="nav-actions">
           {lines.length > 0 && <button
-            className="icon-button"
+            className="icon-button share-break"
             onClick={share}
-            title="Copy buyer break setup — excludes bids, shipping, seller costs, and actuals."
-            aria-label="Copy buyer break setup"
+            title="Share this break — excludes bids, shipping, seller costs, and actuals."
+            aria-label="Share this break"
           >
-            <Copy />
+            <Share2 />
+            <span>Share</span>
           </button>}
         </div>
       </nav>
@@ -305,7 +352,7 @@ export function BuyerWorkspace({
           }}>Start clean</button>
         </div>
       </aside>}
-      {shareStatus && <p role="status">{shareStatus} <input aria-label="Buyer setup URL" readOnly value={sharedHref} /></p>}
+      {shareStatus && <p className="share-status" role="status">{shareStatus} <input aria-label="Break link" readOnly value={sharedHref} onFocus={(event) => event.currentTarget.select()} /></p>}
       <main className="workspace page" tabIndex={-1} data-focus-fallback>
         <header className="workspace-title">
           <div>
@@ -369,6 +416,8 @@ export function BuyerWorkspace({
                   simulation={simulation}
                   onChooseReady={() => setLines([readyExampleLine()])}
                   onUseManualCap={() => setManualCapOpen(true)}
+                  priceRefresh={priceRefresh}
+                  onRefreshPrices={refreshPrices}
                 />
               ))}
             </div>

@@ -80,6 +80,7 @@ const LIVE_INTERVAL_MS = 140;
 const liveSetCache = new Map<string, Promise<CardPrice[]>>();
 const snapshotSetCache = new Map<string, Promise<CardPrice[] | null>>();
 let snapshotIndexPromise: Promise<PriceSnapshotIndex | null> | null = null;
+let revalidateSnapshot = false;
 let requestTail: Promise<void> = Promise.resolve();
 let lastRequestAt = 0;
 
@@ -221,8 +222,23 @@ function toPrice(card: ScryfallCard, observedAt: string, fetchedAt = observedAt)
   };
 }
 
+/**
+ * Prices ship with the build, so a buyer's only real refresh is re-reading the
+ * published snapshot past the browser and service-worker caches. It picks up a
+ * newer publication when one exists, and changes nothing when it does not.
+ */
+export function refreshPriceSnapshot(): void {
+  snapshotSetCache.clear();
+  snapshotIndexPromise = null;
+  revalidateSnapshot = true;
+}
+
+function snapshotRequest(): RequestInit | undefined {
+  return revalidateSnapshot ? { cache: "reload" } : undefined;
+}
+
 function loadSnapshotIndex(): Promise<PriceSnapshotIndex | null> {
-  snapshotIndexPromise ??= fetch("data/prices/index.json")
+  snapshotIndexPromise ??= fetch("data/prices/index.json", snapshotRequest())
     .then(async (response) => {
       if (!response.ok) return null;
       const index = await response.json() as PriceSnapshotIndex;
@@ -236,7 +252,7 @@ function loadSnapshotSet(set: string, index: PriceSnapshotIndex): Promise<CardPr
   const code = set.toUpperCase();
   if (!snapshotSetCache.has(code)) {
     const entry = index.sets[code];
-    const promise = !entry ? Promise.resolve(null) : fetch(`data/prices/${entry.file}`)
+    const promise = !entry ? Promise.resolve(null) : fetch(`data/prices/${entry.file}`, snapshotRequest())
       .then(async (response) => {
         if (!response.ok) return null;
         const shard = await response.json() as PriceSnapshotShard;
@@ -295,7 +311,7 @@ export async function loadPrices(request: PriceLoadRequest): Promise<PriceLoadRe
   const message = status === "available"
     ? `Exact-printing prices loaded from the ${source === "snapshot" ? "published snapshot" : source}.`
     : status === "stale"
-      ? "Latest published snapshot is older than six hours; reload to check publication status."
+      ? "Latest published snapshot is older than six hours; refreshing checks for a newer publication."
       : status === "partial"
         ? "Some exact-printing prices could not be loaded; values are a lower bound."
         : "Exact-printing prices are temporarily unavailable; product contents remain intact.";
@@ -311,6 +327,7 @@ export function clearPriceCache(): void {
   liveSetCache.clear();
   snapshotSetCache.clear();
   snapshotIndexPromise = null;
+  revalidateSnapshot = false;
   requestTail = Promise.resolve();
   lastRequestAt = 0;
 }

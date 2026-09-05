@@ -1299,3 +1299,63 @@ img.card-thumbnail { object-fit: cover; background: #171b23; }
 }
 .keyboard-open .set-browser-tools .set-sort-tabs,
 .keyboard-open .break-input-actions { display: none; }
+
+/* The ranked-card row carries four cells (thumbnail, card, chance, adds). A
+ * legacy `.contributors .card-row` rule outranked the contributor grid at
+ * 720px and up and declared three, so the Adds cell wrapped onto its own line
+ * and Chance landed under the Adds header, reading as an empty column. */
+@media (min-width: 720px) {
+  .contributors .contributor-columns,
+  .large-break-slot-cards .contributor-columns {
+    /* The header's first cell also spans the row's thumbnail column, and both
+     * grids share one gap, so Chance and Adds sit over their own values. */
+    grid-template-columns: minmax(0, 1fr) 72px 104px;
+    gap: 10px;
+  }
+  .contributors .card-row.contributor-card,
+  .large-break-slot-cards .card-row.contributor-card {
+    grid-template-columns: 38px minmax(0, 1fr) 72px 104px;
+  }
+}
+
+/* A tooltip that defines more than one term reads as separate definitions. */
+.tip-popover { display: grid; gap: 8px; }
+.tip-paragraph { display: block; }
+.tip-paragraph b { color: var(--ink); }
+
+/* Stale prices are actionable, so the notice is the control that acts. */
+.decision-evidence.refresh-prices {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 4px 10px;
+  border: 1px solid currentcolor;
+  border-radius: 999px;
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+}
+.decision-evidence.refresh-prices:hover:not(:disabled) { background: rgba(255, 255, 255, .06); }
+.decision-evidence.refresh-prices:disabled { cursor: progress; opacity: .75; }
+.decision-evidence.refresh-prices svg { width: 14px; height: 14px; }
+.decision-evidence.refresh-prices svg.spinning { animation: spin 1s linear infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .decision-evidence.refresh-prices svg.spinning { animation: none; }
+}
+.price-refresh-answer { margin: 0; padding: 0 18px 12px; color: var(--muted); font-size: 12px; line-height: 1.4; }
+
+/* Sharing a break is a primary action, not a glyph to guess at. */
+.icon-button.share-break { width: auto; gap: 7px; padding: 0 13px; }
+.icon-button.share-break span { font-size: 12px; font-weight: 700; letter-spacing: .04em; }
+.share-status { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 10px max(18px, calc((100vw - 1180px) / 2)); color: var(--muted); font-size: 12px; }
+.share-status input {
+  flex: 1 1 240px;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  color: var(--ink);
+  background: #0d1016;
+  font-size: 12px;
+}

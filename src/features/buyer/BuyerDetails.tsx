@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { CSSProperties } from "react";
-import { Search, ShieldAlert } from "lucide-react";
+import { RefreshCw, Search, ShieldAlert } from "lucide-react";
 import type { BreakAnalysis } from "../../data/evaluate";
 import { bidCeiling } from "../../domain/bid-ceiling";
 import type { BuyerCosts } from "../../domain/bid-ceiling";
@@ -167,7 +167,10 @@ function CardThumbnail({ row }: { row: Contributor }) {
 
 const CONTRIBUTOR_PAGE = 10;
 
-const CONTRIBUTOR_COLUMN_HELP = "Chance: how often at least one copy of this exact card version turns up when this break is opened. Adds: how much that card contributes to the colour's average value, which is its price multiplied by the average number of copies opened.";
+const CONTRIBUTOR_COLUMN_HELP = [
+  "Chance: how often at least one copy of this exact card version turns up when this break is opened.",
+  "Adds: how much that card contributes to the colour's average value, which is its price multiplied by the average number of copies opened.",
+].join("\n\n");
 
 /**
  * The ranked card list is long — hundreds of printings in a big break — so it
@@ -529,6 +532,8 @@ export function BuyerView({
   simulation,
   onChooseReady,
   onUseManualCap,
+  priceRefresh = "idle",
+  onRefreshPrices,
 }: {
   analysis: BreakAnalysis;
   eligibility?: DecisionEligibility;
@@ -539,6 +544,8 @@ export function BuyerView({
   simulation: OutcomeSimulation;
   onChooseReady?: () => void;
   onUseManualCap?: () => void;
+  priceRefresh?: "idle" | "busy" | "unchanged";
+  onRefreshPrices?: () => void;
 }) {
   const result = analysis.valuation;
   const eligibility = assessedEligibility ?? decisionEligibility(result);
@@ -578,7 +585,20 @@ export function BuyerView({
       <section className="bid-live-decision" aria-label="Bid decision">
         <div className="decision-kicker">
           <span title={decisionKicker}>{decisionKicker}</span>
-          <span className={`decision-evidence evidence-${result.status}`}>{eligibility.status === "eligible" ? "Fresh estimate" : eligibility.status === "stale" ? "Prices over 6 hours old" : result.status}</span>
+          {eligibility.status === "stale" && onRefreshPrices
+            // Stale prices are something the buyer can act on, so the label is
+            // the control that acts on it rather than a notice they can only
+            // read. It re-reads the published snapshot past every cache.
+            ? <button
+              type="button"
+              className={`decision-evidence evidence-${result.status} refresh-prices`}
+              onClick={onRefreshPrices}
+              disabled={priceRefresh === "busy"}
+            >
+              <RefreshCw aria-hidden="true" className={priceRefresh === "busy" ? "spinning" : undefined} />
+              {priceRefresh === "busy" ? "Checking for newer prices…" : "Prices over 6 hours old · Refresh"}
+            </button>
+            : <span className={`decision-evidence evidence-${result.status}`}>{eligibility.status === "eligible" ? "Fresh estimate" : eligibility.status === "stale" ? "Prices over 6 hours old" : result.status}</span>}
         </div>
         <div className="verdict-head">
           <div className="verdict-decision">
@@ -598,6 +618,7 @@ export function BuyerView({
           <span>My {selectedSlots.length === 1 ? "slot" : "slots"}: {selectedSlots.map((id) => SLOT_NAMES[id]).join(", ")}</span>
           <b>{fmt(ownedValue)}</b>
         </p>}
+        {priceRefresh === "unchanged" && <p className="price-refresh-answer" role="status">No newer prices are published yet. The estimate still uses the latest published snapshot.</p>}
         <OutcomeRange summary={distribution} compact />
         {simulation.busy && <p className="simulation-state" role="status" aria-live="polite">Checking more possible openings…</p>}
         {simulation.error && <CompactWarning title="Pull ranges unavailable" summary="The non-simulation value remains visible." className="inline-warning"><p role="alert">{simulation.error}</p><button type="button" className="quiet" onClick={simulation.retry}>Retry pull ranges</button></CompactWarning>}

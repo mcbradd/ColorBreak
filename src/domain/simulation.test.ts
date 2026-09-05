@@ -96,6 +96,79 @@ describe("outcome simulation", () => {
     expect(possibleSlotBounds(model).G.max).toBe(110);
   });
 
+  it("guarantees one card of each color from a color-balanced sheet", () => {
+    // MTGJSON marks draft common sheets as color balanced: the pack always
+    // contains at least one card of each mono color. Without that, an opening
+    // could miss white entirely and the white floor would read $0.
+    const balanced: PackOutcomeModel = {
+      fixed: [],
+      packs: [{
+        count: 1,
+        variants: [{ weight: 1, picks: { common: 6 } }],
+        sheets: {
+          common: {
+            totalWeight: 10,
+            balanceColors: true,
+            cards: [
+              { id: "w1", slot: "W", value: 1, weight: 1 },
+              { id: "w2", slot: "W", value: 3, weight: 1 },
+              { id: "u1", slot: "U", value: 1, weight: 1 },
+              { id: "b1", slot: "B", value: 1, weight: 1 },
+              { id: "r1", slot: "R", value: 1, weight: 1 },
+              { id: "g1", slot: "G", value: 1, weight: 1 },
+              { id: "c1", slot: "C", value: 50, weight: 1 },
+              { id: "c2", slot: "C", value: 50, weight: 1 },
+              { id: "c3", slot: "C", value: 50, weight: 1 },
+              { id: "c4", slot: "C", value: 50, weight: 1 },
+            ],
+          },
+        },
+      }],
+    };
+
+    const result = simulateOutcomes(balanced, { seed: "balanced", sampleCount: 2_000, remaining: ["W"] });
+    expect(result.slotDistributions.W.min).toBeGreaterThanOrEqual(1);
+    expect(result.slotDistributions.U.min).toBe(1);
+    expect(result.slotDistributions.G.min).toBe(1);
+    // Five picks are spent on the color guarantee, so at most one of the six
+    // is colorless.
+    expect(result.slotDistributions.C.max).toBe(50);
+
+    const bounds = possibleSlotBounds(balanced);
+    expect(bounds.W).toEqual({ min: 1, max: 4 });
+    expect(bounds.U).toEqual({ min: 1, max: 1 });
+    expect(bounds.C).toEqual({ min: 0, max: 50 });
+  });
+
+  it("draws a balanced sheet unbalanced when a whole color has no printing", () => {
+    // Balancing a color the resolved sheet no longer contains is impossible.
+    // The simulation must not invent a card; the outcome model names the gap.
+    const model: PackOutcomeModel = {
+      fixed: [],
+      packs: [{
+        count: 1,
+        variants: [{ weight: 1, picks: { common: 5 } }],
+        sheets: {
+          common: {
+            totalWeight: 5,
+            balanceColors: true,
+            cards: [
+              { id: "w1", slot: "W", value: 1, weight: 1 },
+              { id: "u1", slot: "U", value: 1, weight: 1 },
+              { id: "b1", slot: "B", value: 1, weight: 1 },
+              { id: "r1", slot: "R", value: 1, weight: 1 },
+              { id: "c1", slot: "C", value: 1, weight: 1 },
+            ],
+          },
+        },
+      }],
+    };
+
+    const result = simulateOutcomes(model, { seed: "unbalanceable", sampleCount: 200, remaining: ["G"] });
+    expect(result.slotDistributions.G.max).toBe(0);
+    expect(possibleSlotBounds(model).W).toEqual({ min: 1, max: 1 });
+  });
+
   it("publishes one-percent range endpoints instead of sampled jackpots", () => {
     const values = Array.from({ length: 100 }, (_, index) => index);
     const summary = summarizeDistribution(values);
