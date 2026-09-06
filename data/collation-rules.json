@@ -1,0 +1,1079 @@
+{
+  "version": 1,
+  "rules": [
+    {
+      "id": "MKM-play-structure",
+      "set": "MKM",
+      "booster": "play",
+      "tier": "official",
+      "source": "https://magic.wizards.com/en/news/feature/collecting-murders-at-karlov-manor",
+      "reviewedAt": "2026-09-06",
+      "fact": {
+        "kind": "structure",
+        "cardCount": 14,
+        "minFoils": 1
+      },
+      "note": "Published Play Booster card count and guaranteed traditional foil."
+    },
+    {
+      "id": "MKM-collector-structure",
+      "set": "MKM",
+      "booster": "collector",
+      "tier": "official",
+      "source": "https://magic.wizards.com/en/news/feature/collecting-murders-at-karlov-manor",
+      "reviewedAt": "2026-09-06",
+      "fact": {
+        "kind": "structure",
+        "cardCount": 15
+      },
+      "note": "Published Collector Booster card count."
+    },
+    {
+      "id": "MKM-play-insert",
+      "set": "MKM",
+      "booster": "play",
+      "tier": "official",
+      "source": "https://magic.wizards.com/en/news/feature/collecting-murders-at-karlov-manor",
+      "reviewedAt": "2026-09-06",
+      "fact": {
+        "kind": "variant-rate",
+        "sheet": "theList",
+        "probability": 0.125
+      },
+      "note": "Published common replacement rate; other slot branches retain their relative weights."
+    },
+    {
+      "id": "MKM-play-foil-land",
+      "set": "MKM",
+      "booster": "play",
+      "tier": "official",
+      "source": "https://magic.wizards.com/en/news/feature/collecting-murders-at-karlov-manor",
+      "reviewedAt": "2026-09-06",
+      "fact": {
+        "kind": "variant-rate",
+        "sheet": "foilBasic",
+        "probability": 0.2
+      },
+      "note": "Published 20% traditional foil land rate."
+    },
+    {
+      "id": "BLB-play-structure",
+      "set": "BLB",
+      "booster": "play",
+      "tier": "official",
+      "source": "https://magic.wizards.com/en/news/feature/collecting-bloomburrow",
+      "reviewedAt": "2026-09-06",
+      "fact": {
+        "kind": "structure",
+        "cardCount": 14,
+        "minFoils": 1
+      },
+      "note": "Published Play Booster card count and guaranteed traditional foil."
+    },
+    {
+      "id": "BLB-collector-structure",
+      "set": "BLB",
+      "booster": "collector",
+      "tier": "official",
+      "source": "https://magic.wizards.com/en/news/feature/collecting-bloomburrow",
+      "reviewedAt": "2026-09-06",
+      "fact": {
+        "kind": "structure",
+        "cardCount": 15
+      },
+      "note": "Published Collector Booster card count."
+    },
+    {
+      "id": "BLB-play-insert",
+      "set": "BLB",
+      "booster": "play",
+      "tier": "official",
+      "source": "https://magic.wizards.com/en/news/feature/collecting-bloomburrow",
+      "reviewedAt": "2026-09-06",
+      "fact": {
+        "kind": "variant-rate",
+        "sheet": "specialGuest",
+        "probability": 0.015
+      },
+      "note": "Published common replacement rate; other slot branches retain their relative weights."
+    },
+    {
+      "id": "BLB-play-foil-land",
+      "set": "BLB",
+      "booster": "play",
+      "tier": "official",
+      "source": "https://magic.wizards.com/en/news/feature/collecting-bloomburrow",
+      "reviewedAt": "2026-09-06",
+      "fact": {
+        "kind": "variant-rate",
+        "sheet": "foilLand",
+        "probability": 0.2
+      },
+      "note": "Published 20% traditional foil land rate."
+    },
+    {
+      "id": "DSK-play-structure",
+      "set": "DSK",
+      "booster": "play",
+      "tier": "official",
+      "source": "https://magic.wizards.com/en/news/feature/collecting-duskmourn",
+      "reviewedAt": "2026-09-06",
+      "fact": {
+        "kind": "structure",
+        "cardCount": 14,
+        "minFoils": 1
+      },
+      "note": "Published Play Booster card count and guaranteed traditional foil."
+    },
+    {
+      "id": "DSK-collector-structure",
+      "set": "DSK",
+      "booster": "collector",
+      "tier": "official",
+      "source": "https://magic.wizards.com/en/news/feature/collecting-duskmourn",
+      "reviewedAt": "2026-09-06",
+      "fact": {
+        "kind": "structure",
+        "cardCount": 15
+      },
+      "note": "Published Collector Booster card count."
+    },
+    {
+      "id": "DSK-play-insert",
+      "set": "DSK",
+      "booster": "play",
+      "tier": "official",
+      "source": "https://magic.wizards.com/en/news/feature/collecting-duskmourn",
+      "reviewedAt": "2026-09-06",
+      "fact": {
+        "kind": "variant-rate",
+        "sheet": "specialGuest",
+        "probability": 0.015625
+      },
+      "note": "Published common replacement rate; other slot branches retain their relative weights."
+    },
+    {
+      "id": "DSK-play-foil-land",
+      "set": "DSK",
+      "booster": "play",
+      "tier": "official",
+      "source": "https://magic.wizards.com/en/news/feature/collecting-duskmourn",
+      "reviewedAt": "2026-09-06",
+      "fact": {
+        "kind": "variant-rate",
+        "sheet": "foilLand",
+        "probability": 0.2
+      },
+      "note": "Published 20% traditional foil land rate."
+    },
+    {
+      "id": "FDN-play-structure",
+      "set": "FDN",
+      "booster": "play",
+      "tier": "official",
+      "source": "https://magic.wizards.com/en/news/feature/collecting-foundations",
+      "reviewedAt": "2026-09-06",
+      "fact": {
+        "kind": "structure",
+        "cardCount": 14,
+        "minFoils": 1
+      },
+      "note": "Published Play Booster card count and guaranteed traditional foil."
+    },
+    {
+      "id": "FDN-collector-structure",
+      "set": "FDN",
+      "booster": "collector",
+      "tier": "official",
+      "source": "https://magic.wizards.com/en/news/feature/collecting-foundations",
+      "reviewedAt": "2026-09-06",
+      "fact": {
+        "kind": "structure",
+        "cardCount": 15
+      },
+      "note": "Published Collector Booster card count."
+    },
+    {
+      "id": "FDN-play-insert",
+      "set": "FDN",
+      "booster": "play",
+      "tier": "official",
+      "source": "https://magic.wizards.com/en/news/feature/collecting-foundations",
+      "reviewedAt": "2026-09-06",
+      "fact": {
+        "kind": "variant-rate",
+        "sheet": "specialGuest",
+        "probability": 0.015
+      },
+      "note": "Published common replacement rate; other slot branches retain their relative weights."
+    },
+    {
+      "id": "FDN-play-foil-land",
+      "set": "FDN",
+      "booster": "play",
+      "tier": "official",
+      "source": "https://magic.wizards.com/en/news/feature/collecting-foundations",
+      "reviewedAt": "2026-09-06",
+      "fact": {
+        "kind": "variant-rate",
+        "sheet": "foilLand",
+        "probability": 0.2
+      },
+      "note": "Published 20% traditional foil land rate."
+    },
+    {
+      "id": "DFT-play-structure",
+      "set": "DFT",
+      "booster": "play",
+      "tier": "official",
+      "source": "https://magic.wizards.com/en/news/feature/collecting-aetherdrift",
+      "reviewedAt": "2026-09-06",
+      "fact": {
+        "kind": "structure",
+        "cardCount": 14,
+        "minFoils": 1
+      },
+      "note": "Published Play Booster card count and guaranteed traditional foil."
+    },
+    {
+      "id": "DFT-collector-structure",
+      "set": "DFT",
+      "booster": "collector",
+      "tier": "official",
+      "source": "https://magic.wizards.com/en/news/feature/collecting-aetherdrift",
+      "reviewedAt": "2026-09-06",
+      "fact": {
+        "kind": "structure",
+        "cardCount": 15
+      },
+      "note": "Published Collector Booster card count."
+    },
+    {
+      "id": "DFT-play-insert",
+      "set": "DFT",
+      "booster": "play",
+      "tier": "official",
+      "source": "https://magic.wizards.com/en/news/feature/collecting-aetherdrift",
+      "reviewedAt": "2026-09-06",
+      "fact": {
+        "kind": "variant-rate",
+        "sheet": "specialGuest",
+        "probability": 0.015
+      },
+      "note": "Published common replacement rate; other slot branches retain their relative weights."
+    },
+    {
+      "id": "DFT-play-foil-land",
+      "set": "DFT",
+      "booster": "play",
+      "tier": "official",
+      "source": "https://magic.wizards.com/en/news/feature/collecting-aetherdrift",
+      "reviewedAt": "2026-09-06",
+      "fact": {
+        "kind": "variant-rate",
+        "sheet": "foilLand",
+        "probability": 0.2
+      },
+      "note": "Published 20% traditional foil land rate."
+    },
+    {
+      "id": "EOE-play-structure",
+      "set": "EOE",
+      "booster": "play",
+      "tier": "official",
+      "source": "https://magic.wizards.com/en/news/feature/collecting-edge-of-eternities",
+      "reviewedAt": "2026-09-06",
+      "fact": {
+        "kind": "structure",
+        "cardCount": 14,
+        "minFoils": 1
+      },
+      "note": "Published Play Booster card count and guaranteed traditional foil."
+    },
+    {
+      "id": "EOE-collector-structure",
+      "set": "EOE",
+      "booster": "collector",
+      "tier": "official",
+      "source": "https://magic.wizards.com/en/news/feature/collecting-edge-of-eternities",
+      "reviewedAt": "2026-09-06",
+      "fact": {
+        "kind": "structure",
+        "cardCount": 15
+      },
+      "note": "Published Collector Booster card count."
+    },
+    {
+      "id": "EOE-play-insert",
+      "set": "EOE",
+      "booster": "play",
+      "tier": "official",
+      "source": "https://magic.wizards.com/en/news/feature/collecting-edge-of-eternities",
+      "reviewedAt": "2026-09-06",
+      "fact": {
+        "kind": "variant-rate",
+        "sheet": "specialGuest",
+        "probability": 0.018
+      },
+      "note": "Published common replacement rate; other slot branches retain their relative weights."
+    },
+    {
+      "id": "EOE-play-foil-land",
+      "set": "EOE",
+      "booster": "play",
+      "tier": "official",
+      "source": "https://magic.wizards.com/en/news/feature/collecting-edge-of-eternities",
+      "reviewedAt": "2026-09-06",
+      "fact": {
+        "kind": "variant-rate",
+        "sheet": "foilLand",
+        "probability": 0.2
+      },
+      "note": "Published 20% traditional foil land rate."
+    },
+    {
+      "id": "TMT-play-structure",
+      "set": "TMT",
+      "booster": "play",
+      "tier": "official",
+      "source": "https://magic.wizards.com/en/news/feature/collecting-teenage-mutant-ninja-turtles",
+      "reviewedAt": "2026-09-06",
+      "fact": {
+        "kind": "structure",
+        "cardCount": 14,
+        "minFoils": 1
+      },
+      "note": "Published Play Booster card count and guaranteed traditional foil."
+    },
+    {
+      "id": "TMT-collector-structure",
+      "set": "TMT",
+      "booster": "collector",
+      "tier": "official",
+      "source": "https://magic.wizards.com/en/news/feature/collecting-teenage-mutant-ninja-turtles",
+      "reviewedAt": "2026-09-06",
+      "fact": {
+        "kind": "structure",
+        "cardCount": 15
+      },
+      "note": "Published Collector Booster card count."
+    },
+    {
+      "id": "TMT-play-foil-land",
+      "set": "TMT",
+      "booster": "play",
+      "tier": "official",
+      "source": "https://magic.wizards.com/en/news/feature/collecting-teenage-mutant-ninja-turtles",
+      "reviewedAt": "2026-09-06",
+      "fact": {
+        "kind": "variant-rate",
+        "sheet": "foilLand",
+        "probability": 0.2
+      },
+      "note": "Published 20% traditional foil land rate."
+    },
+    {
+      "id": "MKM-play-four-colors",
+      "set": "MKM",
+      "booster": "play",
+      "tier": "official",
+      "source": "https://magic.wizards.com/en/news/announcements/play-booster-discord-q-and-a",
+      "reviewedAt": "2026-09-06",
+      "fact": {
+        "kind": "color-balance",
+        "sheet": "commonWithShowcase",
+        "minColors": 4
+      },
+      "note": "At least four of the five mono colors in the common slots. Which color is absent is not published."
+    },
+    {
+      "id": "EOE-stellar-wildcard",
+      "set": "EOE",
+      "booster": "play",
+      "tier": "official",
+      "source": "https://magic.wizards.com/en/news/feature/collecting-edge-of-eternities",
+      "reviewedAt": "2026-09-06",
+      "fact": {
+        "kind": "sheet-rate",
+        "sheet": "wildcard",
+        "cardSet": "EOS",
+        "probability": 0.125
+      },
+      "note": "The nonfoil wildcard is a Stellar Sights rare (10%) or mythic (2.5%); foil Stellar Sights remains a separate chance."
+    },
+    {
+      "id": "MH3-play-structure",
+      "set": "MH3",
+      "booster": "play",
+      "tier": "official",
+      "source": "https://magic.wizards.com/en/news/feature/collecting-modern-horizons-3",
+      "reviewedAt": "2026-09-06",
+      "fact": {
+        "kind": "structure",
+        "cardCount": 14,
+        "minFoils": 1
+      },
+      "note": "Published Play Booster card count and guaranteed traditional foil."
+    },
+    {
+      "id": "MH3-collector-structure",
+      "set": "MH3",
+      "booster": "collector",
+      "tier": "official",
+      "source": "https://magic.wizards.com/en/news/feature/collecting-modern-horizons-3",
+      "reviewedAt": "2026-09-06",
+      "fact": {
+        "kind": "structure",
+        "cardCount": 15
+      },
+      "note": "Published Collector Booster card count."
+    },
+    {
+      "id": "MH3-play-insert",
+      "set": "MH3",
+      "booster": "play",
+      "tier": "official",
+      "source": "https://magic.wizards.com/en/news/feature/collecting-modern-horizons-3",
+      "reviewedAt": "2026-09-06",
+      "fact": {
+        "kind": "variant-rate",
+        "sheet": "specialGuest",
+        "probability": 0.015625
+      },
+      "note": "Published common replacement rate."
+    },
+    {
+      "id": "OTJ-play-structure",
+      "set": "OTJ",
+      "booster": "play",
+      "tier": "official",
+      "source": "https://magic.wizards.com/en/news/feature/collecting-outlaws-of-thunder-junction",
+      "reviewedAt": "2026-09-06",
+      "fact": {
+        "kind": "structure",
+        "cardCount": 14,
+        "minFoils": 1
+      },
+      "note": "Published Play Booster card count and guaranteed traditional foil."
+    },
+    {
+      "id": "OTJ-collector-structure",
+      "set": "OTJ",
+      "booster": "collector",
+      "tier": "official",
+      "source": "https://magic.wizards.com/en/news/feature/collecting-outlaws-of-thunder-junction",
+      "reviewedAt": "2026-09-06",
+      "fact": {
+        "kind": "structure",
+        "cardCount": 15
+      },
+      "note": "Published Collector Booster card count."
+    },
+    {
+      "id": "OTJ-play-insert",
+      "set": "OTJ",
+      "booster": "play",
+      "tier": "official",
+      "source": "https://magic.wizards.com/en/news/feature/collecting-outlaws-of-thunder-junction",
+      "reviewedAt": "2026-09-06",
+      "fact": {
+        "kind": "variant-rate",
+        "sheet": "theList",
+        "probability": 0.2
+      },
+      "note": "Published common replacement rate."
+    },
+    {
+      "id": "OTJ-play-foil-land",
+      "set": "OTJ",
+      "booster": "play",
+      "tier": "official",
+      "source": "https://magic.wizards.com/en/news/feature/collecting-outlaws-of-thunder-junction",
+      "reviewedAt": "2026-09-06",
+      "fact": {
+        "kind": "variant-rate",
+        "sheet": "foilLand",
+        "probability": 0.2
+      },
+      "note": "Published traditional foil land rate."
+    },
+    {
+      "id": "TDM-play-structure",
+      "set": "TDM",
+      "booster": "play",
+      "tier": "official",
+      "source": "https://magic.wizards.com/en/news/feature/collecting-tarkir-dragonstorm",
+      "reviewedAt": "2026-09-06",
+      "fact": {
+        "kind": "structure",
+        "cardCount": 14,
+        "minFoils": 1
+      },
+      "note": "Published Play Booster card count and guaranteed traditional foil."
+    },
+    {
+      "id": "TDM-collector-structure",
+      "set": "TDM",
+      "booster": "collector",
+      "tier": "official",
+      "source": "https://magic.wizards.com/en/news/feature/collecting-tarkir-dragonstorm",
+      "reviewedAt": "2026-09-06",
+      "fact": {
+        "kind": "structure",
+        "cardCount": 15
+      },
+      "note": "Published Collector Booster card count."
+    },
+    {
+      "id": "TDM-play-insert",
+      "set": "TDM",
+      "booster": "play",
+      "tier": "official",
+      "source": "https://magic.wizards.com/en/news/feature/collecting-tarkir-dragonstorm",
+      "reviewedAt": "2026-09-06",
+      "fact": {
+        "kind": "variant-rate",
+        "sheet": "specialGuest",
+        "probability": 0.015
+      },
+      "note": "Published common replacement rate."
+    },
+    {
+      "id": "TDM-play-foil-land",
+      "set": "TDM",
+      "booster": "play",
+      "tier": "official",
+      "source": "https://magic.wizards.com/en/news/feature/collecting-tarkir-dragonstorm",
+      "reviewedAt": "2026-09-06",
+      "fact": {
+        "kind": "variant-rate",
+        "sheet": "foilLand",
+        "probability": 0.2
+      },
+      "note": "Published traditional foil land rate."
+    },
+    {
+      "id": "FIN-play-structure",
+      "set": "FIN",
+      "booster": "play",
+      "tier": "official",
+      "source": "https://magic.wizards.com/en/news/feature/collecting-final-fantasy",
+      "reviewedAt": "2026-09-06",
+      "fact": {
+        "kind": "structure",
+        "cardCount": 14,
+        "minFoils": 1
+      },
+      "note": "Published Play Booster card count and guaranteed traditional foil."
+    },
+    {
+      "id": "FIN-collector-structure",
+      "set": "FIN",
+      "booster": "collector",
+      "tier": "official",
+      "source": "https://magic.wizards.com/en/news/feature/collecting-final-fantasy",
+      "reviewedAt": "2026-09-06",
+      "fact": {
+        "kind": "structure",
+        "cardCount": 15
+      },
+      "note": "Published Collector Booster card count."
+    },
+    {
+      "id": "FIN-play-insert",
+      "set": "FIN",
+      "booster": "play",
+      "tier": "official",
+      "source": "https://magic.wizards.com/en/news/feature/collecting-final-fantasy",
+      "reviewedAt": "2026-09-06",
+      "fact": {
+        "kind": "variant-rate",
+        "sheet": "throughTheAges",
+        "probability": 0.3333333333333333
+      },
+      "note": "Published common replacement rate."
+    },
+    {
+      "id": "FIN-play-foil-land",
+      "set": "FIN",
+      "booster": "play",
+      "tier": "official",
+      "source": "https://magic.wizards.com/en/news/feature/collecting-final-fantasy",
+      "reviewedAt": "2026-09-06",
+      "fact": {
+        "kind": "variant-rate",
+        "sheet": "foilLand",
+        "probability": 0.2
+      },
+      "note": "Published traditional foil land rate."
+    },
+    {
+      "id": "INR-play-structure",
+      "set": "INR",
+      "booster": "play",
+      "tier": "official",
+      "source": "https://magic.wizards.com/en/news/feature/collecting-innistrad-remastered",
+      "reviewedAt": "2026-09-06",
+      "fact": {
+        "kind": "structure",
+        "cardCount": 14,
+        "minFoils": 1
+      },
+      "note": "Published Play Booster card count and guaranteed traditional foil."
+    },
+    {
+      "id": "INR-collector-structure",
+      "set": "INR",
+      "booster": "collector",
+      "tier": "official",
+      "source": "https://magic.wizards.com/en/news/feature/collecting-innistrad-remastered",
+      "reviewedAt": "2026-09-06",
+      "fact": {
+        "kind": "structure",
+        "cardCount": 15
+      },
+      "note": "Published Collector Booster card count."
+    },
+    {
+      "id": "INR-play-foil-land",
+      "set": "INR",
+      "booster": "play",
+      "tier": "official",
+      "source": "https://magic.wizards.com/en/news/feature/collecting-innistrad-remastered",
+      "reviewedAt": "2026-09-06",
+      "fact": {
+        "kind": "variant-rate",
+        "sheet": "foilBasic",
+        "probability": 0.2
+      },
+      "note": "Published traditional foil land rate."
+    },
+    {
+      "id": "SPM-play-structure",
+      "set": "SPM",
+      "booster": "play",
+      "tier": "official",
+      "source": "https://magic.wizards.com/en/news/feature/collecting-marvels-spider-man",
+      "reviewedAt": "2026-09-06",
+      "fact": {
+        "kind": "structure",
+        "cardCount": 14,
+        "minFoils": 1
+      },
+      "note": "Published Play Booster card count and guaranteed traditional foil."
+    },
+    {
+      "id": "SPM-collector-structure",
+      "set": "SPM",
+      "booster": "collector",
+      "tier": "official",
+      "source": "https://magic.wizards.com/en/news/feature/collecting-marvels-spider-man",
+      "reviewedAt": "2026-09-06",
+      "fact": {
+        "kind": "structure",
+        "cardCount": 15
+      },
+      "note": "Published Collector Booster card count."
+    },
+    {
+      "id": "SPM-play-insert",
+      "set": "SPM",
+      "booster": "play",
+      "tier": "official",
+      "source": "https://magic.wizards.com/en/news/feature/collecting-marvels-spider-man",
+      "reviewedAt": "2026-09-06",
+      "fact": {
+        "kind": "variant-rate",
+        "sheet": "sourceMaterial",
+        "probability": 0.041666666666666664
+      },
+      "note": "Published common replacement rate."
+    },
+    {
+      "id": "SPM-play-foil-land",
+      "set": "SPM",
+      "booster": "play",
+      "tier": "official",
+      "source": "https://magic.wizards.com/en/news/feature/collecting-marvels-spider-man",
+      "reviewedAt": "2026-09-06",
+      "fact": {
+        "kind": "variant-rate",
+        "sheet": "foilLand",
+        "probability": 0.2
+      },
+      "note": "Published traditional foil land rate."
+    },
+    {
+      "id": "TLA-play-structure",
+      "set": "TLA",
+      "booster": "play",
+      "tier": "official",
+      "source": "https://magic.wizards.com/en/news/feature/collecting-avatar-the-last-airbender",
+      "reviewedAt": "2026-09-06",
+      "fact": {
+        "kind": "structure",
+        "cardCount": 14,
+        "minFoils": 1
+      },
+      "note": "Published Play Booster card count and guaranteed traditional foil."
+    },
+    {
+      "id": "TLA-collector-structure",
+      "set": "TLA",
+      "booster": "collector",
+      "tier": "official",
+      "source": "https://magic.wizards.com/en/news/feature/collecting-avatar-the-last-airbender",
+      "reviewedAt": "2026-09-06",
+      "fact": {
+        "kind": "structure",
+        "cardCount": 15
+      },
+      "note": "Published Collector Booster card count."
+    },
+    {
+      "id": "TLA-play-insert",
+      "set": "TLA",
+      "booster": "play",
+      "tier": "official",
+      "source": "https://magic.wizards.com/en/news/feature/collecting-avatar-the-last-airbender",
+      "reviewedAt": "2026-09-06",
+      "fact": {
+        "kind": "variant-rate",
+        "sheet": "sourceMaterial",
+        "probability": 0.038461538461538464
+      },
+      "note": "Published common replacement rate."
+    },
+    {
+      "id": "TLA-play-foil-land",
+      "set": "TLA",
+      "booster": "play",
+      "tier": "official",
+      "source": "https://magic.wizards.com/en/news/feature/collecting-avatar-the-last-airbender",
+      "reviewedAt": "2026-09-06",
+      "fact": {
+        "kind": "variant-rate",
+        "sheet": "foilLand",
+        "probability": 0.2
+      },
+      "note": "Published traditional foil land rate."
+    },
+    {
+      "id": "ECL-play-structure",
+      "set": "ECL",
+      "booster": "play",
+      "tier": "official",
+      "source": "https://magic.wizards.com/en/news/feature/collecting-lorwyn-eclipsed",
+      "reviewedAt": "2026-09-06",
+      "fact": {
+        "kind": "structure",
+        "cardCount": 14,
+        "minFoils": 1
+      },
+      "note": "Published Play Booster card count and guaranteed traditional foil."
+    },
+    {
+      "id": "ECL-collector-structure",
+      "set": "ECL",
+      "booster": "collector",
+      "tier": "official",
+      "source": "https://magic.wizards.com/en/news/feature/collecting-lorwyn-eclipsed",
+      "reviewedAt": "2026-09-06",
+      "fact": {
+        "kind": "structure",
+        "cardCount": 15
+      },
+      "note": "Published Collector Booster card count."
+    },
+    {
+      "id": "ECL-play-insert",
+      "set": "ECL",
+      "booster": "play",
+      "tier": "official",
+      "source": "https://magic.wizards.com/en/news/feature/collecting-lorwyn-eclipsed",
+      "reviewedAt": "2026-09-06",
+      "fact": {
+        "kind": "variant-rate",
+        "sheet": "specialGuest",
+        "probability": 0.01818181818181818
+      },
+      "note": "Published common replacement rate."
+    },
+    {
+      "id": "ECL-play-foil-land",
+      "set": "ECL",
+      "booster": "play",
+      "tier": "official",
+      "source": "https://magic.wizards.com/en/news/feature/collecting-lorwyn-eclipsed",
+      "reviewedAt": "2026-09-06",
+      "fact": {
+        "kind": "variant-rate",
+        "sheet": "foilLand",
+        "probability": 0.2
+      },
+      "note": "Published traditional foil land rate."
+    },
+    {
+      "id": "SOS-play-structure",
+      "set": "SOS",
+      "booster": "play",
+      "tier": "official",
+      "source": "https://magic.wizards.com/en/news/feature/collecting-secrets-of-strixhaven",
+      "reviewedAt": "2026-09-06",
+      "fact": {
+        "kind": "structure",
+        "cardCount": 14,
+        "minFoils": 1
+      },
+      "note": "Published Play Booster card count and guaranteed traditional foil."
+    },
+    {
+      "id": "SOS-collector-structure",
+      "set": "SOS",
+      "booster": "collector",
+      "tier": "official",
+      "source": "https://magic.wizards.com/en/news/feature/collecting-secrets-of-strixhaven",
+      "reviewedAt": "2026-09-06",
+      "fact": {
+        "kind": "structure",
+        "cardCount": 15
+      },
+      "note": "Published Collector Booster card count."
+    },
+    {
+      "id": "SOS-play-insert",
+      "set": "SOS",
+      "booster": "play",
+      "tier": "official",
+      "source": "https://magic.wizards.com/en/news/feature/collecting-secrets-of-strixhaven",
+      "reviewedAt": "2026-09-06",
+      "fact": {
+        "kind": "variant-rate",
+        "sheet": "specialGuest",
+        "probability": 0.01818181818181818
+      },
+      "note": "Published common replacement rate."
+    },
+    {
+      "id": "SOS-play-foil-land",
+      "set": "SOS",
+      "booster": "play",
+      "tier": "official",
+      "source": "https://magic.wizards.com/en/news/feature/collecting-secrets-of-strixhaven",
+      "reviewedAt": "2026-09-06",
+      "fact": {
+        "kind": "variant-rate",
+        "sheet": "foilLand",
+        "probability": 0.2
+      },
+      "note": "Published traditional foil land rate."
+    },
+    {
+      "id": "MSH-play-structure",
+      "set": "MSH",
+      "booster": "play",
+      "tier": "official",
+      "source": "https://magic.wizards.com/en/news/feature/collecting-marvel-super-heroes",
+      "reviewedAt": "2026-09-06",
+      "fact": {
+        "kind": "structure",
+        "cardCount": 14,
+        "minFoils": 1
+      },
+      "note": "Published Play Booster card count and guaranteed traditional foil."
+    },
+    {
+      "id": "MSH-collector-structure",
+      "set": "MSH",
+      "booster": "collector",
+      "tier": "official",
+      "source": "https://magic.wizards.com/en/news/feature/collecting-marvel-super-heroes",
+      "reviewedAt": "2026-09-06",
+      "fact": {
+        "kind": "structure",
+        "cardCount": 15
+      },
+      "note": "Published Collector Booster card count."
+    },
+    {
+      "id": "MSH-play-insert",
+      "set": "MSH",
+      "booster": "play",
+      "tier": "official",
+      "source": "https://magic.wizards.com/en/news/feature/collecting-marvel-super-heroes",
+      "reviewedAt": "2026-09-06",
+      "fact": {
+        "kind": "variant-rate",
+        "sheet": "sourceMaterial",
+        "probability": 0.041666666666666664
+      },
+      "note": "Published common replacement rate."
+    },
+    {
+      "id": "MSH-play-foil-land",
+      "set": "MSH",
+      "booster": "play",
+      "tier": "official",
+      "source": "https://magic.wizards.com/en/news/feature/collecting-marvel-super-heroes",
+      "reviewedAt": "2026-09-06",
+      "fact": {
+        "kind": "variant-rate",
+        "sheet": "foilLand",
+        "probability": 0.2
+      },
+      "note": "Published traditional foil land rate."
+    },
+    {
+      "id": "HOB-play-structure",
+      "set": "HOB",
+      "booster": "play",
+      "tier": "official",
+      "source": "https://magic.wizards.com/en/news/feature/collecting-the-hobbit",
+      "reviewedAt": "2026-09-06",
+      "fact": {
+        "kind": "structure",
+        "cardCount": 14,
+        "minFoils": 1
+      },
+      "note": "Published Play Booster card count and guaranteed traditional foil."
+    },
+    {
+      "id": "HOB-collector-structure",
+      "set": "HOB",
+      "booster": "collector",
+      "tier": "official",
+      "source": "https://magic.wizards.com/en/news/feature/collecting-the-hobbit",
+      "reviewedAt": "2026-09-06",
+      "fact": {
+        "kind": "structure",
+        "cardCount": 15
+      },
+      "note": "Published Collector Booster card count."
+    },
+    {
+      "id": "TMT-play-insert",
+      "set": "TMT",
+      "booster": "play",
+      "tier": "official",
+      "source": "https://magic.wizards.com/en/news/feature/collecting-teenage-mutant-ninja-turtles",
+      "reviewedAt": "2026-09-06",
+      "fact": {
+        "kind": "variant-rate",
+        "sheet": "sourceMaterial",
+        "probability": 0.03571428571428571
+      },
+      "note": "Published source-material common replacement rate."
+    },
+    {
+      "id": "TMT-play-count-legendaryTurtle",
+      "set": "TMT",
+      "booster": "play",
+      "tier": "official",
+      "source": "https://magic.wizards.com/en/news/feature/collecting-teenage-mutant-ninja-turtles",
+      "reviewedAt": "2026-09-06",
+      "fact": {
+        "kind": "sheet-count",
+        "sheet": "legendaryTurtle",
+        "count": 1
+      },
+      "note": "Guaranteed 1 card(s) in the legendaryTurtle slot."
+    },
+    {
+      "id": "TMT-play-count-uncommon",
+      "set": "TMT",
+      "booster": "play",
+      "tier": "official",
+      "source": "https://magic.wizards.com/en/news/feature/collecting-teenage-mutant-ninja-turtles",
+      "reviewedAt": "2026-09-06",
+      "fact": {
+        "kind": "sheet-count",
+        "sheet": "uncommon",
+        "count": 2
+      },
+      "note": "Guaranteed 2 card(s) in the uncommon slot."
+    },
+    {
+      "id": "INR-play-count-dfcCommon",
+      "set": "INR",
+      "booster": "play",
+      "tier": "official",
+      "source": "https://magic.wizards.com/en/news/feature/collecting-innistrad-remastered",
+      "reviewedAt": "2026-09-06",
+      "fact": {
+        "kind": "sheet-count",
+        "sheet": "dfcCommon",
+        "count": 1
+      },
+      "note": "Guaranteed 1 card(s) in the dfcCommon slot."
+    },
+    {
+      "id": "INR-play-count-sfcCommon",
+      "set": "INR",
+      "booster": "play",
+      "tier": "official",
+      "source": "https://magic.wizards.com/en/news/feature/collecting-innistrad-remastered",
+      "reviewedAt": "2026-09-06",
+      "fact": {
+        "kind": "sheet-count",
+        "sheet": "sfcCommon",
+        "count": 5
+      },
+      "note": "Guaranteed 5 card(s) in the sfcCommon slot."
+    },
+    {
+      "id": "INR-play-count-retro",
+      "set": "INR",
+      "booster": "play",
+      "tier": "official",
+      "source": "https://magic.wizards.com/en/news/feature/collecting-innistrad-remastered",
+      "reviewedAt": "2026-09-06",
+      "fact": {
+        "kind": "sheet-count",
+        "sheet": "retro",
+        "count": 1
+      },
+      "note": "Guaranteed 1 card(s) in the retro slot."
+    },
+    {
+      "id": "OTJ-play-count-breakingNews",
+      "set": "OTJ",
+      "booster": "play",
+      "tier": "official",
+      "source": "https://magic.wizards.com/en/news/feature/collecting-outlaws-of-thunder-junction",
+      "reviewedAt": "2026-09-06",
+      "fact": {
+        "kind": "sheet-count",
+        "sheet": "breakingNews",
+        "count": 1
+      },
+      "note": "Guaranteed 1 card(s) in the breakingNews slot."
+    },
+    {
+      "id": "SOS-play-count-mysticalArchive",
+      "set": "SOS",
+      "booster": "play",
+      "tier": "official",
+      "source": "https://magic.wizards.com/en/news/feature/collecting-secrets-of-strixhaven",
+      "reviewedAt": "2026-09-06",
+      "fact": {
+        "kind": "sheet-count",
+        "sheet": "mysticalArchive",
+        "count": 1
+      },
+      "note": "Guaranteed 1 card(s) in the mysticalArchive slot."
+    },
+    {
+      "id": "ZNE-box-topper-structure",
+      "set": "ZNE",
+      "booster": "box-topper",
+      "tier": "official",
+      "source": "https://magic.wizards.com/en/news/feature/collecting-zendikar-rising-2020-09-01",
+      "reviewedAt": "2026-09-06",
+      "fact": {
+        "kind": "structure",
+        "cardCount": 1
+      },
+      "note": "One Expedition per topper. Thirty eligible lands; exact relative odds use the community sheet."
+    }
+  ]
+}

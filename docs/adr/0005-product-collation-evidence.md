@@ -1,0 +1,17 @@
+# Preserve per-product collation under incomplete evidence
+
+Date: 2026-09-06
+
+Each sealed product resolves to its own constituent pack recipes, quantities and guaranteed cards. Apply official facts first, community data second, and explicit inference last. Precedence is per fact, not a blanket confidence label. The source registry records URLs and review dates; the generated product map fingerprints the actual resolved recipes and evidence.
+
+Fast EV and opening simulation use the same resolved variant and sheet rates. Joint branch fitting honors published replacement probabilities while retaining possible pack configurations. A failure to express a published fact keeps the community recipe usable with a named conflict; the release audit rejects unreviewed conflicts. Missing prices do not erase pack structure, card weights, fixed cards or guarantees. Unknown exact pull odds use their available community/inferred estimate with a warning, rather than assigning a priced possible outcome zero value.
+
+Color constraints describe a minimum number of distinct front-face mono colors in a sheet. Draft sheets marked color-balanced by upstream community data use five. The official Karlov Manor common guarantee uses four. Other Play common pools use four only as a disclosed family inference. Set and Collector pools do not inherit this inference. Per-set overrides can replace it as stronger data arrives. A color can remain absent from a four-color pack. Money filtering occurs after physical assignment, so a guaranteed bulk card can still contribute $0.
+
+Fixed sheets preserve every recorded card multiplicity, including repeated basics in theme packs. Their theme selection can vary, but the fixed contents within the chosen theme cannot. The sealed importer retains the upstream fixed flag.
+
+Sampling uses weighted sequential choices and reserves enough remaining positions for required colors. It rejects previously selected card identities within that sheet, including alternate printings. This preserves feasible outcomes, not an assertion of exact factory ordering. MIN/MAX use dynamic programming over distinct identities and color groups, so they obey the same feasible support without depending on the simulation sample. Marginal community card weights remain the fast EV estimate; unpublished correlation choices can cause sampled averages to differ. Reconstructing exact factory sequences or box print-run correlations requires stronger evidence and is not claimed.
+
+The initial reviewed registry covers published Play/Collector card counts across all 18 Play-era sets in this catalog, their reviewed insert/foil-land rates, Karlov Manor color balance, selected specialty slots, and Zendikar expedition toppers. It does not certify every treatment's exact odds. The remaining facts use versioned MTGJSON community data or explicit inference. Tests cover source precedence, replacement rates, missing-price preservation, color floors, identity deduplication and real-product evaluation. Every existing catalog SKU is checked by the product-map release gate.
+
+Primary references are recorded per fact in `data/collation-rules.json`. Community semantics: [MTGJSON booster model](https://mtgjson.com/data-models/booster/) and [taw's recommended algorithms](https://github.com/taw/magic-sealed-data#recommended-algorithms). The latter explicitly notes that weights and factory color balancing are not the same as independent draws.

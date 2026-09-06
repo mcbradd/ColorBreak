@@ -40,6 +40,13 @@ self.addEventListener("fetch", (event) => {
   const scopePath = self.location.pathname.replace(/\/[^/]*$/, "/");
   if (url.origin !== self.location.origin || !url.pathname.startsWith(scopePath)) return;
 
+  // An explicit refresh must report a network failure instead of presenting
+  // an offline cached response as a successful publication check.
+  if (event.request.cache === "no-cache") {
+    event.respondWith(fetch(event.request));
+    return;
+  }
+
   // Never persist navigations or shared/query URLs: these can contain a public
   // buyer setup and must not become browser-cache history.
   if (event.request.mode === "navigate" || url.search) {

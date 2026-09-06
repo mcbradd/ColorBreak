@@ -25,7 +25,8 @@
     "check:decision-freshness": "node tools/build-price-snapshot.mjs --check --max-age-ms 21600000",
     "check:ready-examples": "node tools/check-ready-examples.mjs",
     "check:sealed-prices": "node tools/build-sealed-price-snapshot.mjs --check",
-    "check": "npm run check:unused && npm run check:shared-imports && npm run test && npm run check:data && npm run check:prices && npm run check:sealed-prices && npm run check:ready-examples && npm run build && npm run test:deploy-path && npm run test:ocr-bundle"
+    "check": "npm run check:unused && npm run check:shared-imports && npm run test && npm run check:data && npm run check:collation && npm run check:prices && npm run check:sealed-prices && npm run check:ready-examples && npm run build && npm run test:deploy-path && npm run test:ocr-bundle",
+    "check:collation": "node tools/check-product-collation.mjs"
   },
   "dependencies": {
     "@tesseract.js-data/eng": "^1.0.0",

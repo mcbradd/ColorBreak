@@ -1,7 +1,7 @@
 import { createElement } from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { BuyerView, ContributorRows } from "./features/buyer/BuyerDetails";
+import { BuyerView, ContributorRows, type PriceRefreshState } from "./features/buyer/BuyerDetails";
 import { useOutcomeSimulation } from "./features/buyer/BuyerVisuals";
 import { createAuction } from "./domain/auction";
 import { calculateBreak } from "./domain/valuation";
@@ -44,7 +44,7 @@ function Decision({
   onRefreshPrices,
 }: {
   eligibility?: DecisionEligibility;
-  priceRefresh?: "idle" | "busy" | "unchanged";
+  priceRefresh?: PriceRefreshState;
   onRefreshPrices?: () => void;
 }) {
   const auction = createAuction();
@@ -71,16 +71,38 @@ describe("stale prices are an action, not an announcement", () => {
     expect(refresh).toHaveBeenCalledTimes(1);
   });
 
-  it("says so plainly while checking, and when nothing newer is published", async () => {
+  it("reports each phase, then the real answer, in the picker's own words", async () => {
     const { rerender } = render(createElement(Decision, {
-      eligibility: staleEligibility, onRefreshPrices: () => {}, priceRefresh: "busy",
+      eligibility: staleEligibility, onRefreshPrices: () => {}, priceRefresh: "searching",
     }));
-    expect(await screen.findByRole("button", { name: /Checking for newer prices/ })).toBeDisabled();
+    expect(await screen.findByRole("button", { name: /Searching/ })).toBeDisabled();
 
     rerender(createElement(Decision, {
-      eligibility: staleEligibility, onRefreshPrices: () => {}, priceRefresh: "unchanged",
+      eligibility: staleEligibility, onRefreshPrices: () => {}, priceRefresh: "updating",
+    }));
+    expect(screen.getByRole("button", { name: /Updating/ })).toHaveAttribute("aria-busy", "true");
+
+    // Nothing newer exists is an answer, not a silence.
+    rerender(createElement(Decision, {
+      eligibility: staleEligibility, onRefreshPrices: () => {}, priceRefresh: "stale",
     }));
     await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("No newer prices are published yet"));
+    expect(screen.getByRole("button", { name: /No newer data/ })).toBeEnabled();
+
+    // A refused refresh keeps the estimate and offers the retry.
+    rerender(createElement(Decision, {
+      eligibility: staleEligibility, onRefreshPrices: () => {}, priceRefresh: "error",
+    }));
+    expect(screen.getByRole("status")).toHaveTextContent("keeps the prices it already had");
+    expect(screen.getByRole("button", { name: /Retry/ })).toBeEnabled();
+  });
+
+  it("keeps the control visible after a refresh makes the estimate fresh", async () => {
+    // The answer to "did that work?" must outlive the condition that prompted
+    // it; swapping straight back to a plain label loses the result.
+    render(createElement(Decision, { onRefreshPrices: () => {}, priceRefresh: "updated" }));
+    expect(await screen.findByRole("button", { name: /Updated/ })).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("Newer prices are in this estimate");
   });
 
   it("keeps a plain label when the estimate is fresh", async () => {

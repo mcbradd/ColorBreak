@@ -1,5 +1,4 @@
 import type { CardPrice, Finish, Omission } from "../domain/types";
-import { sheetBalancesColors } from "../domain/simulation";
 import type { OutcomeCard, OutcomePack, PackOutcomeModel } from "../domain/simulation";
 import { loadCorrections, loadSealed } from "./sealed";
 import type { BoosterSheet, SealedDocument } from "./sealed";
@@ -31,17 +30,17 @@ function pricedCard(
       message: `${set} ${collectorNumber} is absent from the price source.`,
       material: true,
     });
-    return null;
+    return { id: `${set}:${collectorNumber}:${finish}`, slot: "C", color: "", value: 0, weight };
   }
   if (isCollectorOutlier(card, finish)) {
     omissions.push({
       code: "unverifiable-pull-rate",
       dedupeKey: `pull-rate:${card.set}|${card.collectorNumber}|${finish}`,
-      message: `${cardDisplayName(card, finish)} is retained in its pull slot but valued at $0 in the outcome range because its exact pull rate cannot be verified. Its market price remains visible in Rank by Price.`,
+      message: `${cardDisplayName(card, finish)} uses community or inferred odds because its exact pull rate is not published. Its available price remains in the range, including MAX.`,
       expectedCards: expectedCopies,
       material: true,
     });
-    return { id: `${card.id}:${finish}`, slot: card.slot, value: 0, weight };
+
   }
   const resolvedPrice = resolveCardPrice(card, finish);
   if (resolvedPrice == null) {
@@ -55,10 +54,10 @@ function pricedCard(
     // Preserve the printing's exact weight and color assignment. Removing it
     // would redistribute its pull chance across the other cards and overstate
     // their odds. Zero is an explicit lower bound, never a finish-price proxy.
-    return { id: `${card.id}:${finish}`, slot: card.slot, value: 0, weight };
+    return { id: `${card.id}:${finish}`, duplicateKey: card.name, color: card.colors ? (card.colors.length === 1 ? card.colors[0] : "") : undefined, slot: card.slot, value: 0, weight };
   }
   const value = resolvedPrice.amount;
-  return { id: `${card.id}:${finish}`, slot: card.slot, value: value >= threshold ? value : 0, weight };
+  return { id: `${card.id}:${finish}`, duplicateKey: card.name, color: card.colors ? (card.colors.length === 1 ? card.colors[0] : "") : undefined, slot: card.slot, value: value >= threshold ? value : 0, weight };
 }
 
 function sheetCards(
@@ -69,7 +68,6 @@ function sheetCards(
   threshold: number,
   omissions: Omission[],
   expectedSheetCopies: number,
-  picks: number,
 ): OutcomeCard[] {
   const finish: Finish = sheet.finish ?? (sheet.foil ? "foil" : "nonfoil");
   const cards: OutcomeCard[] = [];
@@ -82,6 +80,7 @@ function sheetCards(
     if (card) cards.push(card);
   }
   if (sheet.missing) {
+    cards.push({ id: `${owner}:${sheetName}:unresolved`, slot: "C", color: "", value: 0, weight: sheet.missing });
     omissions.push({
       code: "missing-sheet-weight",
       message: `${sheetName} contains unresolved printing weight.`,
@@ -89,16 +88,8 @@ function sheetCards(
       material: true,
     });
   }
-  // Color balancing is simulated (see sheetBalancesColors). It is only
-  // unresolvable when the resolved sheet has lost a whole mono color, which
-  // means printings dropped out of the price source.
-  if (sheet.balanceColors && picks >= 5 && !sheetBalancesColors({ totalWeight: sheet.total, cards, balanceColors: true }, picks)) {
-    omissions.push({
-      code: "unbalanceable-color-sheet",
-      message: `${sheetName} guarantees one card of each color, but at least one color has no resolved printing, so this pack's color floor is modeled as $0.`,
-      material: true,
-    });
-  }
+  if (sheet.minColors) return cards.flatMap((card) => card.color === "" && card.id.includes(":unresolved") || card.color === "" && !card.duplicateKey
+    ? ["W", "U", "B", "R", "G", ""].map((color) => ({ ...card, id: `${card.id}:${color}`, color, weight: (card.weight ?? 1) / 6 })) : [card]);
   return cards;
 }
 
@@ -118,7 +109,7 @@ export async function outcomeModelForProduct(
     return { model: { fixed: [], packs: [], complete: false }, omissions };
   }
 
-  const corrections = await loadCorrections();
+  const [{ resolveCollation }, corrections] = await Promise.all([import("./collation-policy"), loadCorrections()]);
   const correction = corrections.products[`${document.set}/${product.key}`];
   const multiplier = (correction?.contentsMultiplier ?? 1) * quantity;
   const packs = { ...product.packs };
@@ -140,7 +131,9 @@ export async function outcomeModelForProduct(
     const owner = split < 0 ? document.set : packCode.slice(0, split).toUpperCase();
     const bareCode = split < 0 ? packCode : packCode.slice(split + 1);
     const packDocument = split < 0 ? document : (foreign[owner] ?? await loadSealed(owner));
-    const booster = packDocument?.boosters[bareCode];
+    const raw = packDocument?.boosters[bareCode];
+    const match = raw ? resolveCollation(owner, bareCode, raw, `${document.set}/${product.key}`) : null;
+    const booster = match?.recipe;
     if (!booster?.variants?.length) {
       omissions.push({
         code: "missing-booster-variants",
@@ -150,7 +143,10 @@ export async function outcomeModelForProduct(
       });
       continue;
     }
-    const sheets = Object.fromEntries(Object.entries(booster.sheets).map(([name, sheet]) => [name, {
+    for (const message of match?.notes ?? []) omissions.push({ code: "collation-method", message: `${owner} ${bareCode}: ${message}`, material: false });
+    for (const message of match?.conflicts ?? []) omissions.push({ code: "collation-conflict", message, material: true });
+    const activeSheets = Object.entries(booster.sheets).filter(([name]) => booster.variants.some((variant) => variant.weight > 0 && (variant.picks[name] ?? 0) > 0));
+    const sheets = Object.fromEntries(activeSheets.map(([name, sheet]) => [name, {
       totalWeight: sheet.total,
       cards: sheetCards(
         owner,
@@ -160,11 +156,27 @@ export async function outcomeModelForProduct(
         threshold,
         omissions,
         unitCount * multiplier * (booster.picks[name] ?? 0),
-        booster.picks[name] ?? 0,
       ),
       allowDuplicates: sheet.allowDuplicates,
-      balanceColors: sheet.balanceColors,
+      minColors: sheet.minColors,
+      fixed: sheet.fixed,
     }]));
+    for (const [name, sheet] of Object.entries(sheets)) {
+      const maximumPicks = Math.max(...booster.variants.map((variant) => variant.picks[name] ?? 0));
+      if (!sheet.cards.length) sheet.cards.push({ id: `${owner}:${name}:unknown`, slot: "C", color: "", value: 0, weight: 1 });
+      if (!sheet.fixed && sheet.allowDuplicates !== true && new Set(sheet.cards.map((card) => card.duplicateKey ?? card.id)).size < maximumPicks) {
+        sheet.allowDuplicates = true;
+        omissions.push({ code: "collation-inference", message: `${owner} ${name}: some card identities are missing; repeated draws keep the known number of cards in the pack.`, material: true });
+      }
+      if (sheet.minColors) {
+        const available = new Set(sheet.cards.map((card) => card.color ?? card.slot).filter((color) => ["W", "U", "B", "R", "G"].includes(color)));
+        const minimumPicks = Math.min(...booster.variants.filter((variant) => (variant.picks[name] ?? 0) > 0).map((variant) => variant.picks[name]));
+        if (Math.min(available.size, minimumPicks) < sheet.minColors) {
+          omissions.push({ code: "collation-inference", message: `${owner} ${name}: the available card list cannot prove every color guarantee. The known pack slots are preserved.`, material: true });
+          sheet.minColors = Math.min(available.size, minimumPicks);
+        }
+      }
+    }
     outcomePacks.push({
       count: unitCount * multiplier,
       variants: booster.variants,

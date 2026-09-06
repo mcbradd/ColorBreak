@@ -17,7 +17,7 @@
 // v2 keeps both the exact weighted variants used by outcome simulation and the
 // weight-averaged picks used by the fast analytic EV path.
 
-import { writeFileSync, mkdirSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { writeFileSync, mkdirSync, readdirSync, readFileSync, statSync, existsSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { tmpdir } from "node:os";
@@ -329,6 +329,7 @@ export function buildSet(data, extraCards = new Map(), allowMissing = false, ext
         cards: list,
         ...(typeof sheet.allowDuplicates === "boolean" ? { allowDuplicates: sheet.allowDuplicates } : {}),
         ...(sheet.balanceColors ? { balanceColors: true } : {}),
+        ...(sheet.fixed ? { fixed: true } : {}),
         ...(missing ? { missing } : {}),
       };
     }
@@ -401,13 +402,15 @@ function mergeCandidates(code, setList) {
 }
 
 async function main() {
-  const args = process.argv.slice(2);
+  const dependenciesOnly = process.argv.includes("--dependencies-only");
+  const args = process.argv.slice(2).filter((arg) => arg !== "--dependencies-only");
   if (!args.length) { console.error("usage: node tools/build-sealed.mjs <SET ...>"); process.exit(1); }
   mkdirSync(OUT_DIR, { recursive: true });
   let setList = null;
   for (const code of args.map((a) => a.toUpperCase())) {
     let doc;
     try { doc = await fetchSet(code); } catch (e) { console.error(e.message); process.exitCode = 1; continue; }
+    const dependencyDocument = dependenciesOnly || (existsSync(`${OUT_DIR}${code}.json`) && JSON.parse(readFileSync(`${OUT_DIR}${code}.json`, "utf8")).src?.dependenciesOnly === true);
     const data = { ...doc.data, __meta: doc.meta, __sourceSha256: doc.__sha256 };
     const extra = new Map(Object.entries(DECK_INDEX.cards).map(([uuid, card]) => [uuid, { uuid, ...card }]));
     const extraDecks = new Map();
@@ -447,10 +450,18 @@ async function main() {
         }
       }
     } catch (e) { console.error(e.message); process.exitCode = 1; continue; }
-    if (!out.products.length) { console.error(`${code}: no sealed products with packs — skipped`); continue; }
+    if (!out.products.length && !dependencyDocument) { console.error(`${code}: no sealed products with packs — skipped`); continue; }
     out.src.deckCardIndex = { version: DECK_INDEX.version, sha256: DECK_INDEX_SHA256 };
     if (dependencies.size) out.src.dependencies = [...dependencies.values()].sort((a, b) => a.set.localeCompare(b.set));
     applySealedContentOverrides(out, OVERRIDES);
+    if (dependencyDocument) {
+      const referenced = new Set(readdirSync(OUT_DIR).filter((file) => /^[A-Z0-9]+\.json$/.test(file)).flatMap((file) => {
+        const stored = JSON.parse(readFileSync(`${OUT_DIR}${file}`, "utf8"));
+        return stored.products.flatMap((product) => Object.keys(product.packs).filter((pack) => pack.startsWith(`${code}:`)).map((pack) => pack.slice(code.length + 1)));
+      }));
+      out.boosters = Object.fromEntries(Object.entries(out.boosters).filter(([name]) => referenced.has(name)));
+      out.products = []; out.src.dependenciesOnly = true;
+    }
     writeFileSync(`${OUT_DIR}${code}.json`, JSON.stringify(out));
     const foreign = new Set();
     for (const p of out.products) for (const k of Object.keys(p.packs)) if (k.includes(":")) foreign.add(k);

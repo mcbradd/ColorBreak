@@ -61,7 +61,8 @@ describe("fast inline break composition", () => {
     await screen.findByRole("option", { name: "Add Final Fantasy (FIN) Collector Booster Box" });
     fireEvent.keyDown(screen.getByRole("combobox"), { key: "ArrowDown" });
     fireEvent.keyDown(screen.getByRole("combobox"), { key: "Enter" });
-    expect(change.mock.lastCall![0][0]).toMatchObject({ productKey: "sealed:play-booster-pack" });
+    // Packs lead the list; ArrowDown selects the following box.
+    expect(change.mock.lastCall![0][0]).toMatchObject({ productKey: "sealed:collector-booster-box" });
     expect(screen.getByRole("combobox")).toHaveFocus();
     search("eoe play");
     await screen.findByRole("option", { name: "Add Edge of Eternities (EOE) Play Booster Pack" });

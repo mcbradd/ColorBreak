@@ -8,7 +8,7 @@ import type { BreakAnalysis } from "../../data/evaluate";
 import { assessBuyerDecision, type BuyerDecisionAssessment, type PreparedProductSelection } from "../../domain/decision-evidence";
 import { canonicalCompositionFingerprint } from "../../domain/canonical-composition";
 import { sealedMarketPrice } from "../../data/sealed-prices";
-import { refreshPriceSnapshot } from "../../data/scryfall";
+import { refreshPublishedPrices } from "../../data/scryfall";
 import { createAuction } from "../../domain/auction";
 import type { AuctionState } from "../../domain/auction";
 import { decodeLegacySearch } from "../../domain/legacy";
@@ -29,7 +29,7 @@ import { DEFAULT_BUYER_COSTS, type BuyerCosts } from "../../domain/bid-ceiling";
 import { Builder, ManualBudgetCap } from "../shared/ProductBuilder";
 import { CompactWarning, useOutcomeSimulation } from "./BuyerVisuals";
 import { BuyerSetup } from "./BuyerSetup";
-import { BuyerView, LargeBreakView } from "./BuyerDetails";
+import { BuyerView, LargeBreakView, type PriceRefreshState } from "./BuyerDetails";
 
 /** Owns only buyer decision state; seller planning has its own controller. */
 export function BuyerWorkspace({
@@ -84,11 +84,11 @@ export function BuyerWorkspace({
     // checked until they say so.
     [selectedSlots, setSelectedSlots] = useState<SlotId[]>(() => sharedBuyer.selectedSlots ?? []),
     [busy, setBusy] = useState(false),
-    // "unchanged" is the honest answer to a refresh that found no newer
-    // publication: the buyer asked, so the buyer gets told.
-    [priceRefresh, setPriceRefresh] = useState<"idle" | "busy" | "unchanged">("idle"),
+    // The buyer asked, so the buyer gets told what happened: the phase while
+    // it runs, and the real answer after, including "nothing newer exists".
+    [priceRefresh, setPriceRefresh] = useState<PriceRefreshState>("idle"),
     [calculationGeneration, setCalculationGeneration] = useState(0);
-  const refreshedFrom = useRef<string>(undefined);
+  const refreshRequest = useRef(0);
   const [manualCapOpen, setManualCapOpen] = useState(false);
   const [manualTarget, setManualTarget] = useState<number>();
   const [manualShipping, setManualShipping] = useState<number>();
@@ -179,9 +179,6 @@ export function BuyerWorkspace({
         if (request !== analysisRequest.current) return;
         setAnalysis(next.analysis);
         setDecisionAssessment(next);
-        setPriceRefresh((current) => current !== "busy"
-          ? current
-          : next.analysis.priceAvailability?.observedAt === refreshedFrom.current ? "unchanged" : "idle");
         if (!firstResultTracked.current) {
           const elapsed = Date.now() - calculationStarted.current;
           track("calculation_completed", {
@@ -195,7 +192,6 @@ export function BuyerWorkspace({
       })
       .catch((e) => {
         if (request !== analysisRequest.current) return;
-        setPriceRefresh("idle");
         setError(e instanceof Error ? e.message : String(e));
         // Errors are intentionally not transmitted: failure details can be sensitive.
       })
@@ -203,16 +199,25 @@ export function BuyerWorkspace({
         if (request === analysisRequest.current) setBusy(false);
       });
   }, [lines, threshold, calculationGeneration]);
-  useEffect(() => { setPriceRefresh((current) => current === "unchanged" ? "idle" : current); }, [lines, threshold]);
-  const refreshPrices = () => {
-    if (priceRefresh === "busy") return;
-    refreshedFrom.current = analysis?.priceAvailability?.observedAt;
-    setPriceRefresh("busy");
-    // Prices are published by the build, so this re-reads the snapshot past
-    // every cache rather than quoting a live market the app never queries.
-    refreshPriceSnapshot();
-    setCalculationGeneration((generation) => generation + 1);
+  // A new break asks its own question; last refresh's answer no longer applies.
+  useEffect(() => { setPriceRefresh("idle"); }, [lines, threshold]);
+  const refreshPrices = async () => {
+    if (priceRefresh === "searching" || priceRefresh === "updating") return;
+    const request = ++refreshRequest.current;
+    setPriceRefresh("searching");
     track("price_refresh_requested", { mode, productCount: lines.length });
+    try {
+      // Same publication check the product picker runs: usable prices survive a
+      // failure, so a refused refresh never costs the buyer their estimate.
+      const result = await refreshPublishedPrices((phase) => {
+        if (request === refreshRequest.current) setPriceRefresh(phase);
+      });
+      if (request !== refreshRequest.current) return;
+      setPriceRefresh(result);
+      setCalculationGeneration((generation) => generation + 1);
+    } catch {
+      if (request === refreshRequest.current) setPriceRefresh("error");
+    }
   };
   useEffect(() => {
     if (buyerRecoveryReady || !initialBuyerRecord || !analysis || analysis.valuation.dataVersion.startsWith("preview:") || recoveryRecord) return;
@@ -356,7 +361,7 @@ export function BuyerWorkspace({
         </div>
       </aside>}
       {shareStatus && <p className="share-status" role="status">{shareStatus} <input aria-label="Break link" readOnly value={sharedHref} onFocus={(event) => event.currentTarget.select()} /></p>}
-      <AnswerProvider value={analysis ? answerFactors(analysis.valuation, analysis.outcomeModel.complete, busy) : []}><main className="workspace page" tabIndex={-1} data-focus-fallback>
+      <AnswerProvider value={analysis ? answerFactors(analysis.valuation, analysis.outcomeModel.complete, busy, analysis.outcomeOmissions) : []}><main className="workspace page" tabIndex={-1} data-focus-fallback>
         <header className="workspace-title">
           <div>
             <h1>{assignmentMode === "large" ? "Large break" : "Check a bid"}</h1>

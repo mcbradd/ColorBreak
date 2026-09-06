@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { clearPriceCache, loadPrices } from "./scryfall";
+import { clearPriceCache, loadPrices, refreshPublishedPrices } from "./scryfall";
 
 const card = {
   id: "one-1",
@@ -191,4 +191,52 @@ describe("exact-printing price module", () => {
     expect(result.omissions[0].code).toBe("price-source-unavailable");
     expect(requests.some((request) => request.url.includes("api.scryfall.com"))).toBe(false);
   });
+});
+
+
+describe("explicit price refresh", () => {
+  it("bypasses the cached publication, reports phases, and replaces loaded prices", async () => {
+    const observedAt = new Date().toISOString();
+    let version = 1;
+    const calls: Array<{ url: string; cache?: RequestCache }> = [];
+    vi.stubGlobal("fetch", async (input: string, init?: RequestInit) => {
+      calls.push({ url: String(input), cache: init?.cache });
+      return new Response(JSON.stringify(String(input).endsWith("index.json")
+        ? { schemaVersion: 1, provider: "Scryfall", observedAt, sets: { ONE: { file: "ONE.json", sha256: String(version) } } }
+        : { schemaVersion: 1, set: "ONE", observedAt, generatedAt: observedAt, cards: [{ ...card, prices: { usd: String(version) } }] }));
+    });
+    expect((await loadPrices({ sets: ["ONE"] })).cards[0].nonfoil).toBe(1);
+    version = 2;
+    const progress = vi.fn();
+    expect(await refreshPublishedPrices(progress)).toBe("updated");
+    expect(progress.mock.calls.flat()).toEqual(["searching", "updating"]);
+    expect(calls.slice(-2).every(call => call.cache === "no-cache")).toBe(true);
+    expect((await loadPrices({ sets: ["ONE"] })).cards[0].nonfoil).toBe(2);
+    expect(await refreshPublishedPrices(progress)).toBe("current");
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));
+    await expect(refreshPublishedPrices(progress)).rejects.toThrow();
+    expect((await loadPrices({ sets: ["ONE"] })).cards[0].nonfoil).toBe(2);
+  });
+});
+
+
+it("retries a failed shard after a partial update instead of mistaking its old prices for the new publication", async () => {
+  const observedAt = new Date().toISOString();
+  let version = 1;
+  let failTwo = false;
+  vi.stubGlobal("fetch", async (input: string) => {
+    const url = String(input);
+    if (url.endsWith("index.json")) return new Response(JSON.stringify({ schemaVersion: 1, provider: "Scryfall", observedAt,
+      sets: Object.fromEntries(["ONE", "TWO"].map(set => [set, { file: `${set}.json`, sha256: String(version) }])) }));
+    const set = url.includes("ONE") ? "ONE" : "TWO";
+    if (set === "TWO" && failTwo) return new Response("offline", { status: 503 });
+    return new Response(JSON.stringify({ schemaVersion: 1, set, observedAt, generatedAt: observedAt, cards: [{ ...card, set: set.toLowerCase(), prices: { usd: String(version) } }] }));
+  });
+  await loadPrices({ sets: ["ONE", "TWO"] });
+  version = 2; failTwo = true;
+  expect(await refreshPublishedPrices(vi.fn())).toBe("partial");
+  expect((await loadPrices({ sets: ["ONE", "TWO"] })).cards.map(card => card.nonfoil)).toEqual([2, 1]);
+  failTwo = false;
+  expect(await refreshPublishedPrices(vi.fn())).toBe("updated");
+  expect((await loadPrices({ sets: ["ONE", "TWO"] })).cards.map(card => card.nonfoil)).toEqual([2, 2]);
 });

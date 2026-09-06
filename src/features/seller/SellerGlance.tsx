@@ -40,7 +40,7 @@ function GlanceResult({ analysis, current, busy }: { analysis: BreakAnalysis; cu
   const ceiling = distribution ? bidCeiling(distribution.median, { ...DEFAULT_BUYER_COSTS, shipping: shipping ?? 0 }) : undefined;
   const mean = slot === "random" ? analysis.valuation.sellableEV / SLOT_IDS.length : analysis.valuation.slots.find((row) => row.id === slot)?.sellableEV;
   const max = Math.max(1, ...SLOT_IDS.map((id) => simulation.result?.slotDistributions[id].max ?? 0));
-  return <AnswerProvider value={answerFactors(analysis.valuation, analysis.outcomeModel.complete, busy)}>
+  return <AnswerProvider value={answerFactors(analysis.valuation, analysis.outcomeModel.complete, busy, analysis.outcomeOmissions)}>
     <header className="glance-heading"><InformationLabel>2 · READ THE BREAK</InformationLabel><span className={fresh ? "glance-fresh" : "glance-caution"}>{evidence}</span></header>
     {!current && <p className="glance-updating" role="status">{busy ? "Updating this mix… Best available values shown below." : "Best available estimate. Retry to improve it."}</p>}
     <div className="glance-total"><div><span>Whole break · expected card value</span><strong><AnswerValue value={analysis.valuation.sellableEV} /></strong></div><small>{analysis.valuation.threshold > 0 ? `Cards under ${fmt(analysis.valuation.threshold)} excluded` : "All priced cards included"}</small></div>

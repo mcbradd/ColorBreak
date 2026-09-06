@@ -172,7 +172,7 @@ describe("large break card list", () => {
     expect(screen.getByRole("dialog", { name: "Lightning Bolt" })).toBeInTheDocument();
   });
 
-  it("explains why an unverifiable chase is excluded from Pull EV", () => {
+  it("explains the provisional odds behind an estimated chase", () => {
     const valuation = calculateBreak({
       threshold: 2,
       prices: [{
@@ -195,10 +195,10 @@ describe("large break card list", () => {
     expect(screen.queryByText("CANNOT CLASSIFY PRICE")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Price" }));
     const card = screen.getByRole("button", { name: "Show cards in Sothera, the Supervoid slot" }).parentElement!;
-    expect(card.querySelector(".large-break-card-value")).toHaveTextContent("$0.00");
+    expect(card.querySelector(".large-break-card-value")).toHaveTextContent("$2.40");
     fireEvent.click(card.querySelector(".answer-note")!);
     expect(screen.getByRole("tooltip")).toHaveTextContent("exact pull chance cannot be checked");
-    expect(screen.getByRole("tooltip")).toHaveTextContent("not because it is worthless");
+    expect(screen.getByRole("tooltip")).toHaveTextContent("community or inferred odds");
 
   });
 });

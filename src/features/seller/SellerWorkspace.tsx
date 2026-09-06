@@ -80,7 +80,7 @@ export function SellerWorkspace({ exit }: { exit: () => void }) {
     <nav><button className="wordmark" onClick={exit}><span className="brand-mark"><Sparkles /></span>COLORBREAK</button><div className="nav-actions">{lines.length > 0 && <button className="icon-button" onClick={share} title="Copy buyer break setup — excludes seller costs and actuals." aria-label="Copy buyer break setup"><Copy /></button>}</div></nav>
     {legacyNotice && <p role="status">Legacy durable drafts were removed because they could contain financial data. Current drafts stay only in this browser session.</p>}
     {shareStatus && <p role="status">{shareStatus} <input aria-label="Buyer setup URL" readOnly value={sharedHref} /></p>}
-    <AnswerProvider value={analysis ? answerFactors(analysis.valuation, analysis.outcomeModel.complete, busy) : []}><main className="workspace page seller-fast" tabIndex={-1} data-focus-fallback><header className="workspace-title"><div><p className="eyebrow">SELLER STUDIO</p><h1>Build &amp; value a break</h1></div></header>
+    <AnswerProvider value={analysis ? answerFactors(analysis.valuation, analysis.outcomeModel.complete, busy, analysis.outcomeOmissions) : []}><main className="workspace page seller-fast" tabIndex={-1} data-focus-fallback><header className="workspace-title"><div><p className="eyebrow">SELLER STUDIO</p><h1>Build &amp; value a break</h1></div></header>
       <div className="seller-fast-grid">
         <QuickBreakComposer lines={lines} onChange={setLines} onImport={() => openBuilder()} />
         <SellerGlance analysis={analysis} current={analysisCurrent} busy={busy} />

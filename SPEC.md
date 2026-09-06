@@ -38,6 +38,17 @@ Quantity changes reuse only the matching product's values and scale them immedia
 10. Recalculation immediately reuses matching product values for the new quantities with an updating note; stale results never masquerade as the current mix. Continuing composition edits retain standing assumptions and valid per-product cost choices, while receipt records never move to another break.
 11. Browser bars and keyboards cannot cover the active field or its Done action. The value strip follows the visual viewport, including during native panning; search leaves room for a tappable match. Short viewports use a single-row quantity/Done control. Deliberate scrolling and explicit result navigation cancel automatic position restoration. See `docs/mobile-viewport-contract.md` for regression coverage and device verification limits.
 
+## Per-product collation
+
+1. Resolve every sealed product by its own set/product key, constituent booster codes, quantities, fixed contents, and source revisions. Boxes and cases scale those same recipes; cross-set boosters use their owning set.
+2. Resolve facts in this order: scoped official published rules/rates, scoped community observations or models, then disclosed inference. A source applies only to the facts it supports; product-specific rules beat family rules at the same evidence tier. Conflicts retain a useful qualified answer and are blocked by the catalog release audit until reviewed.
+3. Fast expected draws and generative opening models consume the same resolved variant and sheet rates. Official replacement rates retain mutually exclusive branches, total card counts, finishes and guaranteed slots. Never add a bonus-sheet hit on top of a replacement common.
+4. Both MIN/MAX and simulation enforce minimum distinct mono colors and avoid duplicate card identities within a sheet, including alternate printings. Color constraints use front-face card colors and apply before the dollar threshold. Set Boosters and specialty products cannot inherit Play color guarantees by name proximity.
+5. Preserve known fixed cards and pack structure when prices or one detail are missing. Unknown printing weights stay represented at zero known value; missing colors must not force a falsely positive floor. An independent-card fallback is permitted only when no structured component survives.
+6. Exact factory sheet order and box correlations are not generally known. Weighted sequential draws respecting available constraints are a disclosed approximation. A family-derived color guarantee is identified as inferred, not officially verified for that set.
+7. Priced outcomes with community or inferred odds remain in EV, MAX and rankings. Their unknown exact odds are explained. Missing prices are distinct from missing probabilities.
+8. `npm run check:collation` verifies every catalog product's mapping, source rules, quantities, recipe fingerprint and absence of unreviewed conflicts. New data must regenerate the map deliberately. Physical-device testing is separate from browser viewport checks.
+
 ## Data integrity
 
 1. Exact sealed contents are used whenever a normalized record exists.
@@ -58,3 +69,8 @@ Quantity changes reuse only the matching product's values and scale them immedia
 ## Explicit non-goals for v4
 
 Accounts, a hosted backend, cash-out haircut, probability-of-profit simulation, tax estimation, and speculative collector-pool narrowing are not part of this release.
+
+## Product picker refresh and ordering
+
+1. Explicit price refresh checks the latest publication over the network, preserving existing estimates on failure. The button immediately acknowledges the tap and shows Searching, Updating, or Checking with a spinner while that phase is active. It retains an Updated, Up to date, No newer data, Partial update, or Retry result. In-progress refreshes cannot be double-submitted, and old requests cannot change a different set's feedback.
+2. Product order is shared across the per-set picker and seller search: packs, boxes, bundles, prerelease kits, specialty products, then cases. Specialty priority favors decks, gift/scene collections, then starter products. This is an editorial break/wheel priority, not a measured sales ranking. Selection and refresh never reorder products or change the header height.

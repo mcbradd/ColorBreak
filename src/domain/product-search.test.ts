@@ -7,6 +7,10 @@ const sets = [set("FIN", "Final Fantasy"), set("EOE", "Edge of Eternities"), set
 const product = (set: string, setName: string, label: string, category: ProductChoice["category"] = "box"): ProductChoice => ({ key: label, set, setName, label, category, packCount: 1, status: "estimated" });
 
 describe("combined product search", () => {
+  it("puts packs and boxes first, then break and wheel products, with cases last", () => {
+    const rows = [product("TST", "Test", "Collector Case", "case"), product("TST", "Test", "Starter Kit", "specialty"), product("TST", "Test", "Scene Box", "specialty"), product("TST", "Test", "Commander Deck", "specialty"), product("TST", "Test", "Prerelease Kit", "prerelease"), product("TST", "Test", "Bundle", "bundle"), product("TST", "Test", "Collector Booster Box", "box"), product("TST", "Test", "Play Booster Pack", "pack")];
+    expect(matchingProducts(rows, "TST").map(row => row.label)).toEqual(["Play Booster Pack", "Collector Booster Box", "Bundle", "Prerelease Kit", "Commander Deck", "Scene Box", "Starter Kit", "Collector Case"]);
+  });
   it("narrows partial set names plus product terms without requiring a set-selection screen", () => {
     expect(rankSearchSets(sets, "final fant col box")[0].code).toBe("FIN");
     expect(rankSearchSets(sets, "dusk play")[0].code).toBe("DSK");

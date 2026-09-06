@@ -228,3 +228,18 @@ against real collation data — that's S3c's gate harness, which consumes the sc
 here. `build-collation.mjs` accepts either a raw MTGJSON per-set export (`data.cards[]`
 keyed by `uuid`) or the pre-flattened `cardsById` form; seed-set-specific `slot-map.json`
 entries beyond EOE still land in S3b.
+
+
+## Product collation policy and release audit
+
+`data/collation-rules.json` is the reviewed fact registry. Each rule names an exact set and booster (optionally a sealed product), evidence tier, URL, review date, and machine-applied fact. The shared application resolver in `src/data/collation-policy.ts` applies official facts first, community data next, and labeled inference last. It resolves variant rates jointly and recalculates analytic picks from the same branches used for simulation. Rounded published percentages are modeled at their stated values; they do not certify unpublished exact print-run odds.
+
+`node tools/check-product-collation.mjs --write` deliberately regenerates the product map after reviewing changes. `npm run check:collation` checks the map, rejects unmatched rules or source conflicts, and constructs and samples every catalog product to reject impossible physical constraints. The audit uses local price snapshots; it does not request live prices. The full release check includes this gate. Recipe fingerprints make community revisions reviewable even when product names remain unchanged.
+
+Foreign booster dependencies can be added with `node tools/build-sealed.mjs --dependencies-only XLN ZNE`. This stores their recipes without introducing unrelated products. Later rebuilds preserve that role. Their source versions and hashes remain in the dependency documents.
+
+`node tools/restore-fixed-sheets.mjs` recovers explicit upstream fixed-sheet flags for complete-sheet candidates, checking multiplicities and recording the source hash. The main sealed builder now retains those flags automatically. Fixed theme sheets draw their entire list, including repeated basics; they are not sampled as rarity pools.
+
+`node tools/check-collation-flow.mjs <site-url>` checks real mobile browser results: positive five-color Draft floors with bulk included, disclosed Play inference, and the shared source-hierarchy explanation. It requires Playwright and runs against preview or the deployed site.
+
+`node tools/check-refresh-flow.mjs <site-url>` checks pack-first ordering, the visible refresh spinner and phase labels, stable mobile header/list geometry, and retry after a simulated network failure. It uses controlled response delays with the real application and requires Playwright.
