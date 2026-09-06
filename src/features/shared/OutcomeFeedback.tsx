@@ -19,18 +19,31 @@ export function IncompleteDataWarning({ analysis, title = "Some values may be lo
   </details>;
 }
 
-export function useOutcomeSimulation(analysis: BreakAnalysis, remaining: SlotId[], landedCost: number | undefined): { result?: SimulationResult; error?: string; busy: boolean; retry: () => void } {
-  const [state, setState] = useState<{ result?: SimulationResult; error?: string; busy: boolean }>({ busy: false });
+export function useOutcomeSimulation(analysis: BreakAnalysis, remaining: SlotId[], landedCost: number | undefined, settleMs = 0): { result?: SimulationResult; error?: string; busy: boolean; current: boolean; retry: () => void } {
+  const [state, setState] = useState<{ key?: string; result?: SimulationResult; error?: string; busy: boolean }>({ busy: false });
   const [generation, setGeneration] = useState(0);
-  const key = `${analysis.valuation.dataVersion}|${analysis.valuation.status}|${analysis.outcomeModel.cacheKey ?? JSON.stringify(analysis.outcomeModel)}|${remaining.join("")}|${landedCost ?? "none"}`;
+  const key = `${analysis.valuation.dataVersion}|${analysis.valuation.status}|${analysis.valuation.threshold}|${analysis.outcomeModel.cacheKey ?? JSON.stringify(analysis.outcomeModel)}|${remaining.join("")}|${landedCost ?? "none"}`;
+  const revision = `${key}|retry:${generation}`;
   useEffect(() => {
     let current = true;
     setState((previous) => ({ ...previous, busy: true, error: undefined }));
-    const options = { seed: key, sampleCount: 10_000, remaining, landedCost };
-    simulateOutcomesAsync(analysis.outcomeModel, options).then((result) => {
-      if (current) setState({ result, busy: false });
-    }).catch((error) => { if (current) setState({ busy: false, error: error instanceof Error ? error.message : String(error) }); });
-    return () => { current = false; };
-  }, [key, generation]);
-  return { ...state, retry: () => setGeneration((value) => value + 1) };
+    const start = () => {
+      const options = { seed: key, sampleCount: 10_000, remaining, landedCost };
+      simulateOutcomesAsync(analysis.outcomeModel, options).then((result) => {
+        if (current) setState({ key: revision, result, busy: false });
+      }).catch((error) => { if (current) setState({ key: revision, busy: false, error: error instanceof Error ? error.message : String(error) }); });
+    };
+    // Rapid quantity taps can settle before enqueueing expensive worker runs.
+    // Analytic values and the pending state still update immediately.
+    const timer = settleMs > 0 ? setTimeout(start, settleMs) : undefined;
+    if (timer === undefined) start();
+    return () => { current = false; if (timer !== undefined) clearTimeout(timer); };
+  }, [key, generation, settleMs]);
+  return {
+    result: state.result,
+    error: state.key === revision ? state.error : undefined,
+    busy: state.busy || state.key !== revision,
+    current: Boolean(state.result && state.key === revision && !state.busy),
+    retry: () => setGeneration((value) => value + 1),
+  };
 }

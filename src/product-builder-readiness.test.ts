@@ -26,19 +26,24 @@ vi.mock("./domain/decision-evidence", () => ({ prepareProductSelection }));
 import { Builder } from "./features/shared/ProductBuilder";
 
 describe("Add to Break product picker", () => {
-  it("shows a distinct, real per-row readiness signal instead of a constant label on every row", async () => {
+  it("puts one optional estimate refresh action in the fixed picker header instead of repeating freshness on each product", async () => {
     render(createElement(Builder, { open: true, onClose: vi.fn(), lines: [], onApply: vi.fn() }));
     fireEvent.click(await screen.findByRole("button", { name: /Test Set/ }));
 
     const boxRow = await screen.findByRole("button", { name: /Collector Booster Box/ });
     const singleRow = await screen.findByRole("button", { name: /Single Card/ });
 
-    // The old bug rendered the literal, non-informative "Ready to add" on
-    // every row regardless of actual per-product readiness. It must be gone.
+    // Product selection is about choosing a product. Freshness is a break-wide
+    // concern, so it appears once as an optional action rather than resizing
+    // every row with repeated labels.
     expect(screen.queryByText(/Ready to add/)).not.toBeInTheDocument();
+    expect(boxRow.textContent).not.toMatch(/Fresh estimate|may need an update/);
+    expect(singleRow.textContent).not.toMatch(/Fresh estimate|may need an update/);
+    expect(screen.getAllByRole("button", { name: "Estimates may be outdated. Refresh now" })).toHaveLength(1);
 
-    expect(boxRow.textContent).toContain("Fresh estimate");
-    expect(singleRow.textContent).toContain("Estimate may need an update");
+    const initialCalls = prepareProductSelection.mock.calls.length;
+    fireEvent.click(screen.getByRole("button", { name: "Estimates may be outdated. Refresh now" }));
+    await vi.waitFor(() => expect(prepareProductSelection.mock.calls.length).toBeGreaterThan(initialCalls));
   });
 
   it("has no readiness checkbox hiding products from the picker", async () => {
@@ -53,17 +58,17 @@ describe("Add to Break product picker", () => {
     expect(screen.getByRole("button", { name: /Single Card/ })).toBeInTheDocument();
   });
 
-  it("shows the current break as the products in it, not a count of lines", async () => {
+  it("keeps the product list in place after a selection", async () => {
     render(createElement(Builder, { open: true, onClose: vi.fn(), lines: [], onApply: vi.fn() }));
 
-    // Nothing added yet: no "0 product lines / 0 openings" to read past.
+    // The picker itself makes selection obvious. A current-break panel would
+    // appear only after the first tap and shove every product row downward.
     expect(screen.queryByText("Current break")).not.toBeInTheDocument();
 
     fireEvent.click(await screen.findByRole("button", { name: /Test Set/ }));
     fireEvent.click(await screen.findByRole("button", { name: /Collector Booster Box/ }));
 
-    expect(await screen.findByText("Current break")).toBeInTheDocument();
-    const entries = [...document.querySelectorAll(".composer-draft-list li")].map((node) => node.textContent);
-    expect(entries).toEqual(["TSTCollector Booster Box×1"]);
+    expect(await screen.findByRole("group", { name: "Selected Collector Booster Box" })).toBeInTheDocument();
+    expect(screen.queryByText("Current break")).not.toBeInTheDocument();
   });
 });

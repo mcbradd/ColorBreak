@@ -21,8 +21,6 @@ vi.mock("./domain/decision-evidence", () => ({ prepareProductSelection }));
 
 import { Builder } from "./features/shared/ProductBuilder";
 
-const draftEntries = () => [...document.querySelectorAll(".composer-draft-list li")].map((node) => node.textContent);
-
 describe("Add to Break product picker — single-screen add/remove/quantity", () => {
   it("adds a product on tap, adjusts its quantity, and removes it — all on the same product-list screen", async () => {
     render(createElement(Builder, { open: true, onClose: vi.fn(), lines: [], onApply: vi.fn() }));
@@ -35,30 +33,25 @@ describe("Add to Break product picker — single-screen add/remove/quantity", ()
 
     fireEvent.click(boxRow);
 
-    // The current break reflects the add immediately, as the product itself
-    // rather than a count, without leaving the product list.
-    await waitFor(() => expect(draftEntries()).toEqual(["TSTCollector Booster Box×1"]));
-
-    // A quantity stepper is now visible right in the list for this row —
-    // no navigation to a separate screen is required to change it.
-    const quantityInput = screen.getByLabelText("Collector Booster Box quantity in products");
-    expect(quantityInput).toHaveValue(1);
+    // Selection is named, and quantity stays visible without opening a keypad.
+    const selectedRow = await screen.findByRole("group", { name: "Selected Collector Booster Box" });
+    const quantityOutput = within(selectedRow).getByLabelText("Collector Booster Box quantity in products", { selector: "output" });
+    expect(quantityOutput).toHaveTextContent("×1");
+    expect(within(selectedRow).queryByRole("textbox")).not.toBeInTheDocument();
+    expect(within(selectedRow).queryByRole("spinbutton")).not.toBeInTheDocument();
 
     const increase = screen.getByRole("button", { name: /Increase Collector Booster Box quantity/i });
     fireEvent.click(increase);
-    expect(quantityInput).toHaveValue(2);
-    // Still exactly one product line — quantity changed, not line count.
-    await waitFor(() => expect(draftEntries()).toEqual(["TSTCollector Booster Box×2"]));
+    expect(quantityOutput).toHaveTextContent("×2");
 
     // Stepping the quantity below one is the removal control: there is no
     // second bin icon doing the same job.
     fireEvent.click(screen.getByRole("button", { name: /Decrease Collector Booster Box quantity/i }));
     fireEvent.click(screen.getByRole("button", { name: /Remove Collector Booster Box from break/i }));
-    await waitFor(() => expect(draftEntries()).toEqual([]));
-
     // The row is back to its unselected, single-tap-to-add state.
     expect(await screen.findByRole("button", { name: /Collector Booster Box/ })).toBeInTheDocument();
     expect(screen.queryByLabelText("Collector Booster Box quantity in products")).not.toBeInTheDocument();
+    expect(screen.queryByRole("group", { name: "Selected Collector Booster Box" })).not.toBeInTheDocument();
   });
 
   it("keeps each product row's add/remove/quantity state independent", async () => {
@@ -68,15 +61,13 @@ describe("Add to Break product picker — single-screen add/remove/quantity", ()
     fireEvent.click(await screen.findByRole("button", { name: /Collector Booster Box/ }));
     fireEvent.click(await screen.findByRole("button", { name: /Play Booster Pack/ }));
 
-    await waitFor(() => expect(draftEntries()).toEqual([
-      "TSTCollector Booster Box×1",
-      "TSTPlay Booster Pack×1",
-    ]));
+    await screen.findByRole("group", { name: "Selected Collector Booster Box" });
+    await screen.findByRole("group", { name: "Selected Play Booster Pack" });
 
     // Removing just the box leaves the pack's own line and quantity intact.
     fireEvent.click(screen.getByRole("button", { name: /Remove Collector Booster Box from break/i }));
-    await waitFor(() => expect(draftEntries()).toEqual(["TSTPlay Booster Pack×1"]));
-    expect(screen.getByLabelText("Play Booster Pack quantity in openings")).toHaveValue(1);
+    expect(screen.queryByRole("group", { name: "Selected Collector Booster Box" })).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Play Booster Pack quantity in openings")).toHaveTextContent("×1");
   });
 
   it("commits the in-screen additions to the break when the picker is finished", async () => {
@@ -86,11 +77,41 @@ describe("Add to Break product picker — single-screen add/remove/quantity", ()
     fireEvent.click(await screen.findByRole("button", { name: /Collector Booster Box/ }));
     fireEvent.click(screen.getByRole("button", { name: /Increase Collector Booster Box quantity/i }));
 
-    fireEvent.click(screen.getByRole("button", { name: /^Done/i }));
+    fireEvent.click(screen.getByRole("button", { name: "Done", exact: true }));
 
     await waitFor(() => expect(onApply).toHaveBeenCalled());
     const [appliedLines] = onApply.mock.calls[0];
     expect(appliedLines).toHaveLength(1);
     expect(appliedLines[0]).toMatchObject({ productLabel: "Collector Booster Box", quantity: 2 });
+  });
+
+  it("keeps Done available after the last removal and commits the empty break", async () => {
+    const onApply = vi.fn();
+    const onClose = vi.fn();
+    render(createElement(Builder, {
+      open: true, onClose, onApply,
+      lines: [{ id: "only-box", set: "TST", productKey: "tst-box", productLabel: "Collector Booster Box", quantity: 1, packCount: 12 }],
+    }));
+    fireEvent.click(await screen.findByRole("button", { name: /Test Set/ }));
+    const selectedRow = await screen.findByRole("group", { name: "Selected Collector Booster Box" });
+    fireEvent.click(within(selectedRow).getByRole("button", { name: "Remove Collector Booster Box from break" }));
+
+    expect(screen.queryByRole("group", { name: "Selected Collector Booster Box" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Done", exact: true }));
+    await waitFor(() => expect(onApply).toHaveBeenCalledTimes(1));
+    expect(onApply.mock.calls[0][0]).toEqual([]);
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("disables the plus button at the supported quantity maximum", async () => {
+    render(createElement(Builder, {
+      open: true, onClose: vi.fn(), onApply: vi.fn(),
+      lines: [{ id: "max-box", set: "TST", productKey: "tst-box", productLabel: "Collector Booster Box", quantity: 999, packCount: 12 }],
+    }));
+    fireEvent.click(await screen.findByRole("button", { name: /Test Set/ }));
+    const selectedRow = await screen.findByRole("group", { name: "Selected Collector Booster Box" });
+    expect(within(selectedRow).getByLabelText("Collector Booster Box quantity in products")).toHaveTextContent("×999");
+    expect(within(selectedRow).getByRole("button", { name: "Increase Collector Booster Box quantity" })).toBeDisabled();
+    expect(within(selectedRow).getByRole("button", { name: "Decrease Collector Booster Box quantity" })).toBeEnabled();
   });
 });

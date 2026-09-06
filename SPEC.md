@@ -13,6 +13,8 @@
 9. On a phone viewport, format, color/spot selection, break contents, and bulk-value controls appear before results and fit in the initial landing viewport for a new break. Buying recommendation and limit precede supporting evidence.
 10. The current URL continuously encodes break products, quantities, format, spot/color state, and bulk-value options. Opening or sharing that URL reconstructs the filled-out buyer view.
 11. When a result requires user-entered information, the message names the exact missing value, explains which result it affects, and links directly to the corresponding field.
+12. In the product picker, selected products have an obvious contrasting border/background and a checked quantity badge. Minus and plus stay beside the product name at its trailing edge; quantity entry never opens a keyboard here. The picker footer says only Done, including after the last product is removed.
+13. Selecting a product never inserts a current-break panel or changes the row geometry; the list remains in place. Estimate freshness is omitted from individual product rows. When an estimate needs attention, one refresh action appears above the list.
 
 ## Seller
 
@@ -21,6 +23,12 @@
 3. Buyer-paid shipping is never seller revenue. Packing and seller-covered shipping are explicit costs.
 4. The target plan and actual asks are distinct. Profit is hidden until all sold slots have actual asks.
 5. Target asks allocate by Sellable EV with a minimum, can be locked, and redistribute when a slot is marked unsold.
+6. Seller entry is an inline, combined set/product search. Tapping a product immediately adds it, clears search and returns focus for the next product. Quantities and removal remain on the same screen, with Undo; different sets never merge merely because their product keys match.
+7. Product identity appears without evaluating every search alternative. Analytic EV starts on selection; range calculations settle rapid edits before sampling. Neither cost entry nor market-price hydration restarts card valuation or unmounts seller controls.
+8. The first result shows whole-break EV and per-color average, low (10th percentile), typical (median) and high (90th percentile) outcomes. Unknown acquisition costs do not hide card values. Stale or incomplete models show qualified estimates; a bid limit requires current complete evidence and current simulation results. A random color preview explicitly assumes all eight colors are available.
+9. On phones a compact value strip stays visible during entry, including above the keyboard. The product list is bounded; expanded ranges and pricing remain on the same page. Controls remain usable at 320px, and quantity entry retains a visible Done button.
+10. Recalculation retains previous values with an explicit updating label; stale results never masquerade as the current mix. Continuing composition edits retain standing assumptions and valid per-product cost choices, while receipt records never move to another break.
+11. Browser bars and keyboards cannot cover the active field or its Done action. The value strip follows the visual viewport, including during native panning; search leaves room for a tappable match. Short viewports use a single-row quantity/Done control. Deliberate scrolling and explicit result navigation cancel automatic position restoration. See `docs/mobile-viewport-contract.md` for regression coverage and device verification limits.
 
 ## Data integrity
 
