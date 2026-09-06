@@ -43,6 +43,7 @@ describe("Add to Break product picker", () => {
 
     const initialCalls = prepareProductSelection.mock.calls.length;
     fireEvent.click(screen.getByRole("button", { name: "Estimates may be outdated. Refresh now" }));
+    expect(screen.getByRole("button", { name: "Refreshing estimates" })).toHaveTextContent("Refreshing…");
     await vi.waitFor(() => expect(prepareProductSelection.mock.calls.length).toBeGreaterThan(initialCalls));
   });
 

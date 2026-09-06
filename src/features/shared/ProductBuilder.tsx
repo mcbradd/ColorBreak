@@ -69,6 +69,7 @@ export function Builder({
   const [products, setProducts] = useState<ProductChoice[]>([]);
   const [prepared, setPrepared] = useState<Record<string, PreparedProductSelection>>({});
   const [estimating, setEstimating] = useState(false);
+  const [refreshingEstimates, setRefreshingEstimates] = useState(false);
   const [estimateRevision, setEstimateRevision] = useState(0);
   const [loading, setLoading] = useState(false);
   const [draft, setDraft] = useState<BreakLine[]>([]);
@@ -172,7 +173,7 @@ export function Builder({
       tcgId: product.tcgId,
     });
   useEffect(() => {
-    if (!products.length) { setPrepared({}); setEstimating(false); return; }
+    if (!products.length) { setPrepared({}); setEstimating(false); setRefreshingEstimates(false); return; }
     let cancelled = false;
     setEstimating(true);
     void (async () => {
@@ -186,7 +187,12 @@ export function Builder({
         }
       }));
       if (!cancelled) setPrepared(Object.fromEntries(entries));
-    })().finally(() => { if (!cancelled) setEstimating(false); });
+    })().finally(() => {
+      if (!cancelled) {
+        setEstimating(false);
+        setRefreshingEstimates(false);
+      }
+    });
     return () => { cancelled = true; };
   }, [products, lines, valueThreshold, estimateRevision]);
   const add = (product: ProductChoice) => {
@@ -307,6 +313,12 @@ export function Builder({
   const hasEstimateWarning = !estimating && products.some((product) =>
     prepared[product.key]?.assessment.presentation !== "eligible",
   );
+  const showEstimateRefresh = hasEstimateWarning || refreshingEstimates;
+  const refreshEstimates = () => {
+    if (refreshingEstimates || estimating) return;
+    setRefreshingEstimates(true);
+    setEstimateRevision((value) => value + 1);
+  };
   const visibleProducts = groupedProducts;
   // Unmount before the ownership hook restores focus: no exit animation may
   // leave an active dialog exposed alongside the active workspace.
@@ -349,14 +361,14 @@ export function Builder({
               </div>
               {selected && <button
                 type="button"
-                className={`picker-header-refresh${hasEstimateWarning ? "" : " is-idle"}`}
-                aria-label="Estimates may be outdated. Refresh now"
-                aria-hidden={!hasEstimateWarning}
-                tabIndex={hasEstimateWarning ? undefined : -1}
-                disabled={!hasEstimateWarning}
-                onClick={() => setEstimateRevision((value) => value + 1)}
+                className={`picker-header-refresh${showEstimateRefresh ? "" : " is-idle"}`}
+                aria-label={refreshingEstimates ? "Refreshing estimates" : "Estimates may be outdated. Refresh now"}
+                aria-hidden={!showEstimateRefresh}
+                tabIndex={showEstimateRefresh ? undefined : -1}
+                disabled={!showEstimateRefresh || refreshingEstimates || estimating}
+                onClick={refreshEstimates}
               >
-                Refresh now
+                {refreshingEstimates ? <><span className="refresh-spinner" aria-hidden="true" />Refreshing…</> : "Refresh now"}
               </button>}
             </header>
             <input
