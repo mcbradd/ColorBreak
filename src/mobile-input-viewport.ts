@@ -14,6 +14,8 @@ type FocusSession = {
   left: number;
   scrollParents: ScrollPosition[];
   top: number;
+  restorePosition: boolean;
+  followViewport: boolean;
 };
 
 function editableTarget(target: EventTarget | null): HTMLElement | null {
@@ -41,43 +43,93 @@ export function installMobileInputViewport() {
   let session: FocusSession | null = null;
   let revealTimer: number | undefined;
   let restoreTimer: number | undefined;
-  let previousViewportHeight = viewport?.height ?? window.innerHeight;
+  let orientationTimer: number | undefined;
+  let orientationPending = false;
+  let revealPending = false;
 
   const viewportHeight = () => viewport?.height ?? window.innerHeight;
   const viewportTop = () => viewport?.offsetTop ?? 0;
+  // Pinch zoom reduces CSS-pixel height without opening a keyboard.
+  const unscaledHeight = () => viewportHeight() * (viewport?.scale || 1);
 
   const syncViewport = () => {
     root.style.setProperty("--visual-viewport-height", `${viewportHeight()}px`);
     root.style.setProperty("--visual-viewport-top", `${viewportTop()}px`);
+    root.style.setProperty("--visual-viewport-inset-bottom", `${Math.max(0, window.innerHeight - viewportHeight() - viewportTop())}px`);
+    root.classList.toggle("viewport-short", viewportHeight() < 320);
+    // Browser bars and keyboard animations can report many small deltas.
+    // Detection controls compact styling only; geometry never depends on it.
+    root.classList.toggle("keyboard-open", Boolean(session &&
+      session.baselineHeight - unscaledHeight() > (root.classList.contains("keyboard-open") ? 80 : 120)));
+  };
+
+  const boundsFor = (element: HTMLElement, availableHeight: number) => {
+    const group = element.closest<HTMLElement>(".numeric-input") ?? element;
+    const rect = group.getBoundingClientRect();
+    const inputRect = element.getBoundingClientRect();
+    const top = Math.min(rect.top, inputRect.top);
+    let bottom = Math.max(rect.bottom, inputRect.bottom);
+    // Leave a tappable match beneath search, including while results load.
+    if (element.closest(".quick-search-field")) {
+      const reserve = root.classList.contains("keyboard-open") || root.classList.contains("viewport-short") ? availableHeight : 120;
+      bottom += Math.max(0, Math.min(reserve, availableHeight - (bottom - top)));
+    }
+    return { top, bottom };
+  };
+
+  const scrollDelta = (element: HTMLElement, top: number, bottom: number) => {
+    if (bottom <= top) return 0;
+    const bounds = boundsFor(element, bottom - top);
+    if (bounds.bottom - bounds.top > bottom - top || bounds.top < top) return bounds.top - top;
+    return bounds.bottom > bottom ? bounds.bottom - bottom : 0;
   };
 
   const revealFocused = () => {
     window.clearTimeout(revealTimer);
+    revealPending = true;
     revealTimer = window.setTimeout(() => {
+      revealPending = false;
       if (!session || document.activeElement !== session.element) return;
-      const rect = session.element.getBoundingClientRect();
+      const element = session.element;
       const sheet = session.element.closest(".sheet");
       const stickyHeader = sheet?.querySelector<HTMLElement>(":scope > header");
       const stickyActions = sheet?.querySelector<HTMLElement>(".composer-actions");
+      const nav = !sheet ? document.querySelector<HTMLElement>("#root nav") : null;
+      const navBottom = nav && /^(sticky|fixed)$/.test(getComputedStyle(nav).position)
+        ? nav.getBoundingClientRect().bottom : 0;
       const valueDock = document.querySelector<HTMLElement>(".seller-value-dock");
       const valueDockTop = valueDock && getComputedStyle(valueDock).display !== "none"
         ? valueDock.getBoundingClientRect().top : Number.POSITIVE_INFINITY;
       const safeTop = Math.max(
-        viewportTop() + 20,
+        viewportTop() + 12,
+        navBottom + 12,
         (stickyHeader?.getBoundingClientRect().bottom ?? 0) + 12,
       );
       const safeBottom = Math.min(
-        viewportTop() + viewportHeight() - 20,
+        viewportTop() + viewportHeight() - 12,
         (stickyActions?.getBoundingClientRect().top ?? Number.POSITIVE_INFINITY) - 12,
         valueDockTop - 12,
       );
-      if (rect.top < safeTop || rect.bottom > safeBottom) {
-        session.element.scrollIntoView?.({
-          behavior: "smooth",
-          block: "center",
-          inline: "nearest",
-        });
+      // Reveal in each scrollport before scrolling the page. In particular,
+      // the last quantity's Done control must clear the bounded product list.
+      for (const { element: parent } of scrollParents(element)) {
+        if (!(parent instanceof HTMLElement) || !parent.clientHeight) continue;
+        const rect = parent.getBoundingClientRect();
+        let top = rect.top + parent.clientTop + 4;
+        let bottom = top + parent.clientHeight - 8;
+        const bounds = boundsFor(element, safeBottom - safeTop);
+        if (Math.min(bottom, safeBottom) - Math.max(top, safeTop) >= bounds.bottom - bounds.top) {
+          top = Math.max(top, safeTop);
+          bottom = Math.min(bottom, safeBottom);
+        }
+        const delta = scrollDelta(element, top, bottom);
+        if (Math.abs(delta) > 1) parent.scrollTo?.({ behavior: "instant", left: parent.scrollLeft,
+          top: Math.max(0, Math.min(parent.scrollTop + delta, parent.scrollHeight - parent.clientHeight)) });
       }
+      const delta = scrollDelta(element, safeTop, safeBottom);
+      // Fixed sheets own their scrolling; moving the underlying page cannot
+      // reveal a field inside them. Avoid smooth scrolling against native pan.
+      if (!sheet && Math.abs(delta) > 1) window.scrollBy({ behavior: "instant", top: delta, left: 0 });
     }, 50);
   };
 
@@ -88,7 +140,7 @@ export function installMobileInputViewport() {
     root.classList.remove("input-focus-active");
     root.classList.remove("keyboard-open");
     // An explicit on-page navigation owns its new position after keyboard close.
-    if (document.activeElement?.hasAttribute("data-viewport-navigation")) return;
+    if (!saved.restorePosition || document.activeElement?.hasAttribute("data-viewport-navigation")) return;
     saved.scrollParents.forEach(({ element, left, top }) => {
       element.scrollTo?.({ behavior: "auto", left, top });
     });
@@ -96,14 +148,19 @@ export function installMobileInputViewport() {
   };
 
   const keyboardIsClosed = () =>
-    !session || viewportHeight() >= session.baselineHeight - 48;
+    !session || unscaledHeight() >= session.baselineHeight - 80;
 
   const requestRestore = () => {
     window.clearTimeout(restoreTimer);
     restoreTimer = window.setTimeout(() => {
       if (editableTarget(document.activeElement)) return;
       if (keyboardIsClosed()) restore();
-      else restoreTimer = window.setTimeout(restore, 900);
+      else restoreTimer = window.setTimeout(() => {
+        if (editableTarget(document.activeElement)) return;
+        // Never force the page back while a native keyboard is still closing.
+        if (session && !keyboardIsClosed()) session.restorePosition = false;
+        restore();
+      }, 900);
     }, 120);
   };
 
@@ -113,14 +170,20 @@ export function installMobileInputViewport() {
     window.clearTimeout(restoreTimer);
     if (session) {
       session.element = element;
-      session.baselineHeight = Math.max(session.baselineHeight, viewportHeight());
+      session.followViewport = true;
+      session.baselineHeight = Math.max(session.baselineHeight, unscaledHeight());
+      for (const position of scrollParents(element)) {
+        if (!session.scrollParents.some((saved) => saved.element === position.element)) session.scrollParents.push(position);
+      }
     } else {
       session = {
-        baselineHeight: viewportHeight(),
+        baselineHeight: unscaledHeight(),
         element,
         left: window.scrollX,
         scrollParents: scrollParents(element),
         top: window.scrollY,
+        restorePosition: true,
+        followViewport: true,
       };
     }
     root.classList.add("input-focus-active");
@@ -130,29 +193,41 @@ export function installMobileInputViewport() {
 
   const onFocusOut = () => requestRestore();
   const onViewportResize = () => {
-    const nextHeight = viewportHeight();
-    const keyboardOpened = nextHeight < previousViewportHeight - 48;
-    const keyboardClosed = nextHeight > previousViewportHeight + 48;
-    previousViewportHeight = nextHeight;
+    if (orientationPending && session) session.baselineHeight = Math.max(unscaledHeight(), window.innerHeight);
     syncViewport();
-    if (keyboardOpened && session && document.activeElement === session.element) {
-      root.classList.add("keyboard-open");
-      revealFocused();
-    } else if (keyboardClosed && session && !editableTarget(document.activeElement)) {
-      root.classList.remove("keyboard-open");
-      requestRestore();
-    } else if (keyboardClosed) {
-      root.classList.remove("keyboard-open");
-    }
+    if (session && document.activeElement === session.element) {
+      if (session.followViewport && (viewport?.scale || 1) === 1) revealFocused();
+    } else if (session) requestRestore();
   };
   const onViewportScroll = () => {
-    window.clearTimeout(revealTimer);
     syncViewport();
+    // Native panning often follows resize. Let the pending focus correction
+    // settle after it, but don't drag a manually scrolled page back to a field.
+    if (revealPending) revealFocused();
   };
   const onOrientationChange = () => {
-    previousViewportHeight = viewportHeight();
+    // Some engines dispatch orientationchange before their dimensions settle.
+    // Rebase subsequent resize frames too, never from the old portrait height.
+    orientationPending = true;
+    window.clearTimeout(orientationTimer);
+    orientationTimer = window.setTimeout(() => { orientationPending = false; }, 250);
+    if (session) {
+      session.baselineHeight = Math.max(unscaledHeight(), window.innerHeight);
+      session.restorePosition = false;
+    }
     syncViewport();
     if (session && document.activeElement === session.element) revealFocused();
+  };
+  const onScrollIntent = () => {
+    if (session) { session.restorePosition = false; session.followViewport = false; }
+    window.clearTimeout(revealTimer);
+    revealPending = false;
+  };
+  const onEditIntent = (event: Event) => {
+    if (session && event.target === session.element) {
+      session.followViewport = true;
+      revealFocused();
+    }
   };
 
   syncViewport();
@@ -160,20 +235,33 @@ export function installMobileInputViewport() {
   document.addEventListener("focusout", onFocusOut);
   viewport?.addEventListener("resize", onViewportResize);
   viewport?.addEventListener("scroll", onViewportScroll);
+  window.addEventListener("resize", onViewportResize);
   window.addEventListener("orientationchange", onOrientationChange);
+  document.addEventListener("touchmove", onScrollIntent, { passive: true });
+  document.addEventListener("wheel", onScrollIntent, { passive: true });
+  document.addEventListener("input", onEditIntent);
+  document.addEventListener("pointerdown", onEditIntent, { passive: true });
 
   return () => {
     window.clearTimeout(revealTimer);
     window.clearTimeout(restoreTimer);
+    window.clearTimeout(orientationTimer);
     document.removeEventListener("focusin", onFocusIn);
     document.removeEventListener("focusout", onFocusOut);
     viewport?.removeEventListener("resize", onViewportResize);
     viewport?.removeEventListener("scroll", onViewportScroll);
+    window.removeEventListener("resize", onViewportResize);
     window.removeEventListener("orientationchange", onOrientationChange);
+    document.removeEventListener("touchmove", onScrollIntent);
+    document.removeEventListener("wheel", onScrollIntent);
+    document.removeEventListener("input", onEditIntent);
+    document.removeEventListener("pointerdown", onEditIntent);
     root.classList.remove("input-focus-active");
     root.classList.remove("keyboard-open");
+    root.classList.remove("viewport-short");
     root.style.removeProperty("--visual-viewport-height");
     root.style.removeProperty("--visual-viewport-top");
+    root.style.removeProperty("--visual-viewport-inset-bottom");
   };
 }
 

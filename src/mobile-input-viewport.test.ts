@@ -10,6 +10,7 @@ describe("mobile input viewport", () => {
   let viewport: TestVisualViewport;
   let cleanup: () => void;
   let scrollTo: ReturnType<typeof vi.fn>;
+  let scrollBy: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     vi.useFakeTimers();
@@ -21,6 +22,8 @@ describe("mobile input viewport", () => {
     Object.defineProperty(window, "scrollX", { configurable: true, value: 12 });
     Object.defineProperty(window, "scrollY", { configurable: true, value: 480 });
     scrollTo = vi.fn();
+    scrollBy = vi.fn();
+    Object.defineProperty(window, "scrollBy", { configurable: true, value: scrollBy });
     Object.defineProperty(window, "scrollTo", {
       configurable: true,
       value: scrollTo,
@@ -56,10 +59,10 @@ describe("mobile input viewport", () => {
     viewport.dispatchEvent(new Event("resize"));
     vi.runAllTimers();
 
-    expect(reveal).toHaveBeenCalledWith({
-      behavior: "smooth",
-      block: "center",
-      inline: "nearest",
+    expect(scrollBy).toHaveBeenCalledWith({
+      behavior: "instant",
+      top: 392,
+      left: 0,
     });
     expect(document.documentElement.style.getPropertyValue("--visual-viewport-height"))
       .toBe("360px");
@@ -110,6 +113,7 @@ describe("mobile input viewport", () => {
     input.focus();
     vi.runAllTimers();
     reveal.mockClear();
+    scrollBy.mockClear();
 
     top = -300;
     viewport.offsetTop = 56;
@@ -117,6 +121,7 @@ describe("mobile input viewport", () => {
     vi.runAllTimers();
 
     expect(reveal).not.toHaveBeenCalled();
+    expect(scrollBy).not.toHaveBeenCalled();
     expect(document.documentElement.style.getPropertyValue("--visual-viewport-top"))
       .toBe("56px");
   });
@@ -124,13 +129,16 @@ describe("mobile input viewport", () => {
   it("treats a sticky composer action rail as keyboard occlusion", () => {
     const sheet = document.createElement("section");
     sheet.className = "sheet";
+    sheet.style.overflowY = "auto";
+    Object.defineProperty(sheet, "clientHeight", { value: 360 });
+    Object.defineProperty(sheet, "scrollHeight", { value: 1000 });
+    sheet.getBoundingClientRect = () => new DOMRect(0, 0, 390, 360);
+    let inputTop = 270;
+    sheet.scrollTo = vi.fn((options: ScrollToOptions) => { inputTop -= options.top ?? 0; });
     const input = document.createElement("input");
     const reveal = vi.fn();
     input.scrollIntoView = reveal;
-    input.getBoundingClientRect = () => ({
-      top: 270, bottom: 320, left: 0, right: 200, width: 200, height: 50,
-      x: 0, y: 270, toJSON: () => ({}),
-    });
+    input.getBoundingClientRect = () => new DOMRect(0, inputTop, 200, 50);
     const footer = document.createElement("footer");
     footer.className = "composer-actions";
     footer.getBoundingClientRect = () => ({
@@ -145,7 +153,8 @@ describe("mobile input viewport", () => {
     viewport.dispatchEvent(new Event("resize"));
     vi.runAllTimers();
 
-    expect(reveal).toHaveBeenCalled();
+    expect(input.getBoundingClientRect().bottom).toBeLessThanOrEqual(288);
+    expect(scrollBy).not.toHaveBeenCalled();
   });
 
   it("keeps seller inputs above the value dock and respects an explicit jump to results", () => {
@@ -163,7 +172,7 @@ describe("mobile input viewport", () => {
     viewport.height = 360;
     viewport.dispatchEvent(new Event("resize"));
     vi.runAllTimers();
-    expect(input.scrollIntoView).toHaveBeenCalled();
+    expect(scrollBy).toHaveBeenCalledWith({ behavior: "instant", top: 62, left: 0 });
     destination.focus();
     viewport.height = 844;
     viewport.dispatchEvent(new Event("resize"));

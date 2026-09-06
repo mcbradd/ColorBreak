@@ -136,11 +136,17 @@
 .quick-line-identity strong { font-size: 18px; }
 .quick-line-identity small { font-size: 17px; color: var(--muted); line-height: 1.4; }
 .quick-line-identity small b { color: var(--cyan); margin-left: 4px; }
-.quick-line-quantity { display: grid; grid-template-columns: 48px 60px 48px; border: var(--rule); align-items: center; }
+.quick-line-quantity { display: grid; grid-template-columns: 48px 60px 48px; border: var(--rule); align-items: start; }
 .quick-line-quantity button { height: 48px; min-height: 48px; padding: 0; background: var(--panel-raised); border: 0; display: grid; place-items: center; }
 .quick-line-quantity input { width: 60px; min-width: 0; height: 48px; min-height: 48px; padding: 8px 4px; text-align: center; background: var(--canvas); border: 0; border-left: var(--rule); border-right: var(--rule); font-size: 20px; font-variant-numeric: tabular-nums; }
-.quick-line-quantity .numeric-input { min-width: 0; width: 60px; position: relative; }
-.quick-line-quantity .numeric-done { position: absolute; top: 100%; left: -48px; width: 156px; z-index: 4; background: var(--accent); color: var(--accent-ink); font-size: 17px; border: 1px solid var(--accent); }
+/* The input wrapper owns the whole editing footprint. Done adds a real row,
+ * so the scrollable product list cannot clip it beneath its last quantity. */
+.quick-line-quantity > button { grid-row: 1; position: relative; z-index: 1; }
+.quick-line-quantity > button:first-child { grid-column: 1; }
+.quick-line-quantity > button:last-child { grid-column: 3; }
+.quick-line-quantity .numeric-input { min-width: 0; width: auto; grid-column: 1 / -1; grid-row: 1; display: grid; grid-template-columns: 48px 60px 48px; }
+.quick-line-quantity .numeric-input > input { grid-column: 2; grid-row: 1; }
+.quick-line-quantity .numeric-done { position: static; grid-column: 1 / -1; grid-row: 2; width: 100%; margin: 0; min-height: 48px; background: var(--accent); color: var(--accent-ink); font-size: 17px; border: 1px solid var(--accent); }
 .quick-undo { display: flex; align-items: center; gap: 12px; justify-content: space-between; font-size: 17px; padding: 12px 0; color: var(--muted); }
 .quick-undo button { display: flex; align-items: center; gap: 8px; background: transparent; color: var(--accent); border: var(--rule); padding: 8px 12px; }
 .quick-composer-error { color: var(--warning); font-size: 17px; }
@@ -186,13 +192,13 @@
   .seller-fast .quick-break-line { gap: 8px; padding: 12px 0; }
   .seller-fast .quick-line-identity { flex-basis: 145px; }
   .seller-fast .quick-search-results { max-height: min(310px, 40dvh); }
-  .seller-value-dock { position: fixed; display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) 68px; gap: 4px 8px; left: 0; right: 0; bottom: 0; background: var(--panel-raised); border-top: 2px solid var(--accent); padding: 10px 10px calc(8px + var(--safe-bottom)); z-index: 40; }
+  .seller-value-dock { position: fixed; display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) 68px; gap: 4px 8px; left: 0; right: 0; top: calc(var(--visual-viewport-top, 0px) + var(--visual-viewport-height, 100dvh)); bottom: auto; transform: translateY(-100%); background: var(--panel-raised); border-top: 2px solid var(--accent); padding: 10px 10px calc(8px + var(--safe-bottom)); z-index: 40; }
   .seller-value-dock > div { min-width: 0; display: grid; gap: 4px; align-content: start; }
   .seller-value-dock span { font-size: 17px; color: var(--muted); }
   .seller-value-dock b { font-size: 22px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
   .seller-value-dock > button { padding: 6px; min-height: 48px; background: var(--accent); color: var(--accent-ink); font-size: 17px; font-weight: 700; border: 0; }
   .seller-value-dock > small { grid-column: 1 / -1; color: var(--warning); font-size: 17px; }
-  .keyboard-open .seller-value-dock { top: calc(var(--visual-viewport-top, 0px) + var(--visual-viewport-height, 100dvh)); bottom: auto; transform: translateY(-100%); padding-bottom: 8px; }
+  .keyboard-open .seller-value-dock { padding-bottom: 8px; }
   body:has(#root[inert]) .seller-value-dock { display: none; }
 }
 
@@ -201,6 +207,7 @@ body,
 #root { min-height: 100%; }
 
 body {
+  min-width: 0;
   color: var(--ink);
   background: var(--canvas);
   background-image: none;
@@ -1463,3 +1470,34 @@ img.card-thumbnail { object-fit: cover; background: #171b23; }
 }
 .keyboard-open .set-browser-tools .set-sort-tabs,
 .keyboard-open .break-input-actions { display: none; }
+
+/* Final viewport bounds win over historical vh/dvh sheet and page rules.
+ * VisualViewport includes browser-bar changes as well as keyboard changes. */
+.scrim .sheet { max-height: calc(var(--visual-viewport-height, 100dvh) - 12px); }
+@media (max-width: 719px) {
+  .scrim .sheet { top: 0; bottom: auto; height: calc(var(--visual-viewport-height, 100dvh) - 12px); }
+}
+@media (max-width: 760px) {
+  .workspace.page.seller-fast { padding-bottom: calc(180px + var(--safe-bottom)); }
+  /* iOS can shrink only the visual viewport. Extra document height gives
+   * measured scrolling room to lift the last input above its keyboard and dock. */
+  .input-focus-active .workspace.page { padding-bottom: calc(48px + var(--safe-bottom) + var(--visual-viewport-inset-bottom, 0px)); }
+  .input-focus-active .workspace.page.seller-fast { padding-bottom: calc(180px + var(--safe-bottom) + var(--visual-viewport-inset-bottom, 0px)); }
+  .keyboard-open:has(.seller-fast) nav { position: static; }
+  .keyboard-open .seller-fast .quick-search-hint { display: none; }
+  .keyboard-open .seller-fast .quick-product-option { padding-block: 10px; }
+  .viewport-short.input-focus-active .seller-value-dock { padding: 6px 10px; }
+  .viewport-short.input-focus-active .seller-value-dock :is(span, b, small) { line-height: 1.2; }
+}
+
+/* A short visible area must still fit the complete editing control. Trade
+ * the temporary steppers for a side-by-side input and Done until editing ends. */
+.viewport-short.input-focus-active .quick-line-quantity:has(.numeric-done) > button { display: none; }
+.viewport-short.input-focus-active .quick-line-quantity .numeric-input:has(.numeric-done) { grid-template-columns: 60px 96px; }
+.viewport-short.input-focus-active .quick-line-quantity .numeric-input:has(.numeric-done) > input { grid-column: 1; grid-row: 1; }
+.viewport-short.input-focus-active .quick-line-quantity .numeric-done { grid-column: 2; grid-row: 1; width: 96px; height: 48px; min-height: 48px; font-size: 17px; }
+.viewport-short.keyboard-open .sheet > header { min-height: 48px; padding-block: 0; }
+.viewport-short.keyboard-open .sheet > header small { display: none; }
+.viewport-short.keyboard-open .break-import { padding-block: 4px; }
+.viewport-short.keyboard-open .break-import textarea { min-height: 48px; height: 48px; }
+.viewport-short.keyboard-open .sheet .composer-actions { padding-block: 4px; }

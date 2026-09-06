@@ -26,6 +26,7 @@
 8. The first result shows whole-break EV and per-color average, low (10th percentile), typical (median) and high (90th percentile) outcomes. Unknown acquisition costs do not hide card values. Stale or incomplete models show qualified estimates; a bid limit requires current complete evidence and current simulation results. A random color preview explicitly assumes all eight colors are available.
 9. On phones a compact value strip stays visible during entry, including above the keyboard. The product list is bounded; expanded ranges and pricing remain on the same page. Controls remain usable at 320px, and quantity entry retains a visible Done button.
 10. Recalculation retains previous values with an explicit updating label; stale results never masquerade as the current mix. Continuing composition edits retain standing assumptions and valid per-product cost choices, while receipt records never move to another break.
+11. Browser bars and keyboards cannot cover the active field or its Done action. The value strip follows the visual viewport, including during native panning; search leaves room for a tappable match. Short viewports use a single-row quantity/Done control. Deliberate scrolling and explicit result navigation cancel automatic position restoration. See `docs/mobile-viewport-contract.md` for regression coverage and device verification limits.
 
 ## Data integrity
 
