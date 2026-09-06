@@ -1531,4 +1531,7 @@ img.card-thumbnail { object-fit: cover; background: #171b23; }
 .picker-quantity { display: grid; grid-template-columns: 48px 48px; }
 .picker-quantity > button { width: 48px; min-width: 48px; height: 48px; min-height: 48px; padding: 0; border: 1px solid var(--accent); background: #0c1306; color: var(--accent); font-size: 24px; font-weight: 900; }
 .picker-quantity > button:disabled { opacity: .45; }
-.picker-refresh-action { display: flex; align-items: center; justify-content: center; width: 100%; min-height: 48px; padding: 10px 16px; border: 0; border-bottom: var(--rule); color: var(--warning); background: #171500; font-size: 17px; font-weight: 800; }
+.sheet > header > div { min-width: 0; }
+.sheet > header h2 { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.picker-header-refresh { flex: 0 0 100px; min-height: 40px; margin-left: auto; padding: 7px 8px; border: 1px solid var(--warning); border-radius: 8px; color: var(--warning); background: #171500; font-size: 12px; font-weight: 800; }
+.picker-header-refresh.is-idle { visibility: hidden; }

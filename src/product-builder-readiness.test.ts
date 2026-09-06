@@ -26,7 +26,7 @@ vi.mock("./domain/decision-evidence", () => ({ prepareProductSelection }));
 import { Builder } from "./features/shared/ProductBuilder";
 
 describe("Add to Break product picker", () => {
-  it("puts one optional estimate refresh action above the picker instead of repeating freshness on each product", async () => {
+  it("puts one optional estimate refresh action in the fixed picker header instead of repeating freshness on each product", async () => {
     render(createElement(Builder, { open: true, onClose: vi.fn(), lines: [], onApply: vi.fn() }));
     fireEvent.click(await screen.findByRole("button", { name: /Test Set/ }));
 
@@ -39,10 +39,10 @@ describe("Add to Break product picker", () => {
     expect(screen.queryByText(/Ready to add/)).not.toBeInTheDocument();
     expect(boxRow.textContent).not.toMatch(/Fresh estimate|may need an update/);
     expect(singleRow.textContent).not.toMatch(/Fresh estimate|may need an update/);
-    expect(screen.getAllByRole("button", { name: "Estimates may be outdated · Refresh now" })).toHaveLength(1);
+    expect(screen.getAllByRole("button", { name: "Estimates may be outdated. Refresh now" })).toHaveLength(1);
 
     const initialCalls = prepareProductSelection.mock.calls.length;
-    fireEvent.click(screen.getByRole("button", { name: "Estimates may be outdated · Refresh now" }));
+    fireEvent.click(screen.getByRole("button", { name: "Estimates may be outdated. Refresh now" }));
     await vi.waitFor(() => expect(prepareProductSelection.mock.calls.length).toBeGreaterThan(initialCalls));
   });
 

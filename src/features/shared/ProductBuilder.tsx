@@ -347,6 +347,17 @@ export function Builder({
                 <small>ADD TO BREAK</small>
                 <h2>{composerMode === "paste" ? "Paste or scan a break" : composerMode === "review" ? "Review matches" : selected ? selected.name : "Add products"}</h2>
               </div>
+              {selected && <button
+                type="button"
+                className={`picker-header-refresh${hasEstimateWarning ? "" : " is-idle"}`}
+                aria-label="Estimates may be outdated. Refresh now"
+                aria-hidden={!hasEstimateWarning}
+                tabIndex={hasEstimateWarning ? undefined : -1}
+                disabled={!hasEstimateWarning}
+                onClick={() => setEstimateRevision((value) => value + 1)}
+              >
+                Refresh now
+              </button>}
             </header>
             <input
               ref={screenshotInput}
@@ -437,9 +448,6 @@ export function Builder({
                   </div>
                 ) : (
                   <div className="product-groups">
-                    {hasEstimateWarning && <button type="button" className="picker-refresh-action" onClick={() => setEstimateRevision((value) => value + 1)}>
-                      Estimates may be outdated · Refresh now
-                    </button>}
                     {Object.entries(visibleProducts).filter(([, rows]) => rows.length).map(([category, rows]) => (
                       <section key={category}>
                         <InformationLabel>
