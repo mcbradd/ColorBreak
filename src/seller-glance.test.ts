@@ -27,6 +27,7 @@ vi.mock("./features/shared/OutcomeFeedback", () => ({
   },
 }));
 
+import { UpsideCandles } from "./features/seller/SellerView";
 import { SellerGlance } from "./features/seller/SellerGlance";
 
 function analysis(): BreakAnalysis {
@@ -69,6 +70,25 @@ describe("seller value at a glance", () => {
     mocks.state.result = ranges; mocks.state.current = true; mocks.state.busy = false; mocks.state.error = undefined;
   });
   afterEach(cleanup);
+
+  it("keeps compact bars readable when possible MAX is far beyond the probable range", () => {
+    const summary = { ...zero, p01: 2, p10: 5, p25: 10, median: 20, mean: 20, p75: 30, p90: 40, p99: 50, max: 10000 };
+    mocks.state.result = { ...ranges, slotDistributions: Object.fromEntries(SLOT_IDS.map(id => [id, summary])) as SimulationResult["slotDistributions"] };
+    const { container } = show();
+    expect(container.querySelector<HTMLElement>(".glance-color-bar i")?.style.width).toBe("87.5%");
+    expect(container.querySelector<HTMLElement>(".glance-color-bar i")?.style.left).toBe("12.5%");
+    expect(screen.getByRole("button", { name: "Inspect White value" })).toHaveTextContent("MAX $10K");
+  });
+
+  it("uses probable whiskers and middle-half bodies for vertical comparison candles", () => {
+    const summary = { ...zero, p01: 2, p25: 10, median: 20, p75: 30, p99: 50, max: 10000 };
+    mocks.state.result = { ...ranges, slotDistributions: Object.fromEntries(SLOT_IDS.map(id => [id, summary])) as SimulationResult["slotDistributions"] };
+    const value = analysis();
+    const { container } = render(createElement(UpsideCandles, { base: value, bonus: value, bonusLabel: "Pack", selectedSlot: "W", selectSlot: () => {}, useRandom: false, buyerLanded: 0 }));
+    expect(container.querySelector<HTMLElement>(".candle-wick")?.style.bottom).toBe("4%");
+    expect(container.querySelector<HTMLElement>(".candle-wick")?.style.height).toBe("96%");
+    expect(container.querySelector<HTMLElement>(".candle-body")?.style.height).toBe("40%");
+  });
 
   it("shows whole-break and per-color EV before an outcome range finishes", () => {
     mocks.state.result = undefined; mocks.state.current = false; mocks.state.busy = true;

@@ -1,3 +1,4 @@
+import { probableRange, chartPosition, CANDLE_EXPLANATION } from "../../domain/outcome-chart";
 import { summarizeDistribution } from "../../domain/simulation";
 import { AnswerValue, AnswerNote } from "../shared/Answer";
 import { useEffect, useRef, useState } from "react";
@@ -214,7 +215,7 @@ export function FormatCarryOverNotice({
 
 /**
  * One shared horizontal scale for every slot, so two candles can be compared
- * by eye. The wick is the practical minimum-to-maximum range, the body is the
+ * by eye. The wick is the practical 1st-to-99th percentile range, the body is the
  * middle half, and the marker is the pull-rate average.
  */
 export function SlotCandle({
@@ -228,29 +229,28 @@ export function SlotCandle({
   scaleMax: number;
   label: string;
 }) {
-  const position = (value: number) => Math.min(100, Math.max(0, value / Math.max(scaleMax, 0.01) * 100));
-  const low = distribution?.min ?? expectedValue;
-  const high = distribution?.max ?? expectedValue;
-  const bodyLow = Math.min(high, Math.max(low, distribution?.p25 ?? expectedValue));
-  const bodyHigh = Math.max(bodyLow, Math.min(high, distribution?.p75 ?? expectedValue));
+  const position = (value: number) => chartPosition(value, scaleMax);
+  const { low, high, bodyLow, bodyHigh } = probableRange(distribution, expectedValue);
+  const minimum = distribution?.min ?? expectedValue;
+  const maximum = distribution?.max ?? expectedValue;
   return (
-    <div className="slot-candle" aria-label={`${label}: MIN ${fmt(low)}, expected ${fmt(expectedValue)}, MAX ${fmt(high)}`}>
+    <div className="slot-candle" aria-label={`${label}: MIN ${fmt(minimum)}, expected ${fmt(expectedValue)}, MAX ${fmt(maximum)}; probable low ${fmt(low)}, probable high ${fmt(high)}`}>
       <div className="slot-candle-track" aria-hidden="true">
         <span className="slot-candle-wick" style={{ left: `${position(low)}%`, width: `${Math.max(0, position(high) - position(low))}%` }} />
         <span className="slot-candle-body" style={{ left: `${position(bodyLow)}%`, width: `${Math.max(1, position(bodyHigh) - position(bodyLow))}%` }} />
         <span className="slot-candle-ev" style={{ left: `${position(expectedValue)}%` }} />
       </div>
-      <AnswerNote detail={!distribution || distribution.preview ? "MIN and MAX use the available pack rules. Typical values are still being refined; missing cards or prices can change the limits." : "MIN and MAX are the smallest and largest values possible for this color under the current pack rules and prices, including rare outcomes. Missing data can change these limits."} label={`What affects the ${label.toLowerCase()} chart`} />
+      <AnswerNote detail={`${CANDLE_EXPLANATION}${!distribution || distribution.preview ? " This is a provisional range while sampling finishes." : ""}${expectedValue > scaleMax ? " The EV marker is at the right edge because the average is above the displayed range." : ""}`} label={`What affects the ${label.toLowerCase()} chart`} />
       <div className="slot-candle-values" aria-hidden="true">
-        <span><small>MIN</small>{fmtCompact(low)}</span>
+        <span><small>MIN</small>{fmtCompact(minimum)}</span>
         <b><small>EV</small>{fmtCompact(expectedValue)}</b>
-        <span><small>MAX</small>{fmtCompact(high)}</span>
+        <span><small>MAX</small>{fmtCompact(maximum)}</span>
       </div>
     </div>
   );
 }
 
-const SLOT_HELP = "Tap the check on every slot you have already bought. Tap the cancel mark on every slot another buyer has taken. What is left is the pool your next bid draws from. MIN and MAX are the minimum and maximum possible values under the modeled pack rules and prices; EV is the average.";
+const SLOT_HELP = "Tap the check on every slot you have already bought. Tap the cancel mark on every slot another buyer has taken. What is left is the pool your next bid draws from. Candlesticks show the middle 98% of modeled outcomes; their body shows the middle half. MIN and MAX are separate numerical limits. EV is the average.";
 
 /**
  * The slot rail is the buyer's whole picture of the break: what each colour is
@@ -276,8 +276,7 @@ export function SlotRail({
 }) {
   const scaleMax = Math.max(
     1,
-    ...SLOT_IDS.map((id) => distributions?.[id]?.max ?? 0),
-    ...(result?.slots.map((slot) => slot.sellableEV) ?? []),
+    ...SLOT_IDS.map((id) => probableRange(distributions?.[id], result?.slots.find((slot) => slot.id === id)?.sellableEV ?? 0).high),
   );
   const setOwned = (id: SlotId, owned: boolean) => {
     setSelectedSlots(owned ? [...selectedSlots, id] : selectedSlots.filter((slot) => slot !== id));

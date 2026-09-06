@@ -243,3 +243,5 @@ Foreign booster dependencies can be added with `node tools/build-sealed.mjs --de
 `node tools/check-collation-flow.mjs <site-url>` checks real mobile browser results: positive five-color Draft floors with bulk included, disclosed Play inference, and the shared source-hierarchy explanation. It requires Playwright and runs against preview or the deployed site.
 
 `node tools/check-refresh-flow.mjs <site-url>` checks pack-first ordering, the visible refresh spinner and phase labels, stable mobile header/list geometry, and retry after a simulated network failure. It uses controlled response delays with the real application and requires Playwright.
+
+`node tools/check-probable-charts.mjs <site-url>` observes actual simulation-worker results and verifies that buyer candlesticks and seller bars use percentile ranges and scales while numerical MIN/MAX remain visible. It also checks mobile fit and the range explanation; Playwright is required.

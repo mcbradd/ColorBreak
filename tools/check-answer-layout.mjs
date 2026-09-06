@@ -66,7 +66,7 @@ try {
       await page.locator('.max-hammer .answer-value').waitFor();
       assert.match(await page.locator('.max-hammer').innerText(), /\$/);
       await page.locator('.slot-candle .answer-note').first().click();
-      assert.match(await page.getByRole('tooltip').innerText(), /MIN and MAX.*possible/i);
+      assert.match(await page.getByRole('tooltip').innerText(), /middle 98%.*MIN and MAX.*separate numbers/i);
       await page.keyboard.press('Escape');
       assert.equal(await page.getByRole('tooltip').count(), 0);
       assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), 'buyer horizontal overflow');

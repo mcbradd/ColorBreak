@@ -1,3 +1,4 @@
+import { probableRange, chartPosition } from "../../domain/outcome-chart";
 import { answerFactors } from "../../domain/answer-quality";
 import { AnswerValue, AnswerNote, AnswerGraphic, AnswerProvider } from "../shared/Answer";
 import { useEffect, useState, type CSSProperties } from "react";
@@ -39,7 +40,7 @@ function GlanceResult({ analysis, current, busy }: { analysis: BreakAnalysis; cu
   const evidence = eligibility.status === "stale" ? "Prices over 6 hours old" : resolvedOnly ? "Partial model · values may be low" : eligibility.status === "eligible" ? "Fresh price snapshot" : "Estimated values";
   const ceiling = distribution ? bidCeiling(distribution.median, { ...DEFAULT_BUYER_COSTS, shipping: shipping ?? 0 }) : undefined;
   const mean = slot === "random" ? analysis.valuation.sellableEV / SLOT_IDS.length : analysis.valuation.slots.find((row) => row.id === slot)?.sellableEV;
-  const max = Math.max(1, ...SLOT_IDS.map((id) => simulation.result?.slotDistributions[id].max ?? 0));
+  const max = Math.max(1, ...SLOT_IDS.map((id) => probableRange(simulation.result?.slotDistributions[id], 0, "80").high));
   return <AnswerProvider value={answerFactors(analysis.valuation, analysis.outcomeModel.complete, busy, analysis.outcomeOmissions)}>
     <header className="glance-heading"><InformationLabel>2 · READ THE BREAK</InformationLabel><span className={fresh ? "glance-fresh" : "glance-caution"}>{evidence}</span></header>
     {!current && <p className="glance-updating" role="status">{busy ? "Updating this mix… Best available values shown below." : "Best available estimate. Retry to improve it."}</p>}
@@ -60,10 +61,11 @@ function GlanceResult({ analysis, current, busy }: { analysis: BreakAnalysis; cu
       {SLOT_IDS.map((id) => {
         const range = simulation.result?.slotDistributions[id];
         const value = analysis.valuation.slots.find((row) => row.id === id)?.sellableEV;
+        const { low, high } = probableRange(range, 0, "80");
         return <button type="button" className="glance-color" key={id} aria-label={`Inspect ${SLOT_NAMES[id]} value`} aria-pressed={slot === id} onClick={() => setSlot(id)}>
           <span className={`glance-color-letter slot-letter-${id}`}>{id}</span><span className="glance-color-name">{SLOT_NAMES[id]}</span><b><AnswerValue value={value} /></b>
-          <span className="glance-color-bar" aria-hidden="true"><i style={{ left: `${(range?.min ?? 0) / max * 100}%`, width: `${Math.max(1, ((range?.max ?? 0) - (range?.min ?? 0)) / max * 100)}%` } as CSSProperties} /><em style={{ left: `${(range?.median ?? 0) / max * 100}%` }} /></span>
-          <small>{`${fmtCompact(range?.min ?? 0)}–${fmtCompact(range?.max ?? 0)}`}<AnswerNote detail={simulation.result?.sampleCount === 0 ? "MIN and MAX use available pack rules; missing data may change them. Typical is still being refined." : "Minimum and maximum possible values for this color under the modeled pack rules and prices. Missing data can change the limits."} /></small>
+          <span className="glance-color-bar" aria-hidden="true"><i style={{ left: `${chartPosition(low, max)}%`, width: `${Math.max(1, chartPosition(high, max) - chartPosition(low, max))}%` } as CSSProperties} /><em style={{ left: `${chartPosition(range?.median ?? 0, max)}%` }} /></span>
+          <small>{`MIN ${fmtCompact(range?.min ?? 0)} · MAX ${fmtCompact(range?.max ?? 0)}`}<AnswerNote detail={`The bar shows the middle 80% of modeled openings, excluding the most extreme 10% at each end. The marker shows the median. MIN and MAX are numerical limits only; they do not set the bar scale.${simulation.result?.sampleCount === 0 ? " This is a provisional range while sampling finishes." : ""}`} /></small>
         </button>;
       })}
     </div>

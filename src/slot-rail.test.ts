@@ -4,6 +4,8 @@ import { describe, expect, it } from "vitest";
 import { SlotRail } from "./features/buyer/BuyerVisuals";
 import { createAuction } from "./domain/auction";
 import type { AuctionState } from "./domain/auction";
+import { SLOT_IDS } from "./domain/types";
+import type { DistributionSummary } from "./domain/simulation";
 import type { SlotId, ValuationResult } from "./domain/types";
 
 const result = {
@@ -80,9 +82,18 @@ describe("buyer color controls", () => {
     const { container } = render(createElement(Harness));
 
     // The candle is the whole point of this rail: eight slots, eight candles,
-    // each carrying its own MIN/EV/MAX in words as well as in geometry.
+    // each keeping numerical MIN/EV/MAX separate from probable-range geometry.
     expect(container.querySelectorAll(".slot-candle")).toHaveLength(8);
     expect(container.querySelectorAll(".slot-candle-values small")).toHaveLength(24);
+  });
+
+  it("scales the probable range independently of numerical MIN and MAX", () => {
+    const summary: DistributionSummary = { min: 0, p01: 2, p10: 5, p25: 10, median: 20, mean: 20, p75: 30, p90: 40, p99: 50, max: 10000, fingerprint: [] };
+    const distributions = Object.fromEntries(SLOT_IDS.map(id => [id, summary])) as Record<SlotId, DistributionSummary>;
+    const { container } = render(createElement(SlotRail, { result, auction: createAuction(), setAuction: () => {}, selectedSlots: [], setSelectedSlots: () => {}, distributions }));
+    expect(container.querySelector<HTMLElement>(".slot-candle-body")?.style.width).toBe("40%");
+    expect(container.querySelector<HTMLElement>(".slot-candle-wick")?.style.left).toBe("4%");
+    expect(container.querySelector(".slot-candle-values")?.textContent).toContain("MAX$10K");
   });
 
   it("keeps the rail free of mode buttons the buyer has to reason about", () => {
