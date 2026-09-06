@@ -256,12 +256,12 @@ describe("decisionEligibility", () => {
 });
 
 describe("decisionAvailability", () => {
-  it("keeps stale complete evidence analysis-only rather than creating a cap", () => {
+  it("keeps stale complete evidence available as an estimate", () => {
     const observedAt = "2026-08-29T12:00:00.000Z";
     const now = Date.parse(observedAt);
     const result = calculateBreak({ draws, prices, pricedAt: observedAt, priceSource: "published snapshot" });
     const availability = decisionAvailability(result, now + DECISION_FRESHNESS_MS + 1);
-    expect(availability.label).toBe("Analysis only — stale");
-    expect(availability.detail).toMatch(/no bid decision/i);
+    expect(availability.label).toBe("Estimate · older prices");
+    expect(availability.detail).toMatch(/bid limit remains an estimate/i);
   });
 });

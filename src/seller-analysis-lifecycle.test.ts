@@ -122,8 +122,8 @@ describe("seller calculation lifecycle", () => {
     const note = await screen.findByLabelText("Local seller note");
     fireEvent.change(note, { target: { value: "keep my plan" } });
     fireEvent.click(screen.getByRole("button", { name: "Increase quantity" }));
-    expect(screen.getByText("one box")).toBeInTheDocument();
-    expect(note).toBeDisabled();
+    expect(screen.getByRole("region", { name: "Seller result" })).toHaveTextContent("preview:");
+    expect(note).not.toBeDisabled();
     expect(screen.getByLabelText("Glance readiness")).toHaveTextContent("Updating");
     const increment = screen.getByRole("button", { name: "Increase quantity" });
     expect(increment).not.toBeDisabled();
@@ -160,11 +160,11 @@ describe("seller calculation lifecycle", () => {
     render(createElement(SellerWorkspace, { exit: vi.fn() }));
     await screen.findByText("old result");
     act(() => mocks.apply!([{ ...line, quantity: 2 }]));
-    expect(screen.getByText("old result")).toBeInTheDocument();
-    expect(screen.getByLabelText("My cost basis")).toBeDisabled();
+    expect(screen.getByRole("region", { name: "Seller result" })).toHaveTextContent("preview:");
+    expect(screen.getByLabelText("My cost basis")).not.toBeDisabled();
     expect(screen.getByLabelText("Glance readiness")).toHaveTextContent("Updating");
     await act(async () => changed.reject(new Error("Snapshot unavailable")));
-    expect(screen.getByLabelText("My cost basis")).toBeDisabled();
+    expect(screen.getByLabelText("My cost basis")).not.toBeDisabled();
     expect(screen.getByText("Retry analysis to update seller economics.")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Retry analysis" }));
     expect(await screen.findByText("retried result")).toBeInTheDocument();

@@ -41,6 +41,9 @@ export interface PackOutcomeModel {
 }
 
 export interface DistributionSummary {
+  /** Analytic preview awaiting an opening model; not opening percentiles. */
+  preview?: boolean;
+  /** Model support endpoints, not the smallest/largest sampled openings. */
   min: number;
   p01: number;
   mean: number;
@@ -94,8 +97,9 @@ function sumOf(values: readonly number[]): number {
 
 function sheetSlotBounds(sheet: OutcomeSheet, picks: number, slot: SlotId): { min: number; max: number } {
   if (!Number.isInteger(picks) || picks < 0) throw new Error("Sheet picks must be a non-negative integer");
+  if (picks === 0) return { min: 0, max: 0 };
   const drawable = sheet.cards.filter((card) => (card.weight ?? 1) > 0);
-  if (!drawable.length && picks > 0) throw new Error("Outcome model contains an empty weighted choice");
+  if (!drawable.length) throw new Error("Outcome model contains an empty weighted choice");
   // MTGJSON's flag is optional. Repeating the same printing is only safe when
   // the source explicitly says the sheet allows it; otherwise draw distinct
   // printing identities within this sheet for the current pack.
@@ -136,6 +140,7 @@ export function possibleSlotBounds(model: PackOutcomeModel): SlotBounds {
     let minimum = fixed;
     let maximum = fixed;
     for (const pack of model.packs) {
+      if (pack.count === 0) continue;
       if (!pack.variants.length) throw new Error("Outcome model contains no pack variants");
       const variants = pack.variants.filter((variant) => variant.weight > 0).map((variant) => {
         let min = 0;
@@ -155,6 +160,22 @@ export function possibleSlotBounds(model: PackOutcomeModel): SlotBounds {
     }
     return [slot, { min: minimum, max: maximum }];
   })) as SlotBounds;
+}
+
+const boundsCache = new WeakMap<PackOutcomeModel, SlotBounds>();
+
+/** Random assignment selects one remaining slot; do not sum marginal maxima. */
+export function withPossibleBounds(result: SimulationResult, model: PackOutcomeModel, remaining: SlotId[]): SimulationResult {
+  let bounds = boundsCache.get(model);
+  if (!bounds) { bounds = possibleSlotBounds(model); boundsCache.set(model, bounds); }
+  return {
+    ...result,
+    slotDistributions: Object.fromEntries(SLOT_IDS.map((id) => [id, { ...result.slotDistributions[id], ...bounds[id] }])) as SimulationResult["slotDistributions"],
+    remainingPool: { ...result.remainingPool,
+      min: remaining.length ? Math.min(...remaining.map((id) => bounds[id].min)) : 0,
+      max: remaining.length ? Math.max(...remaining.map((id) => bounds[id].max)) : 0,
+    },
+  };
 }
 
 function seed32(value: string): number {
@@ -399,12 +420,12 @@ export function simulateOutcomes(model: PackOutcomeModel, options: SimulationOpt
     remainingValues.push(slots[assigned]);
   }
 
-  return {
+  return withPossibleBounds({
     seed: options.seed,
     sampleCount: options.sampleCount,
     slotDistributions: Object.fromEntries(SLOT_IDS.map((slot, index) => [
       slot, summarizeDistribution(values[index], options.landedCost),
     ])) as Record<SlotId, DistributionSummary>,
     remainingPool: summarizeDistribution(remainingValues, options.landedCost),
-  };
+  }, model, options.remaining);
 }

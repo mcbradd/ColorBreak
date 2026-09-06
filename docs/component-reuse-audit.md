@@ -42,3 +42,12 @@ All product quantity controls use decrement / editable quantity / increment. The
 - `npm run check:shared-imports` now guards quantity UI dependencies, duplicate named component implementations and raw numeric input bypasses.
 - `tools/check-quantity-layout.mjs` checks real Chromium layouts at 320, 390 and 768 CSS pixels, before/after selection geometry and editing in a reduced viewport. Run it against the preview or published URL with Playwright available through NODE_PATH.
 - Visual viewport regression tests cover nested scrollports, toolbar/keyboard changes, native panning and focus restoration. Chromium viewport checks do not constitute physical iOS Chrome verification.
+
+
+## Best available answers (build 9)
+
+`AnswerValue`, `AnswerNote`, and `AnswerGraphic` own calculated-value and chart annotations. `EstimateTip` owns the circled-asterisk symbol and delegates popover behavior to the existing shared `Tip`; numeric planning fields use that same symbol. Quantity controls remain exact entered counts, with no additional layout changes.
+
+`answerFactors` owns plain-language evidence explanations. `quickOutcomes` provides immediate analytic previews; the shared simulation hook replaces them with sampled opening ranges and retains valid same-model results through retries. `answer-cache` reuses only matching product/pack-size/threshold values and scales quantities. `approximateOutcomes` preserves known expected value when exact pack grouping is missing, with that assumption disclosed.
+
+Checks: `best-answer.test.ts`, shared simulation lifecycle tests, buyer/seller command-center tests, and `tools/check-answer-layout.mjs`. The real browser script checks visible numeric limits, popover bounds, Escape, short viewports, and horizontal overflow at 320, 390, and 768 pixels. `check-quantity-layout.mjs` separately protects stable product selection and keyboard-safe quantity entry.

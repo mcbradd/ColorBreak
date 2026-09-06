@@ -1,3 +1,5 @@
+import { summarizeDistribution } from "../../domain/simulation";
+import { AnswerValue, AnswerNote } from "../shared/Answer";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "motion/react";
@@ -25,7 +27,7 @@ import type {
   ValuationResult,
 } from "../../domain/types";
 import { SLOT_IDS, SLOT_NAMES } from "../../domain/types";
-import { DisclosureArrow, fmt, fmtChart, InformationLabel, PanelHeading, Status, Tip, oddsLabel, NumericInput, useDialogOwnership, plainEvidence } from "../shared/Primitives";
+import { DisclosureArrow, fmt, fmtCompact, InformationLabel, PanelHeading, Status, Tip, oddsLabel, NumericInput, useDialogOwnership, plainEvidence } from "../shared/Primitives";
 import { QuantityControl } from "../shared/QuantityControl";
 import { PublicCardPlaceholder } from "./CardPlaceholder";
 
@@ -89,17 +91,17 @@ export function ValueSummary({ result }: { result: ValuationResult }) {
         help={result.threshold > 0
           ? "The average card value left after removing cards below your bulk-filter amount. This is an average across many possible openings, not a guaranteed result."
           : "Bulk filtering is off, so this average includes every priced card. It is an average across many possible openings, not a guaranteed result."}
-        title={fmt(result.sellableEV)}
+        title={<AnswerValue value={result.sellableEV} />}
         accessory={<Status result={result} />}
       />
       <div className="metric-row">
         <div>
           <span>{result.threshold > 0 ? "Before ignoring bulk" : "All priced cards"}</span>
-          <b>{fmt(result.marketEV)}</b>
+          <b><AnswerValue value={result.marketEV} /></b>
         </div>
         <div>
           <span>{result.threshold > 0 ? "Ignored as bulk" : "Filtered out"}</span>
-          <b>{fmt(ignoredEV)}</b>
+          <b><AnswerValue value={ignoredEV} /></b>
         </div>
         <div>
           <span>Priced cards used</span>
@@ -107,11 +109,11 @@ export function ValueSummary({ result }: { result: ValuationResult }) {
         </div>
       </div>
       <p className="value-equation">
-        <span>{fmt(result.marketEV)} all cards</span>
+        <span><AnswerValue value={result.marketEV} /> all cards</span>
         <b>−</b>
-        <span>{fmt(ignoredEV)} {result.threshold > 0 ? "ignored" : "filtered out"}</span>
+        <span><AnswerValue value={ignoredEV} /> {result.threshold > 0 ? "ignored" : "filtered out"}</span>
         <b>=</b>
-        <strong>{fmt(result.sellableEV)} used here</strong>
+        <strong><AnswerValue value={result.sellableEV} /> used here</strong>
       </p>
     </section>
   );
@@ -212,7 +214,7 @@ export function FormatCarryOverNotice({
 
 /**
  * One shared horizontal scale for every slot, so two candles can be compared
- * by eye. The wick is the practical 1st-to-99th percentile, the body is the
+ * by eye. The wick is the practical minimum-to-maximum range, the body is the
  * middle half, and the marker is the pull-rate average.
  */
 export function SlotCandle({
@@ -227,27 +229,28 @@ export function SlotCandle({
   label: string;
 }) {
   const position = (value: number) => Math.min(100, Math.max(0, value / Math.max(scaleMax, 0.01) * 100));
-  const low = distribution?.p01 ?? expectedValue;
-  const high = distribution?.p99 ?? expectedValue;
+  const low = distribution?.min ?? expectedValue;
+  const high = distribution?.max ?? expectedValue;
   const bodyLow = Math.min(high, Math.max(low, distribution?.p25 ?? expectedValue));
   const bodyHigh = Math.max(bodyLow, Math.min(high, distribution?.p75 ?? expectedValue));
   return (
-    <div className="slot-candle" aria-label={`${label}: low ${fmt(low)}, expected ${fmt(expectedValue)}, high ${fmt(high)}`}>
+    <div className="slot-candle" aria-label={`${label}: MIN ${fmt(low)}, expected ${fmt(expectedValue)}, MAX ${fmt(high)}`}>
       <div className="slot-candle-track" aria-hidden="true">
         <span className="slot-candle-wick" style={{ left: `${position(low)}%`, width: `${Math.max(0, position(high) - position(low))}%` }} />
         <span className="slot-candle-body" style={{ left: `${position(bodyLow)}%`, width: `${Math.max(1, position(bodyHigh) - position(bodyLow))}%` }} />
         <span className="slot-candle-ev" style={{ left: `${position(expectedValue)}%` }} />
       </div>
+      <AnswerNote detail={!distribution || distribution.preview ? "MIN and MAX use the available pack rules. Typical values are still being refined; missing cards or prices can change the limits." : "MIN and MAX are the smallest and largest values possible for this color under the current pack rules and prices, including rare outcomes. Missing data can change these limits."} label={`What affects the ${label.toLowerCase()} chart`} />
       <div className="slot-candle-values" aria-hidden="true">
-        <span><small>LOW</small>{fmtChart(low)}</span>
-        <b><small>EV</small>{fmtChart(expectedValue)}</b>
-        <span><small>HIGH</small>{fmtChart(high)}</span>
+        <span><small>MIN</small>{fmtCompact(low)}</span>
+        <b><small>EV</small>{fmtCompact(expectedValue)}</b>
+        <span><small>MAX</small>{fmtCompact(high)}</span>
       </div>
     </div>
   );
 }
 
-const SLOT_HELP = "Tap the check on every slot you have already bought. Tap the cancel mark on every slot another buyer has taken. What is left is the pool your next bid draws from. LOW and HIGH are the 1st and 99th percentile of modeled openings, so the most extreme results are left out; EV is the average.";
+const SLOT_HELP = "Tap the check on every slot you have already bought. Tap the cancel mark on every slot another buyer has taken. What is left is the pool your next bid draws from. MIN and MAX are the minimum and maximum possible values under the modeled pack rules and prices; EV is the average.";
 
 /**
  * The slot rail is the buyer's whole picture of the break: what each colour is
@@ -273,7 +276,7 @@ export function SlotRail({
 }) {
   const scaleMax = Math.max(
     1,
-    ...SLOT_IDS.map((id) => distributions?.[id]?.p99 ?? 0),
+    ...SLOT_IDS.map((id) => distributions?.[id]?.max ?? 0),
     ...(result?.slots.map((slot) => slot.sellableEV) ?? []),
   );
   const setOwned = (id: SlotId, owned: boolean) => {
@@ -459,22 +462,22 @@ export function CardInspector({
                 <div className="card-price-grid">
                   <div className="card-stat">
                     <span>Nonfoil market</span>
-                    <strong>{fmt(row.card.nonfoil ?? undefined)}</strong>
+                    <strong><AnswerValue value={row.card.nonfoil ?? undefined} /></strong>
                   </div>
                   <div className="card-stat">
                     <span>Foil market</span>
-                    <strong>{fmt(row.card.foil ?? undefined)}</strong>
+                    <strong><AnswerValue value={row.card.foil ?? undefined} /></strong>
                   </div>
                 </div>
                 {showSelectedFinishPrice && <div className="card-stat selected-finish-price">
                   <span>Selected finish price</span>
-                  <strong>{fmt(selectedPrice)}</strong>
+                  <strong><AnswerValue value={selectedPrice} /></strong>
                   <small>{row ? `${cardTreatmentLabel(row.card, selectedFinish)} · ${selectedPriceSource}` : selectedPriceSource}</small>
                 </div>}
                 <div className="card-stat">
                   <span>Copies per break<Tip label="Why copies can differ from the pull chance" text="The average number of copies this break produces, counting every copy. It can be higher than the pull chance because some openings produce two or more copies while others produce none — the chance only counts whether you saw at least one." /></span>
                   <strong>
-                    {row.sellableCopies.toFixed(3).replace(/0+$/, "").replace(/\.$/, "")}
+                    {row.sellableCopies.toFixed(3).replace(/0+$/, "").replace(/\.$/, "")}<AnswerNote detail="Average copies in this break, not a guarantee. Uses the current pack recipe and bulk filter; uncertain pull chances may change it." />
                   </strong>
                   {threshold > 0 && <Tip
                     className="card-stat-flag"
@@ -523,42 +526,42 @@ export function useOutcomeSimulation(
 }
 
 function OutcomeRange({ summary, landed, compact = false }: { summary?: DistributionSummary; landed?: number; compact?: boolean }) {
-  if (!summary) return <div className="distribution-empty">Calculating the outcome range from the information currently available…</div>;
+  summary ??= { ...summarizeDistribution([0]), preview: true };
   const chanceToClear = landed == null
     ? undefined
     : summary.chanceToClearCost ?? summary.fingerprint.filter((value) => value >= landed).length / summary.fingerprint.length;
   return (
     <div className={`outcome-range ${compact ? "outcome-range-compact" : ""}`} aria-label="Possible opening values">
       <div className="outcome-range-heading">
-        <span>{compact ? "Outcome range" : "Possible opening values"}</span>
-        {!compact && <Tip text="Shows a lower result, a middle result, and a higher result across many simulated openings. These are examples of the range you could see, not a prediction of the next opening." />}
+        <span>{summary.preview ? "Quick value range" : compact ? "Outcome range" : "Possible opening values"}<AnswerNote detail={summary.preview ? "MIN and MAX use available pack rules now. The typical result is a preview while sampling finishes; missing data may change the limits." : "Smallest and largest possible values under the current pack rules and prices. Missing data and price changes can move these limits."} /></span>
+        {!compact && <Tip text="MIN and MAX include the rarest outcomes permitted by the pack model. Typical is the sampled median. These values use current prices and the bulk filter." />}
       </div>
       <div className="outcome-landmarks">
         <div>
-          <span>{compact ? "Downside" : "Lower result"}</span>
-          <b>{fmt(summary.p10)}</b>
-          {!compact && <small>About 1 in 10 openings are worth this or less</small>}
+          <span>MIN</span>
+          <b><AnswerValue value={summary.min} compact /></b>
+          {!compact && <small>Minimum possible modeled value</small>}
         </div>
         <div className="typical">
           <span>{compact ? "Typical" : "Typical result"}</span>
-          <b>{fmt(summary.median)}</b>
+          <b><AnswerValue value={summary.median} compact /></b>
           {!compact && <small>About half are worth less and half are worth more</small>}
         </div>
         <div>
-          <span>{compact ? "Upside" : "Higher result"}</span>
-          <b>{fmt(summary.p90)}</b>
-          {!compact && <small>About 1 in 10 openings are worth this or more</small>}
+          <span>MAX</span>
+          <b><AnswerValue value={summary.max} compact /></b>
+          {!compact && <small>Maximum possible modeled value</small>}
         </div>
       </div>
       {chanceToClear != null && landed != null && (
         <div className="clear-chance">
-          <div><span>Chance card value covers your {fmt(landed)} cost</span><b>{Math.round(chanceToClear * 100)}%</b></div>
+          <div><span>Chance card value covers your <AnswerValue value={landed} /> cost</span><b>{Math.round(chanceToClear * 100)}%<AnswerNote detail={summary.preview ? "Preview compares known color averages with cost. It is not yet a simulated chance of recovering your cost." : "Share of modeled openings whose listed card values cover the entered cost. Selling fees, missing prices and real opening variation can change the result."} /></b></div>
           <div className="clear-chance-track" aria-label={`${Math.round(chanceToClear * 100)}% chance card value covers your cost`}>
             <span style={{ width: `${chanceToClear * 100}%` }} />
           </div>
         </div>
       )}
-      {summary.median === 0 && (
+      {summary.median === 0 && !summary.preview && (
         <p className="outcome-range-zero-note">Usually no card above the bulk filter — most openings land at $0.</p>
       )}
       {!compact && <p>Possible results from simulations—not a prediction of the next opening.</p>}
@@ -629,8 +632,8 @@ function EvidenceLens({ analysis }: { analysis: BreakAnalysis }) {
       title: "Pack chances",
       status: plainEvidence(valuation.evidence.collation),
       meaning: "A pack is not filled by picking every card equally. This check describes how often each kind of card can appear.",
-      matters: "These chances power the pull odds, typical outcome, and high and low ranges. Bad pack chances can make a correct price produce a wrong answer.",
-      action: "When this is uncertain, use the shown range as a partial estimate. Missing pack chances can move the low, typical, and high outcomes in either direction.",
+      matters: "These chances power the pull odds, typical outcome, and MIN and MAX limits. Bad pack chances can make a correct price produce a wrong answer.",
+      action: "When this is uncertain, use the shown range as a partial estimate. Missing pack chances can move the MIN, typical, and MAX values in either direction.",
     },
     {
       title: "Card versions",

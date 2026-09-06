@@ -192,16 +192,14 @@ describe("large break card list", () => {
     } as BreakAnalysis;
 
     render(createElement(LargeBreakView, { analysis, lines: [], spots: 18 }));
-    fireEvent.click(screen.getByRole("button", { name: /Review all \d+ model blockers/i }));
-    expect(document.querySelector(".incomplete-data-technical")).toHaveAttribute("open");
-    expect(document.querySelector(".incomplete-data-technical")).toHaveTextContent("1 issue");
+    expect(screen.queryByText("CANNOT CLASSIFY PRICE")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Price" }));
-    const excluded = screen.getByRole("button", { name: /Explain why Sothera.*excluded from Pull EV/i });
-    expect(excluded).toHaveTextContent("Excluded");
-    fireEvent.click(excluded);
-    const explanation = screen.getByRole("dialog", { name: "Excluded from Pull EV" });
-    expect(explanation).toHaveTextContent("exact pull chance");
-    expect(explanation).toHaveTextContent("Rank by Price");
+    const card = screen.getByRole("button", { name: "Show cards in Sothera, the Supervoid slot" }).parentElement!;
+    expect(card.querySelector(".large-break-card-value")).toHaveTextContent("$0.00");
+    fireEvent.click(card.querySelector(".answer-note")!);
+    expect(screen.getByRole("tooltip")).toHaveTextContent("exact pull chance cannot be checked");
+    expect(screen.getByRole("tooltip")).toHaveTextContent("not because it is worthless");
+
   });
 });
 

@@ -6,6 +6,12 @@ ColorBreak supports two time-sensitive jobs: a buyer deciding whether to bid on 
 
 ## Ubiquitous language
 
+- **Best available answer**: the current estimate from the strongest available evidence, improved as data arrives. Fresh exact observations take precedence over matching cached observations, which take precedence over a disclosed approximation. When no defensible estimate exists for an item, the known subtotal still appears; an unknown contribution of $0 never claims that item is worthless.
+- **Estimate note**: the universal circled asterisk beside a calculated field or graphic. Tapping it explains the relevant missing data or assumptions in concise everyday language.
+- **MIN / MAX**: minimum and maximum possible counted card value under the available pack rules and prices, including rare outcomes. For a random spot, the limits span the remaining eligible slots; marginal color maxima are not summed. Missing data or approximate pack rules qualify these bounds.
+- **Quick range**: immediate modeled MIN and MAX, with a provisional typical value while sampling is refined.
+- **Recorded-so-far estimate**: recorded revenue less recorded fees and the best available cost assumptions. Missing sales are never fabricated, and this becomes actual profit only after reconciliation.
+
 - **Break**: the complete opening, composed of one or more sealed product lines and one declared slot map.
 - **Auction**: one sequential purchase whose winner receives a uniformly random slot from the remaining pool.
 - **Remaining pool**: the unassigned color slots available to the next auction.
@@ -22,7 +28,7 @@ ColorBreak supports two time-sensitive jobs: a buyer deciding whether to bid on 
 - **Actual asks**: seller-confirmed asks used to calculate projected profit.
 - **Outcome Fingerprint**: a 20-bin frequency view of modeled outcomes that makes the median, downside, upside, mean, and landed-cost boundary visible together.
 - **Evidence state**: separate claims about product identity, contents, collation, finish, break rules, and price freshness. A material unresolved claim adds a specific warning to outcome assertions.
-- **Eligible / Estimated / Incomplete**: decision-confidence states. Incomplete means the result uses only resolved contents and prices; verdicts and probability views remain visible with named warnings about what is missing and how it may affect the result.
+- **Eligible / Estimated / Incomplete**: decision-confidence states. Incomplete means some evidence remains unresolved; the best available estimate and any defensible approximation remain visible with an estimate note describing their limits.
 - **Omission**: a named unresolved product, booster, printing, finish, or sheet weight. Material omissions change status to Incomplete.
 - **Bid Check**: the buyer's time-critical workspace for deciding whether to bid and setting a maximum hammer price. It has Prepare and Live states, but they share one saved decision.
 - **Large Break**: the buyer's high-volume random-spot view. It prices a declared spot count from the same break composition and bulk threshold as Bid Check.
@@ -38,7 +44,7 @@ ColorBreak supports two time-sensitive jobs: a buyer deciding whether to bid on 
 
 ## Source policy
 
-MTGJSON provides versioned sealed products and collation. Scryfall provides exact-printing metadata, images, and current price observations. A daily build-time TCGCSV snapshot provides a sealed-product market reference; the seller can override it with their actual acquisition cost. `data/corrections.json` contains narrow, sourced product facts from authoritative sources and takes precedence over upstream sealed metadata. A premium treatment without its own market observation may use the same printing's listed TCG foil price, with that basis shown to the user. No adapter may cross printings or foil classes, guess missing contents, or drop a foreign-set printing.
+MTGJSON provides versioned sealed products and collation. Scryfall provides exact-printing metadata, images, and current price observations. A daily build-time TCGCSV snapshot provides a sealed-product market reference; the seller can override it with their actual acquisition cost. `data/corrections.json` contains narrow, sourced product facts from authoritative sources and takes precedence over upstream sealed metadata. A premium treatment without its own market observation may use the same printing's listed TCG foil price, with that basis shown to the user. No adapter may silently cross printings or foil classes or drop a foreign-set printing. Missing pack grouping can use an explicitly disclosed independent-card approximation; a generic pack recipe is a provisional estimate, never a claim about confirmed contents.
 
 ## Experience laws
 

@@ -1,3 +1,5 @@
+import { approximateOutcomes } from "../domain/approximate-outcomes";
+import { bestAvailableAnalysis, rememberAnswer } from "./answer-cache";
 import type { BreakLine, CardPrice, ExpectedDraw, Omission, ValuationResult } from "../domain/types";
 import type { PackOutcomeModel } from "../domain/simulation";
 import { calculateBreak } from "../domain/valuation";
@@ -44,23 +46,27 @@ export interface BreakAnalysis {
 export async function evaluateBreakAnalysis(lines: BreakLine[], threshold: number): Promise<BreakAnalysis> {
   const allSets = new Set(lines.map((line) => line.set));
   const lineResults = await Promise.all(lines.map(async (line) => {
-    if (line.productKey.startsWith("sealed:")) {
-      const document = await loadSealed(line.set);
-      if (!document) return {
-        draws: [] as ExpectedDraw[],
-        omissions: [{ code: "missing-sealed", message: `${line.set} has no exact sealed record.`, material: true }] as Omission[],
-        status: "incomplete" as const,
-        document: null as SealedDocument | null,
-        productKey: line.productKey.slice(7),
+    try {
+      if (line.productKey.startsWith("sealed:")) {
+        const document = await loadSealed(line.set);
+        if (!document) return {
+          draws: [] as ExpectedDraw[],
+          omissions: [{ code: "missing-sealed", message: `${line.set} has no exact sealed record.`, material: true }] as Omission[],
+          status: "incomplete" as const,
+          document: null as SealedDocument | null,
+          productKey: line.productKey.slice(7),
+        };
+        const result = await expectedDraws(document, line.productKey.slice(7), line.quantity);
+        result.draws.forEach((draw) => allSets.add(draw.set));
+        return { ...result, document, productKey: line.productKey.slice(7) };
+      }
+      return {
+        draws: [] as ExpectedDraw[], omissions: [] as Omission[], status: "estimated" as const,
+        document: null as SealedDocument | null, productKey: line.productKey,
       };
-      const result = await expectedDraws(document, line.productKey.slice(7), line.quantity);
-      result.draws.forEach((draw) => allSets.add(draw.set));
-      return { ...result, document, productKey: line.productKey.slice(7) };
+    } catch {
+      return { draws: [] as ExpectedDraw[], omissions: [{ code: "missing-sealed", message: `${line.productLabel}: pack details could not load; available card prices will provide a simpler estimate.`, material: true }] as Omission[], status: "incomplete" as const, document: null as SealedDocument | null, productKey: line.productKey.replace(/^sealed:/, "") };
     }
-    return {
-      draws: [] as ExpectedDraw[], omissions: [] as Omission[], status: "estimated" as const,
-      document: null as SealedDocument | null, productKey: line.productKey,
-    };
   }));
   const exactDraws = lineResults.flatMap((result) => result.draws);
   const priceResult = await loadPrices({
@@ -68,13 +74,15 @@ export async function evaluateBreakAnalysis(lines: BreakLine[], threshold: numbe
     printings: exactDraws.map((draw) => ({ set: draw.set, collectorNumber: draw.collectorNumber })),
     fullSets: lineResults.flatMap((result, index) => result.draws.length ? [] : [lines[index].set]),
   });
+  if (priceResult.availability.status === "unavailable") return bestAvailableAnalysis(lines, threshold);
   const prices = priceResult.cards;
-  const draws = lineResults.flatMap((result, index) => {
+  const drawsByLine = lineResults.map((result, index) => {
     if (result.draws.length) return result.draws;
     const line = lines[index];
     const setCards = prices.filter((card) => card.set === line.set);
     return genericPackDraws(line.set, setCards, (line.packCount ?? 1) * line.quantity);
   });
+  const draws = drawsByLine.flat();
   const rateOmissions = pullRateOmissions(draws, prices);
   const valuation = calculateBreak({
     draws,
@@ -83,7 +91,7 @@ export async function evaluateBreakAnalysis(lines: BreakLine[], threshold: numbe
     sourceStatus: lineResults.some((result) => result.status === "incomplete") ? "incomplete"
       : lineResults.some((result) => result.status === "estimated") ? "estimated" : "verified",
     omissions: [...lineResults.flatMap((result) => result.omissions), ...priceResult.omissions, ...rateOmissions],
-    pricedAt: prices.map((card) => card.priceObservedAt).filter((value): value is string => Boolean(value)).sort()[0],
+    pricedAt: prices.map((card) => card.priceObservedAt).filter((value): value is string => Boolean(value)).sort()[0] ?? priceResult.availability.observedAt ?? "",
     priceSource: priceResult.availability.source,
     dataVersion: `${lines.map((line) => `${line.set}:${line.productKey}:${line.quantity}`).join("|")}@${prices.map((card) => card.priceObservedAt).filter(Boolean).sort()[0] ?? "unpriced"}`,
   });
@@ -96,8 +104,15 @@ export async function evaluateBreakAnalysis(lines: BreakLine[], threshold: numbe
       };
       return { model: { fixed: [], packs: [], complete: false } as PackOutcomeModel, omissions: [omission] };
     }
-    return outcomeModelForProduct(result.document, result.productKey, lines[index].quantity, prices, threshold);
+    return outcomeModelForProduct(result.document, result.productKey, lines[index].quantity, prices, threshold).catch(() => ({ model: { fixed: [], packs: [], complete: false } as PackOutcomeModel, omissions: [{ code: "missing-outcomes", message: `${lines[index].productLabel}: exact opening range could not load. A simpler estimate uses the available card values.`, material: true }] }));
   }));
+  outcomeResults.forEach((result, index) => {
+    if (result.model.complete === false && drawsByLine[index].length) {
+      const partial = calculateBreak({ draws: drawsByLine[index], prices, threshold, sourceStatus: "estimated", dataVersion: `${valuation.dataVersion}:line:${index}` });
+      result.model = approximateOutcomes(partial);
+      result.omissions.push({ code: "approximate-outcomes", material: true, message: "The range estimates cards independently because exact pack grouping is missing. Its average uses the available card prices and pull estimates; real packs may vary differently." });
+    }
+  });
   const outcomeOmissions = outcomeResults.flatMap((result) => result.omissions);
   const outcomeModel: PackOutcomeModel = {
     cacheKey: `${valuation.dataVersion}|${threshold}|${lines.map((line) => `${line.set}:${line.productKey}:${line.quantity}`).join("|")}`,
@@ -105,6 +120,14 @@ export async function evaluateBreakAnalysis(lines: BreakLine[], threshold: numbe
     packs: outcomeResults.flatMap((result) => result.model.packs),
     complete: outcomeResults.every((result) => result.model.complete !== false),
   };
+  lines.forEach((line, index) => rememberAnswer(line, threshold, {
+    valuation: calculateBreak({ draws: drawsByLine[index], prices, threshold,
+      sourceStatus: lineResults[index].status,
+      omissions: [...lineResults[index].omissions, ...priceResult.omissions, ...pullRateOmissions(drawsByLine[index], prices)],
+      pricedAt: valuation.pricedAt, priceSource: valuation.priceSource, dataVersion: valuation.dataVersion }),
+    outcomeModel: outcomeResults[index].model, outcomeOmissions: outcomeResults[index].omissions,
+    priceAvailability: priceResult.availability,
+  }));
   return { valuation, outcomeModel, outcomeOmissions, priceAvailability: priceResult.availability };
 }
 

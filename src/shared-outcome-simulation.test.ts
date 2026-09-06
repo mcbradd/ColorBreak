@@ -66,7 +66,7 @@ describe("shared pull-range ownership", () => {
     expect(mocks.simulate).not.toHaveBeenCalled();
   });
 
-  it("retains the last range but marks it noncurrent immediately when the break changes", async () => {
+  it("immediately replaces a different mix with its analytic preview while sampling", async () => {
     const next = deferred<SimulationResult>();
     mocks.simulate.mockResolvedValueOnce(firstResult).mockReturnValueOnce(next.promise);
     const { result, rerender } = renderHook(({ value }) => useOutcomeSimulation(value, ["W"], undefined), { initialProps: { value: original } });
@@ -75,7 +75,8 @@ describe("shared pull-range ownership", () => {
     rerender({ value: updated });
     expect(result.current.current).toBe(false);
     expect(result.current.busy).toBe(true);
-    expect(result.current.result).toBe(firstResult);
+    expect(result.current.result?.sampleCount).toBe(0);
+    expect(result.current.result?.remainingPool.preview).toBe(true);
     await act(async () => next.resolve(secondResult));
     expect(result.current.current).toBe(true);
     expect(result.current.busy).toBe(false);
@@ -105,6 +106,8 @@ describe("shared pull-range ownership", () => {
     expect(result.current.current).toBe(false);
     expect(result.current.busy).toBe(false);
     expect(result.current.error).toBe("Worker unavailable");
+    expect(result.current.result?.remainingPool.mean).toBe(0);
+    expect(result.current.result?.remainingPool.preview).toBe(true);
     act(() => result.current.retry());
     expect(result.current.current).toBe(false);
     expect(result.current.busy).toBe(true);
@@ -112,4 +115,17 @@ describe("shared pull-range ownership", () => {
     await act(async () => retry.resolve(secondResult));
     expect(result.current.current).toBe(true);
   });
+  it("retains a sampled answer when retrying the same model fails", async () => {
+    const retry = deferred<SimulationResult>();
+    mocks.simulate.mockResolvedValueOnce(firstResult).mockReturnValueOnce(retry.promise);
+    const { result } = renderHook(() => useOutcomeSimulation(original, ["W"], undefined));
+    await waitFor(() => expect(result.current.current).toBe(true));
+    act(() => result.current.retry());
+    expect(result.current.result).toBe(firstResult);
+    await act(async () => retry.reject(new Error("Offline")));
+    expect(result.current.result).toBe(firstResult);
+    expect(result.current.busy).toBe(false);
+    expect(result.current.error).toBe("Offline");
+  });
+
 });

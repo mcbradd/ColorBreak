@@ -35,8 +35,8 @@ describe("outcome simulation lifecycle", () => {
     expect(simulate).toHaveBeenCalledTimes(1);
   });
 
-  it("renders a terminal unavailable state instead of spinning forever on errors", () => {
-    expect(appSource).toContain("if (baseSimulation.error || bonusSimulation.error)");
+  it("keeps estimates and offers retry instead of spinning forever on errors", () => {
+    expect(appSource).toContain("baseSimulation.error || bonusSimulation.error");
     expect(appSource).toContain("Pull ranges unavailable");
   });
 

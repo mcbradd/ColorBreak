@@ -77,29 +77,29 @@ describe("seller value at a glance", () => {
     expect(screen.getByRole("button", { name: "Inspect White value" })).toHaveTextContent("$10.00");
     expect(screen.getByRole("button", { name: "Inspect Blue value" })).toHaveTextContent("$20.00");
     expect(screen.getByLabelText("Selected spot value")).toHaveTextContent("Average $3.75");
-    expect(screen.getByLabelText("Modeled opening range")).not.toHaveTextContent("$0.00");
-    expect(screen.getByText("Updating range…")).toBeInTheDocument();
+    expect(screen.getByLabelText("Modeled opening range")).toHaveTextContent("$0.00");
+    expect(screen.getAllByRole("button", { name: "What affects this chart" }).length).toBeGreaterThan(0);
   });
 
-  it("shows the selected color's percentiles and retains a real zero median", () => {
+  it("shows the selected color's endpoints and retains a real zero median", () => {
     show();
     fireEvent.click(screen.getByRole("button", { name: "Inspect White value" }));
     let region = screen.getByLabelText("Modeled opening range");
     expect(within(region).getByText("TYPICAL").parentElement).toHaveTextContent("$0.00");
-    expect(within(region).getByText("LOW · 10th").parentElement).toHaveTextContent("$0.00");
-    expect(within(region).getByText("HIGH · 90th").parentElement).toHaveTextContent("$100.00");
-    expect(screen.getByText("Typical-value bid limit").parentElement).toHaveTextContent("$0.00");
+    expect(within(region).getByText("MIN").parentElement).toHaveTextContent("$0.00");
+    expect(within(region).getByText("MAX").parentElement).toHaveTextContent("$100.00");
+    expect(screen.getByText("Estimated bid limit").parentElement).toHaveTextContent("$0.00");
     expect(screen.getByLabelText("Selected spot value")).toHaveTextContent("Average $10.00");
 
     fireEvent.click(screen.getByRole("button", { name: "Inspect Blue value" }));
     region = screen.getByLabelText("Modeled opening range");
-    expect(within(region).getByText("LOW · 10th").parentElement).toHaveTextContent("$2.60");
+    expect(within(region).getByText("MIN").parentElement).toHaveTextContent("$2.00");
     expect(within(region).getByText("TYPICAL").parentElement).toHaveTextContent("$5.00");
-    expect(within(region).getByText("HIGH · 90th").parentElement).toHaveTextContent("$7.40");
+    expect(within(region).getByText("MAX").parentElement).toHaveTextContent("$8.00");
     expect(screen.getByRole("button", { name: "Inspect Blue value" })).toHaveAttribute("aria-pressed", "true");
   });
 
-  it.each(["stale", "material omission", "incomplete outcomes", "estimated"])("shows analysis without a bid cap for %s evidence", (condition) => {
+  it.each(["stale", "material omission", "incomplete outcomes", "estimated"])("shows the best available bid cap for %s evidence", (condition) => {
     const value = analysis();
     if (condition === "stale") value.valuation.pricedAt = new Date(Date.now() - 7 * 60 * 60 * 1000).toISOString();
     if (condition === "material omission") {
@@ -109,26 +109,26 @@ describe("seller value at a glance", () => {
     if (condition === "incomplete outcomes") value.outcomeModel.complete = false;
     if (condition === "estimated") value.valuation.status = "estimated";
     show(value);
-    expect(screen.queryByText("Typical-value bid limit")).not.toBeInTheDocument();
-    expect(screen.getByText("Estimated typical card value").parentElement).toHaveTextContent("$4.00");
-    expect(screen.getByText("Analysis only · bid limit needs current, complete data")).toBeInTheDocument();
+    expect(screen.getByText("Estimated bid limit").parentElement).toHaveTextContent("$4.00");
+    expect(screen.queryByText(/Analysis only/)).not.toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "What affects this estimate" }).length).toBeGreaterThan(0);
   });
 
-  it("does not present a retained range as current after its model changes", () => {
+  it("keeps numeric ranges available while refinement runs", () => {
     mocks.state.current = false; mocks.state.busy = true;
     show();
     const region = screen.getByLabelText("Modeled opening range");
-    expect(region).not.toHaveTextContent("$4.00");
-    expect(region).not.toHaveTextContent("$20.00");
-    expect(screen.getByText("Typical-value bid limit").parentElement).toHaveTextContent("—");
-    expect(screen.getByRole("button", { name: "Inspect White value" })).toHaveTextContent("Range updating…");
+    expect(region).toHaveTextContent("$4.00");
+    expect(region).toHaveTextContent("$20.00");
+    expect(screen.getByText("Estimated bid limit").parentElement).toHaveTextContent("$4.00");
+    expect(screen.getByRole("button", { name: "Inspect White value" })).toHaveTextContent("$100.00");
   });
 
-  it("marks an old composition and withholds its cap even if its simulation has finished", () => {
+  it("marks an updating composition and keeps its best available cap", () => {
     show(analysis(), false);
-    expect(screen.getByText("Updating this mix… Previous values shown below.")).toBeInTheDocument();
-    expect(screen.getByText("Typical-value bid limit").parentElement).toHaveTextContent("—");
-    expect(screen.getByLabelText("Modeled opening range")).not.toHaveTextContent("$4.00");
+    expect(screen.getByText("Updating this mix… Best available values shown below.")).toBeInTheDocument();
+    expect(screen.getByText("Estimated bid limit").parentElement).toHaveTextContent("$4.00");
+    expect(screen.getByLabelText("Modeled opening range")).toHaveTextContent("$4.00");
   });
 
   it("updates color and shipping instantly without requesting another simulation", () => {
@@ -137,11 +137,11 @@ describe("seller value at a glance", () => {
     expect(mocks.requests).toHaveBeenCalledTimes(1);
     expect(mocks.requests).toHaveBeenLastCalledWith(value, [...SLOT_IDS], undefined, 180);
     fireEvent.click(screen.getByRole("button", { name: "Inspect Blue value" }));
-    expect(screen.getByText("Typical-value bid limit").parentElement).toHaveTextContent("$5.00");
+    expect(screen.getByText("Estimated bid limit").parentElement).toHaveTextContent("$5.00");
     fireEvent.change(screen.getByLabelText("Buyer shipping for this spot"), { target: { value: "2" } });
-    expect(screen.getByText("Typical-value bid limit").parentElement).toHaveTextContent("$3.00");
+    expect(screen.getByText("Estimated bid limit").parentElement).toHaveTextContent("$3.00");
     fireEvent.click(screen.getByRole("button", { name: "Random", exact: true }));
-    expect(screen.getByText("Typical-value bid limit").parentElement).toHaveTextContent("$2.00");
+    expect(screen.getByText("Estimated bid limit").parentElement).toHaveTextContent("$2.00");
     expect(mocks.requests).toHaveBeenCalledTimes(1);
   });
 });

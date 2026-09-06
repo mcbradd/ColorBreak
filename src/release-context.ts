@@ -9,14 +9,8 @@ export const runtimeReleaseContext: ReleaseContext = Object.freeze({
 });
 
 export function buyerDecisionPresentation(
-  eligibility: string,
+  _eligibility: string,
 ) {
-  // A stale snapshot is still a useful estimate when it is labeled honestly.
-  // Only missing or materially incomplete evidence prevents a numeric answer.
-  const allowed = eligibility === "eligible" || eligibility === "stale";
-  return {
-    canShowDecision: allowed,
-    heading: allowed ? undefined : "LIMIT UNAVAILABLE",
-    maxHammer: allowed ? undefined : "—",
-  } as const;
+  // Confidence qualifies the answer; it never removes it.
+  return { canShowDecision: true, heading: undefined, maxHammer: undefined } as const;
 }

@@ -9,11 +9,9 @@ import {
 import type { ReactNode, RefObject } from "react";
 import { createPortal } from "react-dom";
 import {
-  BadgeCheck,
   ChevronRight,
   CircleHelp,
   RotateCw,
-  ShieldAlert,
   Sparkles,
 } from "lucide-react";
 import type { Contributor, ValuationResult } from "../../domain/types";
@@ -27,6 +25,9 @@ const money = new Intl.NumberFormat("en-US", {
 });
 const fmt = (value: number | undefined) =>
   value == null ? "—" : money.format(value);
+export const fmtCompact = (value: number | undefined) => value != null && Math.abs(value) >= 1000
+  ? new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", notation: "compact", maximumFractionDigits: 1 }).format(value)
+  : fmt(value);
 const fmtChart = (value: number) => `$${value.toFixed(2)}`;
 const oddsLabel = (probability: number) =>
   probability >= 0.9995
@@ -129,7 +130,7 @@ const plainEvidence = (value: string) => ({
 function countedPriceLabel(row: Contributor): string {
   const finish = row.finish ?? (row.sellableFoilCopies > 0 ? "foil" : "nonfoil");
   const price = row.marketPrice ?? (finish === "foil" ? row.card.foil : row.card.nonfoil);
-  if (price == null) return "Price unavailable";
+  if (price == null) return "$0 known price";
   return row.priceBasis === "listed-tcg"
     ? `${fmt(price)} listed TCG price`
     : row.priceBasis === "same-printing-foil-market"
@@ -291,7 +292,7 @@ export function NumberField({
     <label className="number-field">
       <span>
         {label}
-        {hint && <Tip text={hint} />}
+        <EstimateTip label={`What affects ${label.toLowerCase()}`} text={hint ?? (value == null ? "No value has been entered here. The estimate uses its stated default or available market price; enter your own figure to improve it." : "This is an editable planning input. Calculations use the value shown; update it when you know a better figure.")} />
       </span>
       <div>
         {prefix && <b>{prefix}</b>}
@@ -327,6 +328,10 @@ function tipParagraphs(text: string) {
   });
 }
 
+export function EstimateTip({ text, label = "What affects this estimate" }: { text: string; label?: string }) {
+  return <Tip className="answer-note" label={label} text={text}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v10M7.67 9.5l8.66 5M7.67 14.5l8.66-5" /></svg></Tip>;
+}
+
 export function Tip({
   text,
   children,
@@ -349,20 +354,27 @@ export function Tip({
     const popover = popoverRef.current;
     if (!anchor || !popover) return;
     const anchorBox = anchor.getBoundingClientRect();
-    const popoverBox = popover.getBoundingClientRect();
     const gutter = 12;
+    const viewport = window.visualViewport;
+    const viewportLeft = viewport?.offsetLeft ?? 0;
+    const viewportTop = viewport?.offsetTop ?? 0;
+    const width = viewport?.width ?? window.innerWidth;
+    const height = viewport?.height ?? window.innerHeight;
+    popover.style.maxHeight = `${Math.max(24, Math.min(240, height - gutter * 2))}px`;
+    popover.style.maxWidth = `${Math.max(24, width - gutter * 2)}px`;
+    const popoverBox = popover.getBoundingClientRect();
     const left = Math.min(
-      window.innerWidth - popoverBox.width - gutter,
-      Math.max(gutter, anchorBox.left + anchorBox.width / 2 - popoverBox.width / 2),
+      viewportLeft + width - popoverBox.width - gutter,
+      Math.max(viewportLeft + gutter, anchorBox.left + anchorBox.width / 2 - popoverBox.width / 2),
     );
     const top = anchorBox.top >= popoverBox.height + gutter
       ? anchorBox.top - popoverBox.height - 8
       : anchorBox.bottom + 8;
     setPosition({
-      left: Math.max(gutter, left),
+      left: Math.max(viewportLeft + gutter, left),
       top: Math.min(
-        window.innerHeight - popoverBox.height - gutter,
-        Math.max(gutter, top),
+        viewportTop + height - popoverBox.height - gutter,
+        Math.max(viewportTop + gutter, top),
       ),
     });
   }, []);
@@ -388,11 +400,15 @@ export function Tip({
     document.addEventListener("pointerdown", dismiss);
     document.addEventListener("keydown", onKeyDown);
     window.addEventListener("resize", place);
+    window.visualViewport?.addEventListener("resize", place);
+    window.visualViewport?.addEventListener("scroll", place);
     window.addEventListener("scroll", place, true);
     return () => {
       document.removeEventListener("pointerdown", dismiss);
       document.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("resize", place);
+      window.visualViewport?.removeEventListener("resize", place);
+      window.visualViewport?.removeEventListener("scroll", place);
       window.removeEventListener("scroll", place, true);
     };
   }, [open, place]);
@@ -488,26 +504,14 @@ function PanelHeading({
 }
 
 function Status({ result }: { result: ValuationResult }) {
-  const icon =
-    result.status === "incomplete" ? (
-      <ShieldAlert size={16} />
-    ) : (
-      <BadgeCheck size={16} />
-    );
-  return (
-    <Tip
-      className={`status ${result.status}`}
-      text={result.status === "verified"
-        ? "Product contents, pack odds, card versions, and prices are ready."
-        : result.status === "estimated"
-          ? "Some product details are estimates, so treat this as a rough answer."
-          : "Some values may be low. Open the nearby warning for a short explanation or technical details."}
-      label={`Explain ${result.status} data status`}
-    >
-      {icon}
-      <span>{result.status}</span>
-    </Tip>
-  );
+  return <span className={`status ${result.status}`}><span>{result.status}</span><EstimateTip
+    label={`Explain ${result.status} data status`}
+    text={result.status === "verified"
+      ? "Uses available product details, pack odds and card prices. Real openings and selling prices still vary."
+      : result.status === "estimated"
+        ? "Some product details use estimates. The answer improves as better prices and pack odds arrive."
+        : "Some prices or pack details are missing. The best available value is shown; unknown parts can make it too low."}
+  /></span>;
 }
 
 export function Home({ choose, buildId, recentBuyerCount = 0, recentSellerCount = 0, onClearDevice }: { choose: (mode: Mode, fresh?: boolean, ready?: boolean) => void; buildId?: string; recentBuyerCount?: number; recentSellerCount?: number; onClearDevice?: () => Promise<void> }) {

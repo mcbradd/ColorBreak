@@ -76,11 +76,11 @@ describe("buyer color controls", () => {
     expect(screen.getByRole("button", { name: "Mark Blue as mine" })).toBeEnabled();
   });
 
-  it("shows a low, expected and high value for every slot", () => {
+  it("shows MIN, expected and MAX value for every slot", () => {
     const { container } = render(createElement(Harness));
 
     // The candle is the whole point of this rail: eight slots, eight candles,
-    // each carrying its own low/EV/high in words as well as in geometry.
+    // each carrying its own MIN/EV/MAX in words as well as in geometry.
     expect(container.querySelectorAll(".slot-candle")).toHaveLength(8);
     expect(container.querySelectorAll(".slot-candle-values small")).toHaveLength(24);
   });
