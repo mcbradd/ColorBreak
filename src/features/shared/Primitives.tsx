@@ -25,6 +25,9 @@ const money = new Intl.NumberFormat("en-US", {
 });
 const fmt = (value: number | undefined) =>
   value == null ? "—" : money.format(value);
+export const fmtCompact = (value: number | undefined) => value != null && Math.abs(value) >= 1000
+  ? new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", notation: "compact", maximumFractionDigits: 1 }).format(value)
+  : fmt(value);
 const fmtChart = (value: number) => `$${value.toFixed(2)}`;
 const oddsLabel = (probability: number) =>
   probability >= 0.9995

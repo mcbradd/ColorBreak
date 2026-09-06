@@ -48,6 +48,16 @@ describe("best available answers", () => {
     expect(quickOutcomes(fixture().valuation, []).remainingPool.mean).toBe(0);
   });
 
+  it("shows possible endpoints immediately, before sampling refines the median", () => {
+    const analysis = fixture();
+    const model = { ...analysis.outcomeModel, fixed: [], packs: [{ count: 1, variants: [{ weight: 1, picks: { choice: 1 } }], sheets: { choice: { totalWeight: 2, cards: [{ id: "blank", slot: "W" as const, value: 0 }, { id: "hit", slot: "W" as const, value: 100 }] } } }] };
+    const preview = quickOutcomes(analysis.valuation, ["W"], undefined, model);
+    expect(preview.sampleCount).toBe(0);
+    expect(preview.slotDistributions.W.min).toBe(0);
+    expect(preview.slotDistributions.W.max).toBe(100);
+    expect(preview.remainingPool.max).toBe(100);
+  });
+
   it("a disclosed independent-card model preserves analytic expected value", () => {
     const value = fixture().valuation;
     const model = approximateOutcomes(value);

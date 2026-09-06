@@ -7,7 +7,7 @@ import { bidCeiling, DEFAULT_BUYER_COSTS } from "../../domain/bid-ceiling";
 import { decisionEligibility } from "../../domain/valuation";
 import { SLOT_IDS, SLOT_NAMES, type SlotId } from "../../domain/types";
 import { IncompleteDataWarning, useOutcomeSimulation } from "../shared/OutcomeFeedback";
-import { fmt, InformationLabel, NumberField } from "../shared/Primitives";
+import { fmt, fmtCompact, InformationLabel, NumberField } from "../shared/Primitives";
 
 const dockValue = (value: number) => value >= 10_000
   ? new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", notation: "compact", maximumFractionDigits: 1 }).format(value)
@@ -20,7 +20,7 @@ export function SellerGlance({ analysis, current, busy }: { analysis?: BreakAnal
       <InformationLabel>2 · READ THE BREAK</InformationLabel>
       <h2>Your answer lives here.</h2>
       <p>{busy ? "Calculating your products… Keep adding while this loads." : "Add a product to see expected value and the range for every color."}</p>
-      <div className="glance-empty-range"><span>LOW</span><span>TYPICAL</span><span>HIGH</span><i /></div>
+      <div className="glance-empty-range"><span>MIN</span><span>TYPICAL</span><span>MAX</span><i /></div>
     </div> : <GlanceResult analysis={analysis} current={current} busy={busy} />}
   </section>;
 }
@@ -39,7 +39,7 @@ function GlanceResult({ analysis, current, busy }: { analysis: BreakAnalysis; cu
   const evidence = eligibility.status === "stale" ? "Prices over 6 hours old" : resolvedOnly ? "Partial model · values may be low" : eligibility.status === "eligible" ? "Fresh price snapshot" : "Estimated values";
   const ceiling = distribution ? bidCeiling(distribution.median, { ...DEFAULT_BUYER_COSTS, shipping: shipping ?? 0 }) : undefined;
   const mean = slot === "random" ? analysis.valuation.sellableEV / SLOT_IDS.length : analysis.valuation.slots.find((row) => row.id === slot)?.sellableEV;
-  const max = Math.max(1, ...SLOT_IDS.map((id) => simulation.result?.slotDistributions[id].p90 ?? 0));
+  const max = Math.max(1, ...SLOT_IDS.map((id) => simulation.result?.slotDistributions[id].max ?? 0));
   return <AnswerProvider value={answerFactors(analysis.valuation, analysis.outcomeModel.complete, busy)}>
     <header className="glance-heading"><InformationLabel>2 · READ THE BREAK</InformationLabel><span className={fresh ? "glance-fresh" : "glance-caution"}>{evidence}</span></header>
     {!current && <p className="glance-updating" role="status">{busy ? "Updating this mix… Best available values shown below." : "Best available estimate. Retry to improve it."}</p>}
@@ -47,13 +47,13 @@ function GlanceResult({ analysis, current, busy }: { analysis: BreakAnalysis; cu
     <div className="glance-decision" aria-label="Selected spot value">
       <div className="glance-selected"><h2>{slot === "random" ? "Random color spot" : `${SLOT_NAMES[slot]} spot`}</h2><button type="button" className="quiet" aria-pressed={slot === "random"} onClick={() => setSlot("random")}>Random</button></div>
       <div className="glance-limit"><div><span>Estimated bid limit</span><b><AnswerValue value={ceiling?.kind === "ceiling" ? ceiling.hammer : 0} detail="Uses typical card value less the shipping entered below. Tax and buyer fees are assumed $0 here." /></b></div><small>{`${fmt(shipping ?? 0)} shipping · before tax/fees`}</small></div>
-      <AnswerGraphic detail={simulation.result?.sampleCount === 0 ? "Quick preview compares color averages, not opening percentiles. It improves when the opening model finishes." : "Middle 80% of modeled openings. An actual opening can fall outside this range."}><div className="glance-range" aria-label="Modeled opening range">
-        <div><span>LOW · 10th</span><b><AnswerValue value={distribution?.p10 ?? 0} /></b></div>
-        <div><span>TYPICAL</span><b><AnswerValue value={distribution?.median ?? 0} /></b></div>
-        <div><span>HIGH · 90th</span><b><AnswerValue value={distribution?.p90 ?? 0} /></b></div>
+      <AnswerGraphic detail={simulation.result?.sampleCount === 0 ? "MIN and MAX use the available pack rules. Typical is still being refined. Missing prices or pack details can change the limits." : "Minimum and maximum possible values for the selected spot under the current pack rules and prices, including rare outcomes. Missing data can change the limits."}><div className="glance-range" aria-label="Modeled opening range">
+        <div><span>MIN</span><b><AnswerValue value={distribution?.min ?? 0} compact /></b></div>
+        <div><span>TYPICAL</span><b><AnswerValue value={distribution?.median ?? 0} compact /></b></div>
+        <div><span>MAX</span><b><AnswerValue value={distribution?.max ?? 0} compact /></b></div>
       </div>
-      </AnswerGraphic><p className="glance-average">Average <AnswerValue value={mean} /> · outcomes can fall outside this range.</p>
-      <details className="glance-assumptions"><summary>Buyer shipping &amp; range basis</summary><NumberField label="Buyer shipping for this spot" value={shipping} onChange={setShipping} live /><p>Low and high bound the middle 80% of modeled openings. Typical is the median, not a guaranteed return. A random color is equally likely to receive any of the eight colors. This preview assumes all eight are available; use Bid Check for a changing remaining pool, tax or other buyer fees.</p></details>
+      </AnswerGraphic><p className="glance-average">Average <AnswerValue value={mean} /> · MIN–MAX includes rare modeled outcomes.</p>
+      <details className="glance-assumptions"><summary>Buyer shipping &amp; range basis</summary><NumberField label="Buyer shipping for this spot" value={shipping} onChange={setShipping} live /><p>MIN and MAX are the minimum and maximum possible values under the current pack rules and prices. Typical is the median, not a guaranteed return. A random color is equally likely to receive any of the eight colors. This preview assumes all eight are available; use Bid Check for a changing remaining pool, tax or other buyer fees.</p></details>
     </div>
     <div className="glance-colors-heading"><h3>Compare colors</h3><span>Tap a color · average / range</span></div>
     <div className="glance-colors" role="group" aria-label="Compare color values">
@@ -62,8 +62,8 @@ function GlanceResult({ analysis, current, busy }: { analysis: BreakAnalysis; cu
         const value = analysis.valuation.slots.find((row) => row.id === id)?.sellableEV;
         return <button type="button" className="glance-color" key={id} aria-label={`Inspect ${SLOT_NAMES[id]} value`} aria-pressed={slot === id} onClick={() => setSlot(id)}>
           <span className={`glance-color-letter slot-letter-${id}`}>{id}</span><span className="glance-color-name">{SLOT_NAMES[id]}</span><b><AnswerValue value={value} /></b>
-          <span className="glance-color-bar" aria-hidden="true"><i style={{ left: `${(range?.p10 ?? 0) / max * 100}%`, width: `${Math.max(1, ((range?.p90 ?? 0) - (range?.p10 ?? 0)) / max * 100)}%` } as CSSProperties} /><em style={{ left: `${(range?.median ?? 0) / max * 100}%` }} /></span>
-          <small>{`${fmt(range?.p10 ?? 0)}–${fmt(range?.p90 ?? 0)}`}<AnswerNote detail={simulation.result?.sampleCount === 0 ? "Quick preview uses average value while opening variation is calculated." : "Middle 80% of modeled openings; the real result may fall outside it."} /></small>
+          <span className="glance-color-bar" aria-hidden="true"><i style={{ left: `${(range?.min ?? 0) / max * 100}%`, width: `${Math.max(1, ((range?.max ?? 0) - (range?.min ?? 0)) / max * 100)}%` } as CSSProperties} /><em style={{ left: `${(range?.median ?? 0) / max * 100}%` }} /></span>
+          <small>{`${fmtCompact(range?.min ?? 0)}–${fmtCompact(range?.max ?? 0)}`}<AnswerNote detail={simulation.result?.sampleCount === 0 ? "MIN and MAX use available pack rules; missing data may change them. Typical is still being refined." : "Minimum and maximum possible values for this color under the modeled pack rules and prices. Missing data can change the limits."} /></small>
         </button>;
       })}
     </div>

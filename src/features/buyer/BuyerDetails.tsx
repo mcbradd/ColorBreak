@@ -568,7 +568,7 @@ export function BuyerView({
           <span>My {selectedSlots.length === 1 ? "slot" : "slots"}: {selectedSlots.map((id) => SLOT_NAMES[id]).join(", ")}</span>
           <b><AnswerValue value={ownedValue} /></b>
         </p>}
-        <AnswerGraphic detail={simulation.result?.sampleCount === 0 ? "Quick preview compares average values across available colors. Opening variation is still being calculated, so these are not yet opening percentiles." : "Low and high cover the middle 80% of modeled openings. An actual opening can fall outside this range."}><OutcomeRange summary={distribution} compact /></AnswerGraphic>
+        <AnswerGraphic detail={simulation.result?.sampleCount === 0 ? "MIN and MAX use available pack rules. The typical result is still being refined; missing data can change the limits." : "MIN and MAX are the smallest and largest values possible for one remaining spot under the current pack rules and prices. Missing data can change these limits."}><OutcomeRange summary={distribution} compact /></AnswerGraphic>
         {simulation.busy && <p className="simulation-state" role="status" aria-live="polite">Checking more possible openings…</p>}
         {simulation.error && <CompactWarning title="Pull ranges unavailable" summary="The non-simulation value remains visible." className="inline-warning"><p role="alert">{simulation.error}</p><button type="button" className="quiet" onClick={simulation.retry}>Retry pull ranges</button></CompactWarning>}
         <IncompleteDataWarning analysis={analysis} title="Some estimates may be low" />

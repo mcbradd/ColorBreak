@@ -55,7 +55,7 @@ export function useOutcomeSimulation(analysis: BreakAnalysis | undefined, remain
     return () => { current = false; if (timer !== undefined) clearTimeout(timer); cancelRefinement?.(); };
   }, [key, generation, settleMs, refine]);
   return {
-    result: state.key?.split("|retry:")[0] === key && state.result ? state.result : analysis ? quickOutcomes(analysis.valuation, remaining, landedCost) : undefined,
+    result: state.key?.split("|retry:")[0] === key && state.result ? state.result : analysis ? quickOutcomes(analysis.valuation, remaining, landedCost, analysis.outcomeModel) : undefined,
     error: state.key === revision ? state.error : undefined,
     busy: Boolean(analysis) && (state.busy || state.key !== revision),
     current: Boolean(state.result && state.key === revision && !state.busy),

@@ -94,13 +94,13 @@ describe("Bid Check command center", () => {
     expect(screen.queryByText(/BREAK BALANCE/i)).not.toBeInTheDocument();
   });
 
-  it("shows low, expected and high value on each slot, at the point of decision", async () => {
+  it("shows MIN, expected and MAX value on each slot, at the point of decision", async () => {
     render(createElement(BuyerWorkspace, { exit: vi.fn(), startFresh: false, startReady: false }));
     await screen.findByRole("region", { name: "Bid decision" });
 
     await waitFor(() => expect(document.querySelectorAll(".slot-candle")).toHaveLength(8));
-    const white = screen.getByLabelText(/^White: low/);
-    await waitFor(() => expect(white).toHaveAccessibleName(/low \$0\.00, expected \$20\.00, high \$30\.00/));
+    const white = screen.getByLabelText(/^White: MIN/);
+    await waitFor(() => expect(white).toHaveAccessibleName(/MIN \$0\.00, expected \$20\.00, MAX \$30\.00/));
   });
 
   it("shows incomplete projections with the exact omission warning", async () => {

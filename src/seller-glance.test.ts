@@ -81,21 +81,21 @@ describe("seller value at a glance", () => {
     expect(screen.getAllByRole("button", { name: "What affects this chart" }).length).toBeGreaterThan(0);
   });
 
-  it("shows the selected color's percentiles and retains a real zero median", () => {
+  it("shows the selected color's endpoints and retains a real zero median", () => {
     show();
     fireEvent.click(screen.getByRole("button", { name: "Inspect White value" }));
     let region = screen.getByLabelText("Modeled opening range");
     expect(within(region).getByText("TYPICAL").parentElement).toHaveTextContent("$0.00");
-    expect(within(region).getByText("LOW · 10th").parentElement).toHaveTextContent("$0.00");
-    expect(within(region).getByText("HIGH · 90th").parentElement).toHaveTextContent("$100.00");
+    expect(within(region).getByText("MIN").parentElement).toHaveTextContent("$0.00");
+    expect(within(region).getByText("MAX").parentElement).toHaveTextContent("$100.00");
     expect(screen.getByText("Estimated bid limit").parentElement).toHaveTextContent("$0.00");
     expect(screen.getByLabelText("Selected spot value")).toHaveTextContent("Average $10.00");
 
     fireEvent.click(screen.getByRole("button", { name: "Inspect Blue value" }));
     region = screen.getByLabelText("Modeled opening range");
-    expect(within(region).getByText("LOW · 10th").parentElement).toHaveTextContent("$2.60");
+    expect(within(region).getByText("MIN").parentElement).toHaveTextContent("$2.00");
     expect(within(region).getByText("TYPICAL").parentElement).toHaveTextContent("$5.00");
-    expect(within(region).getByText("HIGH · 90th").parentElement).toHaveTextContent("$7.40");
+    expect(within(region).getByText("MAX").parentElement).toHaveTextContent("$8.00");
     expect(screen.getByRole("button", { name: "Inspect Blue value" })).toHaveAttribute("aria-pressed", "true");
   });
 

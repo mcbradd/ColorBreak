@@ -27,7 +27,7 @@ import type {
   ValuationResult,
 } from "../../domain/types";
 import { SLOT_IDS, SLOT_NAMES } from "../../domain/types";
-import { DisclosureArrow, fmt, fmtChart, InformationLabel, PanelHeading, Status, Tip, oddsLabel, NumericInput, useDialogOwnership, plainEvidence } from "../shared/Primitives";
+import { DisclosureArrow, fmt, fmtCompact, InformationLabel, PanelHeading, Status, Tip, oddsLabel, NumericInput, useDialogOwnership, plainEvidence } from "../shared/Primitives";
 import { QuantityControl } from "../shared/QuantityControl";
 import { PublicCardPlaceholder } from "./CardPlaceholder";
 
@@ -214,7 +214,7 @@ export function FormatCarryOverNotice({
 
 /**
  * One shared horizontal scale for every slot, so two candles can be compared
- * by eye. The wick is the practical 1st-to-99th percentile, the body is the
+ * by eye. The wick is the practical minimum-to-maximum range, the body is the
  * middle half, and the marker is the pull-rate average.
  */
 export function SlotCandle({
@@ -229,28 +229,28 @@ export function SlotCandle({
   label: string;
 }) {
   const position = (value: number) => Math.min(100, Math.max(0, value / Math.max(scaleMax, 0.01) * 100));
-  const low = distribution?.p01 ?? expectedValue;
-  const high = distribution?.p99 ?? expectedValue;
+  const low = distribution?.min ?? expectedValue;
+  const high = distribution?.max ?? expectedValue;
   const bodyLow = Math.min(high, Math.max(low, distribution?.p25 ?? expectedValue));
   const bodyHigh = Math.max(bodyLow, Math.min(high, distribution?.p75 ?? expectedValue));
   return (
-    <div className="slot-candle" aria-label={`${label}: low ${fmt(low)}, expected ${fmt(expectedValue)}, high ${fmt(high)}`}>
+    <div className="slot-candle" aria-label={`${label}: MIN ${fmt(low)}, expected ${fmt(expectedValue)}, MAX ${fmt(high)}`}>
       <div className="slot-candle-track" aria-hidden="true">
         <span className="slot-candle-wick" style={{ left: `${position(low)}%`, width: `${Math.max(0, position(high) - position(low))}%` }} />
         <span className="slot-candle-body" style={{ left: `${position(bodyLow)}%`, width: `${Math.max(1, position(bodyHigh) - position(bodyLow))}%` }} />
         <span className="slot-candle-ev" style={{ left: `${position(expectedValue)}%` }} />
       </div>
-      <AnswerNote detail={!distribution || distribution.preview ? "Quick preview shows this color’s average while its opening range is calculated. Equal low and high values do not mean a guaranteed return." : "Low and high exclude the most extreme 1% at each end. Pack estimates, missing prices and rare hits can affect this range."} label={`What affects the ${label.toLowerCase()} chart`} />
+      <AnswerNote detail={!distribution || distribution.preview ? "MIN and MAX use the available pack rules. Typical values are still being refined; missing cards or prices can change the limits." : "MIN and MAX are the smallest and largest values possible for this color under the current pack rules and prices, including rare outcomes. Missing data can change these limits."} label={`What affects the ${label.toLowerCase()} chart`} />
       <div className="slot-candle-values" aria-hidden="true">
-        <span><small>LOW</small>{fmtChart(low)}</span>
-        <b><small>EV</small>{fmtChart(expectedValue)}</b>
-        <span><small>HIGH</small>{fmtChart(high)}</span>
+        <span><small>MIN</small>{fmtCompact(low)}</span>
+        <b><small>EV</small>{fmtCompact(expectedValue)}</b>
+        <span><small>MAX</small>{fmtCompact(high)}</span>
       </div>
     </div>
   );
 }
 
-const SLOT_HELP = "Tap the check on every slot you have already bought. Tap the cancel mark on every slot another buyer has taken. What is left is the pool your next bid draws from. LOW and HIGH are the 1st and 99th percentile of modeled openings, so the most extreme results are left out; EV is the average.";
+const SLOT_HELP = "Tap the check on every slot you have already bought. Tap the cancel mark on every slot another buyer has taken. What is left is the pool your next bid draws from. MIN and MAX are the minimum and maximum possible values under the modeled pack rules and prices; EV is the average.";
 
 /**
  * The slot rail is the buyer's whole picture of the break: what each colour is
@@ -276,7 +276,7 @@ export function SlotRail({
 }) {
   const scaleMax = Math.max(
     1,
-    ...SLOT_IDS.map((id) => distributions?.[id]?.p99 ?? 0),
+    ...SLOT_IDS.map((id) => distributions?.[id]?.max ?? 0),
     ...(result?.slots.map((slot) => slot.sellableEV) ?? []),
   );
   const setOwned = (id: SlotId, owned: boolean) => {
@@ -533,24 +533,24 @@ function OutcomeRange({ summary, landed, compact = false }: { summary?: Distribu
   return (
     <div className={`outcome-range ${compact ? "outcome-range-compact" : ""}`} aria-label="Possible opening values">
       <div className="outcome-range-heading">
-        <span>{summary.preview ? "Quick value range" : compact ? "Outcome range" : "Possible opening values"}<AnswerNote detail={summary.preview ? "This preview compares known average values while opening variation is calculated. Missing information may change it." : "Middle 80% of modeled openings. The next opening can fall outside this range."} /></span>
-        {!compact && <Tip text="Shows a lower result, a middle result, and a higher result across many simulated openings. These are examples of the range you could see, not a prediction of the next opening." />}
+        <span>{summary.preview ? "Quick value range" : compact ? "Outcome range" : "Possible opening values"}<AnswerNote detail={summary.preview ? "MIN and MAX use available pack rules now. The typical result is a preview while sampling finishes; missing data may change the limits." : "Smallest and largest possible values under the current pack rules and prices. Missing data and price changes can move these limits."} /></span>
+        {!compact && <Tip text="MIN and MAX include the rarest outcomes permitted by the pack model. Typical is the sampled median. These values use current prices and the bulk filter." />}
       </div>
       <div className="outcome-landmarks">
         <div>
-          <span>{compact ? "Downside" : "Lower result"}</span>
-          <b><AnswerValue value={summary.p10} /></b>
-          {!compact && <small>About 1 in 10 openings are worth this or less</small>}
+          <span>MIN</span>
+          <b><AnswerValue value={summary.min} compact /></b>
+          {!compact && <small>Minimum possible modeled value</small>}
         </div>
         <div className="typical">
           <span>{compact ? "Typical" : "Typical result"}</span>
-          <b><AnswerValue value={summary.median} /></b>
+          <b><AnswerValue value={summary.median} compact /></b>
           {!compact && <small>About half are worth less and half are worth more</small>}
         </div>
         <div>
-          <span>{compact ? "Upside" : "Higher result"}</span>
-          <b><AnswerValue value={summary.p90} /></b>
-          {!compact && <small>About 1 in 10 openings are worth this or more</small>}
+          <span>MAX</span>
+          <b><AnswerValue value={summary.max} compact /></b>
+          {!compact && <small>Maximum possible modeled value</small>}
         </div>
       </div>
       {chanceToClear != null && landed != null && (
@@ -632,8 +632,8 @@ function EvidenceLens({ analysis }: { analysis: BreakAnalysis }) {
       title: "Pack chances",
       status: plainEvidence(valuation.evidence.collation),
       meaning: "A pack is not filled by picking every card equally. This check describes how often each kind of card can appear.",
-      matters: "These chances power the pull odds, typical outcome, and high and low ranges. Bad pack chances can make a correct price produce a wrong answer.",
-      action: "When this is uncertain, use the shown range as a partial estimate. Missing pack chances can move the low, typical, and high outcomes in either direction.",
+      matters: "These chances power the pull odds, typical outcome, and MIN and MAX limits. Bad pack chances can make a correct price produce a wrong answer.",
+      action: "When this is uncertain, use the shown range as a partial estimate. Missing pack chances can move the MIN, typical, and MAX values in either direction.",
     },
     {
       title: "Card versions",

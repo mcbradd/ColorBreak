@@ -14,6 +14,9 @@ try {
     await page.getByRole('option', { name: /TMT\) Play Booster Pack$/ }).click();
     await page.locator('.glance-limit .answer-value').waitFor();
     assert.match(await page.locator('.glance-limit .answer-value').innerText(), /\$/);
+    assert.equal(await page.locator('.glance-range').getByText('MIN', { exact: true }).count(), 1);
+    assert.equal(await page.locator('.glance-range').getByText('MAX', { exact: true }).count(), 1);
+    assert.equal(await page.locator('.glance-range').getByText(/LOW|HIGH/).count(), 0);
     await page.locator('.glance-total .answer-value').filter({ hasText: /\$[1-9]/ }).waitFor({ timeout: 30000 });
     if (await page.getByRole('button', { name: /Done entering/ }).count()) await page.getByRole('button', { name: /Done entering/ }).first().click();
     await page.locator('.glance-limit').scrollIntoViewIfNeeded();
@@ -63,7 +66,7 @@ try {
       await page.locator('.max-hammer .answer-value').waitFor();
       assert.match(await page.locator('.max-hammer').innerText(), /\$/);
       await page.locator('.slot-candle .answer-note').first().click();
-      assert.match(await page.getByRole('tooltip').innerText(), /preview|range/i);
+      assert.match(await page.getByRole('tooltip').innerText(), /MIN and MAX.*possible/i);
       await page.keyboard.press('Escape');
       assert.equal(await page.getByRole('tooltip').count(), 0);
       assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), 'buyer horizontal overflow');

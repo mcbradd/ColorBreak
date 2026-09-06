@@ -65,9 +65,9 @@ function allocate(
 function RangeCandle({ summary, max, bonus = false }: { summary: DistributionSummary; max: number; bonus?: boolean }) {
   const pct = (value: number) => `${Math.max(0, Math.min(100, value / Math.max(1, max) * 100))}%`;
   return (
-    <span className={`range-candle ${bonus ? "bonus" : "base"}`} aria-label={`${bonus ? "With bonus" : "Current"}: ${fmt(summary.p01)} rare low, ${fmt(summary.median)} typical, ${fmt(summary.p99)} rare high`}>
-      <AnswerNote label="What affects this range chart" detail={summary.preview ? "Quick preview uses the known average while opening variation is calculated." : "Shows modeled opening variation. Missing pack details or prices can change this range."} />
-      <i className="candle-wick" style={{ bottom: pct(summary.p01), height: pct(summary.p99 - summary.p01) }} />
+    <span className={`range-candle ${bonus ? "bonus" : "base"}`} aria-label={`${bonus ? "With bonus" : "Current"}: ${fmt(summary.min)} MIN, ${fmt(summary.median)} typical, ${fmt(summary.max)} MAX`}>
+      <AnswerNote label="What affects this range chart" detail={summary.preview ? "MIN and MAX use available pack rules. Typical values are still being refined; missing data can change the limits." : "Shows minimum and maximum possible modeled values, including rare outcomes. Missing pack details or prices can change these limits."} />
+      <i className="candle-wick" style={{ bottom: pct(summary.min), height: pct(summary.max - summary.min) }} />
       <i className="candle-body" style={{ bottom: pct(summary.p25), height: pct(Math.max(.01, summary.p75 - summary.p25)) }} />
       <i className="candle-median" style={{ bottom: pct(summary.median) }} />
     </span>
@@ -107,24 +107,24 @@ function UpsideCandles({ base, bonus, bonusLabel, selectedSlot, selectSlot, useR
   const rows = SLOT_IDS.map((id) => {
     const before = baseSimulation.result!.slotDistributions[id];
     const after = monotoneBonus(before, bonusSimulation.result!.slotDistributions[id]);
-    return { id, before, after, lift: after.p99 - before.p99 };
+    return { id, before, after, lift: after.max - before.max };
   }).sort((a, b) => b.lift - a.lift);
   // The two configuration candles answer the selected buyer's question and need
   // their own scale. A chase-heavy color must not flatten an unrelated selection.
-  const scenarioMaximum = Math.max(1, selectedAfter.p99);
-  const colorMaximum = Math.max(1, ...rows.map((row) => row.after.p99));
+  const scenarioMaximum = Math.max(1, selectedAfter.max);
+  const colorMaximum = Math.max(1, ...rows.map((row) => row.after.max));
   const unpricedOutcomes = bonus.outcomeOmissions.filter((item) => !item.material && /missing-.+-price|missing-price/.test(item.code));
   return (
     <div className="upside-chart">
       <div className="upside-callout">
-        <span>RARE HIGH-END GAIN</span>
-        <b>+<AnswerValue value={selectedAfter.p99 - selectedBefore.p99} /></b>
+        <span>MAX VALUE GAIN</span>
+        <b>+<AnswerValue value={selectedAfter.max - selectedBefore.max} /></b>
         <small>{useRandom ? "Random slot" : SLOT_NAMES[selectedSlot]} typical result changes <AnswerValue value={selectedBefore.median} /> → <AnswerValue value={selectedAfter.median} /></small>
         <small>At <AnswerValue value={buyerLanded} /> landed: {Math.round((selectedBefore.chanceToClearCost ?? 0) * 100)}% → {Math.round((selectedAfter.chanceToClearCost ?? 0) * 100)}% of modeled openings cover buyer cost</small>
       </div>
       <div className="scenario-candles" aria-label="Buyer value range by break configuration">
-        <div className="scenario-candle-column"><div><RangeCandle summary={selectedBefore} max={scenarioMaximum} /></div><b>Current break</b><small>Rare high <AnswerValue value={selectedBefore.p99} /></small></div>
-        <div className="scenario-candle-column"><div><RangeCandle summary={selectedAfter} max={scenarioMaximum} bonus /></div><b>+ {bonusLabel}</b><small>Rare high <AnswerValue value={selectedAfter.p99} /></small></div>
+        <div className="scenario-candle-column"><div><RangeCandle summary={selectedBefore} max={scenarioMaximum} /></div><b>Current break</b><small>MAX <AnswerValue value={selectedBefore.max} /></small></div>
+        <div className="scenario-candle-column"><div><RangeCandle summary={selectedAfter} max={scenarioMaximum} bonus /></div><b>+ {bonusLabel}</b><small>MAX <AnswerValue value={selectedAfter.max} /></small></div>
       </div>
       <p className="x-axis-note"><b>X-axis:</b> break configuration · <b>Y-axis:</b> {useRandom ? "card value received by a random slot" : `${SLOT_NAMES[selectedSlot]} card value`}</p>
       <h3>Which colors gain the most upside?</h3>
@@ -132,7 +132,7 @@ function UpsideCandles({ base, bonus, bonusLabel, selectedSlot, selectSlot, useR
       <div className="candle-grid">{rows.map(({ id, before, after, lift }) => (
         <button type="button" className={`candle-column ${!useRandom && selectedSlot === id ? "active" : ""}`} key={id} onClick={() => selectSlot(id)}>
           <div className="candle-pair"><RangeCandle summary={before} max={colorMaximum} /><RangeCandle summary={after} max={colorMaximum} bonus /></div>
-          <b>{id}</b><small>+<AnswerValue value={lift} /> rare high</small>
+          <b>{id}</b><small>+<AnswerValue value={lift} /> MAX</small>
         </button>
       ))}</div>
       {unpricedOutcomes.length > 0 && <CompactWarning

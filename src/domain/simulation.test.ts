@@ -36,6 +36,26 @@ describe("outcome simulation", () => {
     expect(first.sampleCount).toBe(10_000);
   });
 
+  it("includes an extremely rare maximum even when sampling never draws it", () => {
+    const model: PackOutcomeModel = { fixed: [{ id: "guaranteed", slot: "W", value: 3 }], packs: [{ count: 2,
+      variants: [{ weight: 1, picks: { hit: 1, unused: 0 } }], sheets: {
+        hit: { totalWeight: 1, cards: [{ id: "bulk", slot: "W", value: 1, weight: 1 }, { id: "jackpot", slot: "W", value: 1000, weight: 1e-12 }, { id: "impossible", slot: "W", value: 9999, weight: 0 }] },
+        unused: { totalWeight: 1, cards: [{ id: "not-drawn", slot: "W", value: 9000 }] },
+      },
+    }] };
+    for (const sampleCount of [1, 1000]) {
+      const result = simulateOutcomes(model, { seed: "rare", sampleCount, remaining: ["W"] });
+      expect(result.slotDistributions.W.min).toBe(5);
+      expect(result.slotDistributions.W.max).toBe(2003);
+      expect(result.remainingPool.min).toBe(5);
+      expect(result.remainingPool.max).toBe(2003);
+      expect(result.remainingPool.p99).toBe(5);
+    }
+    const withBlue = simulateOutcomes(model, { seed: "pool", sampleCount: 1, remaining: ["W", "U"] });
+    expect(withBlue.remainingPool.min).toBe(0);
+    expect(withBlue.remainingPool.max).toBe(2003);
+  });
+
   it("returns a partial distribution for an incomplete model", () => {
     const result = simulateOutcomes({ ...coinFlipPack, complete: false }, {
       seed: "blocked", sampleCount: 100, remaining: ["W"],
@@ -96,7 +116,7 @@ describe("outcome simulation", () => {
     expect(possibleSlotBounds(model).G.max).toBe(110);
   });
 
-  it("publishes one-percent range endpoints instead of sampled jackpots", () => {
+  it("retains percentiles as distribution statistics separately from endpoints", () => {
     const values = Array.from({ length: 100 }, (_, index) => index);
     const summary = summarizeDistribution(values);
     expect(summary.p01).toBeCloseTo(.99);

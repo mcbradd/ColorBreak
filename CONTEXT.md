@@ -8,7 +8,8 @@ ColorBreak supports two time-sensitive jobs: a buyer deciding whether to bid on 
 
 - **Best available answer**: the current estimate from the strongest available evidence, improved as data arrives. Fresh exact observations take precedence over matching cached observations, which take precedence over a disclosed approximation. When no defensible estimate exists for an item, the known subtotal still appears; an unknown contribution of $0 never claims that item is worthless.
 - **Estimate note**: the universal circled asterisk beside a calculated field or graphic. Tapping it explains the relevant missing data or assumptions in concise everyday language.
-- **Quick range**: an immediate comparison of known average values while opening variation is calculated. It is not an opening-percentile range.
+- **MIN / MAX**: minimum and maximum possible counted card value under the available pack rules and prices, including rare outcomes. For a random spot, the limits span the remaining eligible slots; marginal color maxima are not summed. Missing data or approximate pack rules qualify these bounds.
+- **Quick range**: immediate modeled MIN and MAX, with a provisional typical value while sampling is refined.
 - **Recorded-so-far estimate**: recorded revenue less recorded fees and the best available cost assumptions. Missing sales are never fabricated, and this becomes actual profit only after reconciliation.
 
 - **Break**: the complete opening, composed of one or more sealed product lines and one declared slot map.
