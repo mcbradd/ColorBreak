@@ -12,6 +12,7 @@ import {
   AlertTriangle,
   ArrowLeft,
   Boxes,
+  Check,
   ChevronRight,
   PackagePlus,
   ScanText,
@@ -285,7 +286,6 @@ export function Builder({
     setImportRows([]);
     onClose();
   };
-  const totalOpenings = draft.reduce((total, line) => total + line.quantity * Math.max(1, line.packCount ?? 1), 0);
   const importMatched = importRows.flatMap((row) => row.line ? [row.line] : []);
   const importOpeningCount = importMatched.reduce((total, line) => total + line.quantity * Math.max(1, line.packCount ?? 1), 0);
   const importIssueCount = importRows.filter((row) => row.error).length;
@@ -435,29 +435,26 @@ export function Builder({
                           // Set-scoped: MSH and EOE both publish a
                           // `play-booster-pack`, and each keeps its own line.
                           const addedLine = findBreakLineForChoice(draft, product);
-                          const description = <>
-                            <strong>{product.label}</strong>
-                            <small>
+                          const detail = <small>
                               {product.packCount && product.packCount > 1
                                 ? `${product.packCount} packs · `
                                 : ""}
                               {prepared[product.key]?.assessment.presentation === "eligible" ? "Fresh estimate" : "Estimate may need an update"}
-                            </small>
-                          </>;
+                            </small>;
+                          const description = <><strong>{product.label}</strong>{detail}</>;
                           return addedLine ? (
-                            <div className="product-row-line" key={product.key}>
-                              <span className="product-icon">
-                                <Boxes />
+                            <div className="product-row-line picker-product-selected" key={product.key} role="group" aria-label={`Selected ${product.label}`}>
+                              <span className="picker-product-copy">
+                                <span className="picker-product-name">
+                                  <strong>{product.label}</strong>
+                                  <span className="picker-selected-count"><Check size={18} aria-hidden="true" /><output aria-live="polite" aria-label={`${product.label} quantity in ${addedLine.packCount && addedLine.packCount > 1 ? "products" : "openings"}`}>×{addedLine.quantity}</output></span>
+                                </span>
+                                {detail}
                               </span>
-                              <span>
-                                {description}
-                                <b className="product-added">Added</b>
-                              </span>
-                              <QuantityControl
-                                line={addedLine}
-                                update={(quantity) => updateDraftQuantity(addedLine, quantity)}
-                                onEmpty={() => removeDraftLine(addedLine)}
-                              />
+                              <div className="picker-quantity">
+                                <button type="button" aria-label={addedLine.quantity === 1 ? `Remove ${product.label} from break` : `Decrease ${product.label} quantity`} onClick={() => addedLine.quantity === 1 ? removeDraftLine(addedLine) : updateDraftQuantity(addedLine, addedLine.quantity - 1)}>−</button>
+                                <button type="button" aria-label={`Increase ${product.label} quantity`} disabled={addedLine.quantity >= 999} onClick={() => updateDraftQuantity(addedLine, Math.min(999, addedLine.quantity + 1))}>+</button>
+                              </div>
                             </div>
                           ) : (
                             <button
@@ -490,9 +487,9 @@ export function Builder({
                 </button>
               ) : composerMode === "paste" ? (
                 <button type="button" className="primary" disabled={!importSource.trim() || importing} onClick={resolveImport}>{importing ? "Checking products…" : "Review products"}</button>
-              ) : draft.length ? (
-                <button type="button" className="primary" onClick={commit}>Done · {draft.length} product{draft.length === 1 ? "" : "s"} · {totalOpenings} opening{totalOpenings === 1 ? "" : "s"}</button>
-              ) : null}
+              ) : (
+                <button type="button" className="primary" onClick={commit}>Done</button>
+              )}
             </footer>
           </motion.section>
         </motion.div>, document.body,

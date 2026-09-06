@@ -13,6 +13,7 @@
 9. On a phone viewport, format, color/spot selection, break contents, and bulk-value controls appear before results and fit in the initial landing viewport for a new break. Buying recommendation and limit precede supporting evidence.
 10. The current URL continuously encodes break products, quantities, format, spot/color state, and bulk-value options. Opening or sharing that URL reconstructs the filled-out buyer view.
 11. When a result requires user-entered information, the message names the exact missing value, explains which result it affects, and links directly to the corresponding field.
+12. In the product picker, selected products have an obvious contrasting border/background and a checked quantity badge. Minus and plus stay beside the product name at its trailing edge; quantity entry never opens a keyboard here. The picker footer says only Done, including after the last product is removed.
 
 ## Seller
 
