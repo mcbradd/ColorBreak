@@ -1,6 +1,6 @@
 import { probableRange, chartPosition, CANDLE_EXPLANATION } from "../../domain/outcome-chart";
 import { summarizeDistribution } from "../../domain/simulation";
-import { AnswerValue, AnswerNote } from "../shared/Answer";
+import { AnswerValue, AnswerNote, AnswerGroup } from "../shared/Answer";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "motion/react";
@@ -17,7 +17,7 @@ import type { BreakAnalysis } from "../../data/evaluate";
 import { toggleSlotTaken } from "../../domain/auction";
 import type { AuctionState } from "../../domain/auction";
 import type { AssignmentMode } from "../../domain/share-url";
-import { cardDisplayName, cardTreatmentLabel } from "../../domain/card-label";
+import { FINISH_LABELS, cardDisplayName, cardTreatmentLabel } from "../../domain/card-label";
 import { CompactWarning } from "../shared/Feedback";
 import { IncompleteDataWarning, useOutcomeSimulation as useSharedOutcomeSimulation } from "../shared/OutcomeFeedback";
 import type { DistributionSummary, SimulationResult } from "../../domain/simulation";
@@ -28,7 +28,7 @@ import type {
   ValuationResult,
 } from "../../domain/types";
 import { SLOT_IDS, SLOT_NAMES } from "../../domain/types";
-import { DisclosureArrow, fmt, fmtCompact, InformationLabel, PanelHeading, Status, Tip, oddsLabel, NumericInput, useDialogOwnership, plainEvidence } from "../shared/Primitives";
+import { DisclosureArrow, fmt, fmtCompact, InformationLabel, PanelHeading, Status, Tip, NumericInput, useDialogOwnership, plainEvidence } from "../shared/Primitives";
 import { QuantityControl } from "../shared/QuantityControl";
 import { PublicCardPlaceholder } from "./CardPlaceholder";
 
@@ -86,9 +86,10 @@ export function ValueSummary({ result }: { result: ValuationResult }) {
     0,
   );
   return (
-    <section className="value-summary panel">
+    <AnswerGroup><section className="value-summary panel">
       <PanelHeading
         label={result.threshold > 0 ? "BREAK VALUE AFTER IGNORING BULK" : "BREAK VALUE · ALL PRICED CARDS"}
+        estimate={<AnswerNote primary detail="Average value using current card prices and your filter. Missing prices can make totals too low." />}
         help={result.threshold > 0
           ? "The average card value left after removing cards below your bulk-filter amount. This is an average across many possible openings, not a guaranteed result."
           : "Bulk filtering is off, so this average includes every priced card. It is an average across many possible openings, not a guaranteed result."}
@@ -109,14 +110,7 @@ export function ValueSummary({ result }: { result: ValuationResult }) {
           <b>{countedCards}</b>
         </div>
       </div>
-      <p className="value-equation">
-        <span><AnswerValue value={result.marketEV} /> all cards</span>
-        <b>−</b>
-        <span><AnswerValue value={ignoredEV} /> {result.threshold > 0 ? "ignored" : "filtered out"}</span>
-        <b>=</b>
-        <strong><AnswerValue value={result.sellableEV} /> used here</strong>
-      </p>
-    </section>
+    </section></AnswerGroup>
   );
 }
 
@@ -240,7 +234,7 @@ export function SlotCandle({
         <span className="slot-candle-body" style={{ left: `${position(bodyLow)}%`, width: `${Math.max(1, position(bodyHigh) - position(bodyLow))}%` }} />
         <span className="slot-candle-ev" style={{ left: `${position(expectedValue)}%` }} />
       </div>
-      <AnswerNote detail={`${CANDLE_EXPLANATION}${!distribution || distribution.preview ? " This is a provisional range while sampling finishes." : ""}${expectedValue > scaleMax ? " The EV marker is at the right edge because the average is above the displayed range." : ""}`} label={`What affects the ${label.toLowerCase()} chart`} />
+
       <div className="slot-candle-values" aria-hidden="true">
         <span><small>MIN</small>{fmtCompact(minimum)}</span>
         <b><small>EV</small>{fmtCompact(expectedValue)}</b>
@@ -287,7 +281,7 @@ export function SlotRail({
     <section className="buyer-slot-control" aria-label="My slots">
       <div className="step-heading">
         <InformationLabel>{stepLabel}</InformationLabel>
-        <Tip label="What the slot controls do" text={SLOT_HELP} />
+        <span className="section-help"><Tip label="What the slot controls do" text={SLOT_HELP} /><AnswerNote primary label="What affects the slot charts" detail={CANDLE_EXPLANATION} /></span>
       </div>
       <div className="buyer-slot-list" role="group" aria-label="Color slots">
         {SLOT_IDS.map((id) => {
@@ -376,7 +370,7 @@ export function CardInspector({
   const affiliateUrl = row
     ? affiliateTemplate?.replace("{card}", encodeURIComponent(row.card.name))
     : undefined;
-  const odds = row?.sellablePullProbability ?? 0;
+  const odds = row?.pullProbability ?? 0;
   const selectedFinish = row?.finish ?? (row && row.sellableFoilCopies > 0 ? "foil" : "nonfoil");
   const selectedPrice = row
     ? row.marketPrice ?? (selectedFinish === "foil" ? row.card.foil : row.card.nonfoil) ?? undefined
@@ -386,13 +380,6 @@ export function CardInspector({
     : row?.priceBasis === "same-printing-foil-market"
       ? "Same-printing foil market price"
       : "Exact-printing market price";
-  const baseSelectedPrice = row
-    ? selectedFinish === "foil" ? row.card.foil : selectedFinish === "nonfoil" ? row.card.nonfoil : undefined
-    : undefined;
-  const showSelectedFinishPrice = Boolean(row && (
-    selectedFinish !== "nonfoil"
-    || selectedPrice !== (baseSelectedPrice ?? undefined)
-  ));
   const faces = row?.card.faces ?? [];
   const activeFace = faces[faceIndex];
   const activeOracleText = activeFace?.oracleText ?? row?.card.oracleText;
@@ -406,7 +393,7 @@ export function CardInspector({
           exit={{ opacity: 0 }}
           onPointerDown={onClose}
         >
-          <motion.section
+          <AnswerGroup><motion.section
             ref={dialogRef}
             className="card-inspector"
             role="dialog"
@@ -420,7 +407,7 @@ export function CardInspector({
           >
             <header>
               <div>
-                <InformationLabel>CARD DETAILS</InformationLabel>
+                <div className="section-heading-row"><InformationLabel>CARD DETAILS</InformationLabel><span className="section-help"><Tip label="About this card’s numbers" text="Pull chance means at least one copy of this card version in the entire break. Market price is for one card, before selling costs." /><AnswerNote primary label="What affects this card" detail={`${selectedPrice == null ? "No market price is available yet; $0 is not a confirmed value" : selectedPriceSource}. ${row.pullRateVerified === false ? "Pull odds are estimated." : "Pull odds follow the available pack rules."} ${status !== "verified" ? "Missing product details can change these figures." : ""}${threshold > 0 ? ` Your $${threshold} filter changes counted value, not the physical chance of opening this card.` : ""}`} /></span></div>
                 <h2 id="card-inspector-title">{cardDisplayName(row.card, row.finish)}</h2>
               </div>
               <button
@@ -434,7 +421,7 @@ export function CardInspector({
             </header>
             <div className="card-inspector-body">
               <div className="card-art">
-                <PublicCardPlaceholder name={activeFace?.name ?? row.card.name} image={activeFace?.image ?? row.card.image} />
+                <PublicCardPlaceholder name={activeFace?.name ?? row.card.name} image={activeFace?.image ?? row.card.image} className="card-full-image" />
                 {faces.length > 1 && (
                   <button
                     type="button"
@@ -448,42 +435,12 @@ export function CardInspector({
               </div>
               <div className="card-info">
                 <div className="card-stat primary-stat">
-                  <span>Chance to pull<Tip label="What the pull chance means" text="How often opening this whole break turns up at least one copy of this exact card version. It answers “will I see one at all”, not “how many”." /></span>
-                  <strong>{oddsLabel(odds)}</strong>
-                  <small>
-                    {odds > 0 && odds < 1
-                      ? `About 1 in ${(1 / odds).toFixed(odds < 0.1 ? 1 : 0)} breaks`
-                      : odds >= 1
-                        ? "Guaranteed by known contents"
-                        : "No known pull path"}
-                  </small>
+                  <span>Chance to pull</span>
+                  <strong>{odds > 0 && odds < 1 ? odds > 2 / 3 ? "Most breaks" : `About 1 in ${Math.round(1 / odds).toLocaleString()} breaks` : odds >= 1 ? "In every modeled break" : "No known pull path"}</strong>
                 </div>
-                <div className="card-price-grid">
-                  <div className="card-stat">
-                    <span>Nonfoil market</span>
-                    <strong><AnswerValue value={row.card.nonfoil ?? undefined} /></strong>
-                  </div>
-                  <div className="card-stat">
-                    <span>Foil market</span>
-                    <strong><AnswerValue value={row.card.foil ?? undefined} /></strong>
-                  </div>
-                </div>
-                {showSelectedFinishPrice && <div className="card-stat selected-finish-price">
-                  <span>Selected finish price</span>
+                <div className="card-stat selected-finish-price">
+                  <span>{FINISH_LABELS[selectedFinish ?? "nonfoil"]} market</span>
                   <strong><AnswerValue value={selectedPrice} /></strong>
-                  <small>{row ? `${cardTreatmentLabel(row.card, selectedFinish)} · ${selectedPriceSource}` : selectedPriceSource}</small>
-                </div>}
-                <div className="card-stat">
-                  <span>Copies per break<Tip label="Why copies can differ from the pull chance" text="The average number of copies this break produces, counting every copy. It can be higher than the pull chance because some openings produce two or more copies while others produce none — the chance only counts whether you saw at least one." /></span>
-                  <strong>
-                    {row.sellableCopies.toFixed(3).replace(/0+$/, "").replace(/\.$/, "")}<AnswerNote detail="Average copies in this break, not a guarantee. Uses the current pack recipe and bulk filter; uncertain pull chances may change it." />
-                  </strong>
-                  {threshold > 0 && <Tip
-                    className="card-stat-flag"
-                    label="A value filter is active"
-                    text={`Card versions worth less than ${fmt(threshold)} are left out of this number. Turn the value filter off in Adjust assumptions to include them.`}
-                  />}
-                  {status !== "verified" && <small>Some product details are missing, so this could change.</small>}
                 </div>
                 {activeOracleText && (
                   <p className="oracle-text">{activeOracleText}</p>
@@ -501,7 +458,7 @@ export function CardInspector({
                 )}
               </div>
             </div>
-          </motion.section>
+          </motion.section></AnswerGroup>
         </motion.div>
       )}
     </AnimatePresence>,

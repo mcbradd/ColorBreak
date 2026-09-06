@@ -152,6 +152,7 @@ function NumericInput({
   selectOnFocus = false,
   required = false,
   monetary = false,
+  description,
 }: {
   value: number | undefined;
   onCommit: (value: number | undefined) => void;
@@ -166,6 +167,7 @@ function NumericInput({
   selectOnFocus?: boolean;
   required?: boolean;
   monetary?: boolean;
+  description?: string;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const dirty = useRef(false);
@@ -224,6 +226,7 @@ function NumericInput({
         disabled={disabled}
         required={required}
         aria-label={ariaLabel}
+        aria-description={description}
         onFocus={(event) => { setEditing(true); if (selectOnFocus) event.currentTarget.select(); }}
         onChange={(event) => {
           const next = event.target.value;
@@ -299,12 +302,9 @@ export function NumberField({
 }) {
   return (
     <label className={`number-field${inline ? " inline-number-field" : ""}`}>
-      <span>
-        {label}
-        <EstimateTip label={`What affects ${label.toLowerCase()}`} text={hint ?? (value == null ? "No value has been entered here. The estimate uses its stated default or available market price; enter your own figure to improve it." : "This is an editable planning input. Calculations use the value shown; update it when you know a better figure.")} />
-      </span>
+      <span>{label}</span>
       <div>
-        {prefix && <b>{prefix}</b>}
+        {(prefix || suffix) && <b>{prefix || suffix}</b>}
         <NumericInput
           id={id}
           value={value}
@@ -312,10 +312,10 @@ export function NumberField({
           placeholder="0"
           onCommit={onChange}
           ariaLabel={label}
+          description={hint}
           live={live}
           max={max}
         />
-        {suffix && <b className="number-field-suffix">{suffix}</b>}
       </div>
     </label>
   );
@@ -475,16 +475,18 @@ function PanelHeading({
   title,
   accessory,
   description,
+  estimate,
 }: {
   label: ReactNode;
   help?: string;
   title: ReactNode;
   accessory?: ReactNode;
   description?: ReactNode;
+  estimate?: ReactNode;
 }) {
   return (
     <header className="panel-heading">
-      <InformationLabel help={help}>{label}</InformationLabel>
+      <div className="section-heading-row"><InformationLabel>{label}</InformationLabel><span className="section-help">{help && <Tip text={help} />}{estimate}</span></div>
       <div className="panel-heading-main">
         <div className="panel-heading-copy">
           <h2>{title}</h2>
@@ -497,14 +499,7 @@ function PanelHeading({
 }
 
 function Status({ result }: { result: ValuationResult }) {
-  return <span className={`status ${result.status}`}><span>{result.status}</span><EstimateTip
-    label={`Explain ${result.status} data status`}
-    text={result.status === "verified"
-      ? "Uses available product details, pack odds and card prices. Real openings and selling prices still vary."
-      : result.status === "estimated"
-        ? "Some product details use estimates. The answer improves as better prices and pack odds arrive."
-        : "Some prices or pack details are missing. The best available value is shown; unknown parts can make it too low."}
-  /></span>;
+  return <span className={`status ${result.status}`}>{result.status}</span>;
 }
 
 export function Home({ choose, buildId, recentBuyerCount = 0, recentSellerCount = 0, onClearDevice }: { choose: (mode: Mode, fresh?: boolean, ready?: boolean) => void; buildId?: string; recentBuyerCount?: number; recentSellerCount?: number; onClearDevice?: () => Promise<void> }) {

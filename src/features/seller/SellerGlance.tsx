@@ -2,7 +2,7 @@ import { useBuyerCosts } from "../shared/useBuyerCosts";
 import { ShippingField } from "../shared/ShippingField";
 import { probableRange, chartPosition } from "../../domain/outcome-chart";
 import { answerFactors } from "../../domain/answer-quality";
-import { AnswerValue, AnswerNote, AnswerGraphic, AnswerProvider } from "../shared/Answer";
+import { AnswerValue, AnswerNote, AnswerGraphic, AnswerProvider, AnswerGroup } from "../shared/Answer";
 import { useEffect, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import type { BreakAnalysis } from "../../data/evaluate";
@@ -10,7 +10,7 @@ import { bidCeiling } from "../../domain/bid-ceiling";
 import { decisionEligibility } from "../../domain/valuation";
 import { SLOT_IDS, SLOT_NAMES, type SlotId, type BreakLine } from "../../domain/types";
 import { IncompleteDataWarning, useOutcomeSimulation } from "../shared/OutcomeFeedback";
-import { fmt, fmtCompact, InformationLabel, NumberField } from "../shared/Primitives";
+import { fmt, fmtCompact, InformationLabel, NumberField, Tip } from "../shared/Primitives";
 
 const dockValue = (value: number) => value >= 10_000
   ? new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", notation: "compact", maximumFractionDigits: 1 }).format(value)
@@ -44,8 +44,8 @@ function GlanceResult({ analysis, current, busy, lines }: { analysis: BreakAnaly
   const ceiling = distribution ? bidCeiling(distribution.median, costs.costs) : undefined;
   const mean = slot === "random" ? analysis.valuation.sellableEV / SLOT_IDS.length : analysis.valuation.slots.find((row) => row.id === slot)?.sellableEV;
   const max = Math.max(1, ...SLOT_IDS.map((id) => probableRange(simulation.result?.slotDistributions[id], 0, "80").high));
-  return <AnswerProvider value={answerFactors(analysis.valuation, analysis.outcomeModel.complete, busy, analysis.outcomeOmissions)}>
-    <header className="glance-heading"><InformationLabel>2 · READ THE BREAK</InformationLabel><span className={fresh ? "glance-fresh" : "glance-caution"}>{evidence}</span></header>
+  return <AnswerProvider value={answerFactors(analysis.valuation, analysis.outcomeModel.complete, busy, analysis.outcomeOmissions)}><AnswerGroup>
+    <header className="glance-heading"><InformationLabel>2 · READ THE BREAK</InformationLabel><span className="section-help"><Tip label="How to read these values" text="EV is the average; typical is the median. Bars show the middle 80% of openings. MIN and MAX are separate possible limits." /><AnswerNote primary label="What affects these break values" detail="Bars show the middle 80% of openings; MIN and MAX are separate limits. Bid limits subtract estimated buyer shipping and tax. Missing prices or uncertain pack odds can change these values." /></span><span className={fresh ? "glance-fresh" : "glance-caution"}>{evidence}</span></header>
     {!current && <p className="glance-updating" role="status">{busy ? "Updating this mix… Best available values shown below." : "Best available estimate. Retry to improve it."}</p>}
     <div className="glance-total"><div><span>Whole break · expected card value</span><strong><AnswerValue value={analysis.valuation.sellableEV} /></strong></div><small>{analysis.valuation.threshold > 0 ? `Cards under ${fmt(analysis.valuation.threshold)} excluded` : "All priced cards included"}</small></div>
     <div className="glance-decision" aria-label="Selected spot value">
@@ -80,5 +80,5 @@ function GlanceResult({ analysis, current, busy, lines }: { analysis: BreakAnaly
       <button type="button" onClick={() => { document.activeElement instanceof HTMLElement && document.activeElement.blur(); const target = document.getElementById("seller-value"); target?.scrollIntoView({ block: "start" }); target?.focus({ preventScroll: true }); }}>Colors ↓</button>
       <small>{!current || !rangesCurrent ? "Updating your mix" : evidence}</small>
     </aside>, document.body)}
-  </AnswerProvider>;
+  </AnswerGroup></AnswerProvider>;
 }

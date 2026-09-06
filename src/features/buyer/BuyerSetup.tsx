@@ -1,3 +1,4 @@
+import { AnswerNote } from "../shared/Answer";
 import type {
   BreakLine,
   SlotId,
@@ -92,10 +93,10 @@ export function BuyerSetup({
         <div className="buyer-assumptions-body">
           <div className="step-heading">
             <InformationLabel>{isLarge ? "3 · MY COSTS" : "4 · MY COSTS"}</InformationLabel>
-            <Tip
+            <span className="section-help"><Tip
               label="What these costs do"
-              text="Everything you pay on top of the hammer price. They come off the modeled value, so the bid limit is what you can actually pay. Set them once — they stay until you change them."
-            />
+              text="Shipping and tax come off the bid limit. Flat fee charges once per combined shipment; per item charges every purchased spot."
+            /><AnswerNote primary label="What affects the cost assumptions" detail={`Shipping: weight-based Whatnot US label estimate; seller profiles and destination can change it. Tax: a regional guess from your device time zone, not your delivery address. Your typed amounts replace these guesses.`} /></span>
           </div>
           <div className="buyer-cost-fields">
             <ShippingField value={costs.amount} mode={costs.mode} onValue={(shipping) => costs.update({ shipping })} onMode={(shippingMode) => costs.update({ shippingMode })} hint={costs.shippingNote} />

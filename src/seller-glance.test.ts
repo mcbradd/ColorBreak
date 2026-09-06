@@ -99,7 +99,7 @@ describe("seller value at a glance", () => {
     expect(screen.getByRole("button", { name: "Inspect Blue value" })).toHaveTextContent("$20.00");
     expect(screen.getByLabelText("Selected spot value")).toHaveTextContent("Average $3.75");
     expect(screen.getByLabelText("Modeled opening range")).toHaveTextContent("$0.00");
-    expect(screen.getAllByRole("button", { name: "What affects this chart" }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("button", { name: "What affects these break values" })).toHaveLength(1);
   });
 
   it("shows the selected color's endpoints and retains a real zero median", () => {
@@ -132,7 +132,7 @@ describe("seller value at a glance", () => {
     show(value);
     expect(screen.getByText("Estimated bid limit").parentElement).toHaveTextContent("$4.00");
     expect(screen.queryByText(/Analysis only/)).not.toBeInTheDocument();
-    expect(screen.getAllByRole("button", { name: "What affects this estimate" }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("button", { name: "What affects these break values" }).length).toBeGreaterThan(0);
   });
 
   it("keeps numeric ranges available while refinement runs", () => {

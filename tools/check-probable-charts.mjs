@@ -37,7 +37,7 @@ try {
     const values = mode === "buyer" ? page.locator(".slot-candle-values").first() : page.locator(".glance-color > small").first();
     assert.match(await values.innerText(), /MIN/);
     assert.match(await values.innerText(), /MAX/);
-    const note = mode === "buyer" ? page.locator(".slot-candle .answer-note").first() : page.locator(".glance-color > small .answer-note").first();
+    const note = mode === "buyer" ? page.locator(".buyer-slot-control .step-heading .answer-note").first() : page.locator(".glance-heading .answer-note").first();
     await note.click();
     assert.match(await page.getByRole("tooltip").innerText(), mode === "buyer" ? /middle 98%/ : /middle 80%/);
     await page.keyboard.press("Escape");

@@ -20,7 +20,7 @@ try {
     await page.locator('.glance-total .answer-value').filter({ hasText: /\$[1-9]/ }).waitFor({ timeout: 30000 });
     if (await page.getByRole('button', { name: /Done entering/ }).count()) await page.getByRole('button', { name: /Done entering/ }).first().click();
     await page.locator('.glance-limit').scrollIntoViewIfNeeded();
-    const note = page.locator('.glance-limit .answer-note');
+    const note = page.locator('.glance-heading .answer-note');
     await note.click();
     await page.getByRole('tooltip').waitFor();
     assert.match(await page.getByRole('tooltip').innerText(), /shipping|price|estimate/i);
@@ -65,8 +65,8 @@ try {
       await page.getByRole('button', { name: 'Done', exact: true }).click();
       await page.locator('.max-hammer .answer-value').waitFor();
       assert.match(await page.locator('.max-hammer').innerText(), /\$/);
-      await page.locator('.slot-candle .answer-note').first().click();
-      assert.match(await page.getByRole('tooltip').innerText(), /middle 98%.*MIN and MAX.*separate numbers/i);
+      await page.locator('.buyer-slot-control .step-heading .answer-note').first().click();
+      assert.match(await page.getByRole('tooltip').innerText(), /middle 98%.*MIN and MAX.*separate numbers/is);
       await page.keyboard.press('Escape');
       assert.equal(await page.getByRole('tooltip').count(), 0);
       assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), 'buyer horizontal overflow');

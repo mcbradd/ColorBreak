@@ -120,8 +120,8 @@ describe("Bid Check command center", () => {
 
     render(createElement(BuyerWorkspace, { exit: vi.fn(), startFresh: false, startReady: false }));
 
-    const warningTitle = await screen.findByText("Some estimates may be low");
-    fireEvent.click(within(warningTitle.parentElement!).getByRole("button", { name: "What affects this estimate" }));
+    await screen.findByText("Some estimates may be low");
+    fireEvent.click(screen.getByRole("button", { name: "What affects the bid limit" }));
     expect(screen.getByRole("tooltip")).toHaveTextContent("1× foil box topper has no verified card list.");
     await waitFor(() => expect(screen.getByLabelText("Highest bid to make")).toHaveTextContent("$12.00"));
     expect(screen.queryByText("LIMIT UNAVAILABLE")).not.toBeInTheDocument();

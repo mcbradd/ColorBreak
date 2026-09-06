@@ -103,3 +103,10 @@ describe("buyer color controls", () => {
     expect(screen.queryByRole("button", { name: /combined lot/ })).not.toBeInTheDocument();
   });
 });
+
+it("places one shared estimate note in the slot header, away from ownership buttons", () => {
+  const { container } = render(createElement(Harness));
+  expect(container.querySelectorAll(".buyer-slot-control .answer-note")).toHaveLength(1);
+  expect(container.querySelector(".buyer-slot-control .step-heading .answer-note")).not.toBeNull();
+  expect(container.querySelectorAll(".buyer-slot-row .answer-note")).toHaveLength(0);
+});

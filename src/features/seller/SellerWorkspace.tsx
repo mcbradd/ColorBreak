@@ -1,3 +1,4 @@
+import { useShareFeedback } from "../shared/ShareFeedback";
 import { bestAvailableAnalysis } from "../../data/answer-cache";
 import { answerFactors } from "../../domain/answer-quality";
 import { AnswerProvider } from "../shared/Answer";
@@ -32,7 +33,7 @@ export function SellerWorkspace({ exit }: { exit: () => void }) {
   const [error, setError] = useState<string>();
   const [legacyNotice, setLegacyNotice] = useState(false);
   const [generation, setGeneration] = useState(0);
-  const [shareStatus, setShareStatus] = useState<string>();
+  const { copy, toast } = useShareFeedback();
   const request = useRef(0);
   // Acquisition costs and hydrated display metadata do not change card values.
   const calculationRevision = `${canonicalCompositionFingerprint(lines)}:${generation}`;
@@ -41,7 +42,7 @@ export function SellerWorkspace({ exit }: { exit: () => void }) {
   const sharedHref = createBreakShareUrl(`${location.origin}${location.pathname}#buyer`, { lines, assignmentMode: "pick", selectedSlots: ["W"], remaining: createAuction().remaining, bulkEnabled: true, bulkThreshold: 2, largeSpots: transactionCount });
   useEffect(() => { if (cleanupLegacyStorage()) setLegacyNotice(true); }, []);
   useEffect(() => { try { writeSessionLines("seller", lines); } catch { /* session persistence is optional */ } }, [lines]);
-  useEffect(() => { if (location.search) history.replaceState(null, "", `${location.pathname}#seller`); }, []);
+  useEffect(() => { history.replaceState(null, "", lines.length ? sharedHref.replace("#buyer", "#seller") : `${location.pathname}#seller`); }, [sharedHref, lines.length]);
   useLayoutEffect(() => {
     const current = ++request.current;
     if (!lines.length) {
@@ -75,11 +76,11 @@ export function SellerWorkspace({ exit }: { exit: () => void }) {
   }, [lines.map((line) => `${line.id}:${line.productKey}:${line.tcgId ?? ""}`).join("|")]);
   const openBuilder = (opener?: HTMLElement) => { setBuilderOpener(opener ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null)); setBuilder(true); };
   const update = (id: string, patch: Partial<BreakLine>) => setLines((rows) => rows.map((row) => row.id === id ? { ...row, ...patch } : row));
-  const share = async () => { try { await navigator.clipboard.writeText(sharedHref); setShareStatus("Buyer setup link copied"); } catch { setShareStatus("Clipboard unavailable — copy the displayed buyer setup URL."); } };
+  const share = () => copy(sharedHref);
   return <>
-    <nav><button className="wordmark" onClick={exit}><span className="brand-mark"><Sparkles /></span>COLORBREAK</button><div className="nav-actions">{lines.length > 0 && <button className="icon-button" onClick={share} title="Copy buyer break setup — excludes seller costs and actuals." aria-label="Copy buyer break setup"><Copy /></button>}</div></nav>
+    <nav><button className="wordmark" onClick={exit}><span className="brand-mark"><Sparkles /></span>COLORBREAK</button><div className="nav-actions">{lines.length > 0 && <button className="icon-button" onClick={share} title="Copy break link — private costs are excluded." aria-label="Copy break link"><Copy /></button>}</div></nav>
     {legacyNotice && <p role="status">Legacy durable drafts were removed because they could contain financial data. Current drafts stay only in this browser session.</p>}
-    {shareStatus && <p role="status">{shareStatus} <input aria-label="Buyer setup URL" readOnly value={sharedHref} /></p>}
+    {toast}
     <AnswerProvider value={analysis ? answerFactors(analysis.valuation, analysis.outcomeModel.complete, busy, analysis.outcomeOmissions) : []}><main className="workspace page seller-fast" tabIndex={-1} data-focus-fallback><header className="workspace-title"><div><p className="eyebrow">SELLER STUDIO</p><h1>Build &amp; value a break</h1></div></header>
       <div className="seller-fast-grid">
         <QuickBreakComposer lines={lines} onChange={setLines} onImport={() => openBuilder()} />

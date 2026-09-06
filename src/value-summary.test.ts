@@ -26,14 +26,11 @@ describe("filtered value summary", () => {
     const rawMetric = screen.getByText("Before ignoring bulk").closest("div")!;
     expect(within(rawMetric).getByText("$11.00")).toBeInTheDocument();
     expect(screen.getByText("BREAK VALUE AFTER IGNORING BULK")).toBeInTheDocument();
-    expect(document.querySelector(".value-equation")).toHaveTextContent("$11.00 all cards");
-    expect(document.querySelector(".value-equation")).toHaveTextContent("$1.00 ignored");
-    expect(document.querySelector(".value-equation")).toHaveTextContent("$10.00 used here");
-    const status = screen.getByRole("button", { name: /explain verified data status/i });
-    expect(status).toHaveClass("answer-note");
-    expect(status.closest(".status")).toHaveClass("verified");
-    fireEvent.click(status);
-    expect(screen.getByRole("tooltip")).toHaveTextContent("Uses available product details, pack odds and card prices.");
+    expect(document.querySelector(".value-equation")).toBeNull();
+    expect(screen.getAllByText("$10.00")).toHaveLength(1);
+    expect(document.querySelectorAll(".answer-note")).toHaveLength(1);
+    fireEvent.click(screen.getByRole("button", { name: "What affects this estimate" }));
+    expect(screen.getByRole("tooltip")).toHaveTextContent("Missing prices can make totals too low.");
   });
 });
 

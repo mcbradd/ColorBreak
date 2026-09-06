@@ -7,7 +7,7 @@ ColorBreak supports two time-sensitive jobs: a buyer deciding whether to bid on 
 ## Ubiquitous language
 
 - **Best available answer**: the current estimate from the strongest available evidence, improved as data arrives. Fresh exact observations take precedence over matching cached observations, which take precedence over a disclosed approximation. When no defensible estimate exists for an item, the known subtotal still appears; an unknown contribution of $0 never claims that item is worthless.
-- **Estimate note**: the universal circled asterisk beside a calculated field or graphic. Tapping it explains the relevant missing data or assumptions in concise everyday language.
+- **Estimate note**: one circled asterisk per logical section, beside its help icon when present. It collects the section's assumptions and missing data in concise everyday language. Repeated values and charts do not repeat the icon; a card's own details panel explains its specific caveats.
 - **MIN / MAX**: minimum and maximum possible counted card value under the available pack rules and prices, including rare outcomes. For a random spot, the limits span the remaining eligible slots; marginal color maxima are not summed. Missing data or approximate pack rules qualify these bounds.
 - **Probable chart range**: candlestick whiskers show the middle 98% of modeled outcomes, with the middle 50% as the body. Compact seller bars show the middle 80%. Numerical MIN/MAX remain separate and never determine chart scale.
 - **Quick range**: immediate modeled MIN and MAX, with a provisional typical value while sampling is refined.

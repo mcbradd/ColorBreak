@@ -25,12 +25,13 @@ export function App({ releaseContext = runtimeReleaseContext }: { releaseContext
     // Every mode - including "home" - gets its own hash, so a real (non-SPA)
     // navigation back to this URL resolves to the same mode instead of
     // falling through to the buyer-workspace default. See route-mode.ts.
-    history.replaceState(null, "", `${location.pathname}${location.search}${hashForMode(next)}`);
+    history.replaceState(null, "", `${location.pathname}${hashForMode(next)}`);
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
     if (next === "home") window.setTimeout(() => document.querySelector<HTMLElement>("[data-home-focus]")?.focus({ preventScroll: true }), 220);
   };
   useEffect(() => {
     const syncRoute = () => {
+      if (!["#buyer", "#seller", "#home", ""].includes(location.hash)) return;
       setStartFreshBuyer(false);
       setStartReadyBuyer(false);
       setMode(routeMode());

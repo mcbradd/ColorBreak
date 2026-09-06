@@ -113,7 +113,7 @@ describe("large break card list", () => {
     fireEvent.click(compactCard);
 
     const dialog = screen.getByRole("dialog", { name: "Listed Foil (Foil)" });
-    expect(dialog).toHaveTextContent("Selected finish price$18.25");
+    expect(dialog).toHaveTextContent("Foil market$18.25");
   });
 
   it("lists every named slot and opens every card assigned to a selected slot", () => {
@@ -196,9 +196,10 @@ describe("large break card list", () => {
     fireEvent.click(screen.getByRole("button", { name: "Price" }));
     const card = screen.getByRole("button", { name: "Show cards in Sothera, the Supervoid slot" }).parentElement!;
     expect(card.querySelector(".large-break-card-value")).toHaveTextContent("$2.40");
-    fireEvent.click(card.querySelector(".answer-note")!);
-    expect(screen.getByRole("tooltip")).toHaveTextContent("exact pull chance cannot be checked");
-    expect(screen.getByRole("tooltip")).toHaveTextContent("community or inferred odds");
+    fireEvent.click(screen.getByRole("button", { name: "Show cards in Sothera, the Supervoid slot" }));
+    fireEvent.click(screen.getByRole("button", { name: /Open Sothera.*card details/ }));
+    fireEvent.click(screen.getByRole("button", { name: "What affects this card" }));
+    expect(screen.getByRole("tooltip")).toHaveTextContent("Pull odds are estimated.");
 
   });
 });

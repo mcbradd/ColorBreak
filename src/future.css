@@ -1555,3 +1555,85 @@ img.card-thumbnail { object-fit: cover; background: #171b23; }
 .bulk-value-field:focus-within { flex-basis: 100%; }
 .bulk-value-field:focus-within > div { min-width: 156px; }
 .bulk-filter-main .bulk-value-field:focus-within { grid-template-columns: minmax(0, 1fr) minmax(156px, .6fr); }
+.section-heading-row { display:flex; align-items:center; justify-content:space-between; gap:12px; width:100%; min-width:0; }
+.section-heading-row > .information-label { flex:1; min-width:0; margin:0; }
+.section-help { display:inline-flex; align-items:center; gap:8px; flex:0 0 auto; }
+.section-help > .tip { display:inline-flex; position:static; justify-content:center; align-items:center; width:44px; height:44px; min-width:44px; margin:0; padding:10px; }
+.section-help > .tip svg { width:20px; height:20px; }
+.tip-popover { white-space:pre-line; }
+.panel-heading > .section-heading-row { margin-bottom:10px; }
+.buyer-results, .bid-explorer, .bid-explorer-body { border:0; background:transparent; padding:0; box-shadow:none; }
+.bid-explorer-body > .panel { border:0; border-top:1px solid var(--line); background:transparent; box-shadow:none; }
+.bid-explorer-body > .panel > .panel-heading { padding:16px 0; }
+.bid-check-workbench.is-empty .buyer-decision-stage:empty { display:none; }
+.slot-detail .panel-heading-main { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:start; gap:12px; }
+.slot-detail .panel-heading-copy h2 { font-size:24px; text-transform:none; }
+.slot-detail .risk-explainer { margin:8px 0 0; font-size:14px; line-height:1.4; }
+.slot-detail .risk-label { margin:0; padding:6px 0; border:0; background:transparent; font-size:12px; white-space:nowrap; }
+.slot-detail .concentration { padding:10px 0 16px; }
+.slot-detail .risk-bar { margin:0; height:8px; }
+.concentration-labels { display:flex; justify-content:space-between; gap:20px; margin-top:8px; color:var(--muted); font-size:12px; }
+.concentration-labels > span { flex:1; }
+.concentration-labels > span:last-child { text-align:right; }
+.slot-detail .contributors { padding:14px 0; }
+.contributor-toolbar { display:flex; align-items:center; gap:8px; }
+.contributor-toolbar .contributor-search { flex:1; min-width:0; margin:0; }
+.contributor-list-help { display:flex; justify-content:flex-end; margin-left:auto; flex-shrink:0; }
+.contributor-list-help .tip { display:grid; place-items:center; width:44px; height:44px; margin:0; }
+.contributor-columns { display:grid; grid-template-columns:minmax(0,1fr) 64px 78px; gap:8px; font-size:11px !important; }
+.contributor-columns > span { min-width:0 !important; padding:4px 0 !important; background:none !important; }
+.contributor-card.card-row { display:grid; grid-template-columns:34px minmax(0,1fr) 64px 78px; gap:8px; width:100%; padding:12px 0; background:transparent; }
+.contributor-card .card-summary { min-width:0; overflow-wrap:anywhere; }
+.contributor-card .card-summary strong { font-size:16px !important; line-height:1.3; }
+.contributor-card .card-summary small { font-size:12px !important; line-height:1.4; }
+.contributor-card .pull-odds, .contributor-card .ev-contribution { min-width:0; padding:0; background:none; text-align:right; }
+.contributor-card .pull-odds b, .contributor-card .ev-contribution b { font-size:15px !important; white-space:nowrap; }
+.card-inspector .card-inspector-body { padding:12px; gap:16px; }
+.card-inspector .card-art { position:static; min-width:0; }
+.card-inspector .card-art .card-full-image { display:block; width:100%; max-width:360px; height:auto; max-height:none; aspect-ratio:5/7; object-fit:contain; border:0; background:transparent; }
+.card-inspector .card-art span.card-full-image { display:grid; place-items:center; border:1px dashed var(--line); }
+.card-inspector > header { display:grid; grid-template-columns:minmax(0,1fr) 44px; gap:12px; align-items:start; }
+.card-inspector > header h2 { font-size:20px; line-height:1.3; }
+.card-inspector .card-stat { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:10px; align-items:center; padding:12px 0; border:0; border-bottom:1px solid var(--line); background:none; }
+.card-inspector .card-stat strong { font-size:18px; text-align:right; }
+.card-inspector .primary-stat { grid-template-columns:1fr; gap:4px; }
+.card-inspector .primary-stat strong { text-align:left; color:var(--accent); }
+.card-inspector .oracle-text { padding:12px 0; border:0; background:none; font-size:16px; line-height:1.5; }
+.share-toast { position:fixed; z-index:500; left:50%; top:calc(var(--visual-viewport-top, 0px) + 16px); transform:translateX(-50%); width:max-content; max-width:calc(100vw - 24px); padding:14px 20px; border:1px solid var(--line-strong); background:#15251c; color:var(--ink); box-shadow:0 6px 24px #0008; font-size:15px; pointer-events:none; }
+.numeric-input > input { text-align:right; font-variant-numeric:tabular-nums; }
+.quantity-selector .numeric-input > input { text-align:center; }
+.buyer-assumptions { --entry-width: min(48%, 180px); }
+.buyer-assumptions .inline-number-field { grid-template-columns:minmax(0,1fr) var(--entry-width); gap:10px; }
+.buyer-assumptions .shipping-mode { width:var(--entry-width); justify-self:end; display:grid; grid-template-columns:1fr 1fr; }
+.buyer-assumptions .shipping-mode button { padding:6px 4px; width:100%; }
+.buyer-assumptions .bulk-filter-main { display:grid; grid-template-columns:1fr; padding:0; border:0; gap:10px; }
+.buyer-assumptions .bulk-filter-control { border:0; background:none; }
+.buyer-assumptions .bulk-filter-main .bulk-value-field { display:grid; grid-template-columns:minmax(0,1fr) var(--entry-width); gap:10px; }
+.buyer-assumptions .bulk-value-field > span { text-align:left; }
+.buyer-assumptions .bulk-value-field > div { min-width:0; }
+.buyer-assumptions .number-field > div, .buyer-assumptions .bulk-value-field > div { min-height:48px; }
+.buyer-assumptions .bulk-value-field input { padding:10px 8px; }
+.buyer-assumptions .number-field:focus-within, .buyer-assumptions .bulk-value-field:focus-within { --entry-width: max(156px, 48%); }
+@media(max-width:600px) {
+  .bid-check-workbench .composition .line { grid-template-columns:minmax(0,1fr) 156px; gap:10px; }
+  .bid-check-workbench .composition .line > .set-glyph { display:none; }
+  .bid-check-workbench .composition .line > .quantity-selector { grid-column:2; grid-row:1; }
+  .bid-check-workbench .composition .line strong { font-size:15px !important; }
+  .bid-check-workbench .composition .line small { font-size:12px !important; }
+  .slot-detail .panel-heading-main { grid-template-columns:1fr; gap:6px; }
+  .slot-detail .panel-heading-accessory { justify-self:start; }
+  .contributor-columns { grid-template-columns:minmax(0,1fr) 52px 68px; gap:6px; }
+  .contributor-card.card-row { grid-template-columns:28px minmax(0,1fr) 52px 68px; gap:6px; }
+  .contributor-card .card-thumbnail { width:28px; height:auto; aspect-ratio:5/7; }
+  .contributor-card .pull-odds b, .contributor-card .ev-contribution b { font-size:14px !important; }
+  .card-inspector { width:100%; border-inline:0; }
+  .card-inspector .card-inspector-body { grid-template-columns:minmax(0,1fr); }
+}
+
+.contributor-columns > span { font-size:11px !important; white-space:nowrap; letter-spacing:.03em; }
+.section-heading-row .information-label { font-size:15px !important; }
+.section-estimate { display:flex; justify-content:flex-end; }
+.section-estimate > .answer-note { width:44px; height:44px; display:grid; place-items:center; margin:0; }
+.glance-heading { flex-wrap:wrap; }
+.glance-heading > .section-help { margin-left:auto; }
+.glance-heading > .glance-fresh, .glance-heading > .glance-caution { flex-basis:100%; }

@@ -1,8 +1,9 @@
+import { useShareFeedback } from "../shared/ShareFeedback";
 import { bestAvailableAnalysis } from "../../data/answer-cache";
 import { answerFactors } from "../../domain/answer-quality";
 import { AnswerProvider } from "../shared/Answer";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { BarChart3, Copy, Lock, Sparkles } from "lucide-react";
+import { Copy, Lock, Sparkles } from "lucide-react";
 import { productsForSet } from "../../data/catalog";
 import type { BreakAnalysis } from "../../data/evaluate";
 import { assessBuyerDecision, type BuyerDecisionAssessment, type PreparedProductSelection } from "../../domain/decision-evidence";
@@ -80,13 +81,6 @@ export function BuyerWorkspace({
   const [manualHammer, setManualHammer] = useState<number>();
   const [recoveryRecord, setRecoveryRecord] = useState(() => isSharedBreak ? initialBuyerRecord : undefined);
   const [buyerRecoveryReady, setBuyerRecoveryReady] = useState(() => !initialBuyerRecord || isSharedBreak);
-  const [importUndo, setImportUndo] = useState<{
-    lines: BreakLine[];
-    assignmentMode: AssignmentMode;
-    largeSpots: number;
-    bulkEnabled: boolean;
-    bulkThreshold: number;
-  }>();
   const threshold = bulkEnabled ? bulkThreshold : 0;
   const costSettings = useBuyerCosts(lines, analysis?.valuation, assignmentMode === "large" ? largeSpots : 8, assignmentMode === "large" ? 0 : selectedSlots.length);
   const costs = costSettings.costs;
@@ -124,8 +118,8 @@ export function BuyerWorkspace({
     largeSpots,
   });
   useEffect(() => {
-    if (location.search) history.replaceState(null, "", `${location.pathname}#buyer`);
-  }, []);
+    history.replaceState(null, "", lines.length ? sharedHref : `${location.pathname}#buyer`);
+  }, [sharedHref, lines.length]);
   useLayoutEffect(() => {
     if (!lines.length) {
       setAnalysis(undefined);
@@ -232,13 +226,12 @@ export function BuyerWorkspace({
     });
     return () => { cancelled = true; };
   }, [lines.map((line) => `${line.id}:${line.productKey}:${line.tcgId ?? ""}`).join("|")]);
-  const [shareStatus, setShareStatus] = useState<string>();
+  const { copy, toast } = useShareFeedback();
   // One simulation for the whole workspace: the slot rail's candles and the
   // decision's outcome range are two views of the same modeled openings.
   const simulation = useOutcomeSimulation(analysis, auction.remaining, undefined);
   const share = async () => {
-    try { await navigator.clipboard.writeText(sharedHref); setShareStatus("Buyer setup link copied"); }
-    catch { setShareStatus("Clipboard unavailable — copy the displayed buyer setup URL."); }
+    await copy(sharedHref);
     track("buyer_setup_copied", { mode, productCount: lines.length });
   };
   return (
@@ -254,8 +247,8 @@ export function BuyerWorkspace({
           {lines.length > 0 && <button
             className="icon-button"
             onClick={share}
-            title="Copy buyer break setup — excludes bids, shipping, seller costs, and actuals."
-            aria-label="Copy buyer break setup"
+            title="Copy break link — private costs are excluded."
+            aria-label="Copy break link"
           >
             <Copy />
           </button>}
@@ -299,27 +292,16 @@ export function BuyerWorkspace({
           }}>Start clean</button>
         </div>
       </aside>}
-      {shareStatus && <p role="status">{shareStatus} <input aria-label="Buyer setup URL" readOnly value={sharedHref} /></p>}
+      {toast}
       <AnswerProvider value={analysis ? answerFactors(analysis.valuation, analysis.outcomeModel.complete, busy, analysis.outcomeOmissions) : []}><main className="workspace page" tabIndex={-1} data-focus-fallback>
         <header className="workspace-title">
           <div>
             <h1>{assignmentMode === "large" ? "Large break" : "Check a bid"}</h1>
           </div>
         </header>
-        {importUndo && <aside className="import-undo" aria-live="polite">
-          <span><b>Break updated</b><small>{lines.length} line{lines.length === 1 ? "" : "s"} updated</small></span>
-          <button type="button" className="quiet" onClick={() => {
-            setLines(importUndo.lines);
-            setAssignmentMode(importUndo.assignmentMode);
-            setLargeSpots(importUndo.largeSpots);
-            setBulkEnabled(importUndo.bulkEnabled);
-            setBulkThreshold(importUndo.bulkThreshold);
-            setImportUndo(undefined);
-          }}>Undo</button>
-        </aside>}
         {isSharedBreak && lines.length > 0 && <aside className="shared-calculation-notice" aria-label="Shared calculation details">
           <Lock />
-          <span><b>SHARED CALCULATION · USD · MODEL v4</b><small>Original link unchanged. Editing makes a local copy · {lines.length} products / {lines.reduce((total, line) => total + line.quantity * Math.max(1, line.packCount ?? 1), 0)} openings · Prices observed {analysis?.priceAvailability?.observedAt ? new Date(analysis.priceAvailability.observedAt).toLocaleString() : "loading"}</small></span>
+          <span><b>SHARED CALCULATION · USD · MODEL v4</b><small>Editing updates this break link · {lines.length} products / {lines.reduce((total, line) => total + line.quantity * Math.max(1, line.packCount ?? 1), 0)} openings · Prices observed {analysis?.priceAvailability?.observedAt ? new Date(analysis.priceAvailability.observedAt).toLocaleString() : "loading"}</small></span>
         </aside>}
         <>
           {lines.length > 0 && <div className="mobile-stage-nav" aria-label={assignmentMode === "large" ? "Large Break sections" : "Break sections"}><a href="#buyer-large-result">Decision</a>{assignmentMode === "large" && <a href="#buyer-large-assignments">Assignments</a>}<a href="#buyer-break-setup">{isSharedBreak ? "Customize" : "Edit break"}</a></div>}
@@ -346,7 +328,7 @@ export function BuyerWorkspace({
               setLargeSpots={setLargeSpots}
             />
             <div id="buyer-large-result" className="results buyer-results buyer-decision-stage">
-              {manualCapOpen ? <ManualBudgetCap onBack={() => { setManualCapOpen(false); openBuilder(); }} target={manualTarget} setTarget={setManualTarget} shipping={manualShipping} setShipping={setManualShipping} hammer={manualHammer} setHammer={setManualHammer} /> : !lines.length && <section className="buyer-awaiting-break"><span><BarChart3 /></span><h2>Add a product to begin</h2></section>}
+              {manualCapOpen ? <ManualBudgetCap onBack={() => { setManualCapOpen(false); openBuilder(); }} target={manualTarget} setTarget={setManualTarget} shipping={manualShipping} setShipping={setManualShipping} hammer={manualHammer} setHammer={setManualHammer} /> : null}
               {busy && <div className="calculating" role="status" aria-live="polite"><span />Improving the estimate…</div>}
               {error && <CompactWarning title="Couldn’t load this result" summary="The best available estimate remains visible. Retry to improve it." className="load-warning"><p role="alert">{error}</p><div className="buyer-recovery-actions"><button type="button" className="quiet" onClick={() => setCalculationGeneration((value) => value + 1)}>Retry analysis</button><button type="button" className="quiet" onClick={() => setManualCapOpen(true)}>Use manual budget cap</button></div></CompactWarning>}
               {analysis && (assignmentMode === "large" ? (
@@ -375,7 +357,6 @@ export function BuyerWorkspace({
         invokingElement={builderOpener}
         valueThreshold={threshold}
         onApply={(nextLines, settings, prepared) => {
-          setImportUndo({ lines, assignmentMode, largeSpots, bulkEnabled, bulkThreshold });
           setPreparedSelection(prepared);
           setLines(nextLines);
           if (settings) {

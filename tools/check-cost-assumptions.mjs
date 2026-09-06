@@ -38,7 +38,7 @@ try {
     assert.equal(await page.getByRole('textbox', { name: 'Allocated shipping' }).count(), 0);
     assert.equal(await page.getByRole('textbox', { name: 'Estimated tax', exact: true }).count(), 0);
     await page.reload();
-    await addPack();
+    if (await page.getByRole("button", { name: "Resume saved decision", exact: true }).count()) await page.getByRole("button", { name: "Resume saved decision", exact: true }).click();
     await page.getByText('Adjust assumptions', { exact: true }).click();
     assert.equal(await shipping.inputValue(), '0');
     assert.equal(await assumptions.getByRole('button', { name: 'Per item', exact: true }).getAttribute('aria-pressed'), 'true');

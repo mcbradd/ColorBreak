@@ -1,6 +1,6 @@
 import type { CardPrice, Finish } from "./types";
 
-const FINISH_LABELS: Record<Finish, string> = {
+export const FINISH_LABELS: Record<Finish, string> = {
   nonfoil: "Nonfoil",
   foil: "Foil",
   etched: "Etched Foil",

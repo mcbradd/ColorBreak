@@ -63,7 +63,7 @@ describe("card inspector", () => {
 
     const dialog = screen.getByRole("dialog", { name: "Mobile Chase" });
     expect(dialog.parentElement?.parentElement).toBe(document.body);
-    expect(screen.getByText("36.0%")).toBeInTheDocument();
+    expect(screen.getByText("About 1 in 3 breaks")).toBeInTheDocument();
     expect(screen.getByText("$24.50")).toBeInTheDocument();
     expect(screen.getByRole("img", { name: "Mobile Chase" })).toHaveAttribute("src", "https://example.com/card.jpg");
 

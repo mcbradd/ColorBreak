@@ -1,4 +1,4 @@
-import { AnswerValue, AnswerNote, AnswerGraphic } from "../shared/Answer";
+import { AnswerValue, AnswerNote, AnswerGraphic, AnswerGroup } from "../shared/Answer";
 import { useEffect, useMemo, useState } from "react";
 import type { CSSProperties } from "react";
 import { Search, ShieldAlert } from "lucide-react";
@@ -196,7 +196,7 @@ export function ContributorRows({
   }
   return (
     <>
-      {slot.contributors.length > CONTRIBUTOR_PAGE && <label className="contributor-search">
+      <div className="contributor-toolbar">{slot.contributors.length > CONTRIBUTOR_PAGE && <label className="contributor-search">
         <Search aria-hidden="true" />
         <input
           type="search"
@@ -206,10 +206,11 @@ export function ContributorRows({
           onChange={(event) => setQuery(event.target.value)}
         />
       </label>}
+      <div className="contributor-list-help"><Tip label="What Chance and Adds mean" text={CONTRIBUTOR_COLUMN_HELP} /></div></div>
       <div className="contributor-columns">
         <span>Card</span>
         <span>Chance</span>
-        <span>Adds<Tip label="What Chance and Adds mean" text={CONTRIBUTOR_COLUMN_HELP} /></span>
+        <span>Adds</span>
       </div>
       {matches.slice(0, shown).map((row) => (
         <button
@@ -228,7 +229,7 @@ export function ContributorRows({
             <b>{oddsLabel(row.sellablePullProbability)}<AnswerNote detail="Estimated chance of at least one copy in this break. Pack assumptions and missing rare-card odds can change it." /></b>
           </span>
           <span className="ev-contribution">
-            <b><AnswerValue value={row.sellableValue} /></b>
+            <b><AnswerValue value={row.sellableValue} compact /></b>
           </span>
         </button>
       ))}
@@ -272,24 +273,26 @@ export function SlotValueDetails({
     </Tip>
   );
   return (
-    <section className={`panel slot-detail ${className}`.trim()}>
+    <AnswerGroup><section className={`panel slot-detail ${className}`.trim()}>
       <PanelHeading
         label={`${slot.name.toUpperCase()} VALUE DETAILS`}
+        estimate={<AnswerNote primary label={`What affects ${slot.name.toLowerCase()} value`} detail="Shows average value, not guaranteed pulls. The bar measures the biggest card’s share; missing prices or estimated odds can change it." />}
         help="Shows which cards create this color's average value and how much that value depends on one expensive chase card."
-        title={<>What makes up <AnswerValue value={slot.sellableEV} />?</>}
+        title={<><AnswerValue value={slot.sellableEV} /> average</>}
         accessory={profileTip}
         description={<p className="risk-explainer">
-            {slot.name} cards worth <AnswerValue value={threshold} /> or more. Cheaper cards are ignored as bulk.
+            {threshold > 0 ? `Cards under ${fmt(threshold)} excluded.` : "All priced cards included."}
             {note && <><br /><small>{note}</small></>}
           </p>}
       />
       <div className="concentration">
-        <div className="concentration-labels">
-          <span>Value spread across cards</span>
-          <span>Value depends on one chase</span>
-        </div>
-        <AnswerNote label="What affects the concentration chart" detail="Shows the biggest card’s share of the currently counted value. Missing card prices or uncertain rare-card odds can change that share." /><div className="risk-bar" aria-label={`${Math.round(slot.chaseShare * 100)}% of this color's average value comes from its biggest card`}>
+
+<div className="risk-bar" aria-label={`${Math.round(slot.chaseShare * 100)}% of this color's average value comes from its biggest card`}>
           <span style={{ width: `${Math.min(100, slot.chaseShare * 100)}%` }} />
+        </div>
+        <div className="concentration-labels">
+          <span>Spread across cards</span>
+          <span>One chase dominates</span>
         </div>
       </div>
       <div className="metric-row risk-metrics">
@@ -307,7 +310,7 @@ export function SlotValueDetails({
         </summary>
         <ContributorRows slot={slot} onInspect={onInspect} />
       </details>
-    </section>
+    </section></AnswerGroup>
   );
 }
 
@@ -341,7 +344,7 @@ function LargeBreakSlotCards({
           <CardThumbnail row={row} />
           <span className="card-summary"><strong>{row.card.name}</strong><small>{cardPreviewSubtitle(row)}</small></span>
           <span className="pull-odds"><b>{oddsLabel(row.sellablePullProbability)}<AnswerNote detail="Estimated chance of at least one copy in this break. Pack assumptions and missing rare-card odds can change it." /></b></span>
-          <span className="ev-contribution"><b><AnswerValue value={row.sellableValue} /></b></span>
+          <span className="ev-contribution"><b><AnswerValue value={row.sellableValue} compact /></b></span>
         </button>
       )) : <p className="no-contributors">No priced cards are assigned to this slot.</p>}
     </div>
@@ -396,10 +399,10 @@ export function LargeBreakView({
           : "NEAR MODELED MEAN";
   const maxAssignment = Math.max(1, ...assignment.values);
   return (
-    <section className="large-break-results" aria-label="Large break spot value">
+    <AnswerGroup><section className="large-break-results" aria-label="Large break spot value">
       <header className="large-break-result-head">
         <div><InformationLabel>LARGE RANDOM BREAK</InformationLabel><h2>{plan.spotCount} spots</h2></div>
-        <Status result={result} />
+        <Status result={result} /><AnswerNote primary detail="Average spot values use available card prices and estimated pack odds. Actual assignments can contain multiple cards or none." />
       </header>
       <section className={`large-break-decision ${coverageReady ? "is-ready" : "is-blocked"}`} aria-label="One-spot price check">
         <div className="large-break-decision-copy">
@@ -502,7 +505,7 @@ export function LargeBreakView({
       </section>
       <CardInspector row={inspectedCard} status={result.status} threshold={result.threshold} onClose={() => setInspectedCard(null)} />
 
-    </section>
+    </section></AnswerGroup>
   );
 }
 
@@ -547,9 +550,9 @@ export function BuyerView({
   const decisionKicker = `${breakLabel ? `${breakLabel} · ` : ""}${pool.length} slot${pool.length === 1 ? "" : "s"} left`;
   return (
     <>
-      <section className="bid-live-decision" aria-label="Bid decision">
+      <AnswerGroup><section className="bid-live-decision" aria-label="Bid decision">
         <div className="decision-kicker">
-          <span title={decisionKicker}>{decisionKicker}</span>
+          <span title={decisionKicker}>{decisionKicker}</span><AnswerNote primary label="What affects the bid limit" detail="Typical card value minus added shipping and tax. MIN and MAX are possible limits; typical is the median. Missing prices or estimated pack rules can change the result." />
           <span className={`decision-evidence evidence-${result.status}`}>{eligibility.status === "eligible" ? "Fresh estimate" : eligibility.status === "stale" ? "Prices over 6 hours old" : result.status}</span>
         </div>
         <div className="verdict-head">
@@ -570,7 +573,7 @@ export function BuyerView({
         {simulation.busy && <p className="simulation-state" role="status" aria-live="polite">Checking more possible openings…</p>}
         {simulation.error && <CompactWarning title="Pull ranges unavailable" summary="The non-simulation value remains visible." className="inline-warning"><p role="alert">{simulation.error}</p><button type="button" className="quiet" onClick={simulation.retry}>Retry pull ranges</button></CompactWarning>}
         <IncompleteDataWarning analysis={analysis} title="Some estimates may be low" />
-      </section>
+      </section></AnswerGroup>
       <details className="bid-explorer">
         <summary className="disclosure-summary">
           <span>

@@ -3,7 +3,7 @@ import { estimatedCards, estimatedLabel, SHIPPING_NOTE } from "../../domain/cost
 import { ShippingField } from "../shared/ShippingField";
 import { probableRange, chartPosition, CANDLE_EXPLANATION } from "../../domain/outcome-chart";
 import { bestAvailableAnalysis } from "../../data/answer-cache";
-import { AnswerValue, AnswerNote } from "../shared/Answer";
+import { AnswerValue, AnswerNote, AnswerGroup } from "../shared/Answer";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { DollarSign, Lock, PackagePlus, Trash2, Unlock, X } from "lucide-react";
 import { evaluateBreakAnalysis } from "../../data/evaluate";
@@ -233,8 +233,8 @@ export function SellerScenarioLab({
   const bonusBuyerValue = bonusAnalysis ? Math.max(0, bonusAnalysis.valuation.sellableEV - baseAnalysis.valuation.sellableEV) : 0;
   const averageBuyerLanded = thresholdSales / Math.max(1, transactionCount) + buyerShipping;
   return (
-    <section className="panel seller-scenario-lab">
-      <PanelHeading
+    <AnswerGroup><section className="panel seller-scenario-lab">
+      <PanelHeading estimate={<AnswerNote primary detail="Compares the same break with and without the bonus pack. Costs use your entries, then market estimates." />}
         label="BONUS PACK PLANNER"
         help="Uses a real pack from the selected sets, its current sealed market price, exact card model, and your fee and shipping settings to compare the current break with the bonus-pack version."
         title="Does a bonus pack earn its keep?"
@@ -270,7 +270,7 @@ export function SellerScenarioLab({
           <UpsideCandles base={baseAnalysis} bonus={bonusAnalysis} bonusLabel={selected.label} selectedSlot={selectedSlot} selectSlot={(slot) => { setUseRandom(false); setSelectedSlot(slot); }} useRandom={useRandom} buyerLanded={averageBuyerLanded} />
         </>
       )}
-    </section>
+    </section></AnswerGroup>
   );
 }
 
@@ -355,7 +355,7 @@ function SellerEnticement({
   const allEv = evAdded == null ? undefined : evAdded * transactionCount;
 
   return (
-    <section className="seller-enticement" aria-label="Enticement">
+    <AnswerGroup><section className="seller-enticement" aria-label="Enticement"><div className="section-estimate"><AnswerNote primary detail="Bonus pack costs use your entry or the market estimate. Unknown costs can overstate profit." /></div>
       <div className="seller-section-heading">
         <div><InformationLabel>4 · ENTICEMENT</InformationLabel><h2>Bonus pack threshold</h2></div>
         <small>One pack per bid over the threshold</small>
@@ -380,7 +380,7 @@ function SellerEnticement({
       <CompactWarning title="Written approval required" summary="Needed before advertising threshold-triggered packs." className="enticement-policy">
         <p>A pack included and disclosed before bidding does not need threshold approval.</p>
       </CompactWarning>
-    </section>
+    </section></AnswerGroup>
   );
 }
 
@@ -578,7 +578,7 @@ export function SellerView({
           <button type="button" className="quiet" onClick={() => setDraft({ ...defaultSellerPlanDraft(), owner })}>Start clean</button>
         </div>
       </aside>}
-      <section className="seller-contents" aria-labelledby="seller-contents-heading">
+      <AnswerGroup><section className="seller-contents" aria-labelledby="seller-contents-heading"><div className="section-estimate"><AnswerNote primary detail="Product costs use your entries, then market estimates. An unknown product cost currently adds $0." /></div>
         <div className="seller-section-heading">
           <div><InformationLabel>1 · BREAK</InformationLabel><h2 id="seller-contents-heading">Contents &amp; cost basis</h2></div>
           <button className="primary seller-add-products" onClick={(event) => add(event.currentTarget)}><PackagePlus />Add products</button>
@@ -606,7 +606,7 @@ export function SellerView({
             ))}
           </div>
         </details>
-      </section>
+      </section></AnswerGroup>
 
       {marketEstimateLines.length > 0 && <section className="cost-basis-policy" aria-label="Cost basis policy">
         <div><InformationLabel>COST BASIS</InformationLabel><h3>{estimatedCosts ? "Estimated cost basis ready for rehearsal" : "Cost basis ready"}</h3><p>Estimated cost basis for rehearsal — source {priceAvailability.source}, observed {priceAvailability.observedAt ? new Date(priceAvailability.observedAt).toLocaleString() : "unknown"}; replace estimates with your actual cost when known.</p></div>
@@ -627,7 +627,7 @@ export function SellerView({
           <span><strong>Costs &amp; platform fees</strong><small>{`${fmt(completeOverhead)} estimated base cost`} · {marketplace.name} · {shipmentCount} expected combined shipments</small></span>
           <DisclosureArrow />
         </summary>
-        <div className="seller-cost-grid">
+        <div className="section-estimate"><AnswerNote primary detail="Shipping is an estimated Whatnot US label, paid by the buyer unless you cover postage. Packaging and fees are planning estimates; enter your actual costs to improve profit." /></div><div className="seller-cost-grid">
           <label className="compact-select"><span>Mailing method</span><select aria-label="Mailing method" value={mailingMethod} onChange={(event) => {
             setPlan({ mailingMethod: event.target.value, ...(event.target.value === "whatnot-label" ? { postage: 0 } : {}) });
           }}>
@@ -652,7 +652,7 @@ export function SellerView({
         <p className="seller-cost-source">Whatnot US TCG defaults: 8% commission and 2.9% + $0.30 processing, checked {WHATNOT_US.policyDate}. USPS postage varies by weight and distance; enter the actual label cost when the seller pays it.</p>
       </details>
 
-      <section className="seller-break-economics" aria-label="Seller break economics">
+      <AnswerGroup><section className="seller-break-economics" aria-label="Seller break economics"><div className="section-estimate"><AnswerNote primary detail="Profit uses your planned sales, estimated fees and shipment costs. It is a projection, not recorded income." /></div>
         <div className="seller-break-even"><AnswerNote detail={estimatedCosts ? "Uses your acquisition cost when entered, otherwise market price. A product with neither counts as $0, making break-even too low and profit too high. Fees and shipment counts use your planning assumptions." : "Uses entered acquisition costs and planning assumptions for fees and shipments. All spots must sell at this price to break even."} />
           <span>Break-even bid</span>
           <strong><AnswerValue value={breakEvenBid} /></strong>
@@ -666,10 +666,10 @@ export function SellerView({
             <b>{sellerOutcomeLabel(scenario.profit)}<AnswerNote detail="A scenario, not a sales forecast. Uses the sold count and planned price shown, estimated fees and shipping, and your costs or market prices. Missing costs count as $0 and can overstate profit." /></b>
           </div>)}
         </div>
-      </section>
+      </section></AnswerGroup>
 
-      {<section className="panel ask-grid" aria-label="Per-slot seller operating plan">
-        <PanelHeading
+      {<AnswerGroup><section className="panel ask-grid" aria-label="Per-slot seller operating plan">
+        <PanelHeading estimate={<AnswerNote primary detail="Suggested asks allocate expected card value. They are targets, not completed sales." />}
           label="SLOT OPERATING PLAN"
           help="Targets are split by modeled sellable card value. Locks preserve a chosen target; marking a slot unsold redistributes the remaining recovery across the eligible unlocked slots."
           title={`${fmt(soldSlots.reduce((sum, slot) => sum + asks[slot.id], 0))} recovery target`}
@@ -693,11 +693,11 @@ export function SellerView({
           </div>;
         })}
         <div className="min-row"><NumberField label="Minimum ask" value={minimumAsk} onChange={(value) => setPlan({ minimumAsk: value ?? 0 })} live /></div>
-      </section>}
+      </section></AnswerGroup>}
 
       <details className="seller-secondary-tool" open={compact ? undefined : true}>
       <summary className="disclosure-summary"><span>Receipts &amp; shipments<small>Reconcile after the break</small></span><DisclosureArrow /></summary>
-      <section className="panel seller-reconciliation" aria-label="Seller actual reconciliation">
+      <AnswerGroup><section className="panel seller-reconciliation" aria-label="Seller actual reconciliation"><div className="section-estimate"><AnswerNote primary detail="Uses recorded receipts only. Missing receipts or costs leave an estimate rather than final profit." /></div>
         <InformationLabel>ACTUALS · SESSION ONLY</InformationLabel>
         <h2>Receipt-backed reconciliation</h2><span className="sr-only">Reconciliation in progress</span>
         <p>Targets are never receipts. Record the paid receipt and actual fee once per order, then actual postage and packing once per shipment.</p>
@@ -727,7 +727,7 @@ export function SellerView({
           <div className="buyer-recovery-actions"><button type="button" className="primary" onClick={confirmLedgerRemoval}>Confirm remove and correct</button><button type="button" className="quiet" onClick={() => setPendingLedgerRemoval(undefined)}>Cancel</button></div>
         </aside>}
         <div className="actual-result" role="status"><strong>{ledgerSummary.incomplete ? "Recorded-so-far estimate: " : "Actual profit / loss: "}<AnswerValue value={ledgerSummary.incomplete ? (ledgerSummary.gross - ledgerSummary.fees - ledgerSummary.fulfillment) / 100 - acquisition - ledgerSummary.missingShipment.length * (packing + postage) : ledgerSummary.profitCents! / 100} detail={ledgerSummary.incomplete ? "Uses recorded receipts and fees only, plus entered or market acquisition costs and estimated postage for unlinked shipments. Missing sales are not invented. This is not a reconciled actual profit." : "Uses reconciled receipts, fees, shipment charges and actual acquisition costs."} /></strong><p>{ledgerSummary.sold} sold and receipt-linked · {activeDraft.unsoldSlots.length} unsold · {ledgerSummary.pending.length} pending/reconciliation missing. {ledgerSummary.missingReceipt.length} order receipt reference missing. {ledgerSummary.missingShipment.length} order shipment missing. {actualAcquisitionCents == null ? "Actual acquisition cost missing." : ""}</p>{!ledgerSummary.incomplete && <p>Realized gross <AnswerValue value={ledgerSummary.gross / 100} /> · actual fees <AnswerValue value={ledgerSummary.fees / 100} /> · fulfillment <AnswerValue value={ledgerSummary.fulfillment / 100} /> · actual cost basis <AnswerValue value={(actualAcquisitionCents ?? 0) / 100} />.</p>}</div>
-      </section>
+      </section></AnswerGroup>
       </details>
 
       {!compact && (ledgerSummary.incomplete || actualAcquisitionCents == null) && <NextSteps reason={actualAcquisitionCents == null ? "This plan remains a rehearsal until an actual acquisition cost is entered and receipt-backed orders and shipments reconcile." : "The recorded-so-far estimate improves as receipts and shipments are reconciled."} />}
