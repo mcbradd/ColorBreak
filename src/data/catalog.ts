@@ -1,3 +1,4 @@
+import { compareProducts } from "../domain/product-order";
 import type { ProductChoice, SetChoice } from "../domain/types";
 import { choicesFromSealed, expectedDraws, loadSealed } from "./sealed";
 import { prepareProductSelection } from "../domain/decision-evidence";
@@ -56,8 +57,8 @@ export async function productsForSet(set: string): Promise<ProductChoice[]> {
     category: categoryOf(product.unit),
     packCount: product.packs,
     tcgId: product.id,
-    status: "estimated",
-  }));
+    status: "estimated" as const,
+  })).sort(compareProducts);
 }
 
 /** Local-first catalog adapter for a single prospective product.  Picker code

@@ -1,3 +1,4 @@
+import { compareProducts } from "./product-order";
 import type { ProductChoice, SetChoice } from "./types";
 
 export interface ProductSearchSet extends SetChoice {
@@ -45,11 +46,10 @@ export function rankSearchSets(sets: readonly ProductSearchSet[], query: string,
 
 export function matchingProducts(products: readonly ProductChoice[], query: string): ProductChoice[] {
   const words = searchWords(query).filter((word) => !stopWords.has(word));
-  const categoryRank = { common: 0, box: 1, pack: 2, bundle: 3, prerelease: 4, specialty: 5, case: 6 };
   return products.filter((product) => {
     const haystack = searchWords(`${product.set} ${product.setName} ${product.label} ${product.category}`);
     return words.every((word) => matches(word, haystack));
-  }).sort((a, b) => categoryRank[a.category] - categoryRank[b.category] || a.label.localeCompare(b.label));
+  }).sort(compareProducts);
 }
 
 export function suggestedSearchSets(sets: readonly ProductSearchSet[], currentSets: readonly string[], today = new Date().toISOString().slice(0, 10)): ProductSearchSet[] {

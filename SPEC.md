@@ -69,3 +69,8 @@ Quantity changes reuse only the matching product's values and scale them immedia
 ## Explicit non-goals for v4
 
 Accounts, a hosted backend, cash-out haircut, probability-of-profit simulation, tax estimation, and speculative collector-pool narrowing are not part of this release.
+
+## Product picker refresh and ordering
+
+1. Explicit price refresh checks the latest publication over the network, preserving existing estimates on failure. The button immediately acknowledges the tap and shows Searching, Updating, or Checking with a spinner while that phase is active. It retains an Updated, Up to date, No newer data, Partial update, or Retry result. In-progress refreshes cannot be double-submitted, and old requests cannot change a different set's feedback.
+2. Product order is shared across the per-set picker and seller search: packs, boxes, bundles, prerelease kits, specialty products, then cases. Specialty priority favors decks, gift/scene collections, then starter products. This is an editorial break/wheel priority, not a measured sales ranking. Selection and refresh never reorder products or change the header height.

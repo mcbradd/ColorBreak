@@ -79,6 +79,7 @@ const SNAPSHOT_STALE_MS = 6 * 60 * 60 * 1000;
 const LIVE_INTERVAL_MS = 140;
 const liveSetCache = new Map<string, Promise<CardPrice[]>>();
 const snapshotSetCache = new Map<string, Promise<CardPrice[] | null>>();
+const snapshotSetRevisions = new Map<string, string>();
 let snapshotIndexPromise: Promise<PriceSnapshotIndex | null> | null = null;
 let requestTail: Promise<void> = Promise.resolve();
 let lastRequestAt = 0;
@@ -241,7 +242,9 @@ function loadSnapshotSet(set: string, index: PriceSnapshotIndex): Promise<CardPr
         if (!response.ok) return null;
         const shard = await response.json() as PriceSnapshotShard;
         if (shard.schemaVersion !== 1 || shard.set !== code || shard.observedAt !== index.observedAt) return null;
-        return shard.cards.map((card) => toPrice(card, shard.observedAt, shard.generatedAt));
+        const cards = shard.cards.map((card) => toPrice(card, shard.observedAt, shard.generatedAt));
+        snapshotSetRevisions.set(code, `${entry.sha256}|${index.observedAt}`);
+        return cards;
       })
       .catch(() => null);
     snapshotSetCache.set(code, promise);
@@ -310,7 +313,53 @@ export async function loadCardPrices(set: string): Promise<CardPrice[]> {
 export function clearPriceCache(): void {
   liveSetCache.clear();
   snapshotSetCache.clear();
+  snapshotSetRevisions.clear();
   snapshotIndexPromise = null;
   requestTail = Promise.resolve();
   lastRequestAt = 0;
+}
+
+export type PriceRefreshPhase = "searching" | "updating";
+export type PriceRefreshResult = "updated" | "current" | "stale" | "partial";
+
+/** Explicit refresh checks the publication again without discarding usable prices. */
+export async function refreshPublishedPrices(onProgress: (phase: PriceRefreshPhase) => void): Promise<PriceRefreshResult> {
+  onProgress("searching");
+  const signal = AbortSignal.timeout(15000);
+  const response = await fetch("data/prices/index.json", { cache: "no-cache", signal });
+  if (!response.ok) throw new Error("Price publication could not be checked. Your existing estimates are kept.");
+  const index = await response.json() as PriceSnapshotIndex;
+  if (index.schemaVersion !== 1 || index.provider !== "Scryfall" || !index.sets || !Number.isFinite(Date.parse(index.observedAt))) throw new Error("Price publication is not ready. Try again.");
+  const sets = [...snapshotSetCache.keys()];
+  onProgress("updating");
+  const replacements = new Map<string, CardPrice[]>();
+  let failed = 0;
+  let changed = false;
+  let next = 0;
+  await Promise.all(Array.from({ length: Math.min(4, sets.length) }, async () => {
+    while (next < sets.length) {
+      const set = sets[next++];
+      const entry = index.sets[set];
+      try {
+        if (!entry) throw new Error("Missing price set");
+        const existing = await snapshotSetCache.get(set);
+        if (existing && snapshotSetRevisions.get(set) === `${entry.sha256}|${index.observedAt}`) continue;
+        const shardResponse = await fetch(`data/prices/${entry.file}`, { cache: "no-cache", signal });
+        if (!shardResponse.ok) throw new Error("Price set unavailable");
+        const shard = await shardResponse.json() as PriceSnapshotShard;
+        if (shard.schemaVersion !== 1 || shard.set !== set || shard.observedAt !== index.observedAt) throw new Error("Price publication is still updating");
+        replacements.set(set, shard.cards.map((card) => toPrice(card, shard.observedAt, shard.generatedAt)));
+        changed = true;
+      } catch { failed++; }
+    }
+  }));
+  if (sets.length && failed === sets.length) throw new Error("New prices could not load. Your existing estimates are kept.");
+  snapshotIndexPromise = Promise.resolve(index);
+  for (const [set, cards] of replacements) {
+    snapshotSetCache.set(set, Promise.resolve(cards));
+    snapshotSetRevisions.set(set, `${index.sets[set].sha256}|${index.observedAt}`);
+  }
+  if (failed) return "partial";
+  if (Date.now() - Date.parse(index.observedAt) > SNAPSHOT_STALE_MS) return "stale";
+  return changed ? "updated" : "current";
 }

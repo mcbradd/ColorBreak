@@ -1,5 +1,5 @@
 import { createElement } from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 const catalogSets = vi.hoisted(() => vi.fn().mockResolvedValue([
@@ -23,6 +23,9 @@ const prepareProductSelection = vi.hoisted(() => vi.fn(async (lines: Array<{ pro
 }));
 vi.mock("./domain/decision-evidence", () => ({ prepareProductSelection }));
 
+const refreshPublishedPrices = vi.hoisted(() => vi.fn(async (_progress: (phase: "searching" | "updating") => void) => "stale"));
+vi.mock("./data/scryfall", () => ({ refreshPublishedPrices }));
+
 import { Builder } from "./features/shared/ProductBuilder";
 
 describe("Add to Break product picker", () => {
@@ -43,8 +46,41 @@ describe("Add to Break product picker", () => {
 
     const initialCalls = prepareProductSelection.mock.calls.length;
     fireEvent.click(screen.getByRole("button", { name: "Estimates may be outdated. Refresh now" }));
-    expect(screen.getByRole("button", { name: "Refreshing estimates" })).toHaveTextContent("Refreshing…");
+    expect(screen.getByRole("button", { name: /Searching/ })).toHaveTextContent("Searching…");
     await vi.waitFor(() => expect(prepareProductSelection.mock.calls.length).toBeGreaterThan(initialCalls));
+  });
+
+  it("shows real progress, keeps its terminal result, and allows retry after failure", async () => {
+    let progress!: (phase: "searching" | "updating") => void;
+    let finish!: (result: string) => void;
+    refreshPublishedPrices.mockImplementationOnce((report) => { progress = report; return new Promise(resolve => { finish = resolve; }); });
+    const { rerender } = render(createElement(Builder, { open: true, onClose: vi.fn(), lines: [], onApply: vi.fn() }));
+    fireEvent.click(await screen.findByRole("button", { name: /Test Set/ }));
+    fireEvent.click(await screen.findByRole("button", { name: /Refresh now/ }));
+    const button = screen.getByRole("button", { name: /Searching/ });
+    expect(button).toBeDisabled();
+    expect(button).toHaveAttribute("aria-busy", "true");
+    expect(button.querySelector(".refresh-spinner")).not.toBeNull();
+    rerender(createElement(Builder, { open: true, onClose: vi.fn(), lines: [], onApply: vi.fn() }));
+    expect(button).toHaveTextContent("Searching…");
+    act(() => progress("updating"));
+    expect(button).toHaveTextContent("Updating…");
+    let finishChecking!: () => void;
+    const originalPreparation = prepareProductSelection.getMockImplementation()!;
+    prepareProductSelection.mockImplementationOnce(async (lines) => {
+      await new Promise<void>(resolve => { finishChecking = resolve; });
+      return originalPreparation(lines);
+    });
+    await act(async () => finish("stale"));
+    expect(button).toHaveTextContent("Checking…");
+    expect(button.querySelector(".refresh-spinner")).not.toBeNull();
+    await act(async () => finishChecking());
+    expect(await screen.findByRole("button", { name: "No newer data" })).toBeEnabled();
+    expect(button.querySelector(".refresh-spinner")).toBeNull();
+    refreshPublishedPrices.mockRejectedValueOnce(new Error("offline"));
+    fireEvent.click(button);
+    expect(await screen.findByRole("button", { name: "Retry" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: /Collector Booster Box/ })).toBeInTheDocument();
   });
 
   it("has no readiness checkbox hiding products from the picker", async () => {

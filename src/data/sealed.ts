@@ -1,3 +1,4 @@
+import { compareProducts } from "../domain/product-order";
 import type { DataStatus, ExpectedDraw, Omission, ProductChoice } from "../domain/types";
 import { classifyContentProse } from "./content-classifier.mjs";
 
@@ -127,10 +128,7 @@ export function choicesFromSealed(document: SealedDocument): ProductChoice[] {
     tcgId: product.tcgId,
     sealedKey: product.key,
     status: (product.suspect ? "incomplete" : releaseStatus(document.released)) as DataStatus,
-  })).sort((a, b) => {
-    const rank = { common: 0, box: 1, pack: 2, bundle: 3, prerelease: 4, specialty: 5, case: 6 };
-    return rank[a.category] - rank[b.category] || a.label.localeCompare(b.label);
-  });
+  })).sort(compareProducts);
 }
 
 export async function expectedDraws(

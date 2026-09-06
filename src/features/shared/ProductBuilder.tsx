@@ -1,3 +1,5 @@
+import { compareProducts } from "../../domain/product-order";
+import { refreshPublishedPrices, type PriceRefreshResult } from "../../data/scryfall";
 import { AnswerValue } from "./Answer";
 import {
   useEffect,
@@ -71,8 +73,8 @@ export function Builder({
   const [products, setProducts] = useState<ProductChoice[]>([]);
   const [prepared, setPrepared] = useState<Record<string, PreparedProductSelection>>({});
   const [estimating, setEstimating] = useState(false);
-  const [refreshingEstimates, setRefreshingEstimates] = useState(false);
-  const [estimateRevision, setEstimateRevision] = useState(0);
+  const [refreshState, setRefreshState] = useState<"idle" | "searching" | "updating" | "checking" | "error" | PriceRefreshResult>("idle");
+  const estimateRequest = useRef(0);
   const [loading, setLoading] = useState(false);
   const [draft, setDraft] = useState<BreakLine[]>([]);
   const [composerMode, setComposerMode] = useState<"search" | "paste" | "review">(initialMode);
@@ -174,29 +176,32 @@ export function Builder({
       packCount: product.packCount,
       tcgId: product.tcgId,
     });
-  useEffect(() => {
-    if (!products.length) { setPrepared({}); setEstimating(false); setRefreshingEstimates(false); return; }
-    let cancelled = false;
-    setEstimating(true);
-    void (async () => {
-      const entries: Array<[string, PreparedProductSelection]> = [];
-      const workerCount = Math.min(4, products.length);
-      let next = 0;
-      await Promise.all(Array.from({ length: workerCount }, async () => {
-        while (next < products.length) {
-          const product = products[next++];
-          entries.push([product.key, await prepareProductSelection([...lines, choiceLine(product)], valueThreshold)]);
-        }
-      }));
-      if (!cancelled) setPrepared(Object.fromEntries(entries));
-    })().finally(() => {
-      if (!cancelled) {
-        setEstimating(false);
-        setRefreshingEstimates(false);
+  const estimateComposition = draftSignature(lines);
+  const prepareEstimates = async () => {
+    const entries: Array<[string, PreparedProductSelection]> = [];
+    let next = 0;
+    await Promise.all(Array.from({ length: Math.min(4, products.length) }, async () => {
+      while (next < products.length) {
+        const product = products[next++];
+        entries.push([product.key, await prepareProductSelection([...lines, choiceLine(product)], valueThreshold)]);
       }
+    }));
+    return Object.fromEntries(entries);
+  };
+  useEffect(() => {
+    const request = ++estimateRequest.current;
+    setRefreshState("idle");
+    if (!products.length) { setPrepared({}); setEstimating(false); return; }
+    setEstimating(true);
+    void prepareEstimates().then((entries) => {
+      if (request === estimateRequest.current) setPrepared(entries);
+    }).catch(() => {
+      if (request === estimateRequest.current) setRefreshState("error");
+    }).finally(() => {
+      if (request === estimateRequest.current) setEstimating(false);
     });
-    return () => { cancelled = true; };
-  }, [products, lines, valueThreshold, estimateRevision]);
+    return () => { estimateRequest.current++; };
+  }, [products, estimateComposition, valueThreshold]);
   const add = (product: ProductChoice) => {
     setDraft((rows) => mergeBreakLines([...rows, choiceLine(product)]));
   };
@@ -305,7 +310,7 @@ export function Builder({
   const importMatched = importRows.flatMap((row) => row.line ? [row.line] : []);
   const importOpeningCount = importMatched.reduce((total, line) => total + line.quantity * Math.max(1, line.packCount ?? 1), 0);
   const importIssueCount = importRows.filter((row) => row.error).length;
-  const groupedProducts = products.reduce<Record<string, ProductChoice[]>>(
+  const groupedProducts = [...products].sort(compareProducts).reduce<Record<string, ProductChoice[]>>(
     (groups, product) => {
       (groups[product.category] ??= []).push(product);
       return groups;
@@ -315,11 +320,28 @@ export function Builder({
   const hasEstimateWarning = !estimating && products.some((product) =>
     prepared[product.key]?.assessment.presentation !== "eligible",
   );
-  const showEstimateRefresh = hasEstimateWarning || refreshingEstimates;
-  const refreshEstimates = () => {
-    if (refreshingEstimates || estimating) return;
-    setRefreshingEstimates(true);
-    setEstimateRevision((value) => value + 1);
+  const refreshBusy = loading || estimating || ["searching", "updating", "checking"].includes(refreshState);
+  const refreshLabels = { idle: hasEstimateWarning ? "Refresh now" : "Up to date", searching: "Searching…", updating: "Updating…", checking: "Checking…", updated: "Updated", current: "Up to date", stale: "No newer data", partial: "Partial update", error: "Retry" };
+  const refreshLabel = loading || estimating ? "Checking…" : refreshLabels[refreshState];
+  const refreshDetail = refreshState === "error" ? "Refresh failed. Your existing estimates are kept. Tap to retry."
+    : refreshState === "stale" ? "Checked the latest publication; newer prices are not available yet. Tap to check again."
+    : refreshState === "partial" ? "Some new prices could not load. Existing prices fill those gaps. Tap to retry."
+    : "Check the latest published prices and update estimates. Pack-model limitations may still apply.";
+  const refreshEstimates = async () => {
+    if (refreshBusy) return;
+    const request = ++estimateRequest.current;
+    setRefreshState("searching");
+    try {
+      const result = await refreshPublishedPrices((phase) => { if (request === estimateRequest.current) setRefreshState(phase); });
+      if (request !== estimateRequest.current) return;
+      setRefreshState("checking");
+      const entries = await prepareEstimates();
+      if (request !== estimateRequest.current) return;
+      setPrepared(entries);
+      setRefreshState(result);
+    } catch {
+      if (request === estimateRequest.current) setRefreshState("error");
+    }
   };
   const visibleProducts = groupedProducts;
   // Unmount before the ownership hook restores focus: no exit animation may
@@ -363,14 +385,15 @@ export function Builder({
               </div>
               {selected && <button
                 type="button"
-                className={`picker-header-refresh${showEstimateRefresh ? "" : " is-idle"}`}
-                aria-label={refreshingEstimates ? "Refreshing estimates" : "Estimates may be outdated. Refresh now"}
-                aria-hidden={!showEstimateRefresh}
-                tabIndex={showEstimateRefresh ? undefined : -1}
-                disabled={!showEstimateRefresh || refreshingEstimates || estimating}
+                className="picker-header-refresh"
+                aria-label={refreshLabel === "Refresh now" ? "Estimates may be outdated. Refresh now" : refreshLabel}
+                aria-busy={refreshBusy}
+                title={refreshDetail}
+                disabled={refreshBusy}
                 onClick={refreshEstimates}
               >
-                {refreshingEstimates ? <><span className="refresh-spinner" aria-hidden="true" />Refreshing…</> : "Refresh now"}
+                {refreshBusy && <span className="refresh-spinner" aria-hidden="true" />}
+                <span role="status" aria-live="polite">{refreshLabel}</span>
               </button>}
             </header>
             <input

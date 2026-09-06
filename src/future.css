@@ -1533,4 +1533,7 @@ img.card-thumbnail { object-fit: cover; background: #171b23; }
 .sheet > header h2 { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .picker-header-refresh { display: inline-flex; align-items: center; justify-content: center; gap: 6px; flex: 0 0 100px; min-height: 40px; margin-left: auto; padding: 7px 8px; border: 1px solid var(--warning); border-radius: 8px; color: var(--warning); background: #171500; font-size: 12px; font-weight: 800; }
 .picker-header-refresh.is-idle { visibility: hidden; }
-.refresh-spinner { width: 14px; height: 14px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: spin .7s linear infinite; }
+.refresh-spinner { flex: 0 0 14px; width: 14px; height: 14px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: spin .7s linear infinite; }
+
+.picker-header-refresh { height: 48px; }
+.picker-header-refresh:disabled { opacity: 1; cursor: progress; }
