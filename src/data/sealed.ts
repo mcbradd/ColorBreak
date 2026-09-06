@@ -34,6 +34,8 @@ export interface BoosterSheet {
   missing?: number;
   allowDuplicates?: boolean;
   balanceColors?: boolean;
+  minColors?: number;
+  fixed?: boolean;
   cards: Array<[string, number] | [string, string, number]>;
 }
 
@@ -146,7 +148,7 @@ export async function expectedDraws(
       sources: [],
     };
   }
-  const corrections = await loadCorrections();
+  const [{ resolveCollation }, corrections] = await Promise.all([import("./collation-policy"), loadCorrections()]);
   const correction = corrections.products[`${document.set}/${product.key}`];
   const multiplier = (correction?.contentsMultiplier ?? 1) * quantity;
   const packs = { ...product.packs };
@@ -167,7 +169,9 @@ export async function expectedDraws(
     const owner = split < 0 ? document.set : packCode.slice(0, split).toUpperCase();
     const bareCode = split < 0 ? packCode : packCode.slice(split + 1);
     const packDocument = split < 0 ? document : (foreign[owner] ?? await loadSealed(owner));
-    const booster = packDocument?.boosters[bareCode];
+    const raw = packDocument?.boosters[bareCode];
+    const match = raw ? resolveCollation(owner, bareCode, raw, `${document.set}/${product.key}`) : null;
+    const booster = match?.recipe;
     if (!booster) {
       omissions.push({
         code: "missing-booster",
@@ -177,6 +181,7 @@ export async function expectedDraws(
       });
       continue;
     }
+    for (const conflict of match?.conflicts ?? []) omissions.push({ code: "collation-conflict", message: conflict, material: true });
     for (const [sheetName, picks] of Object.entries(booster.picks)) {
       const sheet = booster.sheets[sheetName];
       if (!sheet?.total) continue;

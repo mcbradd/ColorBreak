@@ -3,6 +3,10 @@ import type { SlotId } from "./types";
 
 export interface OutcomeCard {
   id: string;
+  /** Same card across alternate printings within a sheet. */
+  duplicateKey?: string;
+  /** Front-face mono color for collation; independent of break assignment. */
+  color?: string;
   slot: SlotId;
   value: number;
   weight?: number;
@@ -13,6 +17,10 @@ export interface OutcomeSheet {
   totalWeight: number;
   cards: OutcomeCard[];
   allowDuplicates?: boolean;
+  /** Minimum distinct mono colors drawn from this sheet. */
+  minColors?: number;
+  /** Every identity occurs with its recorded multiplicity. */
+  fixed?: boolean;
 }
 
 export interface OutcomeVariant {
@@ -68,28 +76,50 @@ export interface SimulationResult {
 
 export type SlotBounds = Record<SlotId, { min: number; max: number }>;
 
+const MONO_COLORS = ["W", "U", "B", "R", "G"];
+function monoColorIndex(card: OutcomeCard): number { return MONO_COLORS.indexOf(card.color ?? card.slot); }
+function colorCount(mask: number): number { let count = 0; for (; mask; mask &= mask - 1) count++; return count; }
+
 function sheetSlotBounds(sheet: OutcomeSheet, picks: number, slot: SlotId): { min: number; max: number } {
   if (!Number.isInteger(picks) || picks < 0) throw new Error("Sheet picks must be a non-negative integer");
   if (picks === 0) return { min: 0, max: 0 };
-  const contributions = sheet.cards
-    .filter((card) => (card.weight ?? 1) > 0)
-    .map((card) => card.slot === slot ? card.value : 0);
-  if (!contributions.length && picks > 0) throw new Error("Outcome model contains an empty weighted choice");
-  // MTGJSON's flag is optional. Repeating the same printing is only safe when
-  // the source explicitly says the sheet allows it; otherwise draw distinct
-  // printing identities within this sheet for the current pack.
-  if (sheet.allowDuplicates !== true) {
-    if (picks > contributions.length) throw new Error("Outcome model requests more unique cards than a sheet contains");
-    const ordered = [...contributions].sort((a, b) => a - b);
-    return {
-      min: ordered.slice(0, picks).reduce((sum, value) => sum + value, 0),
-      max: ordered.slice(-picks).reduce((sum, value) => sum + value, 0),
-    };
+  if (sheet.fixed) {
+    const total = sheet.cards.reduce((sum, card) => sum + (card.weight ?? 1), 0);
+    if (!total || picks % total) throw new Error("Fixed sheet must contain whole copies of its card list");
+    const value = sheet.cards.reduce((sum, card) => sum + (card.slot === slot ? card.value * (card.weight ?? 1) : 0), 0) * picks / total;
+    return { min: value, max: value };
   }
-  return {
-    min: picks * Math.min(...contributions),
-    max: picks * Math.max(...contributions),
-  };
+  const groups = Array.from({ length: 6 }, () => new Map<string, { min: number; max: number }>());
+  for (const card of sheet.cards.filter((row) => (row.weight ?? 1) > 0)) {
+    const color = monoColorIndex(card);
+    const group = groups[color < 0 ? 5 : color];
+    const key = sheet.allowDuplicates ? card.id : card.duplicateKey ?? card.id;
+    const value = card.slot === slot ? card.value : 0;
+    const prior = group.get(key);
+    group.set(key, { min: Math.min(prior?.min ?? value, value), max: Math.max(prior?.max ?? value, value) });
+  }
+  let states = new Map<string, { min: number; max: number }>([["0:0", { min: 0, max: 0 }]]);
+  groups.forEach((group, index) => {
+    const ascending = [...group.values()].map((row) => row.min).sort((a, b) => a - b);
+    const descending = [...group.values()].map((row) => row.max).sort((a, b) => b - a);
+    const limit = ascending.length ? (sheet.allowDuplicates ? picks : Math.min(picks, ascending.length)) : 0;
+    const next = new Map<string, { min: number; max: number }>();
+    let min = 0, max = 0;
+    for (let count = 0; count <= limit; count++) {
+      if (count) { min += ascending[sheet.allowDuplicates ? 0 : count - 1]; max += descending[sheet.allowDuplicates ? 0 : count - 1]; }
+      for (const [key, prior] of states) {
+        const [used, colors] = key.split(":").map(Number);
+        if (used + count > picks) continue;
+        const target = `${used + count}:${colors + (index < 5 && count > 0 ? 1 : 0)}`;
+        const existing = next.get(target);
+        next.set(target, { min: Math.min(existing?.min ?? Infinity, prior.min + min), max: Math.max(existing?.max ?? -Infinity, prior.max + max) });
+      }
+    }
+    states = next;
+  });
+  const valid = [...states].filter(([key]) => { const [count, colors] = key.split(":").map(Number); return count === picks && colors >= (sheet.minColors ?? 0); }).map(([, value]) => value);
+  if (!valid.length) throw new Error("Outcome sheet cannot satisfy its count and color constraints");
+  return { min: Math.min(...valid.map((row) => row.min)), max: Math.max(...valid.map((row) => row.max)) };
 }
 
 /** Exact marginal low/high values possible for every color slot. */
@@ -195,7 +225,7 @@ function weightedIndex<T>(table: WeightedTable<T>, random: () => number): number
   return low;
 }
 
-function distinctWeightedIndex<T>(
+function distinctWeightedIndex<T extends { identity: number }>(
   table: WeightedTable<T>,
   selected: ReadonlySet<number>,
   random: () => number,
@@ -205,16 +235,16 @@ function distinctWeightedIndex<T>(
   // remaining weights. Fall back to a direct scan for heavily skewed sheets.
   for (let attempt = 0; attempt < 16; attempt += 1) {
     const index = weightedIndex(table, random);
-    if (!selected.has(index)) return index;
+    if (!selected.has(table.rows[index].identity)) return index;
   }
 
   let remainingWeight = 0;
   for (let index = 0; index < table.weights.length; index += 1) {
-    if (!selected.has(index)) remainingWeight += table.weights[index];
+    if (!selected.has(table.rows[index].identity)) remainingWeight += table.weights[index];
   }
   let cursor = random() * remainingWeight;
   for (let index = 0; index < table.weights.length; index += 1) {
-    if (selected.has(index)) continue;
+    if (selected.has(table.rows[index].identity)) continue;
     cursor -= table.weights[index];
     if (cursor < 0) return index;
   }
@@ -224,11 +254,17 @@ function distinctWeightedIndex<T>(
 interface CompiledCard {
   slotIndex: number;
   value: number;
+  identity: number;
+  colorBit: number;
 }
 
 interface CompiledSheet {
   cards: WeightedTable<CompiledCard>;
   allowDuplicates: boolean;
+  minColors: number;
+  fixedValues?: number[];
+  fixedCount?: number;
+  newColors: Map<number, WeightedTable<CompiledCard>>;
 }
 
 interface CompiledPick {
@@ -249,24 +285,37 @@ interface CompiledPack {
 const SLOT_INDEX = new Map<SlotId, number>(SLOT_IDS.map((slot, index) => [slot, index]));
 
 function compilePacks(packs: readonly OutcomePack[]): CompiledPack[] {
-  return packs.map((pack) => {
-    const sheets = new Map(Object.entries(pack.sheets).map(([name, sheet]) => [name, {
-      cards: compileWeightedTable(sheet.cards.map((card) => ({
-        slotIndex: SLOT_INDEX.get(card.slot)!,
-        value: card.value,
-        weight: card.weight ?? 1,
-      })), (card) => card.weight),
-      allowDuplicates: sheet.allowDuplicates === true,
-    }] as const));
-    const variants = pack.variants.map((variant): CompiledVariant => ({
+  return packs.filter((pack) => pack.count > 0).map((pack) => {
+    const sheets = new Map(Object.entries(pack.sheets).filter(([name]) => pack.variants.some((variant) => variant.weight > 0 && (variant.picks[name] ?? 0) > 0)).map(([name, sheet]) => {
+      const identities = new Map<string, number>();
+      const rows = sheet.cards.filter((card) => (card.weight ?? 1) > 0).map((card) => {
+        const key = card.duplicateKey ?? card.id;
+        if (!identities.has(key)) identities.set(key, identities.size);
+        const color = monoColorIndex(card);
+        return { slotIndex: SLOT_INDEX.get(card.slot)!, value: card.value, weight: card.weight ?? 1,
+          identity: identities.get(key)!, colorBit: color < 0 ? 0 : 1 << color };
+      });
+      const newColors = new Map<number, WeightedTable<CompiledCard>>();
+      if (sheet.minColors) for (let mask = 0; mask < 32; mask++) {
+        const eligible = rows.filter((card) => card.colorBit && !(card.colorBit & mask));
+        if (eligible.length) newColors.set(mask, compileWeightedTable(eligible, (card) => card.weight));
+      }
+      const fixedValues = sheet.fixed ? SLOT_IDS.map((_, index) => rows.reduce((sum, card) => sum + (card.slotIndex === index ? card.value * card.weight : 0), 0)) : undefined;
+      return [name, { fixedValues, fixedCount: sheet.fixed ? rows.reduce((sum, card) => sum + card.weight, 0) : undefined, cards: compileWeightedTable(rows, (card) => card.weight),
+        allowDuplicates: sheet.allowDuplicates === true, minColors: sheet.minColors ?? 0, newColors }] as const;
+    }));
+    const variants = pack.variants.filter((variant) => variant.weight > 0).map((variant): CompiledVariant => ({
       weight: variant.weight,
-      picks: Object.entries(variant.picks).map(([sheetName, count]) => {
+      picks: Object.entries(variant.picks).filter(([, count]) => count > 0).map(([sheetName, count]) => {
         const sheet = sheets.get(sheetName);
         if (!sheet) throw new Error(`Outcome model is missing sheet ${sheetName}`);
         if (!Number.isInteger(count) || count < 0) throw new Error("Sheet picks must be a non-negative integer");
-        if (!sheet.allowDuplicates && count > sheet.cards.rows.length) {
+        if (!sheet.fixedValues && !sheet.allowDuplicates && count > new Set(sheet.cards.rows.map((card) => card.identity)).size) {
           throw new Error("Outcome model requests more unique cards than a sheet contains");
         }
+        if (sheet.fixedValues && count % sheet.fixedCount!) throw new Error("Fixed sheet must contain whole copies of its card list");
+        const availableColors = sheet.cards.rows.reduce((mask, card) => mask | card.colorBit, 0);
+        if (Math.min(count, colorCount(availableColors)) < sheet.minColors) throw new Error("Outcome sheet cannot satisfy its color constraint");
         return { sheet, count };
       }),
     }));
@@ -327,14 +376,19 @@ export function simulateOutcomes(model: PackOutcomeModel, options: SimulationOpt
       for (let unit = 0; unit < pack.count; unit += 1) {
         const variant = pack.variants.rows[weightedIndex(pack.variants, random)];
         for (const { sheet, count } of variant.picks) {
+          if (sheet.fixedValues) { sheet.fixedValues.forEach((value, index) => { slots[index] += value * count / sheet.fixedCount!; }); continue; }
           const selected = sheet.allowDuplicates ? undefined : new Set<number>();
+          let colors = 0;
           for (let pick = 0; pick < count; pick += 1) {
-            const cardIndex = selected
-              ? distinctWeightedIndex(sheet.cards, selected, random)
-              : weightedIndex(sheet.cards, random);
-            const card = sheet.cards.rows[cardIndex];
+            // Keep enough spaces for all required colors. Exact print-run order is
+            // unpublished; this is the disclosed weighted sequential approximation.
+            const needsNewColor = count - pick === sheet.minColors - colorCount(colors);
+            const table = needsNewColor ? sheet.newColors.get(colors)! : sheet.cards;
+            const cardIndex = selected ? distinctWeightedIndex(table, selected, random) : weightedIndex(table, random);
+            const card = table.rows[cardIndex];
             slots[card.slotIndex] += card.value;
-            selected?.add(cardIndex);
+            colors |= card.colorBit;
+            selected?.add(card.identity);
           }
         }
       }

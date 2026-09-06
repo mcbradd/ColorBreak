@@ -44,6 +44,10 @@ ColorBreak supports two time-sensitive jobs: a buyer deciding whether to bid on 
 
 ## Source policy
 
+Each sealed SKU resolves its exact constituent pack codes (including foreign sets), quantities, and fixed cards. `data/collation-rules.json` records scoped facts with official → community → inferred precedence. Source priority applies to each fact independently: a verified card count does not certify all printing weights. `data/product-collation.json` is the generated, release-gated product-to-recipe map. Community MTGJSON variants remain the fallback for facts not covered by a sourced rule. Color balancing uses front-face mono colors, independently of break slot assignment; known rules survive missing prices and other partial data. Unpublished within-pack order and box print-run correlations are explicitly estimated.
+
+Unknown exact odds no longer erase a priced card: community or inferred positive odds contribute to EV and possible ranges with a specific uncertainty note. Unknown prices still contribute zero to the known subtotal. This supersedes the earlier policy that excluded all unverifiable collector odds from EV.
+
 MTGJSON provides versioned sealed products and collation. Scryfall provides exact-printing metadata, images, and current price observations. A daily build-time TCGCSV snapshot provides a sealed-product market reference; the seller can override it with their actual acquisition cost. `data/corrections.json` contains narrow, sourced product facts from authoritative sources and takes precedence over upstream sealed metadata. A premium treatment without its own market observation may use the same printing's listed TCG foil price, with that basis shown to the user. No adapter may silently cross printings or foil classes or drop a foreign-set printing. Missing pack grouping can use an explicitly disclosed independent-card approximation; a generic pack recipe is a provisional estimate, never a claim about confirmed contents.
 
 ## Experience laws

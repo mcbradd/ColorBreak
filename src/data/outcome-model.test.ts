@@ -35,7 +35,7 @@ describe("sealed product outcome model", () => {
     vi.unstubAllGlobals();
   });
 
-  it("blocks simulation when an exact printing price is missing", async () => {
+  it("qualifies the retained pack model when an exact printing is missing", async () => {
     vi.stubGlobal("fetch", async () => new Response(JSON.stringify({ version: 1, verifiedAt: "now", products: {} })));
     const result = await outcomeModelForProduct(document, "box", 1, prices.slice(0, 1), 2);
     expect(result.model.complete).toBe(false);
@@ -74,7 +74,7 @@ describe("sealed product outcome model", () => {
     vi.unstubAllGlobals();
   });
 
-  it("removes serialized sheets from buyer outcome ranges", async () => {
+  it("retains priced serialized outcomes with provisional odds and a warning", async () => {
     vi.stubGlobal("fetch", async () => new Response(JSON.stringify({ version: 1, verifiedAt: "now", products: {} })));
     const serializedDocument = {
       ...document,
@@ -91,7 +91,7 @@ describe("sealed product outcome model", () => {
       ...prices[0], prices: { serialized: 50_000 },
     }], 2);
     expect(result.model.complete).toBe(false);
-    expect(result.model.packs[0].sheets.serialized.cards[0].value).toBe(0);
+    expect(result.model.packs[0].sheets.serialized.cards[0].value).toBe(50_000);
     expect(result.omissions).toContainEqual(expect.objectContaining({
       code: "unverifiable-pull-rate",
       material: true,

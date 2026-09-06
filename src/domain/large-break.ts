@@ -97,7 +97,7 @@ export const CATCH_ALL_SPOTS = [
 ] as const;
 
 export function sortNamedCards<T extends Pick<NamedSpot, "name" | "marketPrice" | "pullEV"> & { pullRateVerified?: boolean }>(cards: T[], sort: TopCardSort): T[] {
-  return cards.filter((card) => sort !== "expected-value" || card.pullRateVerified !== false).sort((left, right) => sort === "expected-value"
+  return cards.slice().sort((left, right) => sort === "expected-value"
     ? right.pullEV - left.pullEV || right.marketPrice - left.marketPrice || left.name.localeCompare(right.name)
     : right.marketPrice - left.marketPrice || right.pullEV - left.pullEV || left.name.localeCompare(right.name));
 }

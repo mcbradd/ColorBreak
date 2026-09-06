@@ -100,15 +100,15 @@ describe("calculateBreak", () => {
     expect(rows[1].pullProbability).toBeCloseTo(.01);
   });
 
-  it("keeps serialized collector outliers price-visible while warning that their EV is unverifiable", () => {
+  it("uses provisional serialized odds and keeps the uncertainty visible", () => {
     const result = calculateBreak({
       prices: [{ ...prices[0], prices: { serialized: 50_000 } }],
       draws: [{ set: "TST", collectorNumber: "1", copies: .0001, finish: "serialized", foil: true, source: "serialized-slot" }],
     });
-    expect(result.marketEV).toBe(0);
-    expect(result.sellableEV).toBe(0);
+    expect(result.marketEV).toBe(5);
+    expect(result.sellableEV).toBe(5);
     expect(result.status).toBe("incomplete");
-    expect(result.priceOnlyContributors).toHaveLength(1);
+    expect(result.priceOnlyContributors).toHaveLength(0);
     expect(result.omissions).toContainEqual(expect.objectContaining({
       code: "unverifiable-pull-rate",
       material: true,
@@ -132,7 +132,7 @@ describe("calculateBreak", () => {
     expect(buyerVerdict(result.slots.find((slot) => slot.id === "G")!, 5, result.status)).toBe("+EV");
   });
 
-  it("keeps an unverifiable-rate chase available by price while excluding it from EV", () => {
+  it("includes an estimated-rate chase in EV and names the uncertainty", () => {
     const result = calculateBreak({
       prices: [{
         ...prices[0], set: "EOE", collectorNumber: "382", foil: 1200,
@@ -145,10 +145,10 @@ describe("calculateBreak", () => {
       draws: [{ set: "EOE", collectorNumber: "382", copies: .002, pullProbability: .002, finish: "singularity", foil: true, source: "collector" }],
     });
 
-    expect(result.marketEV).toBe(0);
-    expect(result.sellableEV).toBe(0);
-    expect(result.priceOnlyContributors).toHaveLength(1);
-    expect(result.priceOnlyContributors[0]).toEqual(expect.objectContaining({ marketPrice: 1200, sellableValue: 0 }));
+    expect(result.marketEV).toBe(2.4);
+    expect(result.sellableEV).toBe(2.4);
+    expect(result.slots.find((slot) => slot.id === "G")!.contributors).toHaveLength(1);
+    expect(result.slots.find((slot) => slot.id === "G")!.contributors[0]).toEqual(expect.objectContaining({ marketPrice: 1200, sellableValue: 2.4, pullRateVerified: false }));
     expect(result.omissions).toContainEqual(expect.objectContaining({ code: "unverifiable-pull-rate", material: true }));
   });
 

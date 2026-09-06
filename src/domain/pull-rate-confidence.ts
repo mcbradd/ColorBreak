@@ -114,7 +114,7 @@ export function pullRateOmissions(draws: ExpectedDraw[], prices: CardPrice[]): O
     return {
       code: "unverifiable-pull-rate",
       dedupeKey: `pull-rate:${card.set}|${card.collectorNumber}|${finish}`,
-      message: `${cardDisplayName(card, finish)} has no verifiable exact pull rate. ${evidence?.publishedFact ?? "Its exact per-card odds are not published"}. The imported collation estimates a ${percent(probability)} chance in this selected break. Its price remains visible, but it is excluded from expected value and Rank by EV until the rate can be verified.`,
+      message: `${cardDisplayName(card, finish)} has no verifiable exact pull rate. ${evidence?.publishedFact ?? "Its exact per-card odds are not published"}. The imported collation estimates a ${percent(probability)} chance in this selected break. This community or inferred chance is used provisionally in expected value and ranges; better evidence may change its contribution substantially.`,
       expectedCards: copies,
       material: true,
       ...(evidence?.source ? { source: evidence.source } : {}),

@@ -40,6 +40,6 @@ describe("pull-rate confidence", () => {
       dedupeKey: "pull-rate:EOE|382|singularity",
       material: true,
     }));
-    expect(omissions[0].message).toMatch(/Sothera.*less than 1%.*0\.20%.*excluded from expected value/i);
+    expect(omissions[0].message).toMatch(/Sothera.*less than 1%.*0\.20%.*used provisionally in expected value/i);
   });
 });

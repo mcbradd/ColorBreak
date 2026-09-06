@@ -309,7 +309,7 @@ export function BuyerWorkspace({
         </div>
       </aside>}
       {shareStatus && <p role="status">{shareStatus} <input aria-label="Buyer setup URL" readOnly value={sharedHref} /></p>}
-      <AnswerProvider value={analysis ? answerFactors(analysis.valuation, analysis.outcomeModel.complete, busy) : []}><main className="workspace page" tabIndex={-1} data-focus-fallback>
+      <AnswerProvider value={analysis ? answerFactors(analysis.valuation, analysis.outcomeModel.complete, busy, analysis.outcomeOmissions) : []}><main className="workspace page" tabIndex={-1} data-focus-fallback>
         <header className="workspace-title">
           <div>
             <h1>{assignmentMode === "large" ? "Large break" : "Check a bid"}</h1>

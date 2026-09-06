@@ -107,7 +107,7 @@ export async function evaluateBreakAnalysis(lines: BreakLine[], threshold: numbe
     return outcomeModelForProduct(result.document, result.productKey, lines[index].quantity, prices, threshold).catch(() => ({ model: { fixed: [], packs: [], complete: false } as PackOutcomeModel, omissions: [{ code: "missing-outcomes", message: `${lines[index].productLabel}: exact opening range could not load. A simpler estimate uses the available card values.`, material: true }] }));
   }));
   outcomeResults.forEach((result, index) => {
-    if (result.model.complete === false && drawsByLine[index].length) {
+    if (!result.model.packs.length && !result.model.fixed.length && drawsByLine[index].length) {
       const partial = calculateBreak({ draws: drawsByLine[index], prices, threshold, sourceStatus: "estimated", dataVersion: `${valuation.dataVersion}:line:${index}` });
       result.model = approximateOutcomes(partial);
       result.omissions.push({ code: "approximate-outcomes", material: true, message: "The range estimates cards independently because exact pack grouping is missing. Its average uses the available card prices and pull estimates; real packs may vary differently." });

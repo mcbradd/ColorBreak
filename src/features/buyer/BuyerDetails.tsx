@@ -478,7 +478,7 @@ export function LargeBreakView({
               <PublicCardPlaceholder name={card.name} image={card.row.card.image} />
               <span className="large-break-card-copy"><strong>{card.name}</strong><small>{card.cards.length} card{card.cards.length === 1 ? "" : "s"} · {cardPreviewSubtitle(card.row, card.marketPrice)}</small></span>
             </button>
-            <div className="large-break-card-value"><span>Pull EV</span><b><AnswerValue value={card.pullEV} detail={card.pullRateVerified ? undefined : `${card.name}: the exact pull chance cannot be checked. This card contributes $0 to known expected value, not because it is worthless, but because no defensible chance is available. Its market price is still shown.`} /></b></div>
+            <div className="large-break-card-value"><span>Pull EV</span><b><AnswerValue value={card.pullEV} detail={card.pullRateVerified ? undefined : `${card.name}: the exact pull chance cannot be checked. This estimate uses community or inferred odds and improves when stronger evidence becomes available.`} /></b></div>
 
             {isOpen && <LargeBreakSlotCards rows={card.cards} onInspect={setInspectedCard} />}
           </div>})}

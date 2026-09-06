@@ -55,14 +55,14 @@ describe("large random break plan", () => {
     expect(cards.map((card) => card.name)).toEqual(["Expensive Chase", "Frequent Hit"]);
   });
 
-  it("keeps unverifiable chases in price ranking and removes them from EV ranking", () => {
+  it("keeps estimated chases visible in both rankings", () => {
     const cards = [
       { key: "uncertain", name: "Unverifiable Chase", set: "TST", marketPrice: 1000, pullEV: 0, pullRateVerified: false },
       { key: "known", name: "Verified Hit", set: "TST", marketPrice: 100, pullEV: 5, pullRateVerified: true },
     ];
 
     expect(sortNamedCards(cards, "price").map((card) => card.name)).toEqual(["Unverifiable Chase", "Verified Hit"]);
-    expect(sortNamedCards(cards, "expected-value").map((card) => card.name)).toEqual(["Verified Hit"]);
+    expect(sortNamedCards(cards, "expected-value").map((card) => card.name)).toEqual(["Verified Hit", "Unverifiable Chase"]);
   });
 
   it("removes named cards from residual creature and card-type EV", () => {
