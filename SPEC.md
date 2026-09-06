@@ -14,6 +14,7 @@
 10. The current URL continuously encodes break products, quantities, format, spot/color state, and bulk-value options. Opening or sharing that URL reconstructs the filled-out buyer view.
 11. When a result requires user-entered information, the message names the exact missing value, explains which result it affects, and links directly to the corresponding field.
 12. In the product picker, selected products have an obvious contrasting border/background and a checked quantity badge. Minus and plus stay beside the product name at its trailing edge; quantity entry never opens a keyboard here. The picker footer says only Done, including after the last product is removed.
+13. Selecting a product never inserts a current-break panel or changes the row geometry; the list remains in place. Estimate freshness is omitted from individual product rows. When an estimate needs attention, one refresh action appears above the list.
 
 ## Seller
 

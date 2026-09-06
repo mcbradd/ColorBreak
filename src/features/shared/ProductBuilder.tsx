@@ -68,6 +68,8 @@ export function Builder({
   const [selected, setSelected] = useState<SetChoice>();
   const [products, setProducts] = useState<ProductChoice[]>([]);
   const [prepared, setPrepared] = useState<Record<string, PreparedProductSelection>>({});
+  const [estimating, setEstimating] = useState(false);
+  const [estimateRevision, setEstimateRevision] = useState(0);
   const [loading, setLoading] = useState(false);
   const [draft, setDraft] = useState<BreakLine[]>([]);
   const [composerMode, setComposerMode] = useState<"search" | "paste" | "review">(initialMode);
@@ -95,29 +97,17 @@ export function Builder({
     if (!selected) { selectionRequest.current += 1; return; }
     const request = ++selectionRequest.current;
     setProducts([]);
-    setPrepared({});
     setLoading(true);
     void (async () => {
       try {
         const rows = await productsForSet(selected.code);
         if (request !== selectionRequest.current) return;
         setProducts(rows);
-        const entries: Array<[string, PreparedProductSelection]> = [];
-        const workerCount = Math.min(4, rows.length);
-        let next = 0;
-        await Promise.all(Array.from({ length: workerCount }, async () => {
-          while (next < rows.length) {
-            const product = rows[next++];
-            entries.push([product.key, await prepareProductSelection([...lines, choiceLine(product)], valueThreshold)]);
-          }
-        }));
-        if (request !== selectionRequest.current) return;
-        setPrepared(Object.fromEntries(entries));
       } finally {
         if (request === selectionRequest.current) setLoading(false);
       }
     })();
-  }, [selected, lines, valueThreshold]);
+  }, [selected]);
   // Seeded once per opening, never re-seeded from `lines`: the workspace
   // re-creates that array whenever a sealed price resolves, and re-seeding on
   // identity wiped whatever the buyer had just added to the draft.
@@ -181,6 +171,24 @@ export function Builder({
       packCount: product.packCount,
       tcgId: product.tcgId,
     });
+  useEffect(() => {
+    if (!products.length) { setPrepared({}); setEstimating(false); return; }
+    let cancelled = false;
+    setEstimating(true);
+    void (async () => {
+      const entries: Array<[string, PreparedProductSelection]> = [];
+      const workerCount = Math.min(4, products.length);
+      let next = 0;
+      await Promise.all(Array.from({ length: workerCount }, async () => {
+        while (next < products.length) {
+          const product = products[next++];
+          entries.push([product.key, await prepareProductSelection([...lines, choiceLine(product)], valueThreshold)]);
+        }
+      }));
+      if (!cancelled) setPrepared(Object.fromEntries(entries));
+    })().finally(() => { if (!cancelled) setEstimating(false); });
+    return () => { cancelled = true; };
+  }, [products, lines, valueThreshold, estimateRevision]);
   const add = (product: ProductChoice) => {
     setDraft((rows) => mergeBreakLines([...rows, choiceLine(product)]));
   };
@@ -296,6 +304,9 @@ export function Builder({
     },
     {},
   );
+  const hasEstimateWarning = !estimating && products.some((product) =>
+    prepared[product.key]?.assessment.presentation !== "eligible",
+  );
   const visibleProducts = groupedProducts;
   // Unmount before the ownership hook restores focus: no exit animation may
   // leave an active dialog exposed alongside the active workspace.
@@ -346,7 +357,7 @@ export function Builder({
               tabIndex={-1}
               onChange={onScreenshotChosen}
             />
-            {draft.length > 0 && <div className="composer-status" aria-live="polite">
+            {composerMode !== "search" && draft.length > 0 && <div className="composer-status" aria-live="polite">
               <small className="composer-status-label">Current break</small>
               <ul className="composer-draft-list">
                 {draft.map((line) => (
@@ -426,6 +437,9 @@ export function Builder({
                   </div>
                 ) : (
                   <div className="product-groups">
+                    {hasEstimateWarning && <button type="button" className="picker-refresh-action" onClick={() => setEstimateRevision((value) => value + 1)}>
+                      Estimates may be outdated · Refresh now
+                    </button>}
                     {Object.entries(visibleProducts).filter(([, rows]) => rows.length).map(([category, rows]) => (
                       <section key={category}>
                         <InformationLabel>
@@ -435,19 +449,17 @@ export function Builder({
                           // Set-scoped: MSH and EOE both publish a
                           // `play-booster-pack`, and each keeps its own line.
                           const addedLine = findBreakLineForChoice(draft, product);
-                          const detail = <small>
-                              {product.packCount && product.packCount > 1
-                                ? `${product.packCount} packs · `
-                                : ""}
-                              {prepared[product.key]?.assessment.presentation === "eligible" ? "Fresh estimate" : "Estimate may need an update"}
-                            </small>;
+                          const detail = product.packCount && product.packCount > 1
+                            ? <small>{product.packCount} packs</small>
+                            : null;
                           const description = <><strong>{product.label}</strong>{detail}</>;
                           return addedLine ? (
                             <div className="product-row-line picker-product-selected" key={product.key} role="group" aria-label={`Selected ${product.label}`}>
+                              <span className="product-icon picker-selected-icon"><Check aria-hidden="true" /></span>
                               <span className="picker-product-copy">
                                 <span className="picker-product-name">
                                   <strong>{product.label}</strong>
-                                  <span className="picker-selected-count"><Check size={18} aria-hidden="true" /><output aria-live="polite" aria-label={`${product.label} quantity in ${addedLine.packCount && addedLine.packCount > 1 ? "products" : "openings"}`}>×{addedLine.quantity}</output></span>
+                                  <output className="sr-only" aria-live="polite" aria-label={`${product.label} quantity in ${addedLine.packCount && addedLine.packCount > 1 ? "products" : "openings"}`}>×{addedLine.quantity}</output>
                                 </span>
                                 {detail}
                               </span>

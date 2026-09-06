@@ -251,6 +251,8 @@ body {
   outline-offset: 3px;
 }
 
+.sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+
 button { min-height: 44px; }
 button:disabled { cursor: not-allowed; }
 
@@ -1502,25 +1504,31 @@ img.card-thumbnail { object-fit: cover; background: #171b23; }
 .viewport-short.keyboard-open .break-import textarea { min-height: 48px; height: 48px; }
 .viewport-short.keyboard-open .sheet .composer-actions { padding-block: 4px; }
 
-/* Product-picker selection is visible on its row. Keep the two touch controls
- * at the name's trailing edge, never in a second row or a keyboard field. */
+/* Product-picker rows reserve the same control column before and after a tap.
+ * Selection can therefore never move the rows below it. */
+.product-groups section > button,
 .product-groups section > .picker-product-selected {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 96px;
+  grid-template-columns: 39px minmax(0, 1fr) 96px;
   grid-template-areas: none;
-  align-items: start;
-  gap: 10px;
-  padding: 12px 10px 12px 12px;
+  min-height: 76px;
+  align-items: center;
+  gap: 12px;
+  box-sizing: border-box;
+}
+.product-groups section > button { padding: 12px 18px; }
+.product-groups section > button > svg { justify-self: end; }
+.product-groups section > .picker-product-selected {
+  padding: 10px 10px 10px 12px;
   border: 2px solid var(--accent);
   border-left-width: 6px;
   background: #263316;
 }
 .picker-product-selected .picker-product-copy { min-width: 0; display: grid; gap: 6px; }
-.picker-product-name { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .picker-product-name > strong { overflow-wrap: anywhere; font-size: 17px; line-height: 1.3; }
 .picker-product-selected .picker-product-copy > small { color: #d4dfc4; font-size: 17px; line-height: 1.3; }
-.picker-selected-count { display: inline-flex; align-items: center; gap: 4px; padding: 3px 6px; background: var(--accent); color: var(--accent-ink); font-size: 17px; font-weight: 900; line-height: 1.2; }
-.picker-selected-count output { font: inherit; font-variant-numeric: tabular-nums; }
+.picker-selected-icon { color: var(--accent-ink); background: var(--accent); }
 .picker-quantity { display: grid; grid-template-columns: 48px 48px; }
 .picker-quantity > button { width: 48px; min-width: 48px; height: 48px; min-height: 48px; padding: 0; border: 1px solid var(--accent); background: #0c1306; color: var(--accent); font-size: 24px; font-weight: 900; }
 .picker-quantity > button:disabled { opacity: .45; }
+.picker-refresh-action { display: flex; align-items: center; justify-content: center; width: 100%; min-height: 48px; padding: 10px 16px; border: 0; border-bottom: var(--rule); color: var(--warning); background: #171500; font-size: 17px; font-weight: 800; }
