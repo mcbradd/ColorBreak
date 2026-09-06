@@ -311,6 +311,23 @@ export function NumberField({
   );
 }
 
+/**
+ * A tooltip that explains two terms is two explanations, not one paragraph.
+ * Blank lines separate them, and a leading "Term:" is set apart so the reader
+ * can find the term they tapped without reading the sentence first.
+ */
+function tipParagraphs(text: string) {
+  return text.split(/\n\s*\n/).map((paragraph) => {
+    const trimmed = paragraph.trim();
+    const lead = /^([A-Z][A-Za-z' -]{0,24}):\s+(.*)$/s.exec(trimmed);
+    return (
+      <span className="tip-paragraph" key={trimmed}>
+        {lead ? <><b>{lead[1]}</b> {lead[2]}</> : trimmed}
+      </span>
+    );
+  });
+}
+
 export function EstimateTip({ text, label = "What affects this estimate" }: { text: string; label?: string }) {
   return <Tip className="answer-note" label={label} text={text}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v10M7.67 9.5l8.66 5M7.67 14.5l8.66-5" /></svg></Tip>;
 }
@@ -434,7 +451,7 @@ export function Tip({
           role="tooltip"
           style={position}
         >
-          {text}
+          {tipParagraphs(text)}
         </span>,
         document.body,
       )}

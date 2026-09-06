@@ -25,7 +25,10 @@ export function App({ releaseContext = runtimeReleaseContext }: { releaseContext
     // Every mode - including "home" - gets its own hash, so a real (non-SPA)
     // navigation back to this URL resolves to the same mode instead of
     // falling through to the buyer-workspace default. See route-mode.ts.
-    history.replaceState(null, "", `${location.pathname}${location.search}${hashForMode(next)}`);
+    // Keep whatever the history entry already carries (the buyer workspace
+    // marks its own break URLs there) so leaving and returning does not turn
+    // this browser's own link into someone else's shared break.
+    history.replaceState(history.state, "", `${location.pathname}${location.search}${hashForMode(next)}`);
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
     if (next === "home") window.setTimeout(() => document.querySelector<HTMLElement>("[data-home-focus]")?.focus({ preventScroll: true }), 220);
   };

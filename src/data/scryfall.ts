@@ -298,7 +298,7 @@ export async function loadPrices(request: PriceLoadRequest): Promise<PriceLoadRe
   const message = status === "available"
     ? `Exact-printing prices loaded from the ${source === "snapshot" ? "published snapshot" : source}.`
     : status === "stale"
-      ? "Latest published snapshot is older than six hours; reload to check publication status."
+      ? "Latest published snapshot is older than six hours; refreshing checks for a newer publication."
       : status === "partial"
         ? "Some exact-printing prices could not be loaded; values are a lower bound."
         : "Exact-printing prices are temporarily unavailable; product contents remain intact.";
