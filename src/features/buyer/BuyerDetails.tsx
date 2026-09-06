@@ -1,3 +1,4 @@
+import { AnswerValue, AnswerNote, AnswerGraphic } from "../shared/Answer";
 import { useEffect, useMemo, useState } from "react";
 import type { CSSProperties } from "react";
 import { Search, ShieldAlert } from "lucide-react";
@@ -18,11 +19,11 @@ import type {
 } from "../../domain/types";
 import { SLOT_NAMES } from "../../domain/types";
 import { chaseMapLayout } from "../../constellation-layout";
-import { buyerDecisionPresentation } from "../../release-context";
+
 import { createLargeBreakPlan, sortNamedCards, summarizeAssignmentValues } from "../../domain/large-break";
 import type { TopCardSort } from "../../domain/large-break";
 import { DisclosureArrow, fmt, InformationLabel, NumberField, PanelHeading, Status, Tip, countedPriceLabel, oddsLabel, NumericInput } from "../shared/Primitives";
-import { cardPreviewSubtitle, CardInspector, CompactWarning, IncompleteDataWarning, OutcomeRange, EvidenceDialog, EvidenceLens, ValueSummary } from "./BuyerVisuals";
+import { cardPreviewSubtitle, CardInspector, CompactWarning, IncompleteDataWarning, OutcomeRange, EvidenceLens, ValueSummary } from "./BuyerVisuals";
 import type { OutcomeSimulation } from "./BuyerVisuals";
 import { PublicCardPlaceholder } from "./CardPlaceholder";
 
@@ -49,11 +50,11 @@ export function ChaseConstellation({
     <details className="rollout supporting-view">
       <summary className="disclosure-summary"><span><b>Chase Map</b><small>Card price vs. chance of pulling it</small></span><span className="summary-actions"><span className="summary-help"><span>{SLOT_NAMES[slot.id]}</span><Tip text="Each numbered point maps directly to the same number in the card key. Position shows price and pull chance; size shows how much the card adds to average value. Tap either place for full details." /></span><DisclosureArrow /></span></summary>
       {!rows.length ? <p className="supporting-empty">No cards meet the current bulk boundary.</p> : (
-        <div className="chase-map" aria-label={`${SLOT_NAMES[slot.id]} card price and pull chance map`}>
+        <><AnswerNote label="What affects the chase chart" detail="Uses listed card prices and modeled pull chances. Rare-card odds and missing prices can change which cards appear most valuable." /><div className="chase-map" aria-label={`${SLOT_NAMES[slot.id]} card price and pull chance map`}>
           <div className="constellation">
             <div className="chase-plot" aria-hidden="true">
-              <span className="plot-price plot-price-high">{fmt(scale.maxPrice)}</span>
-              <span className="plot-price plot-price-mid">{fmt(scale.maxPrice / 2)}</span>
+              <span className="plot-price plot-price-high"><AnswerValue value={scale.maxPrice} /></span>
+              <span className="plot-price plot-price-mid"><AnswerValue value={scale.maxPrice / 2} /></span>
               <span className="plot-price plot-price-low">$0</span>
               <span className="plot-odds plot-odds-low">0%</span>
               <span className="plot-odds plot-odds-mid">{oddsLabel(scale.maxProbability / 2)}</span>
@@ -88,12 +89,12 @@ export function ChaseConstellation({
                 <b>{index + 1}</b>
                 <CardThumbnail row={row} />
                 <span><strong>{row.card.name}</strong><small>{cardPreviewSubtitle(row, datum(row).price)}</small></span>
-                <em>{fmt(row.sellableValue)}</em>
+                <em><AnswerValue value={row.sellableValue} /></em>
               </button>
             ))}
           </div>
         </div>
-      )}
+      </>)}
       {rows.length > 0 && <div className="chase-chart-key" aria-label="Chase Map chart key">
         <span><b>X</b> Chance to pull</span>
         <span><b>Y</b> Market price</span>
@@ -140,10 +141,10 @@ export function BulkFilterControl({
         <summary className="disclosure-summary"><span>See what the filter changes</span><DisclosureArrow /></summary>
         {!result ? <p>Product values are still loading.</p> : (
           <div className="bulk-filter-rollout">
-            <div><span>All priced card value</span><b>{fmt(result.marketEV)}</b></div>
-            <div><span>{enabled ? "Ignored as bulk" : "Ignored while filter is off"}</span><b>{fmt(ignored)}</b></div>
-            <div><span>Value used by ColorBreak</span><b>{fmt(result.sellableEV)}</b></div>
-            <div className="boundary-track" aria-label={`${Math.round(retained * 100)} percent of all card value is counted`}><span style={{ width: `${retained * 100}%` }} /></div>
+            <div><span>All priced card value</span><b><AnswerValue value={result.marketEV} /></b></div>
+            <div><span>{enabled ? "Ignored as bulk" : "Ignored while filter is off"}</span><b><AnswerValue value={ignored} /></b></div>
+            <div><span>Value used by ColorBreak</span><b><AnswerValue value={result.sellableEV} /></b></div>
+            <AnswerNote label="What affects the bulk filter chart" detail="Compares counted card value with all currently priced cards. Missing prices may change these proportions." /><div className="boundary-track" aria-label={`${Math.round(retained * 100)} percent of all card value is counted`}><span style={{ width: `${retained * 100}%` }} /></div>
             <p>{enabled
               ? `${fmt(result.marketEV)} in all priced cards − ${fmt(ignored)} under ${fmt(threshold)} = ${fmt(result.sellableEV)} used throughout the tool.`
               : `No priced cards are being removed. Turn the filter on when you do not want low-value bulk included in card value.`}</p>
@@ -224,10 +225,10 @@ export function ContributorRows({
             <small>{cardPreviewSubtitle(row)}</small>
           </span>
           <span className="pull-odds">
-            <b>{oddsLabel(row.sellablePullProbability)}</b>
+            <b>{oddsLabel(row.sellablePullProbability)}<AnswerNote detail="Estimated chance of at least one copy in this break. Pack assumptions and missing rare-card odds can change it." /></b>
           </span>
           <span className="ev-contribution">
-            <b>{fmt(row.sellableValue)}</b>
+            <b><AnswerValue value={row.sellableValue} /></b>
           </span>
         </button>
       ))}
@@ -275,10 +276,10 @@ export function SlotValueDetails({
       <PanelHeading
         label={`${slot.name.toUpperCase()} VALUE DETAILS`}
         help="Shows which cards create this color's average value and how much that value depends on one expensive chase card."
-        title={<>What makes up {fmt(slot.sellableEV)}?</>}
+        title={<>What makes up <AnswerValue value={slot.sellableEV} />?</>}
         accessory={profileTip}
         description={<p className="risk-explainer">
-            {slot.name} cards worth {fmt(threshold)} or more. Cheaper cards are ignored as bulk.
+            {slot.name} cards worth <AnswerValue value={threshold} /> or more. Cheaper cards are ignored as bulk.
             {note && <><br /><small>{note}</small></>}
           </p>}
       />
@@ -287,13 +288,13 @@ export function SlotValueDetails({
           <span>Value spread across cards</span>
           <span>Value depends on one chase</span>
         </div>
-        <div className="risk-bar" aria-label={`${Math.round(slot.chaseShare * 100)}% of this color's average value comes from its biggest card`}>
+        <AnswerNote label="What affects the concentration chart" detail="Shows the biggest card’s share of the currently counted value. Missing card prices or uncertain rare-card odds can change that share." /><div className="risk-bar" aria-label={`${Math.round(slot.chaseShare * 100)}% of this color's average value comes from its biggest card`}>
           <span style={{ width: `${Math.min(100, slot.chaseShare * 100)}%` }} />
         </div>
       </div>
       <div className="metric-row risk-metrics">
-        <div><span>Biggest card's share</span><b>{Math.round(slot.chaseShare * 100)}%</b></div>
-        <div><span>Value without it</span><b>{fmt(slot.withoutChase)}</b></div>
+        <div><span>Biggest card's share</span><b>{Math.round(slot.chaseShare * 100)}%<AnswerNote /></b></div>
+        <div><span>Value without it</span><b><AnswerValue value={slot.withoutChase} /></b></div>
         <div><span>Priced cards used</span><b>{slot.contributors.length}</b></div>
       </div>
       <details open className="contributors">
@@ -339,8 +340,8 @@ function LargeBreakSlotCards({
         >
           <CardThumbnail row={row} />
           <span className="card-summary"><strong>{row.card.name}</strong><small>{cardPreviewSubtitle(row)}</small></span>
-          <span className="pull-odds"><b>{oddsLabel(row.sellablePullProbability)}</b></span>
-          <span className="ev-contribution"><b>{fmt(row.sellableValue)}</b></span>
+          <span className="pull-odds"><b>{oddsLabel(row.sellablePullProbability)}<AnswerNote detail="Estimated chance of at least one copy in this break. Pack assumptions and missing rare-card odds can change it." /></b></span>
+          <span className="ev-contribution"><b><AnswerValue value={row.sellableValue} /></b></span>
         </button>
       )) : <p className="no-contributors">No priced cards are assigned to this slot.</p>}
     </div>
@@ -366,7 +367,6 @@ export function LargeBreakView({
 }) {
   const result = analysis.valuation;
   const [inspectedCard, setInspectedCard] = useState<Contributor | null>(null);
-  const [excludedCard, setExcludedCard] = useState<Contributor | null>(null);
   const [topCardSort, setTopCardSort] = useState<TopCardSort>("expected-value");
   const [openSlot, setOpenSlot] = useState<string | null>(null);
   const [tax, setTax] = useState<number | undefined>(0);
@@ -378,9 +378,7 @@ export function LargeBreakView({
   const assignment = useMemo(() => summarizeAssignmentValues(plan), [plan]);
   const rankedNamedCards = useMemo(() => sortNamedCards(plan.namedCards, topCardSort), [plan.namedCards, topCardSort]);
   const completeSealedValue = lines.every((line) => line.marketCost != null);
-  const sealedMarketValue = completeSealedValue
-    ? lines.reduce((sum, line) => sum + line.quantity * line.marketCost!, 0)
-    : undefined;
+  const sealedMarketValue = lines.reduce((sum, line) => sum + line.quantity * (line.marketCost ?? line.myCost ?? 0), 0);
   const namedEV = plan.namedCards.reduce((sum, card) => sum + card.pullEV, 0);
   const categoryEV = plan.categories.reduce((sum, category) => sum + category.pullEV, 0);
   const totalOpenings = lines.reduce((sum, line) => sum + line.quantity * Math.max(1, line.packCount ?? 1), 0);
@@ -390,10 +388,8 @@ export function LargeBreakView({
   const belowCost = allIn == null ? undefined : assignment.values.filter((value) => value * liquidFactor < allIn).length;
   const materialOmissions = deduplicateOmissions([...result.omissions, ...analysis.outcomeOmissions].filter((item) => item.material));
   const coverageReady = result.status === "verified" && analysis.outcomeModel.complete && materialOmissions.length === 0;
-  const comparison = !coverageReady
-    ? "CANNOT CLASSIFY PRICE"
-    : allIn == null
-      ? "ENTER ONE-SPOT BID"
+  const comparison = allIn == null
+      ? "ESTIMATED SPOT VALUE"
       : allIn < liquidMean * .95
         ? "BELOW MODELED MEAN"
         : allIn > liquidMean * 1.05
@@ -410,7 +406,8 @@ export function LargeBreakView({
         <div className="large-break-decision-copy">
           <InformationLabel>ONE-SPOT EV CHECK</InformationLabel>
           <h2>{comparison}</h2>
-          {!coverageReady ? <><p>The model is incomplete, so ColorBreak will not turn this partial estimate into a price judgment.</p><button type="button" className="review-blockers" onClick={() => { setBlockersOpen(true); requestAnimationFrame(() => document.getElementById("large-break-blockers")?.scrollIntoView({ behavior: "smooth", block: "start" })); }}>Review all {materialOmissions.length} model blockers ↓</button></> : allIn == null ? <p>Enter the current bid for one random spot. This compares cost with modeled average value; it is not a guaranteed return.</p> : <p><b>{fmt(allIn)}</b> all-in is <b>{fmt(Math.abs(liquidMean - allIn))}</b> {allIn <= liquidMean ? "below" : "above"} the {fmt(liquidMean)} modeled mean.</p>}
+          {allIn == null ? <p>Estimated mean <AnswerValue value={liquidMean} /> per spot. Enter a bid to compare it with this estimate.</p> : <p><AnswerValue value={allIn} /> all-in is <AnswerValue value={Math.abs(liquidMean - allIn)} /> {allIn <= liquidMean ? "below" : "above"} the <AnswerValue value={liquidMean} /> modeled mean.</p>}
+
         </div>
         <div className="large-break-cost-fields">
           <NumberField id="large-break-bid" label="Bid for one spot" value={bid} onChange={setBid} />
@@ -419,7 +416,7 @@ export function LargeBreakView({
           <label className="large-break-haircut"><span>Listed card value you expect to recover</span><div><NumericInput value={100 - haircut} max={100} ariaLabel="Percent of listed card value you expect to recover" onCommit={(value) => setHaircut(value == null ? haircut : 100 - Math.min(100, Math.max(0, value)))} /><b>%</b></div><small>After selling fees and typical discounts</small></label>
         </div>
         <div className="large-break-cost-equation">
-          <span>One-spot bid {fmt(bid)}</span><b>+</b><span>shipping {fmt(shipping ?? 0)}</span><b>+</b><span>tax {fmt(tax ?? 0)}</span><b>=</b><strong>{fmt(allIn)} total paid</strong>
+          <span>One-spot bid <AnswerValue value={bid} /></span><b>+</b><span>shipping <AnswerValue value={shipping ?? 0} /></span><b>+</b><span>tax <AnswerValue value={tax ?? 0} /></span><b>=</b><strong><AnswerValue value={allIn} /> total paid</strong>
         </div>
       </section>
       <section id="buyer-large-assignments" className="assignment-overview" aria-label="Modeled value across the assigned spots">
@@ -428,19 +425,19 @@ export function LargeBreakView({
           {belowCost != null && <strong>{belowCost} of {assignment.values.length} assignments have modeled average value below your cost</strong>}
         </div>
         <p className="assignment-rules"><b>How assignments work:</b> each card belongs to one assignment only. The 83 named assignments collect every eligible printing of that card or character; the 17 category assignments collect the remaining cards by color and type. A spot can receive multiple cards when they are opened—or none when its cards are not opened.</p>
-        <div className="assignment-value-strip" aria-hidden="true">
+        <AnswerNote label="What affects the assignment chart" detail="Compares the average value of each assigned spot, not the range of real openings. Named-card grouping and missing prices can change this shape." /><div className="assignment-value-strip" aria-hidden="true">
           {assignment.values.map((value, index) => <i key={`${value}-${index}`} style={{ "--assignment-height": `${Math.max(3, value / maxAssignment * 100)}%` } as CSSProperties} />)}
         </div>
         <div className="assignment-landmarks">
-          <div><span>Lower tenth</span><b>{fmt(assignment.p10 * liquidFactor)}</b><small>10 of 100 assignments are at or below this modeled average</small></div>
-          <div><span>Middle assignment</span><b>{fmt(assignment.median * liquidFactor)}</b><small>Half are lower and half are higher</small></div>
-          <div><span>Mean</span><b>{fmt(liquidMean)}</b><small>Total modeled value ÷ {assignment.values.length}</small></div>
-          <div><span>Upper tenth</span><b>{fmt(assignment.p90 * liquidFactor)}</b><small>10 of 100 assignments are at or above this modeled average</small></div>
+          <div><span>Lower tenth</span><b><AnswerValue value={assignment.p10 * liquidFactor} /></b><small>10 of 100 assignments are at or below this modeled average</small></div>
+          <div><span>Middle assignment</span><b><AnswerValue value={assignment.median * liquidFactor} /></b><small>Half are lower and half are higher</small></div>
+          <div><span>Mean</span><b><AnswerValue value={liquidMean} /></b><small>Total modeled value ÷ {assignment.values.length}</small></div>
+          <div><span>Upper tenth</span><b><AnswerValue value={assignment.p90 * liquidFactor} /></b><small>10 of 100 assignments are at or above this modeled average</small></div>
         </div>
-        <p className="assignment-limitation"><ShieldAlert />These figures compare the modeled average value of the {assignment.values.length} assigned spots. Realized opening ranges remain unavailable until every product has a complete pull model; ColorBreak does not invent a chance of profit.</p>
+        <p className="assignment-limitation"><ShieldAlert />These figures compare average value across {assignment.values.length} assignments. An actual opening may return more or less.</p>
         <div className="assignment-cohorts">
-          <div><span>{plan.namedCards.length} named assignments</span><b>{fmt(assignment.namedAverage * liquidFactor)} average</b><small>{Math.round(assignment.namedShare * 100)}% of modeled value</small></div>
-          <div><span>{plan.categories.length} category assignments</span><b>{fmt(assignment.categoryAverage * liquidFactor)} average</b><small>{Math.round(assignment.categoryShare * 100)}% of modeled value</small></div>
+          <div><span>{plan.namedCards.length} named assignments</span><b><AnswerValue value={assignment.namedAverage * liquidFactor} /> average</b><small>{Math.round(assignment.namedShare * 100)}% of modeled value</small></div>
+          <div><span>{plan.categories.length} category assignments</span><b><AnswerValue value={assignment.categoryAverage * liquidFactor} /> average</b><small>{Math.round(assignment.categoryShare * 100)}% of modeled value</small></div>
           <div><span>Concentration</span><b>Top 10 hold {Math.round(assignment.topTenShare * 100)}%</b><small>Top assignment holds {Math.round(assignment.topOneShare * 100)}%</small></div>
         </div>
       </section>
@@ -451,13 +448,13 @@ export function LargeBreakView({
         <div><span>Sealed prices</span><b>{completeSealedValue ? `${lines.length}/${lines.length} products` : `${lines.filter((line) => line.marketCost != null).length}/${lines.length} products`}</b><small>{completeSealedValue ? "All references available" : "Missing references do not silently become $0"}</small></div>
       </section>
       <div className="large-break-metrics">
-        <div><span>Sealed market value / spot</span><strong>{sealedMarketValue == null ? "—" : fmt(sealedMarketValue / plan.spotCount)}</strong><small>{sealedMarketValue == null ? "A sealed-market price is unavailable; pull EV is still shown" : `${fmt(sealedMarketValue)} total sealed value`}</small></div>
-        <div><span>Modeled mean / assignment</span><strong>{fmt(plan.totalPullEV / plan.spotCount)}</strong><small>{result.threshold > 0 ? `Only model-approved cards at or above ${fmt(result.threshold)} included · ${materialOmissions.length} blockers excluded` : `Only cards with usable prices and model-approved pull inputs included · ${materialOmissions.length} blockers excluded`}</small></div>
+        <div><span>Sealed market value / spot</span><strong><AnswerValue value={sealedMarketValue / plan.spotCount} detail="Uses available sealed prices, then entered acquisition costs. Products with neither add $0, so this total may be low." /></strong><small>{sealedMarketValue == null ? "A sealed-market price is unavailable; pull EV is still shown" : `${fmt(sealedMarketValue)} total sealed value`}</small></div>
+        <div><span>Modeled mean / assignment</span><strong><AnswerValue value={plan.totalPullEV / plan.spotCount} /></strong><small>{result.threshold > 0 ? `Only model-approved cards at or above ${fmt(result.threshold)} included · ${materialOmissions.length} blockers excluded` : `Only cards with usable prices and model-approved pull inputs included · ${materialOmissions.length} blockers excluded`}</small></div>
       </div>
       <div className="large-break-allocation">
-        <div><span>Named assignments</span><b>{plan.namedCards.length}</b><small>{fmt(namedEV)} modeled EV</small></div>
-        <div><span>Category spots</span><b>{plan.categories.length}</b><small>{fmt(categoryEV)} pull EV</small></div>
-        <div><span>Total modeled EV</span><b>{fmt(plan.totalPullEV)}</b><small>Across {totalOpenings} openings</small></div>
+        <div><span>Named assignments</span><b>{plan.namedCards.length}</b><small><AnswerValue value={namedEV} /> modeled EV</small></div>
+        <div><span>Category spots</span><b>{plan.categories.length}</b><small><AnswerValue value={categoryEV} /> pull EV</small></div>
+        <div><span>Total modeled EV</span><b><AnswerValue value={plan.totalPullEV} /></b><small>Across {totalOpenings} openings</small></div>
       </div>
       <IncompleteDataWarning analysis={analysis} title="Some spot values may be low" id="large-break-blockers" open={blockersOpen} onOpenChange={setBlockersOpen} />
       <section className="large-break-pool-section">
@@ -481,10 +478,8 @@ export function LargeBreakView({
               <PublicCardPlaceholder name={card.name} image={card.row.card.image} />
               <span className="large-break-card-copy"><strong>{card.name}</strong><small>{card.cards.length} card{card.cards.length === 1 ? "" : "s"} · {cardPreviewSubtitle(card.row, card.marketPrice)}</small></span>
             </button>
-            <div className="large-break-card-value"><span>Pull EV</span>{card.pullRateVerified
-              ? <b>{fmt(card.pullEV)}</b>
-              : <button type="button" className="excluded-ev" onClick={() => setExcludedCard(card.row)} aria-label={`Explain why ${card.name} is excluded from Pull EV`}>Excluded</button>}
-            </div>
+            <div className="large-break-card-value"><span>Pull EV</span><b><AnswerValue value={card.pullEV} detail={card.pullRateVerified ? undefined : `${card.name}: the exact pull chance cannot be checked. This card contributes $0 to known expected value, not because it is worthless, but because no defensible chance is available. Its market price is still shown.`} /></b></div>
+
             {isOpen && <LargeBreakSlotCards rows={card.cards} onInspect={setInspectedCard} />}
           </div>})}
         </div>
@@ -501,20 +496,14 @@ export function LargeBreakView({
           <button type="button" className="large-break-category-main" onClick={() => setOpenSlot(isOpen ? null : slotKey)} aria-expanded={isOpen} aria-label={`${isOpen ? "Hide" : "Show"} cards in ${category.label} slot`}>
             <strong>{category.label}</strong><small>{category.cardCount} remaining card{category.cardCount === 1 ? "" : "s"}</small>
           </button>
-          <b>{fmt(category.pullEV)}</b>
+          <b><AnswerValue value={category.pullEV} /></b>
           {isOpen && <LargeBreakSlotCards rows={category.cards} onInspect={setInspectedCard} />}
         </div>})}
         {plan.categories.length > categoryLimit && <button type="button" className="show-more-assignments" onClick={() => setCategoryLimit(plan.categories.length)}>Show all {plan.categories.length} category assignments</button>}
         {categoryLimit > 5 && <button type="button" className="show-more-assignments" onClick={() => setCategoryLimit(5)}>Show first 5 categories</button>}
       </section>
       <CardInspector row={inspectedCard} status={result.status} threshold={result.threshold} onClose={() => setInspectedCard(null)} />
-      <EvidenceDialog item={excludedCard ? {
-        title: "Excluded from Pull EV",
-        status: cardDisplayName(excludedCard.card, excludedCard.finish),
-        meaning: "An exact pull chance for this printing is not published or independently verifiable.",
-        matters: "Pull EV multiplies price by pull chance. Using an uncertain chance could make this card add an unrealistic amount of value.",
-        action: "Its current price remains in Rank by Price. It will return to Rank by EV when an exact pull rate can be verified.",
-      } : null} onClose={() => setExcludedCard(null)} />
+
     </section>
   );
 }
@@ -527,8 +516,6 @@ export function BuyerView({
   breakLabel,
   costs,
   simulation,
-  onChooseReady,
-  onUseManualCap,
 }: {
   analysis: BreakAnalysis;
   eligibility?: DecisionEligibility;
@@ -542,7 +529,6 @@ export function BuyerView({
 }) {
   const result = analysis.valuation;
   const eligibility = assessedEligibility ?? decisionEligibility(result);
-  const releasePresentation = buyerDecisionPresentation(eligibility.status);
   const [inspectedCard, setInspectedCard] = useState<Contributor | null>(null);
   // The next auction hands the winner a random slot from whatever is left:
   // slots the buyer already owns and slots another buyer took are both out.
@@ -558,20 +544,8 @@ export function BuyerView({
   const ownedValue = result.slots
     .filter((row) => selectedSlots.includes(row.id))
     .reduce((sum, row) => sum + row.sellableEV, 0);
-  const ceiling = releasePresentation.canShowDecision ? bidCeiling(typicalValue, costs) : undefined;
-  const waiting = simulation.busy && !distribution;
-  const ceilingDisplay = !releasePresentation.canShowDecision
-    ? releasePresentation.maxHammer ?? "—"
-    : waiting
-      ? "Checking…"
-      : ceiling?.kind === "ceiling"
-        ? fmt(ceiling.hammer)
-        : fmt(0);
-  const heading = !releasePresentation.canShowDecision
-    ? releasePresentation.heading!
-    : ceiling?.kind === "no-room" && !waiting
-      ? "DO NOT BID"
-      : "DON’T BID OVER";
+  const ceiling = bidCeiling(typicalValue, costs);
+  const heading = ceiling.kind === "no-room" && !distribution?.preview && !simulation.busy && result.status === "verified" ? "DO NOT BID" : "DON’T BID OVER";
   const decisionKicker = `${breakLabel ? `${breakLabel} · ` : ""}${pool.length} slot${pool.length === 1 ? "" : "s"} left`;
   return (
     <>
@@ -583,22 +557,18 @@ export function BuyerView({
         <div className="verdict-head">
           <div className="verdict-decision">
             <h2 aria-live="polite">{heading}</h2>
-            <strong className="max-hammer" aria-label="Highest bid to make" aria-live="polite">{ceilingDisplay}</strong>
+            <strong className="max-hammer" aria-label="Highest bid to make" aria-live="polite"><AnswerValue value={ceiling.kind === "ceiling" ? ceiling.hammer : 0} detail="Based on typical card value after your shipping, tax and fee assumptions. This is a guide, not a guaranteed resale return." /></strong>
             <p className="decision-reason">
-              {!releasePresentation.canShowDecision
-                ? "The modeled ceiling is withheld until this break's evidence resolves."
-                : ceiling?.kind === "no-room" && !waiting
-                  ? "Your shipping, tax and fees already meet the typical card value."
-                  : <>Typical card value {fmt(typicalValue)}, average {fmt(distribution?.mean ?? fallbackMean)}.</>}
+              {ceiling.kind === "no-room" && !distribution?.preview ? "Your shipping, tax and fees already meet the typical card value. " : ""}Typical card value <AnswerValue value={typicalValue} />, average <AnswerValue value={distribution?.mean ?? fallbackMean} />.
             </p>
-            {!releasePresentation.canShowDecision && <div className="buyer-recovery-actions"><button type="button" className="quiet" onClick={onChooseReady}>Choose a ready product</button><button type="button" className="quiet" onClick={onUseManualCap}>Use manual budget cap</button></div>}
+
           </div>
         </div>
         {selectedSlots.length > 0 && <p className="owned-slot-value">
           <span>My {selectedSlots.length === 1 ? "slot" : "slots"}: {selectedSlots.map((id) => SLOT_NAMES[id]).join(", ")}</span>
-          <b>{fmt(ownedValue)}</b>
+          <b><AnswerValue value={ownedValue} /></b>
         </p>}
-        <OutcomeRange summary={distribution} compact />
+        <AnswerGraphic detail={simulation.result?.sampleCount === 0 ? "Quick preview compares average values across available colors. Opening variation is still being calculated, so these are not yet opening percentiles." : "Low and high cover the middle 80% of modeled openings. An actual opening can fall outside this range."}><OutcomeRange summary={distribution} compact /></AnswerGraphic>
         {simulation.busy && <p className="simulation-state" role="status" aria-live="polite">Checking more possible openings…</p>}
         {simulation.error && <CompactWarning title="Pull ranges unavailable" summary="The non-simulation value remains visible." className="inline-warning"><p role="alert">{simulation.error}</p><button type="button" className="quiet" onClick={simulation.retry}>Retry pull ranges</button></CompactWarning>}
         <IncompleteDataWarning analysis={analysis} title="Some estimates may be low" />

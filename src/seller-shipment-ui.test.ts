@@ -44,7 +44,7 @@ describe("Seller shipment reconciliation through public controls", () => {
     expect(screen.getByLabelText("Confirm shipment removal")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Confirm remove and correct" }));
     await waitFor(() => expect(document.querySelector(".actual-result")).toHaveTextContent("1 order shipment missing"));
-    expect(document.querySelector(".actual-result")).toHaveTextContent("Actual result unavailable");
+    expect(document.querySelector(".actual-result")).toHaveTextContent("Recorded-so-far estimate:");
     cleanup();
     render(view());
     expect(await screen.findByRole("option", { name: "DEMO-RECEIPT-001" })).toBeInTheDocument();

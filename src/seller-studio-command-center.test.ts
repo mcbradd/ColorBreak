@@ -53,7 +53,6 @@ describe("Seller Studio command center", () => {
   it("turns one entered bid into immediate full and partial-fill profit scenarios", () => {
     render(createElement(Harness));
 
-    fireEvent.click(screen.getByRole("button", { name: "Use 1 market estimates" }));
 
     const studio = screen.getByRole("region", { name: "Seller break economics" });
     expect(within(studio).getByText("$16.77")).toBeInTheDocument();
@@ -65,19 +64,18 @@ describe("Seller Studio command center", () => {
     expect(within(screen.getByText("4 / 8 sold").parentElement!).getByText("Loss $38.50")).toBeInTheDocument();
   });
 
-  it("uses market price only after the seller explicitly accepts it as an estimate", () => {
+  it("uses market price immediately and improves the answer when actual cost is entered", () => {
     render(createElement(Harness));
 
     expect(screen.getByText("Current market").parentElement).toHaveTextContent("$100.00");
-    expect(screen.getByRole("region", { name: "Seller break economics" })).toHaveTextContent("Choose cost basis");
-    fireEvent.click(screen.getByRole("button", { name: "Use 1 market estimates" }));
+    expect(screen.getByRole("region", { name: "Seller break economics" })).toHaveTextContent("$16.77");
     expect(screen.getByRole("region", { name: "Seller break economics" })).toHaveTextContent("$16.77");
     const cost = screen.getByLabelText("My cost basis");
     fireEvent.change(cost, { target: { value: "80" } });
     expect(screen.getByRole("region", { name: "Seller break economics" })).toHaveTextContent("$13.97");
   });
 
-  it("accepts a stale market estimate in one deliberate rehearsal action", () => {
+  it("uses a stale market estimate without requiring an extra step", () => {
     render(createElement(SellerView, {
       analysis: { ...analysis, priceAvailability: { status: "stale", source: "sealed snapshot", observedAt: "2025-01-01T00:00:00.000Z", message: "Old snapshot" } },
       lines: startingLines,
@@ -85,11 +83,10 @@ describe("Seller Studio command center", () => {
       add: vi.fn(), remove: vi.fn(), update: vi.fn(),
     }));
 
-    fireEvent.click(screen.getByRole("button", { name: "Use 1 market estimates" }));
     expect(screen.getAllByText("Estimated cost basis ready for rehearsal")).not.toHaveLength(0);
     expect(screen.getByRole("region", { name: "Seller break economics" })).toHaveTextContent("$16.77");
     expect(screen.queryByRole("button", { name: "Accept for rehearsal only" })).not.toBeInTheDocument();
-    expect(screen.getByText("Rehearsal economics only — verify actual cost.")).toBeInTheDocument();
+    expect(screen.getByText("Estimated economics — update costs when known.")).toBeInTheDocument();
   });
 
   it("keeps overhead optional and removes buyer-specific analysis from Seller Studio", () => {
@@ -120,9 +117,9 @@ describe("Seller Studio command center", () => {
     expect(screen.getByLabelText("My cost basis")).toHaveAttribute("id", "seller-cost-line-1");
     const warning = link.closest("details")!;
     expect(warning).not.toHaveAttribute("open");
-    expect(link.closest("summary")).toHaveTextContent("Needed to calculate break-even and profit");
+    expect(link.closest("summary")).toHaveTextContent("Improve the estimated break-even and profit");
     fireEvent.click(link.closest("summary")!);
-    expect(warning).toHaveTextContent("No sealed-market price is available");
+    expect(warning).toHaveTextContent("This product currently adds $0 to acquisition costs");
   });
 
   it("inherits a 100-spot break and uses 100, 85, and 70 sold scenarios", () => {

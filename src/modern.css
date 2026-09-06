@@ -1446,3 +1446,18 @@ body {
   .break-format-option { min-height: 44px; padding: 8px 9px; }
   .format-carryover-notice { gap: 8px; padding: 10px 12px; }
 }
+
+/* All uncertainty uses this same tap target; popovers do not affect layout. */
+.answer-value { display: inline; white-space: nowrap; }
+.tip.answer-note { display: inline-flex; vertical-align: middle; align-items: center; justify-content: center; width: 28px; height: 28px; min-width: 28px; padding: 4px; margin-inline-start: 2px; color: var(--muted, #a5aab7); cursor: pointer; }
+.tip.answer-note svg { width: 17px; height: 17px; flex: none; }
+.answer-note:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+.answer-graphic { position: relative; min-width: 0; }
+.answer-graphic > .answer-note { position: absolute; right: 0; top: -24px; }
+.estimate-basis { display: flex; gap: 4px; align-items: center; font-size: .75rem; color: var(--muted, #a5aab7); }
+.tip-popover { max-height: min(240px, calc(var(--visual-viewport-height, 100dvh) - 24px)); overflow-y: auto; overflow-wrap: anywhere; pointer-events: auto; overscroll-behavior: contain; }
+.seller-value-dock .answer-note { width: 24px; min-width: 24px; padding: 3px; }
+
+.slot-candle { position: relative; }
+.slot-candle > .answer-note { position: absolute; right: -3px; top: -28px; }
+.range-candle > .answer-note { position: absolute; top: -28px; left: 50%; transform: translateX(-50%); z-index: 1; }

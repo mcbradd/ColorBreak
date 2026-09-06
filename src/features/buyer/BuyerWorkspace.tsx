@@ -1,3 +1,6 @@
+import { bestAvailableAnalysis } from "../../data/answer-cache";
+import { answerFactors } from "../../domain/answer-quality";
+import { AnswerProvider } from "../shared/Answer";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { BarChart3, Copy, Lock, Sparkles } from "lucide-react";
 import { productsForSet } from "../../data/catalog";
@@ -102,7 +105,7 @@ export function BuyerWorkspace({
     }
   }, [lines]);
   useEffect(() => {
-    if (!buyerRecoveryReady) return;
+    if (!buyerRecoveryReady || analysis?.valuation.dataVersion.startsWith("preview:")) return;
     writeBuyerDecisionRecord({
       lines,
       // A record is not hydrated until its evaluated data version agrees. The
@@ -149,7 +152,7 @@ export function BuyerWorkspace({
       setBusy(false);
       return;
     }
-    setAnalysis(undefined);
+    setAnalysis(bestAvailableAnalysis(lines, threshold));
     setDecisionAssessment(undefined);
     setBusy(true);
     calculationStarted.current = Date.now();
@@ -180,7 +183,7 @@ export function BuyerWorkspace({
       });
   }, [lines, threshold, calculationGeneration]);
   useEffect(() => {
-    if (buyerRecoveryReady || !initialBuyerRecord || !analysis || recoveryRecord) return;
+    if (buyerRecoveryReady || !initialBuyerRecord || !analysis || analysis.valuation.dataVersion.startsWith("preview:") || recoveryRecord) return;
     const recovered = readBuyerDecisionRecord({
       lines,
       dataVersion: analysis.valuation.dataVersion,
@@ -306,7 +309,7 @@ export function BuyerWorkspace({
         </div>
       </aside>}
       {shareStatus && <p role="status">{shareStatus} <input aria-label="Buyer setup URL" readOnly value={sharedHref} /></p>}
-      <main className="workspace page" tabIndex={-1} data-focus-fallback>
+      <AnswerProvider value={analysis ? answerFactors(analysis.valuation, analysis.outcomeModel.complete, busy) : []}><main className="workspace page" tabIndex={-1} data-focus-fallback>
         <header className="workspace-title">
           <div>
             <h1>{assignmentMode === "large" ? "Large break" : "Check a bid"}</h1>
@@ -354,8 +357,8 @@ export function BuyerWorkspace({
             />
             <div id="buyer-large-result" className="results buyer-results buyer-decision-stage">
               {manualCapOpen ? <ManualBudgetCap onBack={() => { setManualCapOpen(false); openBuilder(); }} target={manualTarget} setTarget={setManualTarget} shipping={manualShipping} setShipping={setManualShipping} hammer={manualHammer} setHammer={setManualHammer} /> : !lines.length && <section className="buyer-awaiting-break"><span><BarChart3 /></span><h2>Add a product to begin</h2></section>}
-              {busy && <div className="calculating" role="status" aria-live="polite"><span />Calculating exact contents and prices…</div>}
-              {error && <CompactWarning title="Couldn’t load this result" summary="No verified modeled ceiling can be offered until this data loads." className="load-warning"><p role="alert">{error}</p><div className="buyer-recovery-actions"><button type="button" className="quiet" onClick={() => setCalculationGeneration((value) => value + 1)}>Retry analysis</button><button type="button" className="quiet" onClick={() => setManualCapOpen(true)}>Use manual budget cap</button></div></CompactWarning>}
+              {busy && <div className="calculating" role="status" aria-live="polite"><span />Improving the estimate…</div>}
+              {error && <CompactWarning title="Couldn’t load this result" summary="The best available estimate remains visible. Retry to improve it." className="load-warning"><p role="alert">{error}</p><div className="buyer-recovery-actions"><button type="button" className="quiet" onClick={() => setCalculationGeneration((value) => value + 1)}>Retry analysis</button><button type="button" className="quiet" onClick={() => setManualCapOpen(true)}>Use manual budget cap</button></div></CompactWarning>}
               {analysis && (assignmentMode === "large" ? (
                 <LargeBreakView analysis={analysis} lines={lines} spots={largeSpots} bid={buyerBid} setBid={setBuyerBid} shipping={buyerShipping} setShipping={setBuyerShipping} />
               ) : (
@@ -374,7 +377,7 @@ export function BuyerWorkspace({
             </div>
           </div>
         </>
-      </main>
+      </main></AnswerProvider>
       <Builder
         open={builder}
         onClose={() => setBuilder(false)}

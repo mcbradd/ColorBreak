@@ -12,8 +12,9 @@ describe("seller bonus-pack pricing", () => {
   });
 
   it("does not calculate profit from a silently assumed zero pack cost", () => {
-    expect(source).not.toContain("bonusCostOverride ?? bonusMarket ?? 0");
-    expect(source).toContain("bonusCostKnown");
+    expect(source).toContain("bonusCostOverride ?? bonusMarket ?? 0");
+    expect(source).toContain("Unknown cost counts as $0");
+    expect(source).toContain("which may overstate profit");
   });
 });
 

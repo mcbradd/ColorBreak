@@ -176,7 +176,7 @@ export const DECISION_FRESHNESS_MS = 6 * 60 * 60 * 1000;
 
 /** Presentation contract shared by product choice and the live buyer result. */
 export interface DecisionAvailability {
-  label: "Decision-ready" | "Analysis only — stale" | "Unavailable";
+  label: "Decision-ready" | "Estimate · older prices" | "Partial estimate";
   detail: string;
   observedAt?: string;
   observedSource?: string;
@@ -194,18 +194,18 @@ export function decisionAvailability(
     observedAt: eligibility.observedAt, observedSource: eligibility.observedSource, ageMs: eligibility.ageMs,
   };
   if (eligibility.status === "stale") return {
-    label: "Analysis only — stale",
-    detail: "Contents are resolved, but the price snapshot is older than six hours; no bid decision is available yet.",
+    label: "Estimate · older prices",
+    detail: "Contents are resolved, but the price snapshot is older than six hours; the bid limit remains an estimate.",
     observedAt: eligibility.observedAt, observedSource: eligibility.observedSource, ageMs: eligibility.ageMs,
   };
   const reason = eligibility.affectedGroups[0]?.label ?? "price or product evidence is unavailable";
-  return { label: "Unavailable", detail: `No bid decision: ${reason}`, observedAt: eligibility.observedAt, observedSource: eligibility.observedSource, ageMs: eligibility.ageMs };
+  return { label: "Partial estimate", detail: `Best available bid estimate; ${reason}`, observedAt: eligibility.observedAt, observedSource: eligibility.observedSource, ageMs: eligibility.ageMs };
 }
 
 /**
  * Classifies whether a valuation can drive a buyer or seller decision.  This is
- * intentionally independent from presentation: callers must gate action,
- * sharing, export, and analytics on `status === "eligible"`.
+ * evidence metadata only. Stale or incomplete evidence qualifies estimates;
+ * it must not suppress calculations, charts, or decision guidance.
  */
 export function decisionEligibility(
   valuation: Pick<ValuationResult, "status" | "omissions" | "pricedAt" | "priceSource">,

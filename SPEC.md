@@ -1,11 +1,19 @@
 # ColorBreak v4 acceptance contract
 
+## Universal answer contract
+
+Every calculated value and graphic gives the best available answer immediately and improves it as matching data arrives. Fresh exact data outranks matching cached data; disclosed approximations fill gaps where possible. With no defensible estimate for an item, show the known subtotal and explain that unknown contributions currently add $0. Never treat that as proof of zero worth or cost. Uncertain evidence changes the explanation, not availability of the answer.
+
+All calculated values and graphics use the same circled-asterisk popover. It names the relevant assumptions and gaps in simple, concise language. It works with touch, keyboard, Escape and outside dismissal, and stays within the visual viewport above mobile keyboards. Exact user-entered counts and recorded receipts are not invented or changed to manufacture an estimate.
+
+Quantity changes reuse only the matching product's values and scale them immediately. Different products cannot inherit each other's answers. A quick range compares analytic averages while opening sampling runs; it is explicitly described as a preview, not a sampled opening range. Failed enrichment keeps this useful answer and a retry action.
+
 ## Buyer
 
 1. Entry is the job chooser: a hash-less or unrecognized URL resolves to it, and it offers **Buyer** and **Seller** as separate jobs. A shared break link opens the buyer workspace directly.
 2. Set → product selection is searchable, touch-friendly, and automatically calculates the break.
 3. The first buyer result shows Sellable EV, confidence, the slots still in the pool, and a bid ceiling. The buyer never types a bid or a shipping figure into the live decision: shipping, tax, platform fees and any flat fee are standing assumptions entered once, and the ceiling is the highest hammer price whose landed cost still fits inside the modeled value.
-4. Incomplete data never hides the verdict, projection, or outcome distribution. Results use only resolved contents and prices, show a nearby warning that names each omission and its likely impact, and never infer a missing value. If a premium treatment has no treatment-specific market observation, the same printing's listed TCG foil price is used and labeled; prices never cross printings or foil classes.
+4. Incomplete data never hides the verdict, projection, or outcome distribution. Results use the best available evidence, including clearly disclosed approximations, with the universal estimate note beside each value and graphic. If a premium treatment has no treatment-specific market observation, the same printing's listed TCG foil price is used and labeled; prices never cross printings or foil classes.
 5. Market EV, Sellable EV, Known EV, chase share, value without the chase, and top contributors remain available without obstructing the primary decision.
 6. Buyer break format offers Color slots and Large break. In a color-slot break the checked slots are the slots the buyer already owns and the crossed slots are the ones another buyer took; both leave the pool the next auction draws from, and the decision prices that remaining pool. Large break accepts 1–500 spots, defaults to 120, reserves each of the 17 catch-all category slots, and fills the remaining slots with the highest-market-value card identities. Character cards sharing a character name occupy one named spot.
 7. Large break shows sealed market value per spot, pull EV per spot under the shared bulk filter, top named cards switchable between market-price and expected-value ranking, and residual creature-color/card-type EV with named cards excluded.
@@ -21,13 +29,13 @@
 1. Product market cost is populated when tcgcsv is reachable; actual cost is always editable.
 2. The Whatnot US preset uses 8% commission plus 2.9% processing on hammer + buyer shipping + tax, plus $0.30 per purchase.
 3. Buyer-paid shipping is never seller revenue. Packing and seller-covered shipping are explicit costs.
-4. The target plan and actual asks are distinct. Profit is hidden until all sold slots have actual asks.
+4. Planning profit is always estimated from entered costs, then available market prices, with unknown costs explicitly contributing $0. Recorded-so-far results use only recorded revenue plus disclosed cost assumptions. Reconciled actual profit uses actual costs, receipts and shipments; target asks never become actual receipts.
 5. Target asks allocate by Sellable EV with a minimum, can be locked, and redistribute when a slot is marked unsold.
 6. Seller entry is an inline, combined set/product search. Tapping a product immediately adds it, clears search and returns focus for the next product. Quantities and removal remain on the same screen, with Undo; different sets never merge merely because their product keys match.
 7. Product identity appears without evaluating every search alternative. Analytic EV starts on selection; range calculations settle rapid edits before sampling. Neither cost entry nor market-price hydration restarts card valuation or unmounts seller controls.
-8. The first result shows whole-break EV and per-color average, low (10th percentile), typical (median) and high (90th percentile) outcomes. Unknown acquisition costs do not hide card values. Stale or incomplete models show qualified estimates; a bid limit requires current complete evidence and current simulation results. A random color preview explicitly assumes all eight colors are available.
+8. The first result shows whole-break EV and per-color average, low (10th percentile), typical (median) and high (90th percentile) outcomes. Unknown acquisition costs do not hide card values. Stale or incomplete models show qualified estimates; a bid limit remains visible using the best available range or analytic preview, with its limitations in the estimate note. A random color preview explicitly assumes all eight colors are available.
 9. On phones a compact value strip stays visible during entry, including above the keyboard. The product list is bounded; expanded ranges and pricing remain on the same page. Controls remain usable at 320px, and quantity entry retains a visible Done button.
-10. Recalculation retains previous values with an explicit updating label; stale results never masquerade as the current mix. Continuing composition edits retain standing assumptions and valid per-product cost choices, while receipt records never move to another break.
+10. Recalculation immediately reuses matching product values for the new quantities with an updating note; stale results never masquerade as the current mix. Continuing composition edits retain standing assumptions and valid per-product cost choices, while receipt records never move to another break.
 11. Browser bars and keyboards cannot cover the active field or its Done action. The value strip follows the visual viewport, including during native panning; search leaves room for a tappable match. Short viewports use a single-row quantity/Done control. Deliberate scrolling and explicit result navigation cancel automatic position restoration. See `docs/mobile-viewport-contract.md` for regression coverage and device verification limits.
 
 ## Data integrity
@@ -36,7 +44,7 @@
 2. Sourced corrections override upstream metadata and remain reviewable in `data/corrections.json`.
 3. Cross-set packs, guaranteed cards, deck contents, and box toppers resolve as cards or become named material omissions.
 4. Confidence is `verified`, `estimated`, or `incomplete` and is computed, not editorial.
-5. Card prices are exact to printing. Treatment-specific market prices are preferred; a same-printing listed TCG foil price may fill a premium-treatment gap and must be labeled. Cached prices expire after six hours.
+5. Card prices are exact to printing. Treatment-specific market prices are preferred; a same-printing listed TCG foil price may fill a premium-treatment gap and must be labeled. Prices older than six hours remain usable estimates with an age note while newer data is requested.
 
 ## Platform and quality
 

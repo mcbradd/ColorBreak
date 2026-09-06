@@ -26,4 +26,9 @@ describe("Whatnot US economics", () => {
     expect(hammer).toBeGreaterThan(150);
     expect(hammer).toBeLessThan(170);
   });
+  it("reports no finite break-even when percentage fees consume all revenue", () => {
+    expect(requiredHammer(8, 16, 100, 0, 0, { ...WHATNOT_US, commissionRate: .9, processingRate: .1 })).toBe(Infinity);
+    expect(requiredHammer(8, 16, 100, 0, 0, { ...WHATNOT_US, commissionRate: 1, processingRate: .1 })).toBe(Infinity);
+  });
+
 });

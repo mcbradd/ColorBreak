@@ -48,6 +48,7 @@ export function requiredHammer(
 ): number {
   if (transactionCount <= 0) return 0;
   const keep = 1 - preset.commissionRate - preset.processingRate;
+  if (keep <= 0) return Number.POSITIVE_INFINITY;
   const fixedFees = transactionCount * (
     preset.processingFlat + typicalBuyerShipping * preset.processingRate
   );

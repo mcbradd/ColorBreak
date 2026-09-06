@@ -34,6 +34,8 @@ export interface PackOutcomeModel {
 }
 
 export interface DistributionSummary {
+  /** Analytic preview awaiting an opening model; not opening percentiles. */
+  preview?: boolean;
   min: number;
   p01: number;
   mean: number;

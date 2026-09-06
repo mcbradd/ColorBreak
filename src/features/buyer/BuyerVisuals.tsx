@@ -1,3 +1,5 @@
+import { summarizeDistribution } from "../../domain/simulation";
+import { AnswerValue, AnswerNote } from "../shared/Answer";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "motion/react";
@@ -89,17 +91,17 @@ export function ValueSummary({ result }: { result: ValuationResult }) {
         help={result.threshold > 0
           ? "The average card value left after removing cards below your bulk-filter amount. This is an average across many possible openings, not a guaranteed result."
           : "Bulk filtering is off, so this average includes every priced card. It is an average across many possible openings, not a guaranteed result."}
-        title={fmt(result.sellableEV)}
+        title={<AnswerValue value={result.sellableEV} />}
         accessory={<Status result={result} />}
       />
       <div className="metric-row">
         <div>
           <span>{result.threshold > 0 ? "Before ignoring bulk" : "All priced cards"}</span>
-          <b>{fmt(result.marketEV)}</b>
+          <b><AnswerValue value={result.marketEV} /></b>
         </div>
         <div>
           <span>{result.threshold > 0 ? "Ignored as bulk" : "Filtered out"}</span>
-          <b>{fmt(ignoredEV)}</b>
+          <b><AnswerValue value={ignoredEV} /></b>
         </div>
         <div>
           <span>Priced cards used</span>
@@ -107,11 +109,11 @@ export function ValueSummary({ result }: { result: ValuationResult }) {
         </div>
       </div>
       <p className="value-equation">
-        <span>{fmt(result.marketEV)} all cards</span>
+        <span><AnswerValue value={result.marketEV} /> all cards</span>
         <b>−</b>
-        <span>{fmt(ignoredEV)} {result.threshold > 0 ? "ignored" : "filtered out"}</span>
+        <span><AnswerValue value={ignoredEV} /> {result.threshold > 0 ? "ignored" : "filtered out"}</span>
         <b>=</b>
-        <strong>{fmt(result.sellableEV)} used here</strong>
+        <strong><AnswerValue value={result.sellableEV} /> used here</strong>
       </p>
     </section>
   );
@@ -238,6 +240,7 @@ export function SlotCandle({
         <span className="slot-candle-body" style={{ left: `${position(bodyLow)}%`, width: `${Math.max(1, position(bodyHigh) - position(bodyLow))}%` }} />
         <span className="slot-candle-ev" style={{ left: `${position(expectedValue)}%` }} />
       </div>
+      <AnswerNote detail={!distribution || distribution.preview ? "Quick preview shows this color’s average while its opening range is calculated. Equal low and high values do not mean a guaranteed return." : "Low and high exclude the most extreme 1% at each end. Pack estimates, missing prices and rare hits can affect this range."} label={`What affects the ${label.toLowerCase()} chart`} />
       <div className="slot-candle-values" aria-hidden="true">
         <span><small>LOW</small>{fmtChart(low)}</span>
         <b><small>EV</small>{fmtChart(expectedValue)}</b>
@@ -459,22 +462,22 @@ export function CardInspector({
                 <div className="card-price-grid">
                   <div className="card-stat">
                     <span>Nonfoil market</span>
-                    <strong>{fmt(row.card.nonfoil ?? undefined)}</strong>
+                    <strong><AnswerValue value={row.card.nonfoil ?? undefined} /></strong>
                   </div>
                   <div className="card-stat">
                     <span>Foil market</span>
-                    <strong>{fmt(row.card.foil ?? undefined)}</strong>
+                    <strong><AnswerValue value={row.card.foil ?? undefined} /></strong>
                   </div>
                 </div>
                 {showSelectedFinishPrice && <div className="card-stat selected-finish-price">
                   <span>Selected finish price</span>
-                  <strong>{fmt(selectedPrice)}</strong>
+                  <strong><AnswerValue value={selectedPrice} /></strong>
                   <small>{row ? `${cardTreatmentLabel(row.card, selectedFinish)} · ${selectedPriceSource}` : selectedPriceSource}</small>
                 </div>}
                 <div className="card-stat">
                   <span>Copies per break<Tip label="Why copies can differ from the pull chance" text="The average number of copies this break produces, counting every copy. It can be higher than the pull chance because some openings produce two or more copies while others produce none — the chance only counts whether you saw at least one." /></span>
                   <strong>
-                    {row.sellableCopies.toFixed(3).replace(/0+$/, "").replace(/\.$/, "")}
+                    {row.sellableCopies.toFixed(3).replace(/0+$/, "").replace(/\.$/, "")}<AnswerNote detail="Average copies in this break, not a guarantee. Uses the current pack recipe and bulk filter; uncertain pull chances may change it." />
                   </strong>
                   {threshold > 0 && <Tip
                     className="card-stat-flag"
@@ -523,42 +526,42 @@ export function useOutcomeSimulation(
 }
 
 function OutcomeRange({ summary, landed, compact = false }: { summary?: DistributionSummary; landed?: number; compact?: boolean }) {
-  if (!summary) return <div className="distribution-empty">Calculating the outcome range from the information currently available…</div>;
+  summary ??= { ...summarizeDistribution([0]), preview: true };
   const chanceToClear = landed == null
     ? undefined
     : summary.chanceToClearCost ?? summary.fingerprint.filter((value) => value >= landed).length / summary.fingerprint.length;
   return (
     <div className={`outcome-range ${compact ? "outcome-range-compact" : ""}`} aria-label="Possible opening values">
       <div className="outcome-range-heading">
-        <span>{compact ? "Outcome range" : "Possible opening values"}</span>
+        <span>{summary.preview ? "Quick value range" : compact ? "Outcome range" : "Possible opening values"}<AnswerNote detail={summary.preview ? "This preview compares known average values while opening variation is calculated. Missing information may change it." : "Middle 80% of modeled openings. The next opening can fall outside this range."} /></span>
         {!compact && <Tip text="Shows a lower result, a middle result, and a higher result across many simulated openings. These are examples of the range you could see, not a prediction of the next opening." />}
       </div>
       <div className="outcome-landmarks">
         <div>
           <span>{compact ? "Downside" : "Lower result"}</span>
-          <b>{fmt(summary.p10)}</b>
+          <b><AnswerValue value={summary.p10} /></b>
           {!compact && <small>About 1 in 10 openings are worth this or less</small>}
         </div>
         <div className="typical">
           <span>{compact ? "Typical" : "Typical result"}</span>
-          <b>{fmt(summary.median)}</b>
+          <b><AnswerValue value={summary.median} /></b>
           {!compact && <small>About half are worth less and half are worth more</small>}
         </div>
         <div>
           <span>{compact ? "Upside" : "Higher result"}</span>
-          <b>{fmt(summary.p90)}</b>
+          <b><AnswerValue value={summary.p90} /></b>
           {!compact && <small>About 1 in 10 openings are worth this or more</small>}
         </div>
       </div>
       {chanceToClear != null && landed != null && (
         <div className="clear-chance">
-          <div><span>Chance card value covers your {fmt(landed)} cost</span><b>{Math.round(chanceToClear * 100)}%</b></div>
+          <div><span>Chance card value covers your <AnswerValue value={landed} /> cost</span><b>{Math.round(chanceToClear * 100)}%<AnswerNote detail={summary.preview ? "Preview compares known color averages with cost. It is not yet a simulated chance of recovering your cost." : "Share of modeled openings whose listed card values cover the entered cost. Selling fees, missing prices and real opening variation can change the result."} /></b></div>
           <div className="clear-chance-track" aria-label={`${Math.round(chanceToClear * 100)}% chance card value covers your cost`}>
             <span style={{ width: `${chanceToClear * 100}%` }} />
           </div>
         </div>
       )}
-      {summary.median === 0 && (
+      {summary.median === 0 && !summary.preview && (
         <p className="outcome-range-zero-note">Usually no card above the bulk filter — most openings land at $0.</p>
       )}
       {!compact && <p>Possible results from simulations—not a prediction of the next opening.</p>}

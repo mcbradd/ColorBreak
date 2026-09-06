@@ -1,52 +1,18 @@
 import { useEffect, useState } from "react";
-import { ShieldAlert } from "lucide-react";
+import { AnswerNote } from "./Answer";
+import { answerFactors } from "../../domain/answer-quality";
+import { quickOutcomes } from "../../domain/quick-outcomes";
 import type { BreakAnalysis } from "../../data/evaluate";
-import { deduplicateOmissions } from "../../domain/omissions";
+
 import { simulateOutcomesAsync } from "../../domain/simulation-client";
 import type { SimulationResult } from "../../domain/simulation";
 import type { SlotId } from "../../domain/types";
-import { DisclosureArrow } from "./Primitives";
+
 
 /** Shared because readiness evidence is role-neutral, not a buyer decision. */
-export function IncompleteDataWarning({ analysis, title = "Some values may be low", id, open, onOpenChange }: { analysis: BreakAnalysis; title?: string; id?: string; open?: boolean; onOpenChange?: (open: boolean) => void }) {
-  const omissions = deduplicateOmissions([...analysis.valuation.omissions, ...analysis.outcomeOmissions]
-    .filter((item) => item.material));
-  if (analysis.valuation.status !== "incomplete" && analysis.outcomeModel.complete !== false) return null;
-  const hasPriceGap = omissions.some((item) => /price|printing/.test(item.code));
-  const hasPullRateGap = omissions.some((item) => /pull-rate/.test(item.code));
-  const hasPackGap = omissions.some((item) => !/price|printing|pull-rate/.test(item.code));
-  const effects = [
-    "The estimate still uses all verified information.",
-    hasPriceGap ? "Cards without a price count as $0." : "",
-    hasPullRateGap ? "Cards with unknown pull chances stay in Rank by Price but are left out of EV." : "",
-    hasPackGap ? "Unverified pack contents are not included." : "",
-    "The real value may be higher.",
-  ].filter(Boolean).join(" ");
-  const technicalMessage = (message: string) => message
-    .replace(/ Its price remains visible, but it is excluded from expected value and Rank by EV until the rate can be verified\.$/, "")
-    .replace(/ Its price stays visible, but it adds \$0 to expected value and is omitted from Rank by EV because the exact chance of opening it is unknown\.$/, "");
-  return (
-    <details id={id} className="incomplete-data-warning" open={open} onToggle={(event) => onOpenChange?.(event.currentTarget.open)}>
-      <summary className="disclosure-summary">
-        <ShieldAlert />
-        <span><b>{title}</b><small>Some prices, pull chances, or pack contents could not be verified.</small></span>
-        <DisclosureArrow />
-      </summary>
-      <div className="incomplete-data-details">
-        <p>{effects}</p>
-        {omissions.length > 0 && <details className="incomplete-data-technical" open={open}>
-          <summary className="disclosure-summary">
-            <span><b>Technical details</b><small>{omissions.length} {omissions.length === 1 ? "issue" : "issues"}</small></span>
-            <DisclosureArrow />
-          </summary>
-          <ul>{omissions.map((omission, index) => <li key={`${omission.code}-${index}`}>
-            <span>{technicalMessage(omission.message)}</span>
-            {omission.source && <a href={omission.source} target="_blank" rel="noreferrer">Source</a>}
-          </li>)}</ul>
-        </details>}
-      </div>
-    </details>
-  );
+export function IncompleteDataWarning({ analysis, title = "Estimate details", id }: { analysis: BreakAnalysis; title?: string; id?: string; open?: boolean; onOpenChange?: (open: boolean) => void }) {
+  if (analysis.valuation.status === "verified" && analysis.outcomeModel.complete !== false) return null;
+  return <span id={id} className="estimate-basis"><span>{title}</span><AnswerNote detail={[...answerFactors(analysis.valuation, analysis.outcomeModel.complete).slice(0, 3), analysis.valuation.omissions.find((item) => item.material && item.message.length <= 140 && !/uuid|sheet|weight|MTGJSON|collation/i.test(item.message))?.message].filter(Boolean).join(" ")} /></span>;
 }
 
 
@@ -80,7 +46,7 @@ export function useOutcomeSimulation(analysis: BreakAnalysis | undefined, remain
             cancelRefinement = () => clearTimeout(id);
           }
         }
-      }).catch((error) => { if (current) setState({ key: revision, busy: false, error: error instanceof Error ? error.message : String(error) }); });
+      }).catch((error) => { if (current) setState((previous) => ({ key: revision, result: previous.key?.split("|retry:")[0] === key ? previous.result : undefined, busy: false, error: error instanceof Error ? error.message : String(error) })); });
     };
     // Rapid quantity taps can settle before enqueueing expensive worker runs.
     // Analytic values and the pending state still update immediately.
@@ -89,7 +55,7 @@ export function useOutcomeSimulation(analysis: BreakAnalysis | undefined, remain
     return () => { current = false; if (timer !== undefined) clearTimeout(timer); cancelRefinement?.(); };
   }, [key, generation, settleMs, refine]);
   return {
-    result: state.result,
+    result: state.key?.split("|retry:")[0] === key && state.result ? state.result : analysis ? quickOutcomes(analysis.valuation, remaining, landedCost) : undefined,
     error: state.key === revision ? state.error : undefined,
     busy: Boolean(analysis) && (state.busy || state.key !== revision),
     current: Boolean(state.result && state.key === revision && !state.busy),

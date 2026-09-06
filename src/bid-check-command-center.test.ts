@@ -100,7 +100,7 @@ describe("Bid Check command center", () => {
 
     await waitFor(() => expect(document.querySelectorAll(".slot-candle")).toHaveLength(8));
     const white = screen.getByLabelText(/^White: low/);
-    expect(white).toHaveAccessibleName(/low \$0\.00, expected \$20\.00, high \$30\.00/);
+    await waitFor(() => expect(white).toHaveAccessibleName(/low \$0\.00, expected \$20\.00, high \$30\.00/));
   });
 
   it("shows incomplete projections with the exact omission warning", async () => {
@@ -120,22 +120,11 @@ describe("Bid Check command center", () => {
     render(createElement(BuyerWorkspace, { exit: vi.fn(), startFresh: false, startReady: false }));
 
     const warningTitle = await screen.findByText("Some estimates may be low");
-    expect(warningTitle.closest("details")).not.toHaveAttribute("open");
-    expect(warningTitle.closest("summary")).toHaveTextContent("Some prices, pull chances, or pack contents could not be verified.");
-    fireEvent.click(warningTitle.closest("summary")!);
-    expect(screen.getByText(/The estimate still uses all verified information/)).toBeInTheDocument();
-    const technicalSummary = screen.getByText("Technical details").closest("summary")!;
-    expect(technicalSummary).toHaveTextContent("1 issue");
-    expect(technicalSummary.closest("details")).not.toHaveAttribute("open");
-    expect(screen.getAllByText("1× foil box topper has no verified card list.").length).toBeGreaterThan(0);
-    await waitFor(() => expect(simulateOutcomesAsync).toHaveBeenCalled());
-    expect(screen.getByText("LIMIT UNAVAILABLE")).toBeInTheDocument();
-    // Materially incomplete evidence is a permanent, named block for this
-    // calculation — never a stuck spinner.
-    expect(screen.getByLabelText("Highest bid to make")).toHaveTextContent("—");
-    expect(screen.getByLabelText("Highest bid to make")).not.toHaveTextContent("Checking…");
-    expect(screen.getByRole("button", { name: "Choose a ready product" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Use manual budget cap" })).toBeInTheDocument();
+    fireEvent.click(within(warningTitle.parentElement!).getByRole("button", { name: "What affects this estimate" }));
+    expect(screen.getByRole("tooltip")).toHaveTextContent("1× foil box topper has no verified card list.");
+    await waitFor(() => expect(screen.getByLabelText("Highest bid to make")).toHaveTextContent("$12.00"));
+    expect(screen.queryByText("LIMIT UNAVAILABLE")).not.toBeInTheDocument();
+
   });
 
   it("takes the buyer's standing costs out of the ceiling", async () => {
