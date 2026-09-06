@@ -1,3 +1,6 @@
+import { sellerStandingCosts } from "../../persistence";
+import { estimatedCards, estimatedLabel, SHIPPING_NOTE } from "../../domain/cost-assumptions";
+import { ShippingField } from "../shared/ShippingField";
 import { probableRange, chartPosition, CANDLE_EXPLANATION } from "../../domain/outcome-chart";
 import { bestAvailableAnalysis } from "../../data/answer-cache";
 import { AnswerValue, AnswerNote } from "../shared/Answer";
@@ -430,18 +433,18 @@ export function SellerView({
   const [pendingLedgerRemoval, setPendingLedgerRemoval] = useState<{ kind: "order"; record: ActualOrder } | { kind: "shipment"; record: ActualShipment }>();
   const hasSavedPlanValues = draft.targetsApplied || Object.keys(draft.lockedAsks).length > 0 || draft.unsoldSlots.length > 0 || draft.acceptedEstimateIds.length > 0 || draft.plannedBidOverride != null || draft.actualLedger.orders.length > 0 || draft.actualLedger.shipments.length > 0;
   const planMismatch = hasSavedPlanValues && !sellerPlanMatches(draft, owner);
-  const activeDraft = planMismatch ? { ...defaultSellerPlanDraft(), owner } : draft;
+  const activeDraft = planMismatch ? { ...defaultSellerPlanDraft(), ...sellerStandingCosts(draft), owner } : draft;
   useEffect(() => {
     if (!draft.owner && !hasSavedPlanValues) setDraft((current) => ({ ...current, owner }));
   }, [draft.owner, hasSavedPlanValues, owner]);
   const setPlan = (patch: Partial<SellerPlanDraft>) => setDraft((current) =>
     sellerPlanMatches(current, owner) || !hasSavedPlanValues
       ? { ...current, owner, ...patch }
-      : { ...defaultSellerPlanDraft(), owner, ...patch },
+      : { ...defaultSellerPlanDraft(), ...sellerStandingCosts(current), owner, ...patch },
   );
   useEffect(() => { writeSellerPlanDraft(draft); }, [draft]);
   const {
-    buyerShipping, packing, postage, shipments, mailingMethod, labor, tax,
+    buyerShipping: savedShipping, packing: savedPacking, postage, shipments, mailingMethod, labor, tax,
     giveaways, refundReserve, overhead, commission, processing, processingFlat,
     plannedBidOverride, minimumAsk,
   } = activeDraft;
@@ -460,6 +463,12 @@ export function SellerView({
   const missingCostLine = lines.find((line) => line.myCost == null && line.marketCost == null);
   const otherCosts = labor + tax + giveaways + refundReserve + overhead;
   const shipmentCount = Math.min(transactionCount, Math.max(1, Math.round(shipments)));
+  const cards = estimatedCards(lines, analysis.valuation);
+  const shippingMode = activeDraft.shippingMode ?? "per-item";
+  const shippingAmount = activeDraft.shippingAutomatic ? estimatedLabel(cards, shippingMode === "flat" ? shipmentCount : transactionCount) : savedShipping;
+  // Buyer-paid labels enter only the processing-fee base, never seller revenue.
+  const buyerShipping = shippingAmount * (shippingMode === "flat" ? shipmentCount / Math.max(1, transactionCount) : 1);
+  const packing = activeDraft.packingAutomatic ? (cards / Math.max(1, shipmentCount) > 150 ? 3 : 2) : savedPacking;
   const shipmentCost = (packing + postage) * shipmentCount;
   const completeOverhead = completeCost({
     acquisition,
@@ -589,7 +598,7 @@ export function SellerView({
                 <span className="set-glyph">{line.set}</span>
                 <span className="seller-product-name"><strong>{line.productLabel}</strong><small>{line.set}</small></span>
                 <div className="seller-market-price"><span>{line.myCost != null ? "Actual acquisition cost" : !analysis.priceAvailability ? "Current market" : priceAvailability.status === "available" && analysis.valuation.status !== "incomplete" ? "Market estimate" : "Stale/incomplete estimate"}</span><b><AnswerValue value={line.myCost ?? line.marketCost} /></b><small>{line.myCost != null ? "Actual cost entered" : line.marketCost == null ? "Unknown cost counts as $0 until entered" : `${priceAvailability.source} · ${priceAvailability.observedAt ? new Date(priceAvailability.observedAt).toLocaleString() : "date unavailable"} · used automatically for planning`}</small></div>
-                <NumberField id={`seller-cost-${line.id}`} label="My cost basis" value={line.myCost} onChange={(value) => update(line.id, { myCost: value })} live />
+                <NumberField id={`seller-cost-${line.id}`} label="My cost basis" value={line.myCost ?? line.marketCost ?? 0} hint="Uses your entered unit cost, otherwise the available market price. An unknown cost is estimated as $0; enter your cost to improve profit estimates." onChange={(value) => update(line.id, { myCost: value })} live />
                 {line.myCost == null && line.marketCost == null && <button type="button" className="quiet" onClick={() => focusManualCost(line.id)}>Enter actual cost</button>}
                 <QuantityControl line={line} update={(quantity) => update(line.id, { quantity })} onEmpty={() => remove(line.id)} />
                 <button className="remove-line" aria-label={`Remove ${line.productLabel} from break`} onClick={() => remove(line.id)}><Trash2 /></button>
@@ -627,17 +636,17 @@ export function SellerView({
             <option value="priority">USPS Priority Mail</option>
             <option value="custom">Other / custom</option>
           </select></label>
-          <NumberField label="Buyer shipping at checkout" value={buyerShipping} onChange={(value) => setPlan({ buyerShipping: value ?? 0 })} live />
-          <NumberField label="Packaging / shipment" value={packing} onChange={(value) => setPlan({ packing: value ?? 0 })} live />
-          <NumberField label="Postage / shipment" value={postage} onChange={(value) => setPlan({ postage: value ?? 0 })} live />
-          <NumberField label={`Expected combined shipments (up to ${transactionCount})`} value={shipments} onChange={(value) => setPlan({ shipments: value ?? 1 })} live />
+          <ShippingField label="Buyer shipping at checkout" value={shippingAmount} mode={shippingMode} onValue={(buyerShipping) => setPlan({ buyerShipping, shippingAutomatic: false })} onMode={(shippingMode) => setPlan({ shippingMode })} hint={`${SHIPPING_NOTE} Buyer-paid shipping is not your revenue or postage expense. It only increases payment-processing fees. Flat fee applies per combined shipment; per item applies per sold spot.`} />
+          <NumberField label="Packaging / shipment" hint="Planning guess: $2 per mailer, or $3 for more than 150 cards. Includes protective materials; your entry replaces this estimate." value={packing} onChange={(value) => setPlan({ packing: value ?? 0, packingAutomatic: false })} live />
+          <NumberField label="Postage / shipment" hint="Default $0 because the buyer pays the Whatnot label. Enter only postage you pay or subsidize; buyer shipping is never seller revenue." value={postage} onChange={(value) => setPlan({ postage: value ?? 0 })} live />
+          <NumberField prefix="" label={`Expected combined shipments (up to ${transactionCount})`} value={shipments} onChange={(value) => setPlan({ shipments: value ?? 1 })} live />
           <NumberField label="Labor" value={labor} onChange={(value) => setPlan({ labor: value ?? 0 })} live />
           <NumberField label="Tax on fees / permits" value={tax} onChange={(value) => setPlan({ tax: value ?? 0 })} live />
           <NumberField label="Giveaways" value={giveaways} onChange={(value) => setPlan({ giveaways: value ?? 0 })} live />
           <NumberField label="Refund / damage reserve" value={refundReserve} onChange={(value) => setPlan({ refundReserve: value ?? 0 })} live />
           <NumberField label="Allocated overhead" value={overhead} onChange={(value) => setPlan({ overhead: value ?? 0 })} live />
-          <NumberField label="Commission" value={commission} onChange={(value) => setPlan({ commission: value ?? 0 })} prefix="%" live />
-          <NumberField label="Processing" value={processing} onChange={(value) => setPlan({ processing: value ?? 0 })} prefix="%" live />
+          <NumberField label="Commission" value={commission} onChange={(value) => setPlan({ commission: value ?? 0 })} prefix="" suffix="%" live />
+          <NumberField label="Processing" value={processing} onChange={(value) => setPlan({ processing: value ?? 0 })} prefix="" suffix="%" live />
           <NumberField label="Fixed / purchase" value={processingFlat} onChange={(value) => setPlan({ processingFlat: value ?? 0 })} live />
         </div>
         <p className="seller-cost-source">Whatnot US TCG defaults: 8% commission and 2.9% + $0.30 processing, checked {WHATNOT_US.policyDate}. USPS postage varies by weight and distance; enter the actual label cost when the seller pays it.</p>
@@ -696,8 +705,8 @@ export function SellerView({
         <form className="actual-ledger-form" onSubmit={(event) => { event.preventDefault(); addOrder(); }}>
           <h3>Actual orders</h3>
           <div className="actual-slot-list">{saleableSlotIds.map((slot) => <label key={slot}><input type="checkbox" checked={orderDraft.slots.includes(slot)} disabled={activeDraft.actualLedger.orders.some((order) => order.slotIds.includes(slot))} onChange={(event) => setOrderDraft((current) => ({ ...current, slots: event.target.checked ? [...current.slots, slot] : current.slots.filter((id) => id !== slot) }))} /> {SLOT_NAMES[slot]}</label>)}</div>
-          <label>Receipt total<NumericInput ariaLabel="Receipt total" required live value={orderDraft.receipt === "" ? undefined : Number(orderDraft.receipt)} onCommit={(value) => setOrderDraft((current) => ({ ...current, receipt: value == null ? "" : String(value) }))} /></label>
-          <label>Actual fee from receipt / statement<NumericInput ariaLabel="Actual fee from receipt or statement" required live value={orderDraft.fee === "" ? undefined : Number(orderDraft.fee)} onCommit={(value) => setOrderDraft((current) => ({ ...current, fee: value == null ? "" : String(value) }))} /></label>
+          <label>Receipt total<NumericInput monetary ariaLabel="Receipt total" required live value={orderDraft.receipt === "" ? undefined : Number(orderDraft.receipt)} onCommit={(value) => setOrderDraft((current) => ({ ...current, receipt: value == null ? "" : String(value) }))} /></label>
+          <label>Actual fee from receipt / statement<NumericInput monetary ariaLabel="Actual fee from receipt or statement" required live value={orderDraft.fee === "" ? undefined : Number(orderDraft.fee)} onCommit={(value) => setOrderDraft((current) => ({ ...current, fee: value == null ? "" : String(value) }))} /></label>
           <label>Receipt / reference (required for reconciliation)<input aria-label="Receipt reference" value={orderDraft.reference} onChange={(event) => setOrderDraft({ ...orderDraft, reference: event.target.value })} /></label>
           <button className="primary" type="submit" disabled={!orderDraft.slots.length}>Record order</button>
         </form>
@@ -705,8 +714,8 @@ export function SellerView({
         <form className="actual-ledger-form" onSubmit={(event) => { event.preventDefault(); addShipment(); }}>
           <h3>Shipments &amp; fulfillment costs</h3><p className="muted">One order can have one shipment; split shipments are intentionally unsupported.</p>
           <label>Order<select aria-label="Order to fulfill" value={shipmentDraft.orderId} onChange={(event) => setShipmentDraft({ ...shipmentDraft, orderId: event.target.value })}><option value="">Choose an unshipped order</option>{activeDraft.actualLedger.orders.filter((order) => !order.shipmentId).map((order) => <option key={order.id} value={order.id}>{order.reference || order.id}</option>)}</select></label>
-          <label>Actual postage<NumericInput ariaLabel="Actual postage" required live value={shipmentDraft.postage === "" ? undefined : Number(shipmentDraft.postage)} onCommit={(value) => setShipmentDraft((current) => ({ ...current, postage: value == null ? "" : String(value) }))} /></label>
-          <label>Actual packing<NumericInput ariaLabel="Actual packing" required live value={shipmentDraft.packing === "" ? undefined : Number(shipmentDraft.packing)} onCommit={(value) => setShipmentDraft((current) => ({ ...current, packing: value == null ? "" : String(value) }))} /></label>
+          <label>Actual postage<NumericInput monetary ariaLabel="Actual postage" required live value={shipmentDraft.postage === "" ? undefined : Number(shipmentDraft.postage)} onCommit={(value) => setShipmentDraft((current) => ({ ...current, postage: value == null ? "" : String(value) }))} /></label>
+          <label>Actual packing<NumericInput monetary ariaLabel="Actual packing" required live value={shipmentDraft.packing === "" ? undefined : Number(shipmentDraft.packing)} onCommit={(value) => setShipmentDraft((current) => ({ ...current, packing: value == null ? "" : String(value) }))} /></label>
           <button className="primary" type="submit" disabled={!shipmentDraft.orderId}>Record shipment</button>
         </form>
         {activeDraft.actualLedger.shipments.length > 0 && <ul className="actual-ledger-list" aria-label="Recorded shipments">{activeDraft.actualLedger.shipments.map((shipment) => {

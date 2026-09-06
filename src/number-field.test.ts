@@ -145,3 +145,14 @@ describe("dismissing the numeric keypad", () => {
     expect(screen.queryByRole("button", { name: /Done entering Cost/ })).toBeNull();
   });
 });
+
+it("does not turn a focused automatic estimate into an override without typing", () => {
+  const edits: Array<number | undefined> = [];
+  const view = render(createElement(NumberField, { label: "Estimated shipping", value: 4.47, onChange: n => edits.push(n) }));
+  const input = screen.getByRole("textbox", { name: "Estimated shipping" });
+  fireEvent.focus(input);
+  fireEvent.blur(input);
+  expect(edits).toEqual([]);
+  view.rerender(createElement(NumberField, { label: "Estimated shipping", value: 7.75, onChange: n => edits.push(n) }));
+  expect(input).toHaveValue("7.75");
+});

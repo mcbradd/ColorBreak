@@ -25,7 +25,7 @@ describe("large break card list", () => {
       priceAvailability: { status: "available", source: "snapshot" },
     } as BreakAnalysis;
 
-    render(createElement(LargeBreakView, { analysis, lines: [], spots: 18 }));
+    render(createElement(LargeBreakView, { analysis, bid: undefined, setBid: () => {}, costs: { shipping: 0, taxPercent: 0 }, lines: [], spots: 18 }));
 
     expect(screen.getByText("Jace")).toBeInTheDocument();
     expect(screen.getByText("Named assignments").nextElementSibling).toHaveTextContent("1");
@@ -51,7 +51,7 @@ describe("large break card list", () => {
       priceAvailability: { status: "available", source: "snapshot" },
     } as BreakAnalysis;
 
-    render(createElement(LargeBreakView, { analysis, lines: [], spots: 18 }));
+    render(createElement(LargeBreakView, { analysis, bid: undefined, setBid: () => {}, costs: { shipping: 0, taxPercent: 0 }, lines: [], spots: 18 }));
 
     fireEvent.click(screen.getByRole("button", { name: /Show all \d+ category assignments/ }));
     expect(screen.getByText("Instant")).toBeInTheDocument();
@@ -79,7 +79,7 @@ describe("large break card list", () => {
       priceAvailability: { status: "available", source: "snapshot" },
     } as BreakAnalysis;
 
-    const { container } = render(createElement(LargeBreakView, { analysis, lines: [], spots: 18 }));
+    const { container } = render(createElement(LargeBreakView, { analysis, bid: undefined, setBid: () => {}, costs: { shipping: 0, taxPercent: 0 }, lines: [], spots: 18 }));
     const slot = screen.getByRole("button", { name: "Show cards in Named Dragon slot" });
     expect(slot).toHaveTextContent("$50.00 · Nonfoil · TST");
     fireEvent.click(slot);
@@ -106,7 +106,7 @@ describe("large break card list", () => {
       priceAvailability: { status: "available", source: "snapshot" },
     } as BreakAnalysis;
 
-    render(createElement(LargeBreakView, { analysis, lines: [], spots: 18 }));
+    render(createElement(LargeBreakView, { analysis, bid: undefined, setBid: () => {}, costs: { shipping: 0, taxPercent: 0 }, lines: [], spots: 18 }));
     fireEvent.click(screen.getByRole("button", { name: "Show cards in Listed Foil slot" }));
     const compactCard = screen.getByRole("button", { name: "Open Listed Foil (Foil) card details" });
     expect(compactCard).toHaveTextContent("$18.25 · Foil · TST");
@@ -141,7 +141,7 @@ describe("large break card list", () => {
       priceAvailability: { status: "available", source: "snapshot" },
     } as BreakAnalysis;
 
-    render(createElement(LargeBreakView, { analysis, lines: [], spots: 32 }));
+    render(createElement(LargeBreakView, { analysis, bid: undefined, setBid: () => {}, costs: { shipping: 0, taxPercent: 0 }, lines: [], spots: 32 }));
 
     fireEvent.click(screen.getByRole("button", { name: /more named assignments/ }));
     expect(screen.getByRole("button", { name: "Show cards in Card 14 slot" })).toBeInTheDocument();
@@ -163,7 +163,7 @@ describe("large break card list", () => {
       priceAvailability: { status: "available", source: "snapshot" },
     } as BreakAnalysis;
 
-    render(createElement(LargeBreakView, { analysis, lines: [], spots: 17 }));
+    render(createElement(LargeBreakView, { analysis, bid: undefined, setBid: () => {}, costs: { shipping: 0, taxPercent: 0 }, lines: [], spots: 17 }));
 
     fireEvent.click(screen.getByRole("button", { name: /Show all \d+ category assignments/ }));
     fireEvent.click(screen.getByRole("button", { name: "Show cards in Instant slot" }));
@@ -191,7 +191,7 @@ describe("large break card list", () => {
       priceAvailability: { status: "available", source: "snapshot" },
     } as BreakAnalysis;
 
-    render(createElement(LargeBreakView, { analysis, lines: [], spots: 18 }));
+    render(createElement(LargeBreakView, { analysis, bid: undefined, setBid: () => {}, costs: { shipping: 0, taxPercent: 0 }, lines: [], spots: 18 }));
     expect(screen.queryByText("CANNOT CLASSIFY PRICE")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Price" }));
     const card = screen.getByRole("button", { name: "Show cards in Sothera, the Supervoid slot" }).parentElement!;

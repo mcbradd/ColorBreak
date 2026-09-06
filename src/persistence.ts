@@ -1,3 +1,4 @@
+import type { CostOverrides } from "./domain/cost-assumptions";
 import type { AssignmentMode } from "./domain/share-url";
 import type { BreakLine, SlotId } from "./domain/types";
 import { emptyActualLedger, validateActualLedger, type ActualLedger } from "./domain/actual-ledger";
@@ -19,6 +20,9 @@ export interface SellerPlanDraft {
   /** Binds private seller assumptions to one exact composition and data snapshot. */
   owner?: SellerPlanOwner;
   buyerShipping: number;
+  shippingMode?: "flat" | "per-item";
+  shippingAutomatic?: boolean;
+  packingAutomatic?: boolean;
   packing: number;
   postage: number;
   shipments: number;
@@ -51,7 +55,7 @@ export interface SellerPlanOwner {
 }
 
 export const defaultSellerPlanDraft = (): SellerPlanDraft => ({
-  buyerShipping: 5, packing: 2, postage: 0, shipments: 8,
+  buyerShipping: 4.47, shippingMode: "flat", shippingAutomatic: true, packingAutomatic: true, packing: 2, postage: 0, shipments: 8,
   mailingMethod: "whatnot-label", labor: 0, tax: 0, giveaways: 0,
   refundReserve: 0, overhead: 0, commission: 8, processing: 2.9,
   processingFlat: .3, acceptedEstimateIds: [], minimumAsk: 1,
@@ -96,6 +100,9 @@ export function readSellerPlanDraft(): SellerPlanDraft {
     return {
       ...(owner ? { owner } : {}),
       buyerShipping: finite(draft.buyerShipping, fallback.buyerShipping),
+      shippingMode: draft.shippingMode === "flat" ? "flat" : "per-item",
+      shippingAutomatic: draft.shippingAutomatic === true,
+      packingAutomatic: draft.packingAutomatic === true,
       packing: finite(draft.packing, fallback.packing),
       postage: finite(draft.postage, fallback.postage),
       shipments: finite(draft.shipments, fallback.shipments),
@@ -291,14 +298,8 @@ export function writeBuyerDecisionRecord(state: BuyerDecisionState, money: { bid
 
 export const buyerCostsKey = "colorbreak:buyer:costs:v1";
 
-/**
- * The buyer's standing cost assumptions - shipping, tax, fees. These are
- * settings, not a bid: a buyer sets them once and expects them to still be
- * there next time. They stay in sessionStorage all the same, because the
- * same rule that keeps a hammer price out of durable storage applies to
- * anything that describes what a person pays.
- */
-export function readBuyerCosts(): BuyerCosts | undefined {
+/** Read-only migration of the former buyer cost record. */
+function readLegacyBuyerCosts(): BuyerCosts | undefined {
   try {
     const value: unknown = JSON.parse(sessionStorage.getItem(buyerCostsKey) ?? "null");
     if (!value || typeof value !== "object") return undefined;
@@ -314,10 +315,6 @@ export function readBuyerCosts(): BuyerCosts | undefined {
       fixedFee: number("fixedFee"),
     };
   } catch { return undefined; }
-}
-
-export function writeBuyerCosts(costs: BuyerCosts) {
-  try { sessionStorage.setItem(buyerCostsKey, JSON.stringify(costs)); } catch { /* optional */ }
 }
 
 /** Remove the former durable drafts, especially seller cost records, before any new write. */
@@ -346,4 +343,34 @@ export function clearColorBreakBrowserStorage(): void {
       }
     }
   } catch { /* storage is optional */ }
+}
+
+export const costOverridesKey = "colorbreak:buyer:cost-overrides:v2";
+export function readCostOverrides(): CostOverrides {
+  try {
+    const saved = sessionStorage.getItem(costOverridesKey);
+    const record = JSON.parse(saved ?? "null");
+    if (record && typeof record === "object") {
+      return {
+        ...(typeof record.shipping === "number" && Number.isFinite(record.shipping) && record.shipping >= 0 ? { shipping: record.shipping } : {}),
+        ...(typeof record.taxPercent === "number" && Number.isFinite(record.taxPercent) && record.taxPercent >= 0 ? { taxPercent: Math.min(100, record.taxPercent) } : {}),
+        ...(record.shippingMode === "flat" || record.shippingMode === "per-item" ? { shippingMode: record.shippingMode } : {}),
+      };
+    }
+    // Older automatic zeros are not intentional edits. Preserve nonzero inputs,
+    // including their former per-purchase shipping meaning; discard seller fees.
+    const legacy = readLegacyBuyerCosts();
+    return { ...(legacy?.shipping ? { shipping: legacy.shipping, shippingMode: "per-item" as const } : {}), ...(legacy?.taxPercent ? { taxPercent: legacy.taxPercent } : {}) };
+  } catch { return {}; }
+}
+export function writeCostOverrides(value: CostOverrides) {
+  try { sessionStorage.setItem(costOverridesKey, JSON.stringify(value)); } catch { /* optional */ }
+}
+
+/** Standing costs survive a new composition; receipts and target asks never do. */
+export function sellerStandingCosts(draft: SellerPlanDraft): Partial<SellerPlanDraft> {
+  const { buyerShipping, shippingMode, shippingAutomatic, packingAutomatic, packing, postage, shipments,
+    mailingMethod, labor, tax, giveaways, refundReserve, overhead, commission, processing, processingFlat } = draft;
+  return { buyerShipping, shippingMode, shippingAutomatic, packingAutomatic, packing, postage, shipments,
+    mailingMethod, labor, tax, giveaways, refundReserve, overhead, commission, processing, processingFlat };
 }

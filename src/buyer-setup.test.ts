@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { BuyerSetup } from "./features/buyer/BuyerSetup";
 import { createAuction, markSlotsTaken } from "./domain/auction";
 import type { BreakLine, ValuationResult } from "./domain/types";
-import { DEFAULT_BUYER_COSTS } from "./domain/bid-ceiling";
+import { resolveCosts } from "./domain/cost-assumptions";
 
 const lines: BreakLine[] = [{
   id: "line-1",
@@ -48,8 +48,7 @@ describe("Check a Bid setup order", () => {
     bulkThreshold: 2,
     setBulkEnabled: vi.fn(),
     setBulkThreshold: vi.fn(),
-    costs: DEFAULT_BUYER_COSTS,
-    setCosts: vi.fn(),
+    costs: { ...resolveCosts({}, 420, 8, 0, "UTC"), update: vi.fn() },
     largeSpots: 120,
     setLargeSpots: vi.fn(),
   };

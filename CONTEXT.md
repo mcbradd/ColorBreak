@@ -22,7 +22,7 @@ ColorBreak supports two time-sensitive jobs: a buyer deciding whether to bid on 
 - **Counted EV**: expected value from card finishes at or above the user’s “Ignore bulk under” threshold. The threshold is a value filter, not a liquidity claim.
   _Avoid_: Sellable EV
 - **Known EV**: priced value that is safe to claim after unresolved contents are omitted. It equals Market EV when the result is complete.
-- **Landed bid**: hammer price plus every buyer cost the purchase adds — shipping, tax, fees.
+- **Landed bid**: hammer price plus added shipping and sales tax; seller platform fees never enter buyer cost.
 - **Transaction**: one buyer purchase. Commission, percentage processing, and the fixed processing fee apply here.
 - **Shipment**: buyer-grouped fulfillment. Packing and seller-covered shipping apply here; a shipment is not automatically one color slot.
 - **Target plan**: proposed asks needed to achieve a margin. It is not an actual outcome.
@@ -40,7 +40,7 @@ ColorBreak supports two time-sensitive jobs: a buyer deciding whether to bid on 
 - **Bid ceiling**: the greatest hammer price whose landed cost still fits inside the typical modeled value of the remaining pool, after the buyer's standing costs. It is a limit, not a prediction or encouragement to bid.
 - **Viability decision**: the Seller Studio result: Run, Reprice, Change mix, or Do not run, supported by net profit, break-even fill, and explicit assumptions.
 - **Break-even fill**: the minimum number or percentage of planned spots that must sell at the modeled prices for seller net profit to reach zero.
-- **Buyer costs**: the buyer's standing assumptions about what a winning purchase costs on top of the hammer price — added shipping, sales tax, platform or payment fees, and any flat per-purchase fee. Set once, kept for the session, and removed from the modeled value to produce the bid ceiling.
+- **Buyer costs**: the buyer's standing assumptions about what a winning purchase costs on top of the hammer price — added shipping and sales tax. Shipping defaults to an estimated combined Whatnot label, with only the increase charged to the next bid; per-item is an editable alternate. Regional tax and content-based shipping estimates improve until overridden. Overrides persist privately for the session until all local app data is cleared. See docs/cost-assumptions.md.
 - **Launch pack**: buyer-facing and operational assets generated from the same modeled break: rules, spot labels, listing copy, show notes, a portrait graphic, and a checklist.
 
 ## Source policy

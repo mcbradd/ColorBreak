@@ -17,14 +17,12 @@ import { track } from "../../analytics";
 import { readyExampleLine } from "../../data/ready-examples";
 import {
   cleanupLegacyStorage,
-  readBuyerCosts,
   readBuyerDecisionRecord,
   readSessionDraft,
-  writeBuyerCosts,
   writeBuyerDecisionRecord,
   writeSessionLines,
 } from "../../persistence";
-import { DEFAULT_BUYER_COSTS, type BuyerCosts } from "../../domain/bid-ceiling";
+import { useBuyerCosts } from "../shared/useBuyerCosts";
 import { Builder, ManualBudgetCap } from "../shared/ProductBuilder";
 import { CompactWarning, useOutcomeSimulation } from "./BuyerVisuals";
 import { BuyerSetup } from "./BuyerSetup";
@@ -68,10 +66,6 @@ export function BuyerWorkspace({
     // are the ones they already own, not the ones being valued.
     [assignmentMode, setAssignmentMode] = useState<AssignmentMode>(() => sharedBuyer.assignmentMode === "large" ? "large" : "random"),
     [buyerBid, setBuyerBid] = useState<number | undefined>(),
-    [buyerShipping, setBuyerShipping] = useState<number | undefined>(),
-    // Costs the buyer pays on top of the hammer price. Set once, then left
-    // alone: an auction gives about ten seconds, which is no time to type.
-    [costs, setCosts] = useState<BuyerCosts>(() => readBuyerCosts() ?? DEFAULT_BUYER_COSTS),
     [largeSpots, setLargeSpots] = useState<number>(() => {
       return sharedBuyer.largeSpots ?? 120;
     }),
@@ -94,7 +88,8 @@ export function BuyerWorkspace({
     bulkThreshold: number;
   }>();
   const threshold = bulkEnabled ? bulkThreshold : 0;
-  useEffect(() => { writeBuyerCosts(costs); }, [costs]);
+  const costSettings = useBuyerCosts(lines, analysis?.valuation, assignmentMode === "large" ? largeSpots : 8, assignmentMode === "large" ? 0 : selectedSlots.length);
+  const costs = costSettings.costs;
   useEffect(() => { if (startReady) setLines([readyExampleLine()]); }, [startReady]);
   useEffect(() => { if (cleanupLegacyStorage()) setLegacyNotice(true); }, []);
   useEffect(() => {
@@ -117,8 +112,8 @@ export function BuyerWorkspace({
       bulkEnabled,
       bulkThreshold,
       largeSpots,
-    }, { bid: buyerBid, shipping: buyerShipping });
-  }, [analysis?.valuation.dataVersion, assignmentMode, auction.remaining, bulkEnabled, bulkThreshold, buyerBid, buyerRecoveryReady, buyerShipping, largeSpots, lines, selectedSlots]);
+    }, { bid: buyerBid, shipping: costs.shipping });
+  }, [analysis?.valuation.dataVersion, assignmentMode, auction.remaining, bulkEnabled, bulkThreshold, buyerBid, buyerRecoveryReady, costs.shipping, largeSpots, lines, selectedSlots]);
   const sharedHref = createBreakShareUrl(`${location.origin}${location.pathname}#buyer`, {
     lines,
     assignmentMode,
@@ -202,7 +197,6 @@ export function BuyerWorkspace({
       setBulkThreshold(recovered.bulkThreshold);
       setLargeSpots(recovered.largeSpots);
       setBuyerBid(recovered.bid);
-      setBuyerShipping(recovered.shipping);
     }
     setBuyerRecoveryReady(true);
   }, [analysis, buyerRecoveryReady, initialBuyerRecord, lines, recoveryRecord]);
@@ -283,13 +277,11 @@ export function BuyerWorkspace({
             setBulkThreshold(recoveryRecord.bulkThreshold);
             setLargeSpots(recoveryRecord.largeSpots);
             setBuyerBid(recoveryRecord.bid);
-            setBuyerShipping(recoveryRecord.shipping);
             setRecoveryRecord(undefined);
             setBuyerRecoveryReady(true);
           }}>Resume saved decision</button>
           <button type="button" className="quiet" onClick={() => {
             setBuyerBid(undefined);
-            setBuyerShipping(undefined);
             setRecoveryRecord(undefined);
             setBuyerRecoveryReady(true);
           }}>Use this shared break</button>
@@ -302,7 +294,6 @@ export function BuyerWorkspace({
             setBulkThreshold(2);
             setLargeSpots(120);
             setBuyerBid(undefined);
-            setBuyerShipping(undefined);
             setRecoveryRecord(undefined);
             setBuyerRecoveryReady(true);
           }}>Start clean</button>
@@ -350,8 +341,7 @@ export function BuyerWorkspace({
               setBulkEnabled={setBulkEnabled}
               setBulkThreshold={setBulkThreshold}
               distributions={simulation.result?.slotDistributions}
-              costs={costs}
-              setCosts={setCosts}
+              costs={costSettings}
               largeSpots={largeSpots}
               setLargeSpots={setLargeSpots}
             />
@@ -360,7 +350,7 @@ export function BuyerWorkspace({
               {busy && <div className="calculating" role="status" aria-live="polite"><span />Improving the estimate…</div>}
               {error && <CompactWarning title="Couldn’t load this result" summary="The best available estimate remains visible. Retry to improve it." className="load-warning"><p role="alert">{error}</p><div className="buyer-recovery-actions"><button type="button" className="quiet" onClick={() => setCalculationGeneration((value) => value + 1)}>Retry analysis</button><button type="button" className="quiet" onClick={() => setManualCapOpen(true)}>Use manual budget cap</button></div></CompactWarning>}
               {analysis && (assignmentMode === "large" ? (
-                <LargeBreakView analysis={analysis} lines={lines} spots={largeSpots} bid={buyerBid} setBid={setBuyerBid} shipping={buyerShipping} setShipping={setBuyerShipping} />
+                <LargeBreakView analysis={analysis} lines={lines} spots={largeSpots} bid={buyerBid} setBid={setBuyerBid} costs={costs} />
               ) : (
                 <BuyerView
                   analysis={analysis}

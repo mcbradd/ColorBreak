@@ -6,7 +6,8 @@ import type {
 import type { AuctionState } from "../../domain/auction";
 import type { AssignmentMode } from "../../domain/share-url";
 import type { DistributionSummary } from "../../domain/simulation";
-import type { BuyerCosts } from "../../domain/bid-ceiling";
+import type { useBuyerCosts } from "../shared/useBuyerCosts";
+import { ShippingField } from "../shared/ShippingField";
 import { SLOT_IDS } from "../../domain/types";
 import { DisclosureArrow, InformationLabel, NumberField, Tip } from "../shared/Primitives";
 import { BreakFormatChoice, Composition, SlotRail } from "./BuyerVisuals";
@@ -30,7 +31,6 @@ export function BuyerSetup({
   setBulkEnabled,
   setBulkThreshold,
   costs,
-  setCosts,
   largeSpots,
   setLargeSpots,
 }: {
@@ -50,8 +50,7 @@ export function BuyerSetup({
   bulkThreshold: number;
   setBulkEnabled: (enabled: boolean) => void;
   setBulkThreshold: (threshold: number) => void;
-  costs: BuyerCosts;
-  setCosts: (costs: BuyerCosts) => void;
+  costs: ReturnType<typeof useBuyerCosts>;
   largeSpots: number;
   setLargeSpots: (spots: number) => void;
 }) {
@@ -99,10 +98,8 @@ export function BuyerSetup({
             />
           </div>
           <div className="buyer-cost-fields">
-            <NumberField label="Shipping" value={costs.shipping || undefined} onChange={(value) => setCosts({ ...costs, shipping: value ?? 0 })} live />
-            <NumberField label="Flat fee" value={costs.fixedFee || undefined} onChange={(value) => setCosts({ ...costs, fixedFee: value ?? 0 })} live />
-            <NumberField label="Tax" prefix="" suffix="%" value={costs.taxPercent || undefined} onChange={(value) => setCosts({ ...costs, taxPercent: value ?? 0 })} max={100} live />
-            <NumberField label="Platform fees" prefix="" suffix="%" value={costs.feePercent || undefined} onChange={(value) => setCosts({ ...costs, feePercent: value ?? 0 })} max={100} live />
+            <ShippingField value={costs.amount} mode={costs.mode} onValue={(shipping) => costs.update({ shipping })} onMode={(shippingMode) => costs.update({ shippingMode })} hint={costs.shippingNote} />
+            <NumberField label="Tax" prefix="" suffix="%" value={costs.costs.taxPercent} onChange={(value) => costs.update({ taxPercent: value ?? 0 })} max={100} hint={costs.taxNote} live inline />
           </div>
           <div className="step-heading">
             <InformationLabel>VALUE FILTER</InformationLabel>

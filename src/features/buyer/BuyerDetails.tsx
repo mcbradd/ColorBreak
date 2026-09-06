@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { CSSProperties } from "react";
 import { Search, ShieldAlert } from "lucide-react";
 import type { BreakAnalysis } from "../../data/evaluate";
-import { bidCeiling } from "../../domain/bid-ceiling";
+import { bidCeiling, landedCost } from "../../domain/bid-ceiling";
 import type { BuyerCosts } from "../../domain/bid-ceiling";
 import { decisionEligibility } from "../../domain/valuation";
 import type { AuctionState } from "../../domain/auction";
@@ -133,7 +133,7 @@ export function BulkFilterControl({
         </button>
         <label className="bulk-value-field">
           <span>Ignore cards under</span>
-          <div><b>$</b><NumericInput value={threshold} onCommit={(value) => onThreshold(value ?? 0)} ariaLabel="Bulk filter dollar amount" /></div>
+          <div><b>$</b><NumericInput monetary value={threshold} onCommit={(value) => onThreshold(value ?? 0)} ariaLabel="Bulk filter dollar amount" /></div>
         </label>
         {!compact && <Tip className="bulk-filter-help" text={explanation} label="Explain the current bulk filter setting" />}
       </div>
@@ -354,22 +354,21 @@ export function LargeBreakView({
   spots,
   bid,
   setBid,
-  shipping,
-  setShipping,
+  costs,
 }: {
   analysis: BreakAnalysis;
   lines: BreakLine[];
   spots: number;
   bid: number | undefined;
   setBid: (value: number | undefined) => void;
-  shipping: number | undefined;
-  setShipping: (value: number | undefined) => void;
+  costs: BuyerCosts;
 }) {
   const result = analysis.valuation;
   const [inspectedCard, setInspectedCard] = useState<Contributor | null>(null);
   const [topCardSort, setTopCardSort] = useState<TopCardSort>("expected-value");
   const [openSlot, setOpenSlot] = useState<string | null>(null);
-  const [tax, setTax] = useState<number | undefined>(0);
+  const shipping = costs.shipping;
+  const tax = bid == null ? 0 : (bid + shipping) * costs.taxPercent / 100;
   const [haircut, setHaircut] = useState(0);
   const [namedLimit, setNamedLimit] = useState(10);
   const [categoryLimit, setCategoryLimit] = useState(5);
@@ -382,7 +381,7 @@ export function LargeBreakView({
   const namedEV = plan.namedCards.reduce((sum, card) => sum + card.pullEV, 0);
   const categoryEV = plan.categories.reduce((sum, category) => sum + category.pullEV, 0);
   const totalOpenings = lines.reduce((sum, line) => sum + line.quantity * Math.max(1, line.packCount ?? 1), 0);
-  const allIn = bid == null ? undefined : bid + (shipping ?? 0) + (tax ?? 0);
+  const allIn = bid == null ? undefined : landedCost(bid, costs);
   const liquidFactor = Math.max(0, 1 - haircut / 100);
   const liquidMean = assignment.mean * liquidFactor;
   const belowCost = allIn == null ? undefined : assignment.values.filter((value) => value * liquidFactor < allIn).length;
@@ -411,8 +410,7 @@ export function LargeBreakView({
         </div>
         <div className="large-break-cost-fields">
           <NumberField id="large-break-bid" label="Bid for one spot" value={bid} onChange={setBid} />
-          <NumberField id="large-break-shipping" label="Allocated shipping" value={shipping} onChange={setShipping} />
-          <NumberField id="large-break-tax" label="Estimated tax" value={tax} onChange={setTax} />
+          <a className="quiet" href="#buyer-break-setup" onClick={() => { const panel = document.querySelector<HTMLDetailsElement>(".buyer-assumptions"); if (panel) panel.open = true; }}>Adjust shipping &amp; tax</a>
           <label className="large-break-haircut"><span>Listed card value you expect to recover</span><div><NumericInput value={100 - haircut} max={100} ariaLabel="Percent of listed card value you expect to recover" onCommit={(value) => setHaircut(value == null ? haircut : 100 - Math.min(100, Math.max(0, value)))} /><b>%</b></div><small>After selling fees and typical discounts</small></label>
         </div>
         <div className="large-break-cost-equation">
@@ -557,9 +555,9 @@ export function BuyerView({
         <div className="verdict-head">
           <div className="verdict-decision">
             <h2 aria-live="polite">{heading}</h2>
-            <strong className="max-hammer" aria-label="Highest bid to make" aria-live="polite"><AnswerValue value={ceiling.kind === "ceiling" ? ceiling.hammer : 0} detail="Based on typical card value after your shipping, tax and fee assumptions. This is a guide, not a guaranteed resale return." /></strong>
+            <strong className="max-hammer" aria-label="Highest bid to make" aria-live="polite"><AnswerValue value={ceiling.kind === "ceiling" ? ceiling.hammer : 0} detail="Based on typical card value after your shipping and tax assumptions. This is a guide, not a guaranteed resale return." /></strong>
             <p className="decision-reason">
-              {ceiling.kind === "no-room" && !distribution?.preview ? "Your shipping, tax and fees already meet the typical card value. " : ""}Typical card value <AnswerValue value={typicalValue} />, average <AnswerValue value={distribution?.mean ?? fallbackMean} />.
+              {ceiling.kind === "no-room" && !distribution?.preview ? "Your shipping and tax already meet the typical card value. " : ""}Typical card value <AnswerValue value={typicalValue} />, average <AnswerValue value={distribution?.mean ?? fallbackMean} />.
             </p>
 
           </div>

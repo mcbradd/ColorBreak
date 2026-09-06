@@ -66,6 +66,7 @@ function show(value = analysis(), current = true) {
 
 describe("seller value at a glance", () => {
   beforeEach(() => {
+    sessionStorage.setItem("colorbreak:buyer:cost-overrides:v2", JSON.stringify({ shipping: 0, taxPercent: 0 }));
     mocks.requests.mockClear(); mocks.state.retry.mockClear();
     mocks.state.result = ranges; mocks.state.current = true; mocks.state.busy = false; mocks.state.error = undefined;
   });

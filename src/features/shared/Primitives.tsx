@@ -151,6 +151,7 @@ function NumericInput({
   integer = false,
   selectOnFocus = false,
   required = false,
+  monetary = false,
 }: {
   value: number | undefined;
   onCommit: (value: number | undefined) => void;
@@ -164,8 +165,10 @@ function NumericInput({
   integer?: boolean;
   selectOnFocus?: boolean;
   required?: boolean;
+  monetary?: boolean;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const dirty = useRef(false);
   const [draft, setDraft] = useState(value == null ? "" : String(value));
   const [editing, setEditing] = useState(false);
 
@@ -180,6 +183,9 @@ function NumericInput({
   const clamp = (parsed: number) => Math.min(max ?? Number.POSITIVE_INFINITY, Math.max(min, parsed));
 
   const commit = () => {
+    // Merely inspecting a default must not freeze it as a user override.
+    if (!dirty.current) return;
+    dirty.current = false;
     const normalized = draft.trim().replace(",", ".");
     if (!normalized || normalized === ".") {
       setDraft("");
@@ -205,7 +211,7 @@ function NumericInput({
   };
 
   return (
-    <span className="numeric-input">
+    <span className={`numeric-input${monetary ? " monetary-input" : ""}`}>
       <input
         id={id}
         ref={inputRef}
@@ -222,6 +228,7 @@ function NumericInput({
         onChange={(event) => {
           const next = event.target.value;
           if (!(integer ? /^\d*$/ : /^\d*(?:[.,]\d*)?$/).test(next)) return;
+          dirty.current = true;
           setDraft(next);
           if (!live) return;
           const normalized = next.trim().replace(",", ".");
@@ -272,6 +279,7 @@ export function NumberField({
   value,
   onChange,
   prefix = "$",
+  inline = false,
   suffix,
   hint,
   live = false,
@@ -282,6 +290,7 @@ export function NumberField({
   value: number | undefined;
   onChange: (n: number | undefined) => void;
   prefix?: string;
+  inline?: boolean;
   suffix?: string;
   hint?: string;
   live?: boolean;
@@ -289,7 +298,7 @@ export function NumberField({
   max?: number;
 }) {
   return (
-    <label className="number-field">
+    <label className={`number-field${inline ? " inline-number-field" : ""}`}>
       <span>
         {label}
         <EstimateTip label={`What affects ${label.toLowerCase()}`} text={hint ?? (value == null ? "No value has been entered here. The estimate uses its stated default or available market price; enter your own figure to improve it." : "This is an editable planning input. Calculations use the value shown; update it when you know a better figure.")} />
@@ -299,6 +308,7 @@ export function NumberField({
         <NumericInput
           id={id}
           value={value}
+          monetary={prefix === "$"}
           placeholder="0"
           onCommit={onChange}
           ariaLabel={label}

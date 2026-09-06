@@ -51,3 +51,11 @@ All product quantity controls use decrement / editable quantity / increment. The
 `answerFactors` owns plain-language evidence explanations. `quickOutcomes` provides immediate analytic previews; the shared simulation hook replaces them with sampled opening ranges and retains valid same-model results through retries. `answer-cache` reuses only matching product/pack-size/threshold values and scales quantities. `approximateOutcomes` preserves known expected value when exact pack grouping is missing, with that assumption disclosed.
 
 Checks: `best-answer.test.ts`, shared simulation lifecycle tests, buyer/seller command-center tests, and `tools/check-answer-layout.mjs`. The real browser script checks visible numeric limits, popover bounds, Escape, short viewports, and horizontal overflow at 320, 390, and 768 pixels. `check-quantity-layout.mjs` separately protects stable product selection and keyboard-safe quantity entry.
+
+## Cost controls and compact labels (build 14)
+
+Audited every production NumericInput, NumberField and raw input. All currency inputs, including receipt totals, use the monetary flag in NumericInput; NumberField infers it from its dollar prefix. Counts and percentages do not inherit currency alignment. Focusing an automatic value without typing no longer commits an override.
+
+ShippingField owns the single amount plus per-item/flat-fee toggle in buyer assumptions and both seller shipping contexts. useBuyerCosts and domain/cost-assumptions own buyer defaults and overrides. Large Break's duplicate shipping and tax inputs/state were removed; its all-in cost now consumes the same settings and landedCost calculation. The obsolete buyer-cost writer was removed; only a read-only migration remains.
+
+The value-filter label, buyer cost labels and seller cost grid use horizontal label/field pairs. Existing product-name/quantity pairs, range values, section disclosure titles and receipt references retain their element-specific layouts; long reference fields keep their width. Planning defaults never populate actual receipts. See docs/cost-assumptions.md for sources and tests, and tools/check-cost-assumptions.mjs for live browser checks.

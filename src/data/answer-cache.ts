@@ -25,6 +25,7 @@ export function bestAvailableAnalysis(lines: BreakLine[], threshold: number): Br
   const valuation = calculateBreak({ draws: [], prices: [], threshold, sourceStatus: "incomplete", pricedAt: "", dataVersion: `preview:${lines.map((line) => `${key(line, threshold)}:${line.quantity}`).join("|")}` });
   valuation.omissions = entries.flatMap(({ line, cached }) => cached?.analysis.valuation.omissions ?? [{ code: "pending-product", message: `${line.productLabel}: card prices have not loaded yet. Only the known portion is counted.`, material: true }]);
   valuation.status = entries.reduce<DataStatus>((status, { cached }) => worstStatus(status, cached?.analysis.valuation.status ?? "incomplete"), "verified");
+  valuation.expectedCards = undefined; // Physical weight uses the composition fallback until an exact model is ready.
   valuation.pricedAt = entries.map(({ cached }) => cached?.analysis.valuation.pricedAt ?? "").sort()[0] ?? "";
   valuation.priceSource = [...new Set(entries.flatMap(({ cached }) => cached?.analysis.valuation.priceSource ? [cached.analysis.valuation.priceSource] : []))].join(", ") || undefined;
   valuation.statusReason = entries.every(({ cached }) => cached) ? "Uses matching product values with quantities updated while newer data loads." : "Some products have not loaded yet. Their unknown value is not included in the known subtotal.";

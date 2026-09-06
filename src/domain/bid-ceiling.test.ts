@@ -27,6 +27,7 @@ describe("bid ceiling", () => {
 
   it("knows whether the buyer has entered any assumption at all", () => {
     expect(hasBuyerCosts(DEFAULT_BUYER_COSTS)).toBe(false);
-    expect(hasBuyerCosts({ ...DEFAULT_BUYER_COSTS, feePercent: 2 })).toBe(true);
+    expect(hasBuyerCosts({ ...DEFAULT_BUYER_COSTS, feePercent: 2 })).toBe(false);
+    expect(landedCost(10, { ...DEFAULT_BUYER_COSTS, feePercent: 8, fixedFee: .3 })).toBe(10);
   });
 });

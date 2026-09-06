@@ -83,7 +83,7 @@ export function SellerWorkspace({ exit }: { exit: () => void }) {
     <AnswerProvider value={analysis ? answerFactors(analysis.valuation, analysis.outcomeModel.complete, busy, analysis.outcomeOmissions) : []}><main className="workspace page seller-fast" tabIndex={-1} data-focus-fallback><header className="workspace-title"><div><p className="eyebrow">SELLER STUDIO</p><h1>Build &amp; value a break</h1></div></header>
       <div className="seller-fast-grid">
         <QuickBreakComposer lines={lines} onChange={setLines} onImport={() => openBuilder()} />
-        <SellerGlance analysis={analysis} current={analysisCurrent} busy={busy} />
+        <SellerGlance lines={lines} analysis={analysis} current={analysisCurrent} busy={busy} />
       </div>
       {error && <CompactWarning title="Couldn’t load this result" summary="Your products are saved. Retry the calculation." className="load-warning"><p role="alert">{error}</p><button type="button" className="quiet" onClick={() => setGeneration((value) => value + 1)}>Retry analysis</button></CompactWarning>}
       {analysis && <fieldset className="seller-fast-plan" aria-busy={!analysisCurrent}>

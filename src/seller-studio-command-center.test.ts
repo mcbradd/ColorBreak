@@ -55,24 +55,24 @@ describe("Seller Studio command center", () => {
 
 
     const studio = screen.getByRole("region", { name: "Seller break economics" });
-    expect(within(studio).getByText("$16.77")).toBeInTheDocument();
+    expect(within(studio).getByText("$16.76")).toBeInTheDocument();
     const plannedBid = within(studio).getByLabelText("Planned bid per spot");
     fireEvent.change(plannedBid, { target: { value: "20" } });
 
-    expect(within(screen.getByText("8 / 8 sold").parentElement!).getByText("Profit $23.00")).toBeInTheDocument();
-    expect(within(screen.getByText("6 / 8 sold").parentElement!).getByText("Loss $7.75")).toBeInTheDocument();
-    expect(within(screen.getByText("4 / 8 sold").parentElement!).getByText("Loss $38.50")).toBeInTheDocument();
+    expect(within(screen.getByText("8 / 8 sold").parentElement!).getByText("Profit $23.12")).toBeInTheDocument();
+    expect(within(screen.getByText("6 / 8 sold").parentElement!).getByText("Loss $7.66")).toBeInTheDocument();
+    expect(within(screen.getByText("4 / 8 sold").parentElement!).getByText("Loss $38.44")).toBeInTheDocument();
   });
 
   it("uses market price immediately and improves the answer when actual cost is entered", () => {
     render(createElement(Harness));
 
     expect(screen.getByText("Current market").parentElement).toHaveTextContent("$100.00");
-    expect(screen.getByRole("region", { name: "Seller break economics" })).toHaveTextContent("$16.77");
-    expect(screen.getByRole("region", { name: "Seller break economics" })).toHaveTextContent("$16.77");
+    expect(screen.getByRole("region", { name: "Seller break economics" })).toHaveTextContent("$16.76");
+    expect(screen.getByRole("region", { name: "Seller break economics" })).toHaveTextContent("$16.76");
     const cost = screen.getByLabelText("My cost basis");
     fireEvent.change(cost, { target: { value: "80" } });
-    expect(screen.getByRole("region", { name: "Seller break economics" })).toHaveTextContent("$13.97");
+    expect(screen.getByRole("region", { name: "Seller break economics" })).toHaveTextContent("$13.95");
   });
 
   it("uses a stale market estimate without requiring an extra step", () => {
@@ -84,7 +84,7 @@ describe("Seller Studio command center", () => {
     }));
 
     expect(screen.getAllByText("Estimated cost basis ready for rehearsal")).not.toHaveLength(0);
-    expect(screen.getByRole("region", { name: "Seller break economics" })).toHaveTextContent("$16.77");
+    expect(screen.getByRole("region", { name: "Seller break economics" })).toHaveTextContent("$16.76");
     expect(screen.queryByRole("button", { name: "Accept for rehearsal only" })).not.toBeInTheDocument();
     expect(screen.getByText("Estimated economics — update costs when known.")).toBeInTheDocument();
   });

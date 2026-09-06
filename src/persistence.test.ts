@@ -45,7 +45,7 @@ describe("seller plan session persistence", () => {
     }));
 
     expect(readSellerPlanDraft()).toMatchObject({
-      buyerShipping: 5,
+      buyerShipping: 4.47,
       commission: 8,
       acceptedEstimateIds: ["safe"],
       minimumAsk: 1,

@@ -32,6 +32,7 @@ const distribution = {
 
 describe("Bid Check command center", () => {
   beforeEach(() => {
+    sessionStorage.setItem("colorbreak:buyer:cost-overrides:v2", JSON.stringify({ shipping: 0, taxPercent: 0 }));
     sessionStorage.setItem("colorbreak:buyer:draft:v1", JSON.stringify([{
       id: "line-1",
       set: "TST",

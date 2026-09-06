@@ -171,6 +171,8 @@ export interface SlotValuation {
 }
 
 export interface ValuationResult {
+  /** Expected physical cards before any price filter, including unpriced draws. */
+  expectedCards?: number;
   marketEV: number;
   sellableEV: number;
   knownEV: number;

@@ -13,10 +13,9 @@ export interface BuyerCosts {
   shipping: number;
   /** Sales tax charged on hammer plus shipping, as a percentage. */
   taxPercent: number;
-  /** Platform or payment fees charged on hammer plus shipping, as a percentage. */
-  feePercent: number;
-  /** Any flat per-purchase fee, in dollars. */
-  fixedFee: number;
+  /** Legacy fields are accepted for migration, but never charged to a buyer. */
+  feePercent?: number;
+  fixedFee?: number;
 }
 
 export const DEFAULT_BUYER_COSTS: BuyerCosts = {
@@ -33,8 +32,8 @@ export type BidCeiling =
 
 /** Total a buyer pays for a given hammer price under these assumptions. */
 export function landedCost(hammer: number, costs: BuyerCosts): number {
-  const rate = Math.max(0, costs.taxPercent + costs.feePercent) / 100;
-  return (hammer + Math.max(0, costs.shipping)) * (1 + rate) + Math.max(0, costs.fixedFee);
+  const rate = Math.max(0, costs.taxPercent) / 100;
+  return (hammer + Math.max(0, costs.shipping)) * (1 + rate);
 }
 
 /**
@@ -43,8 +42,8 @@ export function landedCost(hammer: number, costs: BuyerCosts): number {
  */
 export function bidCeiling(value: number, costs: BuyerCosts): BidCeiling {
   if (!Number.isFinite(value) || value <= 0) return { kind: "no-room" };
-  const rate = Math.max(0, costs.taxPercent + costs.feePercent) / 100;
-  const hammer = (value - Math.max(0, costs.fixedFee)) / (1 + rate) - Math.max(0, costs.shipping);
+  const rate = Math.max(0, costs.taxPercent) / 100;
+  const hammer = value / (1 + rate) - Math.max(0, costs.shipping);
   const rounded = Math.floor(hammer * 100) / 100;
   if (!(rounded > 0)) return { kind: "no-room" };
   return { kind: "ceiling", hammer: rounded, landed: landedCost(rounded, costs) };
@@ -52,5 +51,5 @@ export function bidCeiling(value: number, costs: BuyerCosts): BidCeiling {
 
 /** True when the buyer has entered anything beyond the zero defaults. */
 export function hasBuyerCosts(costs: BuyerCosts): boolean {
-  return costs.shipping > 0 || costs.taxPercent > 0 || costs.feePercent > 0 || costs.fixedFee > 0;
+  return costs.shipping > 0 || costs.taxPercent > 0;
 }

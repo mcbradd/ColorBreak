@@ -132,6 +132,7 @@ export function calculateBreak(input: ValuationInput): ValuationResult {
     breakRules: "preset",
   };
   return {
+    expectedCards: input.draws.reduce((sum, draw) => sum + draw.copies, 0),
     marketEV: slots.reduce((sum, slot) => sum + slot.marketEV, 0),
     sellableEV: slots.reduce((sum, slot) => sum + slot.sellableEV, 0),
     knownEV: slots.reduce((sum, slot) => sum + slot.knownEV, 0),
