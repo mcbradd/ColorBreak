@@ -21,9 +21,6 @@
 .profit-heading{min-height:54px;padding:14px 18px 4px}.profit-heading .section-label{min-height:36px;margin:0}.profit h2{padding-top:8px}.profit-metrics>div{text-align:center}.profit-metrics span{min-height:24px;line-height:1.2}.profit-metrics b{white-space:nowrap}
 
 /* Single-screen add/remove/quantity row inside the per-set product picker. */
-.product-groups section>.product-row-line{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:12px;width:100%;padding:12px 18px;border-top:1px solid var(--line);background:rgba(114,236,176,.06)}
-.product-row-line .product-added{display:inline-block;margin-top:2px;color:var(--safe);font-size:11px;font-weight:700}
-.product-row-line .line-controls{justify-content:flex-end}
 
 @media(max-width:430px){.contributor-columns,.contributor-card{grid-template-columns:minmax(0,1fr) 55px 70px}.contributor-card{grid-template-columns:34px minmax(0,1fr) 55px 70px;gap:6px}.ask-entry>.ask{grid-template-columns:minmax(0,1fr) auto auto 72px;padding-inline:12px;gap:7px}.ask input{width:64px}.profit-metrics>div{padding-inline:8px}}
 

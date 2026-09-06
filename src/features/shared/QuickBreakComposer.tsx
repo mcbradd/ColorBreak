@@ -1,10 +1,11 @@
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from "react";
-import { Check, Minus, Plus, Search, Undo2, X } from "lucide-react";
+import { Check, Plus, Search, Undo2, X } from "lucide-react";
 import { loadProductSearchIndex, quickProductsForSet } from "../../data/product-search";
 import { breakLineKey, breakLineKeyForChoice, mergeBreakLines, productKeyForChoice } from "../../domain/break-line-identity";
 import { matchingProducts, rankSearchSets, suggestedSearchSets, type ProductSearchSet } from "../../domain/product-search";
 import type { BreakLine, ProductChoice } from "../../domain/types";
-import { InformationLabel, NumericInput } from "./Primitives";
+import { InformationLabel } from "./Primitives";
+import { QuantityControl } from "./QuantityControl";
 
 interface QuickBreakComposerProps {
   lines: BreakLine[];
@@ -188,7 +189,7 @@ export function QuickBreakComposer({ lines, onChange, onImport }: QuickBreakComp
         {!lines.length ? <p className="quick-contents-empty">Add everything being opened. Mix sets, boxes and packs in one break.</p> : <ul className="quick-break-lines">
           {lines.map((line) => <li key={breakLineKey(line)} className="quick-break-line">
             <div className="quick-line-identity"><strong>{line.productLabel}</strong><small>{sets.find((set) => set.code === line.set)?.name ?? line.set} <b>{line.set}</b></small></div>
-            <QuickQuantity line={line} update={(value) => quantity(line, value)} />
+            <QuantityControl line={line} label={`${line.set} ${line.productLabel}`} ariaLabel={`${line.set} ${line.productLabel} quantity`} update={(value) => quantity(line, value)} onEmpty={() => quantity(line, 0)} />
           </li>)}
         </ul>}
       </div>
@@ -196,16 +197,4 @@ export function QuickBreakComposer({ lines, onChange, onImport }: QuickBreakComp
       <span className="sr-only" role="status" aria-live="polite">{announcement}</span>
     </section>
   );
-}
-
-/** Reuse the app's numeric draft and visible mobile Done behavior. */
-function QuickQuantity({ line, update }: { line: BreakLine; update: (quantity: number) => void }) {
-  const label = `${line.set} ${line.productLabel}`;
-  return <div className="quick-line-quantity" role="group" aria-label={`${label} quantity`}
-    onFocusCapture={(event) => { if (event.target instanceof HTMLInputElement) event.target.select(); }}>
-    <button type="button" aria-label={line.quantity === 1 ? `Remove ${label} from break` : `Decrease ${label} quantity`} onClick={() => update(line.quantity - 1)}><Minus size={17} aria-hidden="true" /></button>
-    <NumericInput ariaLabel={`${label} quantity`} value={line.quantity} min={1} max={999} live
-      onCommit={(value) => { if (value != null) update(value); }} />
-    <button type="button" aria-label={`Increase ${label} quantity`} disabled={line.quantity >= 999} onClick={() => update(line.quantity + 1)}><Plus size={17} aria-hidden="true" /></button>
-  </div>;
 }

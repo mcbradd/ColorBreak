@@ -19,6 +19,7 @@ import {
   Search,
   X,
 } from "lucide-react";
+import { QuantityControl } from "./QuantityControl";
 import { catalogSets, productsForSet } from "../../data/catalog";
 import { prepareProductSelection, type PreparedProductSelection } from "../../domain/decision-evidence";
 import { parseBreakImport } from "../../domain/break-import";
@@ -69,6 +70,7 @@ export function Builder({
   const [products, setProducts] = useState<ProductChoice[]>([]);
   const [prepared, setPrepared] = useState<Record<string, PreparedProductSelection>>({});
   const [estimating, setEstimating] = useState(false);
+  const [refreshingEstimates, setRefreshingEstimates] = useState(false);
   const [estimateRevision, setEstimateRevision] = useState(0);
   const [loading, setLoading] = useState(false);
   const [draft, setDraft] = useState<BreakLine[]>([]);
@@ -172,7 +174,7 @@ export function Builder({
       tcgId: product.tcgId,
     });
   useEffect(() => {
-    if (!products.length) { setPrepared({}); setEstimating(false); return; }
+    if (!products.length) { setPrepared({}); setEstimating(false); setRefreshingEstimates(false); return; }
     let cancelled = false;
     setEstimating(true);
     void (async () => {
@@ -186,7 +188,12 @@ export function Builder({
         }
       }));
       if (!cancelled) setPrepared(Object.fromEntries(entries));
-    })().finally(() => { if (!cancelled) setEstimating(false); });
+    })().finally(() => {
+      if (!cancelled) {
+        setEstimating(false);
+        setRefreshingEstimates(false);
+      }
+    });
     return () => { cancelled = true; };
   }, [products, lines, valueThreshold, estimateRevision]);
   const add = (product: ProductChoice) => {
@@ -307,6 +314,12 @@ export function Builder({
   const hasEstimateWarning = !estimating && products.some((product) =>
     prepared[product.key]?.assessment.presentation !== "eligible",
   );
+  const showEstimateRefresh = hasEstimateWarning || refreshingEstimates;
+  const refreshEstimates = () => {
+    if (refreshingEstimates || estimating) return;
+    setRefreshingEstimates(true);
+    setEstimateRevision((value) => value + 1);
+  };
   const visibleProducts = groupedProducts;
   // Unmount before the ownership hook restores focus: no exit animation may
   // leave an active dialog exposed alongside the active workspace.
@@ -349,14 +362,14 @@ export function Builder({
               </div>
               {selected && <button
                 type="button"
-                className={`picker-header-refresh${hasEstimateWarning ? "" : " is-idle"}`}
-                aria-label="Estimates may be outdated. Refresh now"
-                aria-hidden={!hasEstimateWarning}
-                tabIndex={hasEstimateWarning ? undefined : -1}
-                disabled={!hasEstimateWarning}
-                onClick={() => setEstimateRevision((value) => value + 1)}
+                className={`picker-header-refresh${showEstimateRefresh ? "" : " is-idle"}`}
+                aria-label={refreshingEstimates ? "Refreshing estimates" : "Estimates may be outdated. Refresh now"}
+                aria-hidden={!showEstimateRefresh}
+                tabIndex={showEstimateRefresh ? undefined : -1}
+                disabled={!showEstimateRefresh || refreshingEstimates || estimating}
+                onClick={refreshEstimates}
               >
-                Refresh now
+                {refreshingEstimates ? <><span className="refresh-spinner" aria-hidden="true" />Refreshing…</> : "Refresh now"}
               </button>}
             </header>
             <input
@@ -467,14 +480,13 @@ export function Builder({
                               <span className="picker-product-copy">
                                 <span className="picker-product-name">
                                   <strong>{product.label}</strong>
-                                  <output className="sr-only" aria-live="polite" aria-label={`${product.label} quantity in ${addedLine.packCount && addedLine.packCount > 1 ? "products" : "openings"}`}>×{addedLine.quantity}</output>
+
                                 </span>
                                 {detail}
                               </span>
-                              <div className="picker-quantity">
-                                <button type="button" aria-label={addedLine.quantity === 1 ? `Remove ${product.label} from break` : `Decrease ${product.label} quantity`} onClick={() => addedLine.quantity === 1 ? removeDraftLine(addedLine) : updateDraftQuantity(addedLine, addedLine.quantity - 1)}>−</button>
-                                <button type="button" aria-label={`Increase ${product.label} quantity`} disabled={addedLine.quantity >= 999} onClick={() => updateDraftQuantity(addedLine, Math.min(999, addedLine.quantity + 1))}>+</button>
-                              </div>
+                              <QuantityControl className="picker-quantity" line={addedLine}
+                                update={(quantity) => updateDraftQuantity(addedLine, quantity)}
+                                onEmpty={() => removeDraftLine(addedLine)} />
                             </div>
                           ) : (
                             <button
@@ -620,52 +632,6 @@ function ManualBudgetCap({ onBack, target, setTarget, shipping, setShipping, ham
     {manual?.landedCost != null && <div className={`bid-recommendation bid-recommendation-${manual.status === "under" ? "positive" : manual.status === "at" ? "warning" : "negative"}`} aria-live="polite" aria-label="Bid recommendation"><div><small>Bid recommendation</small><strong>{recommendation}</strong></div><p>{manual.status === "under" ? <>Current bid is <b>{fmt(manual.roomUnderCap)}</b> under your Estimated Max Bid of <b>{fmt(manual.maximumHammer)}</b>. Bid only up to {fmt(manual.maximumHammer)}.</> : manual.status === "at" ? <>Current bid matches your Estimated Max Bid of <b>{fmt(manual.maximumHammer)}</b>. Do not bid higher.</> : <>Current bid is <b>{fmt(manual.hammerAboveMaximum)}</b> over your Estimated Max Bid of <b>{fmt(manual.maximumHammer)}</b>. Stop bidding.</>}</p></div>}
     <button type="button" className="quiet" onClick={onBack}>Back to products / choose a ready product</button>
   </section>;
-}
-
-/**
- * Quantity is also the only way to remove a line: stepping below one shows a
- * zero for a beat so the removal is legible, then drops the line. A separate
- * bin icon beside it would be a second control for the same job.
- */
-function QuantityControl({ line, update, onEmpty }: { line: BreakLine; update: (quantity: number) => void; onEmpty?: () => void }) {
-  const unit = line.packCount && line.packCount > 1 ? "products" : "openings";
-  const [removing, setRemoving] = useState(false);
-  const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
-  useEffect(() => () => clearTimeout(timer.current), []);
-  const cancelRemoval = () => {
-    clearTimeout(timer.current);
-    setRemoving(false);
-  };
-  const decrease = () => {
-    if (line.quantity > 1) { update(line.quantity - 1); return; }
-    if (!onEmpty || removing) return;
-    setRemoving(true);
-    timer.current = setTimeout(onEmpty, 400);
-  };
-  const shown = removing ? 0 : line.quantity;
-  return (
-    <label className="quantity-control">
-      <span>Quantity</span>
-      <div>
-        <button type="button" disabled={!onEmpty && line.quantity <= 1} aria-label={line.quantity <= 1 ? `Remove ${line.productLabel} from break` : `Decrease ${line.productLabel} quantity`} onClick={decrease}>−</button>
-        <input
-          type="number"
-          inputMode="numeric"
-          min={0}
-          max={999}
-          value={shown}
-          aria-label={`${line.productLabel} quantity in ${unit}`}
-          onFocus={(event) => event.currentTarget.select()}
-          onChange={(event) => {
-            const value = Number.parseInt(event.target.value, 10);
-            if (value === 0 && onEmpty) { decrease(); return; }
-            if (Number.isFinite(value) && value >= 1 && value <= 999) { cancelRemoval(); update(value); }
-          }}
-        />
-        <button type="button" aria-label={`Increase ${line.productLabel} quantity`} onClick={() => { cancelRemoval(); update(Math.min(999, line.quantity + 1)); }}>+</button>
-      </div>
-    </label>
-  );
 }
 
 export { QuantityControl, EmptyBreak, NextSteps, ManualBudgetCap };

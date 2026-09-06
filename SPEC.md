@@ -13,7 +13,7 @@
 9. On a phone viewport, format, color/spot selection, break contents, and bulk-value controls appear before results and fit in the initial landing viewport for a new break. Buying recommendation and limit precede supporting evidence.
 10. The current URL continuously encodes break products, quantities, format, spot/color state, and bulk-value options. Opening or sharing that URL reconstructs the filled-out buyer view.
 11. When a result requires user-entered information, the message names the exact missing value, explains which result it affects, and links directly to the corresponding field.
-12. In the product picker, selected products have an obvious contrasting border/background and a checked quantity badge. Minus and plus stay beside the product name at its trailing edge; quantity entry never opens a keyboard here. The picker footer says only Done, including after the last product is removed.
+12. In the product picker, selected products have an obvious contrasting border/background and a visible editable quantity. Minus and plus stay beside the product name at its trailing edge; the visible quantity between them is an editable numeric field. All product surfaces use the same quantity control. Focusing the number opens the numeric keyboard, with the field and its Done action kept inside the visual viewport. The picker footer says only Done, including after the last product is removed.
 13. Selecting a product never inserts a current-break panel or changes the row geometry; the list remains in place. Estimate freshness is omitted from individual product rows. When an estimate needs attention, one refresh action appears above the list.
 
 ## Seller
