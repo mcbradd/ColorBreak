@@ -32,6 +32,16 @@ function fileInput(): HTMLInputElement {
 }
 
 describe("screenshot break import", () => {
+  it("opens seller import directly and closes without applying an untouched draft", async () => {
+    const onClose = vi.fn();
+    const onApply = vi.fn();
+    render(createElement(Builder, { open: true, initialMode: "paste", onClose, lines: [], onApply }));
+    expect(screen.getByRole("textbox", { name: "Break link or product list" })).toBeInTheDocument();
+    expect(screen.queryByRole("textbox", { name: "Search sets by name or code" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Close", exact: true }));
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(onApply).not.toHaveBeenCalled();
+  });
   it("offers the screenshot path beside the paste path, taking any image the phone can supply", async () => {
     render(createElement(Builder, { open: true, onClose: vi.fn(), lines: [], onApply: vi.fn() }));
 

@@ -11,7 +11,7 @@ ColorBreak is a decision instrument, not a dashboard. It should feel fast, calm,
 3. Show the task’s answer: buyer verdict or seller target plan.
 4. Reveal evidence: EV definitions, confidence, risk, contributors, and omissions.
 
-Mobile uses full-width sections and a bottom-sheet composer. When a break exists, the decision precedes setup and a two-action stage rail jumps between “Decision” and “Edit break.” Desktop keeps setup and decision visible together; it does not add a denser information model.
+Seller Studio uses an inline composer: combined set/product search, immediate additions, and persistent quantities beside the result on desktop. Phones use a bounded contents list and a persistent value strip, so entering another product never requires leaving the answer. The expanded result stays on the same page. The existing buyer composer and optional reviewed paste/screenshot imports use a sheet.
 Every empty, incomplete, and calculated state names the next useful action. Returning users may resume saved work explicitly; starting a Bid Check always begins clean unless they choose Resume.
 On phone layouts, 17px is the absolute minimum for readable text, including labels, captions, badges, chart annotations, and secondary evidence. Density must yield to legibility; layouts expand or scroll instead of shrinking type.
 
@@ -30,7 +30,7 @@ On phone layouts, 17px is the absolute minimum for readable text, including labe
 - Touch targets are at least 44px and primary actions, quantity controls, and numeric inputs are at least 48px on mobile.
 - “Add products” is the one unmistakable blank-state action. Manual selection stays open for repeated additions; pasted links and lists are resolved and reviewed in bulk before changing the break.
 - Quantity supports large direct numeric entry as well as full-size −/+ controls.
-- Product selection calculates immediately after the composer is committed.
+- Seller product selection calculates immediately on each addition. Only batch imports require review and apply. Existing values remain marked as previous while a new mix calculates; edits to costs never restart valuation.
 - Large Break leads with the one-spot decision, all-in cost, model readiness, and the shape of value across assignments. It never classifies a price or invents profit odds when material model coverage is incomplete.
 - Sheets animate from the bottom on mobile and become centered dialogs on larger screens.
 - Hover may enrich desktop use but cannot reveal required controls.

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { DollarSign, Lock, PackagePlus, Trash2, Unlock, X } from "lucide-react";
 import { evaluateBreakAnalysis } from "../../data/evaluate";
 import type { BreakAnalysis } from "../../data/evaluate";
@@ -16,7 +16,7 @@ import type {
   ValuationResult,
 } from "../../domain/types";
 import { SLOT_IDS, SLOT_NAMES } from "../../domain/types";
-import { breakLineKeyForChoice, productKeyForChoice } from "../../domain/break-line-identity";
+import { breakLineKey, breakLineKeyForChoice, productKeyForChoice } from "../../domain/break-line-identity";
 import {
   defaultSellerPlanDraft,
   readSellerPlanDraft,
@@ -97,7 +97,7 @@ function UpsideCandles({ base, bonus, bonusLabel, selectedSlot, selectSlot, useR
       <button type="button" className="quiet" onClick={() => { baseSimulation.retry(); bonusSimulation.retry(); }}>Retry pull ranges</button>
     </CompactWarning>
   );
-  if (!baseSimulation.result || !bonusSimulation.result) return <p className="calculating" role="status" aria-live="polite"><span />Building pull ranges…</p>;
+  if (!baseSimulation.current || !bonusSimulation.current || !baseSimulation.result || !bonusSimulation.result) return <p className="calculating" role="status" aria-live="polite"><span />Building pull ranges…</p>;
   const selectedBefore = useRandom ? baseSimulation.result.remainingPool : baseSimulation.result.slotDistributions[selectedSlot];
   const selectedAfter = monotoneBonus(selectedBefore, useRandom ? bonusSimulation.result.remainingPool : bonusSimulation.result.slotDistributions[selectedSlot]);
   const rows = SLOT_IDS.map((id) => {
@@ -383,6 +383,7 @@ export function SellerView({
   add,
   update,
   remove,
+  compact = false,
 }: {
   analysis: BreakAnalysis;
   lines: BreakLine[];
@@ -390,9 +391,34 @@ export function SellerView({
   add: (opener?: HTMLElement) => void;
   update: (id: string, patch: Partial<BreakLine>) => void;
   remove: (id: string) => void;
+  compact?: boolean;
 }) {
   const owner = useMemo(() => sellerPlanOwner(lines, analysis.valuation.dataVersion), [lines, analysis.valuation.dataVersion]);
   const [draft, setDraft] = useState<SellerPlanDraft>(readSellerPlanDraft);
+  const previousOwner = useRef(owner);
+  useLayoutEffect(() => {
+    const previous = previousOwner.current;
+    previousOwner.current = owner;
+    if (previous.fingerprint === owner.fingerprint && previous.dataVersion === owner.dataVersion) return;
+    setDraft((current) => {
+      // Only a continuing mounted plan can follow edits. Initial recovery of a
+      // different saved break, and any plan with receipts, keep their owner.
+      if (!sellerPlanMatches(current, previous)
+        || current.actualLedger.orders.length || current.actualLedger.shipments.length) return current;
+      const acceptedProducts = new Set(previous.lines
+        .filter((line) => current.acceptedEstimateIds.includes(line.id))
+        .map(breakLineKey));
+      const compositionChanged = previous.fingerprint !== owner.fingerprint;
+      return {
+        ...current,
+        owner,
+        // This accepts the market source per unit, not a fixed extended price.
+        // Quantity changes retain that choice; removed/replaced products do not.
+        acceptedEstimateIds: owner.lines.filter((line) => acceptedProducts.has(breakLineKey(line))).map((line) => line.id),
+        ...(compositionChanged ? { targetsApplied: false, lockedAsks: {}, unsoldSlots: [] } : {}),
+      };
+    });
+  }, [owner]);
   const [orderDraft, setOrderDraft] = useState({ slots: [] as SlotId[], receipt: "", fee: "", reference: "" });
   const [shipmentDraft, setShipmentDraft] = useState({ orderId: "", postage: "", packing: "", reference: "" });
   const [ledgerError, setLedgerError] = useState<string>();
@@ -667,6 +693,8 @@ export function SellerView({
         <div className="min-row"><NumberField label="Minimum ask" value={minimumAsk} onChange={(value) => setPlan({ minimumAsk: value ?? 0 })} live /></div>
       </section>}
 
+      <details className="seller-secondary-tool" open={compact ? undefined : true}>
+      <summary className="disclosure-summary"><span>Receipts &amp; shipments<small>Reconcile after the break</small></span><DisclosureArrow /></summary>
       <section className="panel seller-reconciliation" aria-label="Seller actual reconciliation">
         <InformationLabel>ACTUALS · SESSION ONLY</InformationLabel>
         <h2>Receipt-backed reconciliation</h2><span className="sr-only">Reconciliation in progress</span>
@@ -698,16 +726,20 @@ export function SellerView({
         </aside>}
         <div className="actual-result" role="status"><strong>{ledgerSummary.incomplete ? "Actual result unavailable" : `Actual profit / loss: ${fmt(ledgerSummary.profitCents! / 100)}`}</strong><p>{ledgerSummary.sold} sold and receipt-linked · {activeDraft.unsoldSlots.length} unsold · {ledgerSummary.pending.length} pending/reconciliation missing. {ledgerSummary.missingReceipt.length} order receipt reference missing. {ledgerSummary.missingShipment.length} order shipment missing. {actualAcquisitionCents == null ? "Actual acquisition cost missing." : ""}</p>{!ledgerSummary.incomplete && <p>Realized gross {fmt(ledgerSummary.gross / 100)} · actual fees {fmt(ledgerSummary.fees / 100)} · fulfillment {fmt(ledgerSummary.fulfillment / 100)} · actual cost basis {fmt((actualAcquisitionCents ?? 0) / 100)}.</p>}</div>
       </section>
+      </details>
 
-      {(ledgerSummary.incomplete || actualAcquisitionCents == null) && <NextSteps reason={actualAcquisitionCents == null ? "This plan remains a rehearsal until an actual acquisition cost is entered and receipt-backed orders and shipments reconcile." : "Actual profit or loss is unavailable until every required receipt and shipment record reconciles."} />}
+      {!compact && (ledgerSummary.incomplete || actualAcquisitionCents == null) && <NextSteps reason={actualAcquisitionCents == null ? "This plan remains a rehearsal until an actual acquisition cost is entered and receipt-backed orders and shipments reconcile." : "Actual profit or loss is unavailable until every required receipt and shipment record reconciles."} />}
 
+      <details className="seller-secondary-tool" open={compact ? undefined : true}>
+      <summary className="disclosure-summary"><span>Bonus pack planning<small>Optional cost scenarios</small></span><DisclosureArrow /></summary>
       <SellerEnticement
         baseAnalysis={analysis}
         lines={lines}
         transactionCount={transactionCount}
         baseProfitAtAll={allSoldProfit}
       />
-      <p className="seller-demand-checkpoint"><strong>{readiness}</strong> Demand validation remains separate: record audience/pre-interest, a comparable break and date, and your planned time window. This is not launch or bid authorization.</p>
+      </details>
+      <p className="seller-demand-checkpoint"><strong>{readiness}</strong>{!compact && <> Demand validation remains separate: record audience/pre-interest, a comparable break and date, and your planned time window. This is not launch or bid authorization.</>}</p>
     </section>
   );
 }

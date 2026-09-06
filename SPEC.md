@@ -21,6 +21,11 @@
 3. Buyer-paid shipping is never seller revenue. Packing and seller-covered shipping are explicit costs.
 4. The target plan and actual asks are distinct. Profit is hidden until all sold slots have actual asks.
 5. Target asks allocate by Sellable EV with a minimum, can be locked, and redistribute when a slot is marked unsold.
+6. Seller entry is an inline, combined set/product search. Tapping a product immediately adds it, clears search and returns focus for the next product. Quantities and removal remain on the same screen, with Undo; different sets never merge merely because their product keys match.
+7. Product identity appears without evaluating every search alternative. Analytic EV starts on selection; range calculations settle rapid edits before sampling. Neither cost entry nor market-price hydration restarts card valuation or unmounts seller controls.
+8. The first result shows whole-break EV and per-color average, low (10th percentile), typical (median) and high (90th percentile) outcomes. Unknown acquisition costs do not hide card values. Stale or incomplete models show qualified estimates; a bid limit requires current complete evidence and current simulation results. A random color preview explicitly assumes all eight colors are available.
+9. On phones a compact value strip stays visible during entry, including above the keyboard. The product list is bounded; expanded ranges and pricing remain on the same page. Controls remain usable at 320px, and quantity entry retains a visible Done button.
+10. Recalculation retains previous values with an explicit updating label; stale results never masquerade as the current mix. Continuing composition edits retain standing assumptions and valid per-product cost choices, while receipt records never move to another break.
 
 ## Data integrity
 

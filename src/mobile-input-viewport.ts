@@ -59,6 +59,9 @@ export function installMobileInputViewport() {
       const sheet = session.element.closest(".sheet");
       const stickyHeader = sheet?.querySelector<HTMLElement>(":scope > header");
       const stickyActions = sheet?.querySelector<HTMLElement>(".composer-actions");
+      const valueDock = document.querySelector<HTMLElement>(".seller-value-dock");
+      const valueDockTop = valueDock && getComputedStyle(valueDock).display !== "none"
+        ? valueDock.getBoundingClientRect().top : Number.POSITIVE_INFINITY;
       const safeTop = Math.max(
         viewportTop() + 20,
         (stickyHeader?.getBoundingClientRect().bottom ?? 0) + 12,
@@ -66,6 +69,7 @@ export function installMobileInputViewport() {
       const safeBottom = Math.min(
         viewportTop() + viewportHeight() - 20,
         (stickyActions?.getBoundingClientRect().top ?? Number.POSITIVE_INFINITY) - 12,
+        valueDockTop - 12,
       );
       if (rect.top < safeTop || rect.bottom > safeBottom) {
         session.element.scrollIntoView?.({
@@ -83,6 +87,8 @@ export function installMobileInputViewport() {
     session = null;
     root.classList.remove("input-focus-active");
     root.classList.remove("keyboard-open");
+    // An explicit on-page navigation owns its new position after keyboard close.
+    if (document.activeElement?.hasAttribute("data-viewport-navigation")) return;
     saved.scrollParents.forEach(({ element, left, top }) => {
       element.scrollTo?.({ behavior: "auto", left, top });
     });

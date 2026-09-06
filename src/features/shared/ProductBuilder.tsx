@@ -48,6 +48,7 @@ export function Builder({
   onApply,
   invokingElement,
   valueThreshold = 0,
+  initialMode = "search",
 }: {
   open: boolean;
   onClose: () => void;
@@ -55,6 +56,7 @@ export function Builder({
   onApply: (lines: BreakLine[], settings?: { assignmentMode: AssignmentMode; largeSpots?: number; bulkEnabled?: boolean; bulkThreshold?: number }, prepared?: PreparedProductSelection) => void;
   invokingElement?: HTMLElement | null;
   valueThreshold?: number;
+  initialMode?: "search" | "paste";
 }) {
   const dialogRef = useRef<HTMLElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
@@ -67,7 +69,7 @@ export function Builder({
   const [prepared, setPrepared] = useState<Record<string, PreparedProductSelection>>({});
   const [loading, setLoading] = useState(false);
   const [draft, setDraft] = useState<BreakLine[]>([]);
-  const [composerMode, setComposerMode] = useState<"search" | "paste" | "review">("search");
+  const [composerMode, setComposerMode] = useState<"search" | "paste" | "review">(initialMode);
   const [importSource, setImportSource] = useState("");
   const [importRows, setImportRows] = useState<Array<{ source: string; line?: BreakLine; error?: string }>>([]);
   const [importErrors, setImportErrors] = useState<string[]>([]);
@@ -123,7 +125,7 @@ export function Builder({
       setSelected(undefined);
       setQuery("");
       setSetSort("release");
-      setComposerMode("search");
+      setComposerMode(initialMode);
       setImportSource("");
       setImportRows([]);
       setImportErrors([]);
@@ -135,6 +137,7 @@ export function Builder({
       return;
     }
     setDraft(linesRef.current);
+    setComposerMode(initialMode);
   }, [open]);
   const draftSignature = (rows: BreakLine[]) => rows.map((row) => `${row.set}|${row.productKey}|${row.quantity}`).join(",");
   /**
@@ -324,10 +327,10 @@ export function Builder({
               <button
                 ref={closeRef}
                 className="icon-button"
-                onClick={selected ? () => setSelected(undefined) : composerMode !== "search" ? () => setComposerMode("search") : commit}
-                aria-label={selected || composerMode !== "search" ? "Back" : "Close"}
+                onClick={selected ? () => setSelected(undefined) : composerMode === "review" ? () => setComposerMode("paste") : composerMode === "paste" && initialMode !== "paste" ? () => setComposerMode("search") : commit}
+                aria-label={selected || composerMode === "review" || (composerMode === "paste" && initialMode !== "paste") ? "Back" : "Close"}
               >
-                {selected || composerMode !== "search" ? <ArrowLeft /> : <X />}
+                {selected || composerMode === "review" || (composerMode === "paste" && initialMode !== "paste") ? <ArrowLeft /> : <X />}
               </button>
               <div>
                 <small>ADD TO BREAK</small>

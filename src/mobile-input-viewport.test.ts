@@ -147,4 +147,28 @@ describe("mobile input viewport", () => {
 
     expect(reveal).toHaveBeenCalled();
   });
+
+  it("keeps seller inputs above the value dock and respects an explicit jump to results", () => {
+    const input = document.createElement("input");
+    input.scrollIntoView = vi.fn();
+    input.getBoundingClientRect = () => new DOMRect(0, 280, 200, 40);
+    const dock = document.createElement("aside");
+    dock.className = "seller-value-dock";
+    dock.getBoundingClientRect = () => new DOMRect(0, 270, 390, 90);
+    const destination = document.createElement("section");
+    destination.tabIndex = -1;
+    destination.setAttribute("data-viewport-navigation", "");
+    document.body.append(input, dock, destination);
+    input.focus();
+    viewport.height = 360;
+    viewport.dispatchEvent(new Event("resize"));
+    vi.runAllTimers();
+    expect(input.scrollIntoView).toHaveBeenCalled();
+    destination.focus();
+    viewport.height = 844;
+    viewport.dispatchEvent(new Event("resize"));
+    vi.runAllTimers();
+    expect(scrollTo).not.toHaveBeenCalled();
+    expect(document.documentElement).not.toHaveClass("keyboard-open");
+  });
 });
