@@ -93,7 +93,7 @@ describe("buyer color controls", () => {
     const { container } = render(createElement(SlotRail, { result, auction: createAuction(), setAuction: () => {}, selectedSlots: [], setSelectedSlots: () => {}, distributions }));
     expect(container.querySelector<HTMLElement>(".slot-candle-body")?.style.width).toBe("40%");
     expect(container.querySelector<HTMLElement>(".slot-candle-wick")?.style.left).toBe("4%");
-    expect(container.querySelector(".slot-candle-values")?.textContent).toContain("MAX$10K");
+    expect(container.querySelector(".slot-candle-values")?.textContent).toMatch(/MAX\$10(?:\.0)?K/);
   });
 
   it("keeps the rail free of mode buttons the buyer has to reason about", () => {

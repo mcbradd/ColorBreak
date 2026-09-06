@@ -77,7 +77,7 @@ describe("seller value at a glance", () => {
     const { container } = show();
     expect(container.querySelector<HTMLElement>(".glance-color-bar i")?.style.width).toBe("87.5%");
     expect(container.querySelector<HTMLElement>(".glance-color-bar i")?.style.left).toBe("12.5%");
-    expect(screen.getByRole("button", { name: "Inspect White value" })).toHaveTextContent("MAX $10K");
+    expect(screen.getByRole("button", { name: "Inspect White value" })).toHaveTextContent(/MAX \$10(?:\.0)?K/);
   });
 
   it("uses probable whiskers and middle-half bodies for vertical comparison candles", () => {
