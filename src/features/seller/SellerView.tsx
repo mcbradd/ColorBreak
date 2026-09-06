@@ -25,8 +25,9 @@ import {
   sellerPlanOwner,
   type SellerPlanDraft,
 } from "../../persistence";
-import { DisclosureArrow, fmt, InformationLabel, NumberField, PanelHeading, Tip, useDeferredOwnedFocus } from "../shared/Primitives";
-import { NextSteps, QuantityControl } from "../shared/ProductBuilder";
+import { DisclosureArrow, fmt, InformationLabel, NumberField, NumericInput, PanelHeading, Tip, useDeferredOwnedFocus } from "../shared/Primitives";
+import { NextSteps } from "../shared/ProductBuilder";
+import { QuantityControl } from "../shared/QuantityControl";
 import { CompactWarning } from "../shared/Feedback";
 import { IncompleteDataWarning, useOutcomeSimulation } from "../shared/OutcomeFeedback";
 
@@ -597,7 +598,7 @@ export function SellerView({
                 <NumberField id={`seller-cost-${line.id}`} label="My cost basis" value={line.myCost} onChange={(value) => update(line.id, { myCost: value })} live />
                 {line.myCost == null && line.marketCost != null && <button type="button" className="quiet" onClick={() => { if (estimateAccepted(line)) removeAcceptedEstimate(line.id); else acceptEstimatesForPlanning([line.id]); deferOwnedFocus("seller-cost-status"); }}>{estimateAccepted(line) ? "Stop using estimate" : "Use estimate"}</button>}
                 {line.myCost == null && line.marketCost == null && <button type="button" className="quiet" onClick={() => focusManualCost(line.id)}>Enter actual cost</button>}
-                <QuantityControl line={line} update={(quantity) => update(line.id, { quantity })} />
+                <QuantityControl line={line} update={(quantity) => update(line.id, { quantity })} onEmpty={() => remove(line.id)} />
                 <button className="remove-line" aria-label={`Remove ${line.productLabel} from break`} onClick={() => remove(line.id)}><Trash2 /></button>
               </div>
             ))}
@@ -703,8 +704,8 @@ export function SellerView({
         <form className="actual-ledger-form" onSubmit={(event) => { event.preventDefault(); addOrder(); }}>
           <h3>Actual orders</h3>
           <div className="actual-slot-list">{saleableSlotIds.map((slot) => <label key={slot}><input type="checkbox" checked={orderDraft.slots.includes(slot)} disabled={activeDraft.actualLedger.orders.some((order) => order.slotIds.includes(slot))} onChange={(event) => setOrderDraft((current) => ({ ...current, slots: event.target.checked ? [...current.slots, slot] : current.slots.filter((id) => id !== slot) }))} /> {SLOT_NAMES[slot]}</label>)}</div>
-          <label>Receipt total<input aria-label="Receipt total" required min="0" step="0.01" type="number" value={orderDraft.receipt} onChange={(event) => setOrderDraft({ ...orderDraft, receipt: event.target.value })} /></label>
-          <label>Actual fee from receipt / statement<input aria-label="Actual fee from receipt or statement" required min="0" step="0.01" type="number" value={orderDraft.fee} onChange={(event) => setOrderDraft({ ...orderDraft, fee: event.target.value })} /></label>
+          <label>Receipt total<NumericInput ariaLabel="Receipt total" required live value={orderDraft.receipt === "" ? undefined : Number(orderDraft.receipt)} onCommit={(value) => setOrderDraft((current) => ({ ...current, receipt: value == null ? "" : String(value) }))} /></label>
+          <label>Actual fee from receipt / statement<NumericInput ariaLabel="Actual fee from receipt or statement" required live value={orderDraft.fee === "" ? undefined : Number(orderDraft.fee)} onCommit={(value) => setOrderDraft((current) => ({ ...current, fee: value == null ? "" : String(value) }))} /></label>
           <label>Receipt / reference (required for reconciliation)<input aria-label="Receipt reference" value={orderDraft.reference} onChange={(event) => setOrderDraft({ ...orderDraft, reference: event.target.value })} /></label>
           <button className="primary" type="submit" disabled={!orderDraft.slots.length}>Record order</button>
         </form>
@@ -712,8 +713,8 @@ export function SellerView({
         <form className="actual-ledger-form" onSubmit={(event) => { event.preventDefault(); addShipment(); }}>
           <h3>Shipments &amp; fulfillment costs</h3><p className="muted">One order can have one shipment; split shipments are intentionally unsupported.</p>
           <label>Order<select aria-label="Order to fulfill" value={shipmentDraft.orderId} onChange={(event) => setShipmentDraft({ ...shipmentDraft, orderId: event.target.value })}><option value="">Choose an unshipped order</option>{activeDraft.actualLedger.orders.filter((order) => !order.shipmentId).map((order) => <option key={order.id} value={order.id}>{order.reference || order.id}</option>)}</select></label>
-          <label>Actual postage<input aria-label="Actual postage" required min="0" step="0.01" type="number" value={shipmentDraft.postage} onChange={(event) => setShipmentDraft({ ...shipmentDraft, postage: event.target.value })} /></label>
-          <label>Actual packing<input aria-label="Actual packing" required min="0" step="0.01" type="number" value={shipmentDraft.packing} onChange={(event) => setShipmentDraft({ ...shipmentDraft, packing: event.target.value })} /></label>
+          <label>Actual postage<NumericInput ariaLabel="Actual postage" required live value={shipmentDraft.postage === "" ? undefined : Number(shipmentDraft.postage)} onCommit={(value) => setShipmentDraft((current) => ({ ...current, postage: value == null ? "" : String(value) }))} /></label>
+          <label>Actual packing<NumericInput ariaLabel="Actual packing" required live value={shipmentDraft.packing === "" ? undefined : Number(shipmentDraft.packing)} onCommit={(value) => setShipmentDraft((current) => ({ ...current, packing: value == null ? "" : String(value) }))} /></label>
           <button className="primary" type="submit" disabled={!shipmentDraft.orderId}>Record shipment</button>
         </form>
         {activeDraft.actualLedger.shipments.length > 0 && <ul className="actual-ledger-list" aria-label="Recorded shipments">{activeDraft.actualLedger.shipments.map((shipment) => {

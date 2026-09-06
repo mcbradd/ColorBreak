@@ -33,16 +33,16 @@ describe("Add to Break product picker — single-screen add/remove/quantity", ()
 
     fireEvent.click(boxRow);
 
-    // Selection is named, and quantity stays visible without opening a keypad.
+    // Selection shows the editable quantity; only focusing it opens the keypad.
     const selectedRow = await screen.findByRole("group", { name: "Selected Collector Booster Box" });
-    const quantityOutput = within(selectedRow).getByLabelText("Collector Booster Box quantity in products", { selector: "output" });
-    expect(quantityOutput).toHaveTextContent("×1");
-    expect(within(selectedRow).queryByRole("textbox")).not.toBeInTheDocument();
+    const quantityOutput = within(selectedRow).getByLabelText("Collector Booster Box quantity in products", { selector: "input" });
+    expect(quantityOutput).toHaveValue("1");
+    expect(within(selectedRow).getByRole("textbox")).toHaveAttribute("inputmode", "numeric");
     expect(within(selectedRow).queryByRole("spinbutton")).not.toBeInTheDocument();
 
     const increase = screen.getByRole("button", { name: /Increase Collector Booster Box quantity/i });
     fireEvent.click(increase);
-    expect(quantityOutput).toHaveTextContent("×2");
+    expect(quantityOutput).toHaveValue("2");
 
     // Stepping the quantity below one is the removal control: there is no
     // second bin icon doing the same job.
@@ -52,6 +52,27 @@ describe("Add to Break product picker — single-screen add/remove/quantity", ()
     expect(await screen.findByRole("button", { name: /Collector Booster Box/ })).toBeInTheDocument();
     expect(screen.queryByLabelText("Collector Booster Box quantity in products")).not.toBeInTheDocument();
     expect(screen.queryByRole("group", { name: "Selected Collector Booster Box" })).not.toBeInTheDocument();
+  });
+
+  it("edits a quantity with the numeric keypad and commits using the field Done action", async () => {
+    const onApply = vi.fn();
+    render(createElement(Builder, { open: true, onClose: vi.fn(), lines: [], onApply }));
+    fireEvent.click(await screen.findByRole("button", { name: /Test Set/ }));
+    fireEvent.click(await screen.findByRole("button", { name: /Play Booster Pack/ }));
+    const quantity = screen.getByRole("textbox", { name: "Play Booster Pack quantity in openings" });
+    expect(quantity).toHaveValue("1");
+    fireEvent.focus(quantity);
+    fireEvent.change(quantity, { target: { value: "" } });
+    expect(quantity).toHaveValue("");
+    fireEvent.change(quantity, { target: { value: "24" } });
+    expect(quantity).toHaveValue("24");
+    fireEvent.change(quantity, { target: { value: "2.5" } });
+    expect(quantity).toHaveValue("24");
+    fireEvent.click(screen.getByRole("button", { name: "Done entering Play Booster Pack quantity in openings" }));
+    expect(quantity).toHaveValue("24");
+    fireEvent.click(screen.getByRole("button", { name: "Done", exact: true }));
+    await waitFor(() => expect(onApply).toHaveBeenCalled());
+    expect(onApply.mock.calls[0][0][0].quantity).toBe(24);
   });
 
   it("keeps each product row's add/remove/quantity state independent", async () => {
@@ -67,7 +88,7 @@ describe("Add to Break product picker — single-screen add/remove/quantity", ()
     // Removing just the box leaves the pack's own line and quantity intact.
     fireEvent.click(screen.getByRole("button", { name: /Remove Collector Booster Box from break/i }));
     expect(screen.queryByRole("group", { name: "Selected Collector Booster Box" })).not.toBeInTheDocument();
-    expect(screen.getByLabelText("Play Booster Pack quantity in openings")).toHaveTextContent("×1");
+    expect(screen.getByLabelText("Play Booster Pack quantity in openings")).toHaveValue("1");
   });
 
   it("commits the in-screen additions to the break when the picker is finished", async () => {
@@ -110,7 +131,7 @@ describe("Add to Break product picker — single-screen add/remove/quantity", ()
     }));
     fireEvent.click(await screen.findByRole("button", { name: /Test Set/ }));
     const selectedRow = await screen.findByRole("group", { name: "Selected Collector Booster Box" });
-    expect(within(selectedRow).getByLabelText("Collector Booster Box quantity in products")).toHaveTextContent("×999");
+    expect(within(selectedRow).getByLabelText("Collector Booster Box quantity in products")).toHaveValue("999");
     expect(within(selectedRow).getByRole("button", { name: "Increase Collector Booster Box quantity" })).toBeDisabled();
     expect(within(selectedRow).getByRole("button", { name: "Decrease Collector Booster Box quantity" })).toBeEnabled();
   });

@@ -89,7 +89,7 @@ describe("Seller shipment reconciliation through public controls", () => {
     fireEvent.click(screen.getByRole("button", { name: "Record order" }));
     expect(screen.getByRole("alert")).toHaveTextContent("could not save the reconciliation record");
     expect(screen.getByLabelText("White")).not.toBeDisabled();
-    expect(screen.getByLabelText("Receipt total")).toHaveValue(40);
+    expect(screen.getByLabelText("Receipt total")).toHaveValue("40");
     expect(screen.getByLabelText("Receipt reference")).toHaveValue("L16-TEST-WRITE-FAIL");
     expect(JSON.parse(sessionStorage.getItem(sellerPlanKey)!).actualLedger).toEqual({ version: 1, orders: [], shipments: [] });
     vi.restoreAllMocks();

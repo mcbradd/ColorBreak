@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import test from "node:test";
@@ -36,6 +36,20 @@ function assertClosure(entry, forbidden) {
 
 test("Primitives has a pure UI transitive closure", () => assertClosure(join(root, "src/features/shared/Primitives.tsx"), ["/data/", "/persistence", "/analytics", "/release-context", "/features/buyer/", "/features/seller/", "/domain/auction", "/domain/marketplace", "/domain/simulation", "/domain/seller"]));
 test("ProductBuilder cannot reach buyer, seller, persistence, or business workbenches", () => assertClosure(join(root, "src/features/shared/ProductBuilder.tsx"), ["/features/buyer/", "/features/seller/", "/persistence", "/analytics", "/release-context", "/domain/seller", "/domain/marketplace"]));
+
+test("quantity controls depend only on shared UI and domain types", () => assertClosure(join(root, "src/features/shared/QuantityControl.tsx"), ["/data/", "/features/buyer/", "/features/seller/", "/ProductBuilder", "/persistence"]));
+
+test("reusable components have one named implementation across production TSX", () => {
+  const owners = new Map();
+  for (const name of readdirSync(join(root, "src"), { recursive: true }).filter((name) => name.endsWith(".tsx"))) {
+    const source = readFileSync(join(root, "src", name), "utf8");
+    for (const [, component] of source.matchAll(/\bfunction\s+([A-Z]\w*)\s*\(/g)) {
+      assert.ok(!owners.has(component), `${component} is implemented in both ${owners.get(component)} and ${name}. Import the shared implementation.`);
+      owners.set(component, name);
+    }
+    if (!name.endsWith("Primitives.tsx")) assert.ok(!/type=["']number["']/.test(source), `${name} bypasses NumericInput keyboard and Done behavior`);
+  }
+});
 
 test("closure diagnostics include the complete shortest forbidden path", () => {
   const fixture = mkdtempSync(join(tmpdir(), "colorbreak-closure-"));

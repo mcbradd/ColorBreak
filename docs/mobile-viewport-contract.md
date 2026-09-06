@@ -22,3 +22,9 @@ Local browser checks exercise Chromium responsive layouts; the geometry tests re
 - [CSS viewport units](https://drafts.csswg.org/css-values-4/#viewport-variants) distinguish dynamic browser UI from overlays such as keyboards. Dynamic units alone are insufficient.
 - [Chrome's viewport resize guidance](https://developer.chrome.com/blog/viewport-resize-behavior/) describes visual-only and layout-plus-visual resizing. Keep `interactive-widget=resizes-content` as an enhancement while supporting both behaviors.
 - [WebKit feature configuration](https://raw.githubusercontent.com/WebKit/WebKit/main/Source/WTF/Scripts/Preferences/UnifiedWebPreferences.yaml) includes current interactive-widget work; source-tree support does not prove support in a particular installed iOS release.
+
+## Shared quantity controls (build 8)
+
+Every product quantity surface consumes `features/shared/QuantityControl.tsx` and its integer NumericInput. The picker reserves the full selector width before selection. At very short heights, the field and its Done share one row; the picker hides its redundant composition footer while that number is being edited. Hidden footers do not restrict the viewport reveal bounds.
+
+`node tools/check-quantity-layout.mjs <base-url>` uses Playwright to verify buyer and seller quantity editing at 320, 390 and 768px, including 190px visible height. Provide Playwright via NODE_PATH when it is supplied by the workspace runtime. It checks row positions, visible editable quantity, field and Done bounds, edits and commit.

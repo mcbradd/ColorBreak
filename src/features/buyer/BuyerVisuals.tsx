@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import type { ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "motion/react";
 import {
@@ -16,8 +15,8 @@ import { toggleSlotTaken } from "../../domain/auction";
 import type { AuctionState } from "../../domain/auction";
 import type { AssignmentMode } from "../../domain/share-url";
 import { cardDisplayName, cardTreatmentLabel } from "../../domain/card-label";
-import { deduplicateOmissions } from "../../domain/omissions";
-import { simulateOutcomesAsync } from "../../domain/simulation-client";
+import { CompactWarning } from "../shared/Feedback";
+import { IncompleteDataWarning, useOutcomeSimulation as useSharedOutcomeSimulation } from "../shared/OutcomeFeedback";
 import type { DistributionSummary, SimulationResult } from "../../domain/simulation";
 import type {
   BreakLine,
@@ -27,7 +26,7 @@ import type {
 } from "../../domain/types";
 import { SLOT_IDS, SLOT_NAMES } from "../../domain/types";
 import { DisclosureArrow, fmt, fmtChart, InformationLabel, PanelHeading, Status, Tip, oddsLabel, NumericInput, useDialogOwnership, plainEvidence } from "../shared/Primitives";
-import { QuantityControl } from "../shared/ProductBuilder";
+import { QuantityControl } from "../shared/QuantityControl";
 import { PublicCardPlaceholder } from "./CardPlaceholder";
 
 export function Composition({
@@ -349,69 +348,6 @@ function cardPreviewSubtitle(row: Contributor, priceOverride?: number): string {
   return `${fmt(price)} · ${cardTreatmentLabel(row.card, finish)} · ${row.card.set}`;
 }
 
-function CompactWarning({
-  title,
-  summary,
-  children,
-  className = "",
-}: {
-  title: ReactNode;
-  summary: string;
-  children: ReactNode;
-  className?: string;
-}) {
-  return (
-    <details className={`compact-warning ${className}`.trim()}>
-      <summary className="disclosure-summary">
-        <ShieldAlert />
-        <span><b>{title}</b><small>{summary}</small></span>
-        <DisclosureArrow />
-      </summary>
-      <div className="compact-warning-details">{children}</div>
-    </details>
-  );
-}
-
-function IncompleteDataWarning({ analysis, title = "Some values may be low", id, open, onOpenChange }: { analysis: BreakAnalysis; title?: string; id?: string; open?: boolean; onOpenChange?: (open: boolean) => void }) {
-  const omissions = deduplicateOmissions([...analysis.valuation.omissions, ...analysis.outcomeOmissions]
-    .filter((item) => item.material));
-  if (analysis.valuation.status !== "incomplete" && analysis.outcomeModel.complete !== false) return null;
-  const hasPriceGap = omissions.some((item) => /price|printing/.test(item.code));
-  const hasPullRateGap = omissions.some((item) => /pull-rate/.test(item.code));
-  const hasPackGap = omissions.some((item) => !/price|printing|pull-rate/.test(item.code));
-  const effects = [
-    "The estimate still uses all verified information.",
-    hasPriceGap ? "Cards without a price count as $0." : "",
-    hasPullRateGap ? "Cards with unknown pull chances stay in Rank by Price but are left out of EV." : "",
-    hasPackGap ? "Unverified pack contents are not included." : "",
-    "The real value may be higher.",
-  ].filter(Boolean).join(" ");
-  const technicalMessage = (message: string) => message
-    .replace(/ Its price remains visible, but it is excluded from expected value and Rank by EV until the rate can be verified\.$/, "")
-    .replace(/ Its price stays visible, but it adds \$0 to expected value and is omitted from Rank by EV because the exact chance of opening it is unknown\.$/, "");
-  return (
-    <details id={id} className="incomplete-data-warning" open={open} onToggle={(event) => onOpenChange?.(event.currentTarget.open)}>
-      <summary className="disclosure-summary">
-        <ShieldAlert />
-        <span><b>{title}</b><small>Some prices, pull chances, or pack contents could not be verified.</small></span>
-        <DisclosureArrow />
-      </summary>
-      <div className="incomplete-data-details">
-        <p>{effects}</p>
-        {omissions.length > 0 && <details className="incomplete-data-technical" open={open}>
-          <summary className="disclosure-summary">
-            <span><b>Technical details</b><small>{omissions.length} {omissions.length === 1 ? "issue" : "issues"}</small></span>
-            <DisclosureArrow />
-          </summary>
-          <ul>{omissions.map((omission, index) => <li key={`${omission.code}-${index}`}>
-            <span>{technicalMessage(omission.message)}</span>
-            {omission.source && <a href={omission.source} target="_blank" rel="noreferrer">Source</a>}
-          </li>)}</ul>
-        </details>}
-      </div>
-    </details>
-  );
-}
 
 export function CardInspector({
   row,
@@ -583,54 +519,7 @@ export function useOutcomeSimulation(
   remaining: SlotId[],
   landedCost: number | undefined,
 ): OutcomeSimulation {
-  const [state, setState] = useState<{ result?: SimulationResult; error?: string; busy: boolean }>({ busy: false });
-  const [generation, setGeneration] = useState(0);
-  const modelKey = analysis ? analysis.outcomeModel.cacheKey ?? JSON.stringify(analysis.outcomeModel) : "none";
-  const key = analysis
-    ? `${analysis.valuation.dataVersion}|${analysis.valuation.status}|${modelKey}|${analysis.valuation.threshold}|${remaining.join("")}|${landedCost ?? "none"}`
-    : "none";
-  useEffect(() => {
-    if (!analysis) { setState({ busy: false }); return; }
-    let current = true;
-    let refinementId: number | undefined;
-    setState((previous) => ({ ...previous, busy: true, error: undefined }));
-    const options = {
-      seed: key,
-      sampleCount: 10_000,
-      remaining,
-      landedCost,
-    };
-    const model = analysis.outcomeModel;
-    simulateOutcomesAsync(model, options).then((result) => {
-      if (!current) return;
-      setState({ result, busy: false });
-      const refine = () => simulateOutcomesAsync(model, { ...options, sampleCount: 50_000 })
-        .then((refined) => { if (current) setState({ result: refined, busy: false }); })
-        .catch(() => { /* keep the valid interactive result */ });
-      const idleWindow = window as Window & {
-        requestIdleCallback?: (callback: () => void, options?: { timeout: number }) => number;
-        cancelIdleCallback?: (id: number) => void;
-      };
-      if (idleWindow.requestIdleCallback) {
-        refinementId = idleWindow.requestIdleCallback(refine, { timeout: 4000 });
-      } else {
-        refinementId = setTimeout(refine, 750);
-      }
-    }).catch((error) => {
-      if (current) setState({ busy: false, error: error instanceof Error ? error.message : String(error) });
-    });
-    return () => {
-      current = false;
-      if (refinementId != null) {
-        const idleWindow = window as Window & { cancelIdleCallback?: (id: number) => void };
-        if (idleWindow.cancelIdleCallback) idleWindow.cancelIdleCallback(refinementId);
-        else clearTimeout(refinementId);
-      }
-    };
-  // `remaining` is often assembled inline by chart callers. The request key
-  // captures its values; depending on the array identity creates a render loop.
-  }, [key, generation]);
-  return { ...state, retry: () => setGeneration((value) => value + 1) };
+  return useSharedOutcomeSimulation(analysis, remaining, landedCost, 0, true);
 }
 
 function OutcomeRange({ summary, landed, compact = false }: { summary?: DistributionSummary; landed?: number; compact?: boolean }) {

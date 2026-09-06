@@ -147,6 +147,9 @@ function NumericInput({
   id,
   min = 0,
   max,
+  integer = false,
+  selectOnFocus = false,
+  required = false,
 }: {
   value: number | undefined;
   onCommit: (value: number | undefined) => void;
@@ -157,6 +160,9 @@ function NumericInput({
   id?: string;
   min?: number;
   max?: number;
+  integer?: boolean;
+  selectOnFocus?: boolean;
+  required?: boolean;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [draft, setDraft] = useState(value == null ? "" : String(value));
@@ -203,17 +209,18 @@ function NumericInput({
         id={id}
         ref={inputRef}
         type="text"
-        inputMode="decimal"
+        inputMode={integer ? "numeric" : "decimal"}
         enterKeyHint="done"
-        pattern="[0-9]*[.,]?[0-9]*"
+        pattern={integer ? "[0-9]*" : "[0-9]*[.,]?[0-9]*"}
         value={draft}
         placeholder={placeholder}
         disabled={disabled}
+        required={required}
         aria-label={ariaLabel}
-        onFocus={() => setEditing(true)}
+        onFocus={(event) => { setEditing(true); if (selectOnFocus) event.currentTarget.select(); }}
         onChange={(event) => {
           const next = event.target.value;
-          if (!/^\d*(?:[.,]\d*)?$/.test(next)) return;
+          if (!(integer ? /^\d*$/ : /^\d*(?:[.,]\d*)?$/).test(next)) return;
           setDraft(next);
           if (!live) return;
           const normalized = next.trim().replace(",", ".");

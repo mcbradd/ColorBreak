@@ -94,6 +94,7 @@ export function installMobileInputViewport() {
       const sheet = session.element.closest(".sheet");
       const stickyHeader = sheet?.querySelector<HTMLElement>(":scope > header");
       const stickyActions = sheet?.querySelector<HTMLElement>(".composer-actions");
+      const actionsRect = stickyActions?.getBoundingClientRect();
       const nav = !sheet ? document.querySelector<HTMLElement>("#root nav") : null;
       const navBottom = nav && /^(sticky|fixed)$/.test(getComputedStyle(nav).position)
         ? nav.getBoundingClientRect().bottom : 0;
@@ -107,7 +108,7 @@ export function installMobileInputViewport() {
       );
       const safeBottom = Math.min(
         viewportTop() + viewportHeight() - 12,
-        (stickyActions?.getBoundingClientRect().top ?? Number.POSITIVE_INFINITY) - 12,
+        (actionsRect?.height ? actionsRect.top : Number.POSITIVE_INFINITY) - 12,
         valueDockTop - 12,
       );
       // Reveal in each scrollport before scrolling the page. In particular,
