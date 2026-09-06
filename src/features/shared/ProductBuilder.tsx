@@ -75,6 +75,7 @@ export function Builder({
   const [estimating, setEstimating] = useState(false);
   const [refreshState, setRefreshState] = useState<"idle" | "searching" | "updating" | "checking" | "error" | PriceRefreshResult>("idle");
   const estimateRequest = useRef(0);
+  const refreshedForCommit = useRef(false);
   const [loading, setLoading] = useState(false);
   const [draft, setDraft] = useState<BreakLine[]>([]);
   const [composerMode, setComposerMode] = useState<"search" | "paste" | "review">(initialMode);
@@ -132,6 +133,7 @@ export function Builder({
       setScanLineCount(0);
       return;
     }
+    refreshedForCommit.current = false;
     setDraft(linesRef.current);
     setComposerMode(initialMode);
   }, [open]);
@@ -142,7 +144,7 @@ export function Builder({
    * Escape and the scrim all mean "I am finished choosing".
    */
   const commit = () => {
-    if (draftSignature(draft) === draftSignature(linesRef.current)) { onClose(); return; }
+    if (!refreshedForCommit.current && draftSignature(draft) === draftSignature(linesRef.current)) { onClose(); return; }
     void prepareProductSelection(draft, valueThreshold).then((selection) => {
       onApply(draft, undefined, selection);
       onClose();
@@ -338,6 +340,7 @@ export function Builder({
       const entries = await prepareEstimates();
       if (request !== estimateRequest.current) return;
       setPrepared(entries);
+      refreshedForCommit.current = true;
       setRefreshState(result);
     } catch {
       if (request === estimateRequest.current) setRefreshState("error");

@@ -13,7 +13,7 @@ vi.mock("./data/catalog", () => ({ catalogSets, productsForSet, readinessForProd
 
 const prepareProductSelection = vi.hoisted(() => vi.fn(async (lines: Array<{ productLabel: string }>) => {
   const last = lines[lines.length - 1];
-  const presentation = last.productLabel === "Collector Booster Box" ? "eligible" : "stale";
+  const presentation = last?.productLabel === "Collector Booster Box" ? "eligible" : "stale";
   return {
     lines,
     assessment: { presentation },
@@ -81,6 +81,20 @@ describe("Add to Break product picker", () => {
     fireEvent.click(button);
     expect(await screen.findByRole("button", { name: "Retry" })).toBeEnabled();
     expect(screen.getByRole("button", { name: /Collector Booster Box/ })).toBeInTheDocument();
+  });
+
+  it("hands a refreshed answer back even when the break composition has not changed", async () => {
+    const onApply = vi.fn();
+    const onClose = vi.fn();
+    const line = { id: "existing", set: "TST", productKey: "tst-box", productLabel: "Collector Booster Box", quantity: 2 };
+    render(createElement(Builder, { open: true, onClose, lines: [line], onApply }));
+    fireEvent.click(await screen.findByRole("button", { name: /Test Set/ }));
+    fireEvent.click(await screen.findByRole("button", { name: /Refresh now/ }));
+    await screen.findByRole("button", { name: "No newer data" });
+    fireEvent.click(screen.getByRole("button", { name: "Done", exact: true }));
+    await vi.waitFor(() => expect(onApply).toHaveBeenCalled());
+    expect(onApply.mock.calls[0][0]).toEqual([line]);
+    expect(onClose).toHaveBeenCalled();
   });
 
   it("has no readiness checkbox hiding products from the picker", async () => {
