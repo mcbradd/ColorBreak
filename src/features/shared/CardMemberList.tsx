@@ -59,6 +59,13 @@ export function CardMemberList({
     ? { key, direction: current.direction === "asc" ? "desc" : "asc" }
     : { key, direction: key === "name" ? "asc" : "desc" });
 
+  const inspect = (row: Contributor, opener: HTMLButtonElement) => {
+    // Touch activation does not consistently focus buttons. Establish the
+    // opener before the dialog captures focus so every dismissal returns here.
+    opener.focus({ preventScroll: true });
+    onInspect(row);
+  };
+
   if (!rows.length) return <p className="no-contributors">{emptyMessage}</p>;
 
   const headers: Array<{ key: SortKey; label: string }> = [
@@ -77,6 +84,7 @@ export function CardMemberList({
       <Tip label="What Chance and Adds mean" text={"Chance: how often at least one copy of this exact card version turns up when this break is opened.\n\nAdds: how much that card contributes to the group's average value, which is its price multiplied by the average number of copies opened."} />
       <AnswerNote primary label="What affects these card values" detail="Prices apply to the selected printing and finish. Chance and Adds use available pack rules; missing prices and estimated odds can change these values." />
     </span></div>
+    <div className="card-member-scroll" role="region" aria-label={`Scrollable cards in ${groupName}`} tabIndex={0}>
     <div className="card-member-table" role="table" aria-label={`Cards in ${groupName}`}>
       <div className="card-member-columns" role="row">
         {headers.map(({ key, label }) => <div role="columnheader" key={key} aria-sort={sort.key === key ? sort.direction === "asc" ? "ascending" : "descending" : "none"}>
@@ -90,10 +98,10 @@ export function CardMemberList({
         const cardLabel = cardDisplayName(row.card, row.finish);
         return <div className="card-member-row" role="row" key={`${row.card.id}|${row.finish ?? "nonfoil"}`}>
           <div className="card-member-identity" role="cell">
-            <button type="button" className="card-member-thumbnail-button" onClick={() => onInspect(row)} aria-label={`Open ${cardLabel} card details`}>
+            <button type="button" className="card-member-thumbnail-button" onClick={(event) => inspect(row, event.currentTarget)} aria-label={`Open ${cardLabel} card details`}>
               <PublicCardPlaceholder name={row.card.name} image={row.card.image} className="card-thumbnail" />
             </button>
-            <button type="button" className="card-member-name" onClick={() => onInspect(row)}>
+            <button type="button" className="card-member-name" onClick={(event) => inspect(row, event.currentTarget)}>
               <strong>{row.card.name}</strong><small>{cardTreatmentLabel(row.card, selectedFinish(row))} · {row.card.set} #{row.card.collectorNumber}</small>
             </button>
           </div>
@@ -102,6 +110,7 @@ export function CardMemberList({
           <span role="cell" className="card-member-adds" aria-label={`${fmt(row.sellableValue)} added to average`}><AnswerValue value={row.sellableValue} compact /></span>
         </div>;
       })}
+    </div>
     </div>
     {!matches.length && <p className="no-contributors">No card in {groupName} matches “{query}”.</p>}
     {matches.length > shown && <button type="button" className="quiet show-more-cards" onClick={() => setShown((current) => current + PAGE_SIZE)}>Show {Math.min(PAGE_SIZE, matches.length - shown)} more</button>}

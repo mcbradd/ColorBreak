@@ -11,7 +11,8 @@ it("collects repeated value caveats once and removes evidence for unmounted valu
   const { rerender } = render(view(true));
   expect(screen.getAllByRole("button")).toHaveLength(1);
   fireEvent.click(screen.getByRole("button"));
-  expect(screen.getByRole("tooltip").textContent).toBe("Prices change.\n\nThis topper has no price.");
+  expect([...screen.getByRole("tooltip").querySelectorAll(".tip-paragraph")].map(node => node.textContent))
+    .toEqual(["Prices change.", "This topper has no price."]);
   fireEvent.keyDown(document, { key: "Escape" });
   rerender(view(false));
   fireEvent.click(screen.getByRole("button"));

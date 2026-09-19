@@ -9,7 +9,7 @@ import type { BreakAnalysis } from "../../data/evaluate";
 import { assessBuyerDecision, type BuyerDecisionAssessment, type PreparedProductSelection } from "../../domain/decision-evidence";
 import { canonicalCompositionFingerprint } from "../../domain/canonical-composition";
 import { sealedMarketPrice } from "../../data/sealed-prices";
-import { refreshPublishedPrices } from "../../data/scryfall";
+import { refreshPublishedPrices, type PriceRefreshResult } from "../../data/scryfall";
 import { createAuction } from "../../domain/auction";
 import type { AuctionState } from "../../domain/auction";
 import { decodeLegacySearch } from "../../domain/legacy";
@@ -85,6 +85,7 @@ export function BuyerWorkspace({
     [calculationGeneration, setCalculationGeneration] = useState(0);
   const refreshRequest = useRef(0);
   const refreshBusy = useRef(false);
+  const pendingPriceRefresh = useRef<{ request: number; context: string; result: PriceRefreshResult } | null>(null);
   const [manualCapOpen, setManualCapOpen] = useState(false);
   const [manualTarget, setManualTarget] = useState<number>();
   const [manualShipping, setManualShipping] = useState<number>();
@@ -138,18 +139,34 @@ export function BuyerWorkspace({
       target ? `${target.pathname}${target.search}${target.hash}` : `${location.pathname}#buyer`,
     );
   }, [sharedHref, lines.length]);
+  const refreshContext = `${canonicalCompositionFingerprint(lines)}|${threshold}`;
+  // A completed request may only update the break that started it.
   useLayoutEffect(() => {
+    refreshRequest.current += 1;
+    refreshBusy.current = false;
+    pendingPriceRefresh.current = null;
+    setPriceRefresh("idle");
+    return () => { refreshRequest.current += 1; refreshBusy.current = false; pendingPriceRefresh.current = null; };
+  }, [refreshContext]);
+  useLayoutEffect(() => {
+    const request = ++analysisRequest.current;
     if (!lines.length) {
       setAnalysis(undefined);
       setDecisionAssessment(undefined);
       setBusy(false);
       return;
     }
-    const request = ++analysisRequest.current;
+    const refresh = pendingPriceRefresh.current;
+    const finishRefresh = (result: PriceRefreshState) => {
+      if (!refresh || refresh.request !== refreshRequest.current || refresh.context !== refreshContext) return;
+      pendingPriceRefresh.current = null;
+      refreshBusy.current = false;
+      setPriceRefresh(result);
+    };
     // Never label the previous composition/threshold result as current while
     // the latest calculation is pending.
     const transfer = preparedSelection;
-    if (transfer
+    if (transfer && !refresh
       && transfer.compositionFingerprint === canonicalCompositionFingerprint(lines)
       && transfer.assessment.analysis.valuation.threshold === threshold
       && Date.now() <= transfer.assessment.assessedAt + transfer.assessment.policyThresholdMs) {
@@ -169,6 +186,7 @@ export function BuyerWorkspace({
         if (request !== analysisRequest.current) return;
         setAnalysis(next.analysis);
         setDecisionAssessment(next);
+        if (refresh) finishRefresh(refresh.result);
         if (!firstResultTracked.current) {
           const elapsed = Date.now() - calculationStarted.current;
           track("calculation_completed", {
@@ -183,20 +201,14 @@ export function BuyerWorkspace({
       .catch((e) => {
         if (request !== analysisRequest.current) return;
         setError(e instanceof Error ? e.message : String(e));
+        finishRefresh("error");
         // Errors are intentionally not transmitted: failure details can be sensitive.
       })
       .finally(() => {
         if (request === analysisRequest.current) setBusy(false);
       });
+    return () => { analysisRequest.current += 1; };
   }, [lines, threshold, calculationGeneration]);
-  const refreshContext = `${canonicalCompositionFingerprint(lines)}|${threshold}`;
-  // A completed request may only update the break that started it.
-  useEffect(() => {
-    refreshRequest.current += 1;
-    refreshBusy.current = false;
-    setPriceRefresh("idle");
-    return () => { refreshRequest.current += 1; refreshBusy.current = false; };
-  }, [refreshContext]);
   const refreshPrices = async () => {
     if (refreshBusy.current) return;
     const request = ++refreshRequest.current;
@@ -210,12 +222,14 @@ export function BuyerWorkspace({
         if (request === refreshRequest.current) setPriceRefresh(phase);
       });
       if (request !== refreshRequest.current) return;
-      setPriceRefresh(result);
+      pendingPriceRefresh.current = { request, context: refreshContext, result };
+      setPriceRefresh("checking");
       setCalculationGeneration((generation) => generation + 1);
     } catch {
-      if (request === refreshRequest.current) setPriceRefresh("error");
-    } finally {
-      if (request === refreshRequest.current) refreshBusy.current = false;
+      if (request === refreshRequest.current) {
+        refreshBusy.current = false;
+        setPriceRefresh("error");
+      }
     }
   };
   useEffect(() => {

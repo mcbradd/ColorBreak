@@ -83,6 +83,11 @@ describe("stale prices are an action, not an announcement", () => {
     }));
     expect(screen.getByRole("button", { name: /Updating/ })).toHaveAttribute("aria-busy", "true");
 
+    rerender(createElement(Decision, {
+      eligibility: staleEligibility, onRefreshPrices: () => {}, priceRefresh: "checking",
+    }));
+    expect(screen.getByRole("button", { name: /Checking/ })).toBeDisabled();
+
     // Nothing newer exists is an answer, not a silence.
     rerender(createElement(Decision, {
       eligibility: staleEligibility, onRefreshPrices: () => {}, priceRefresh: "stale",

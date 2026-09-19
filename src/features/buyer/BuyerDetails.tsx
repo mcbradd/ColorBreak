@@ -402,14 +402,15 @@ export function LargeBreakView({
  * one word means one thing across the app. Phases are transient; the rest are
  * the answer the buyer asked for and stay on screen until the break changes.
  */
-export type PriceRefreshState = "idle" | PriceRefreshPhase | PriceRefreshResult | "error";
+export type PriceRefreshState = "idle" | PriceRefreshPhase | PriceRefreshResult | "checking" | "error";
 
-const PRICE_REFRESH_BUSY: PriceRefreshState[] = ["searching", "updating"];
+const PRICE_REFRESH_BUSY: PriceRefreshState[] = ["searching", "updating", "checking"];
 
 const PRICE_REFRESH_LABEL: Record<PriceRefreshState, string> = {
   idle: "Prices over 6 hours old · Refresh",
   searching: "Searching…",
   updating: "Updating…",
+  checking: "Checking…",
   updated: "Updated",
   current: "Up to date",
   stale: "No newer data",
@@ -421,6 +422,7 @@ const PRICE_REFRESH_DETAIL: Record<PriceRefreshState, string> = {
   idle: "Check the latest published prices and update this estimate.",
   searching: "Checking the price publication.",
   updating: "Loading newer prices.",
+  checking: "Recalculating this estimate with the available prices.",
   updated: "Newer prices loaded. Tap to check again.",
   current: "This estimate already uses the latest publication. Tap to check again.",
   stale: "Checked the latest publication; newer prices are not available yet. Tap to check again.",
@@ -429,12 +431,12 @@ const PRICE_REFRESH_DETAIL: Record<PriceRefreshState, string> = {
 };
 
 const PRICE_REFRESH_ANSWER: Record<PriceRefreshState, string> = {
-  idle: "", searching: "", updating: "",
+  idle: "", searching: "", updating: "", checking: "",
   updated: "Newer prices are in this estimate.",
   current: "This estimate already used the latest published prices.",
   stale: "No newer prices are published yet. The estimate still uses the latest published snapshot.",
   partial: "Some prices could not be refreshed. The estimate keeps the prices it already had for those.",
-  error: "The price publication could not be checked. The estimate keeps the prices it already had.",
+  error: "The refresh could not finish. The estimate keeps the prices it already had.",
 };
 
 export function BuyerView({

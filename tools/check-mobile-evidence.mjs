@@ -1,7 +1,11 @@
 import { createRequire } from 'node:module';
 import assert from 'node:assert/strict';
+import { mkdirSync } from 'node:fs';
+import { join } from 'node:path';
 const { chromium } = createRequire(import.meta.url)('playwright');
 const base = process.argv[2] ?? 'http://127.0.0.1:4173/';
+const evidenceDir = process.env.COLORBREAK_EVIDENCE_DIR;
+if (evidenceDir) mkdirSync(evidenceDir, { recursive: true });
 const browser = await chromium.launch({ headless: true });
 try {
   for (const width of [320, 390, 768]) {
@@ -32,6 +36,49 @@ try {
     assert.ok(quantityBox.x >= rowBox.x + rowBox.width && quantityBox.y < rowBox.y + rowBox.height, 'quantity stays beside product');
     if (width < 600) await page.getByRole('link', { name: 'Edit break', exact: true }).click();
     await page.getByRole('heading', { name: 'Check a bid', exact: true }).waitFor();
+    await page.getByRole('button', { name: 'Mark Blue taken by another buyer', exact: true }).click();
+    assert.equal(await page.getByRole('button', { name: 'Restore Blue', exact: true }).getAttribute('aria-pressed'), 'true');
+    assert.match(await page.locator('.decision-kicker').innerText(), /7 slots left/);
+    await page.getByRole('button', { name: 'Restore Blue', exact: true }).click();
+    await page.getByRole('button', { name: 'Mark Red as mine', exact: true }).click();
+    await page.locator('.owned-slot-value').waitFor();
+    assert.match(await page.locator('.owned-slot-value').innerText(), /Red/);
+    await page.getByRole('button', { name: 'Red is mine — undo', exact: true }).click();
+    const refresh = page.getByRole('button', { name: /Prices over 6 hours old.*Refresh/ });
+    if (await refresh.count()) {
+      await refresh.click();
+      await page.locator('.price-refresh-answer').waitFor({ timeout: 30000 });
+      assert.equal(await page.locator('.refresh-prices').isEnabled(), true);
+      assert.ok((await page.locator('.price-refresh-answer').innerText()).length > 0);
+    }
+    await page.getByRole('button', { name: 'Show cards in White team', exact: true }).click();
+    const team = page.getByRole('table', { name: 'Cards in White team', exact: true });
+    await team.locator('.card-member-row').first().waitFor();
+    assert.equal(await team.getByRole('columnheader', { name: /Price/ }).getAttribute('aria-sort'), 'descending');
+    for (const column of ['Price', 'Card', 'Chance', 'Adds']) {
+      const header = team.getByRole('columnheader', { name: new RegExp(`Sort by ${column}`) });
+      const previous = await header.getAttribute('aria-sort');
+      await header.getByRole('button').click();
+      const direction = previous === 'descending' || (previous === 'none' && column === 'Card') ? 'ascending' : 'descending';
+      assert.equal(await header.getAttribute('aria-sort'), direction);
+      assert.equal(await header.locator('svg').count(), 1);
+      await header.getByRole('button').click();
+      assert.equal(await header.getAttribute('aria-sort'), direction === 'ascending' ? 'descending' : 'ascending');
+    }
+    const teamThumbnail = team.locator('.card-member-thumbnail-button').first();
+    await teamThumbnail.click();
+    const fullPage = page.getByRole('dialog');
+    await fullPage.waitFor();
+    await page.waitForFunction(() => {
+      const box = document.querySelector('.card-inspector')?.getBoundingClientRect();
+      return box && Math.abs(box.width - innerWidth) < 2 && Math.abs(box.height - innerHeight) < 2;
+    });
+    const fullPageBox = await fullPage.boundingBox();
+    assert.ok(Math.abs(fullPageBox.width - width) < 2 && fullPageBox.height >= 718, `full-page card details: ${JSON.stringify(fullPageBox)}`);
+    await page.keyboard.press('Escape');
+    await fullPage.waitFor({ state: 'hidden' });
+    assert.equal(await teamThumbnail.evaluate(el => el === document.activeElement), true, 'focus returns to thumbnail');
+    await page.getByRole('button', { name: 'Hide cards in White team', exact: true }).click();
     if (width === 390) {
       const recipient = await browser.newPage({ viewport: { width, height: 720 } });
       await recipient.goto(url);
@@ -46,26 +93,34 @@ try {
     assert.equal(await page.getByRole('textbox', { name: 'Tax', exact: true }).evaluate(el => getComputedStyle(el).textAlign), 'right');
     assert.equal(await page.getByRole('textbox', { name: 'Tax', exact: true }).locator('..').locator('..').locator('b').innerText(), '%');
     await page.getByText('Break evidence', { exact: true }).click();
-    await page.locator('.slot-detail .contributor-card').first().waitFor({ timeout: 30000 });
-    assert.equal(await page.locator('.slot-detail .answer-note').count(), 1);
+    await page.locator('.slot-detail .card-member-row').first().waitFor({ timeout: 30000 });
+    assert.equal(await page.locator('.slot-detail .answer-note').count(), 2, 'one note per value-summary and membership section');
     assert.equal(await page.locator('.value-summary .answer-note').count(), 1);
-    await page.locator('.slot-detail .section-help .answer-note').click();
+    await page.getByRole('button', { name: 'What affects these card values', exact: true }).click();
     const tip = page.getByRole('tooltip');
     assert.ok((await tip.innerText()).split(/\s+/).length <= 65);
     await page.keyboard.press('Escape');
-    const overlaps = await page.locator('.contributor-columns, .contributor-card').evaluateAll(rows => rows.some(row => {
+    const overlaps = await page.locator('.slot-detail .card-member-columns, .slot-detail .card-member-row').evaluateAll(rows => rows.some(row => {
       const cells = [...row.children].filter(el => getComputedStyle(el).display !== 'none');
       return cells.some((el, i) => i && el.getBoundingClientRect().left < cells[i - 1].getBoundingClientRect().right - 1);
     }));
     assert.equal(overlaps, false, 'card-list columns never overlap');
-    const overflowingLabels = await page.locator('.contributor-columns > span').evaluateAll(cells => cells.some(cell => {
+    if (width < 700) {
+      const fontSizes = await page.locator('.slot-detail .card-member-columns button, .slot-detail .card-member-name strong, .slot-detail .card-member-row > span').evaluateAll(elements => elements.map(el => parseFloat(getComputedStyle(el).fontSize)));
+      assert.ok(fontSizes.every(size => size >= 17), `phone table respects readable text size: ${fontSizes}`);
+      const scrollport = page.locator('.slot-detail .card-member-scroll');
+      await scrollport.evaluate(el => { el.scrollLeft = el.scrollWidth; });
+      assert.ok(await scrollport.evaluate(el => el.scrollLeft > 0), 'columns scroll inside their panel');
+      await scrollport.evaluate(el => { el.scrollLeft = 0; });
+    }
+    const overflowingLabels = await page.locator('.slot-detail .card-member-columns > div').evaluateAll(cells => cells.flatMap(cell => {
       const range = document.createRange(); range.selectNodeContents(cell);
       const text = range.getBoundingClientRect(); const box = cell.getBoundingClientRect();
-      return text.left < box.left - 1 || text.right > box.right + 1;
+      return text.left < box.left - 1 || text.right > box.right + 1 ? [{ label: cell.textContent, text: { left: text.left, right: text.right }, box: { left: box.left, right: box.right } }] : [];
     }));
-    assert.equal(overflowingLabels, false, 'Chance and Adds text fits its column');
-    if (width === 390) await page.locator('.slot-detail').screenshot({ path: '.preview-value-details.png' });
-    await page.locator('.slot-detail .contributor-card').first().click();
+    if (evidenceDir) await page.locator('.slot-detail').screenshot({ path: join(evidenceDir, `value-details-${width}.png`) });
+    assert.deepEqual(overflowingLabels, [], 'Chance and Adds text fits its column');
+    await page.locator('.slot-detail .card-member-thumbnail-button').first().click();
     const dialog = page.getByRole('dialog', { name: /./ });
     await dialog.waitFor();
     assert.equal(await dialog.locator('.answer-note').count(), 1);
@@ -75,15 +130,35 @@ try {
     const artBox = await art.boundingBox();
     assert.ok(artBox.height > artBox.width * 1.3, `full portrait image ${JSON.stringify(artBox)}`);
     assert.ok(artBox.width >= Math.min(width - 50, 300));
+    if (width < 700) {
+      const infoBox = await dialog.locator('.card-info').boundingBox();
+      assert.ok(infoBox.y >= artBox.y + artBox.height, 'card text follows the full image without overlap');
+    }
     const chance = await dialog.locator('.primary-stat strong').innerText();
     assert.ok(!/\d\.\d.*breaks/.test(chance), `whole-break odds: ${chance}`);
     await page.waitForTimeout(400);
     await art.evaluate(async el => { if (el instanceof HTMLImageElement && !el.complete) await new Promise(resolve => { el.onload = resolve; el.onerror = resolve; }); });
-    if (width === 390) await page.screenshot({ path: '.preview-card-details.png' });
+    if (evidenceDir) await page.screenshot({ path: join(evidenceDir, `card-details-${width}.png`) });
     await page.getByRole('button', { name: 'Close card details' }).click();
+    await page.getByRole('button', { name: 'Large break', exact: true }).click();
+    const named = page.locator('.large-break-card-main').first();
+    await named.waitFor();
+    await named.click();
+    await page.locator('.large-break-card .card-member-row').first().waitFor();
+    assert.equal(await page.locator('.large-break-card').getByRole('columnheader', { name: /Price/ }).getAttribute('aria-sort'), 'descending');
+    await page.locator('.large-break-card .card-member-thumbnail-button').first().click();
+    await page.getByRole('dialog').waitFor();
+    await page.getByRole('button', { name: 'Close card details' }).click();
+    // Choose a nonempty residual group; named-card allocation can empty a color.
+    const residuals = page.locator('.large-break-category-main').filter({ hasText: /[1-9]\d* remaining cards?/ });
+    await residuals.first().click();
+    const residualTable = page.locator('.large-break-category .card-member-table');
+    await residualTable.waitFor();
+    await residualTable.getByRole('button', { name: /Sort by Price/ }).click();
+    assert.equal(await residualTable.getByRole('columnheader', { name: /Price/ }).getAttribute('aria-sort'), 'ascending');
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), 'no page overflow');
     assert.deepEqual(errors, []);
-    console.log(`PASS ${width}px: section notes, concise help, matched inputs, single-line quantity, live URL/toast, table columns and full card art`);
+    console.log(`PASS ${width}px: teams, four sortable columns, thumbnail focus, fullscreen details, named/residual slots, section notes, controls, sharing and full card art`);
     await context.close();
   }
 } finally { await browser.close(); }

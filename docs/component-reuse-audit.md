@@ -71,3 +71,11 @@ The inspector's image inherited a thumbnail class with a fixed 47px height. Its 
 NumericInput now right-aligns all entry amounts, with leading symbols in NumberField, including percent. QuantityControl explicitly preserves centered quantities. Shared buyer assumption widths cover shipping mode, money, tax and bulk threshold. Mobile composition assigns the same row to identity and quantity. Evidence sections use full width and concentration labels sit immediately beneath the bar.
 
 Regression coverage: `answer-group.test.ts` checks aggregation, deduplication, cleanup and nested evidence; `slot-rail.test.ts` reproduces the original eight-notes regression. `tools/check-mobile-evidence.mjs` checks the actual product-to-evidence flow, aligned controls, clipboard/address bar, concise popovers, contributor columns and full-card art at 320, 390 and 768px. Existing quantity/viewport and probable-chart checks continue to protect keyboard entry and chart geometry. These browser checks do not replace testing physical iOS Chrome.
+
+## Shared membership lists (build 16)
+
+`features/shared/CardMemberList.tsx` now owns every team/slot membership listing: color-team expansion, color value details, named Large Break slots and residual slots. It owns exact-finish price-descending defaults, all four sortable columns and their direction arrows, search/pagination, the common thumbnail/name controls, and one scoped evidence note. `PublicCardPlaceholder` moved to the shared layer. The old contributor-row implementation was removed.
+
+All surfaces open the existing `CardInspector`, now a full-page dialog. The shared list establishes opener focus for pointer/touch activation and the existing ownership hook handles dismissal. Full portrait art and details occupy separate content-sized rows on phones. The list scrolls within its panel to preserve the phone text-size floor while keeping numeric columns separate.
+
+`buyer-price-refresh.test.ts` protects the controller's publication/assessment sequence, failed recalculation, and obsolete requests. Existing membership, slot-rail and Large Break tests protect shared behavior; `check-mobile-evidence.mjs` exercises all consumers at 320, 390 and 768px. See `release-evidence/2026-09-19-integration.md` for the outstanding-branch audit and review findings.

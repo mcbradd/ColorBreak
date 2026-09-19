@@ -1627,7 +1627,7 @@ img.card-thumbnail { object-fit: cover; background: #171b23; }
 .card-inspector .card-stat { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:10px; align-items:center; padding:12px 0; border:0; border-bottom:1px solid var(--line); background:none; }
 .card-inspector .card-stat strong { font-size:18px; text-align:right; }
 .card-inspector .primary-stat { grid-template-columns:1fr; gap:4px; }
-.card-inspector .primary-stat strong { text-align:left; color:var(--accent); }
+.card-inspector .primary-stat strong { grid-column:auto; grid-row:auto; text-align:left; color:var(--accent); }
 .card-inspector .oracle-text { padding:12px 0; border:0; background:none; font-size:16px; line-height:1.5; }
 .share-toast { position:fixed; z-index:500; left:50%; top:calc(var(--visual-viewport-top, 0px) + 16px); transform:translateX(-50%); width:max-content; max-width:calc(100vw - 24px); padding:14px 20px; border:1px solid var(--line-strong); background:#15251c; color:var(--ink); box-shadow:0 6px 24px #0008; font-size:15px; pointer-events:none; }
 .numeric-input > input { text-align:right; font-variant-numeric:tabular-nums; }
@@ -1670,13 +1670,15 @@ img.card-thumbnail { object-fit: cover; background: #171b23; }
 
 /* One sortable card list serves buyer color teams and Large Break slots. */
 .card-member-list { min-width:0; }
+.card-member-scroll { max-width:100%; overflow-x:auto; overscroll-behavior-inline:contain; }
+.card-member-table { min-width:440px; }
 .card-member-toolbar { display:flex; align-items:center; gap:8px; }
 .card-member-toolbar .section-help { margin-left:auto; }
 .card-member-toolbar .card-member-search { flex:1; min-width:0; }
 .card-member-search { display:flex; align-items:center; gap:9px; min-height:44px; margin:10px 0; padding:8px 12px; border:1px solid var(--line); background:#0d1016; }
 .card-member-search svg { width:17px; flex:none; color:var(--muted); }
 .card-member-search input { width:100%; min-width:0; border:0; outline:0; color:var(--ink); background:transparent; }
-.card-member-columns, .card-member-row { display:grid; grid-template-columns:minmax(0,1fr) 68px 68px 68px; align-items:center; gap:8px; min-width:0; }
+.card-member-columns, .card-member-row { display:grid; grid-template-columns:minmax(0,1fr) 80px 80px 80px; align-items:center; gap:8px; min-width:0; }
 .card-member-columns { padding:8px 0 4px; border-bottom:1px solid var(--line); color:var(--muted); font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; }
 .card-member-columns > div:not(:first-child) { text-align:right; }
 .card-member-columns button { display:flex; align-items:center; justify-content:flex-end; gap:3px; width:100%; min-height:44px; padding:3px 0; border:0; color:inherit; background:transparent; text-align:inherit; font:inherit; cursor:pointer; }
@@ -1690,8 +1692,8 @@ img.card-thumbnail { object-fit: cover; background: #171b23; }
 .card-member-thumbnail-button .card-thumbnail { width:34px; height:47px; }
 .card-member-name { display:block; min-width:0; min-height:44px; padding:0; border:0; color:var(--ink); background:transparent; text-align:left; cursor:pointer; }
 .card-member-name strong, .card-member-name small { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.card-member-name strong { font-size:13px; }
-.card-member-name small { margin-top:3px; color:var(--muted); font-size:10px; }
+.card-member-name strong { font-size:16px; }
+.card-member-name small { margin-top:3px; color:var(--muted); font-size:12px; }
 .card-member-name:hover strong, .card-member-name:focus-visible strong { color:var(--accent); }
 .card-member-price, .card-member-chance, .card-member-adds { min-width:0; text-align:right; white-space:nowrap; }
 .card-member-adds { color:var(--accent); font-weight:700; }
@@ -1710,24 +1712,22 @@ img.card-thumbnail { object-fit: cover; background: #171b23; }
 .card-scrim { place-items:stretch; padding:0; }
 .card-inspector { display:flex; flex-direction:column; width:100%; height:100%; max-height:100%; border:0; border-radius:0; }
 .card-inspector > header { flex:none; padding-top:max(14px, env(safe-area-inset-top)); }
-.card-inspector .card-inspector-body { flex:1; min-height:0; grid-template-columns:minmax(0,360px) minmax(0,1fr); align-items:start; overflow:auto; padding:24px max(20px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left)); }
+.card-inspector .card-inspector-body { flex:1; min-height:0; grid-template-columns:minmax(0,360px) minmax(0,1fr); grid-auto-rows:max-content; align-content:start; align-items:start; overflow:auto; padding:24px max(20px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left)); }
 .card-inspector .card-art { position:sticky; top:12px; }
 .card-inspector .card-art .card-full-image { width:min(100%,360px); max-height:calc(var(--visual-viewport-height, 100dvh) - 150px); object-fit:contain; }
 @media(max-width:719px) {
-  .card-member-columns, .card-member-row { grid-template-columns:minmax(0,1fr) 50px 54px 56px; gap:5px; }
   .card-member-columns { font-size:9px; }
   .card-member-columns button { min-height:44px; }
   .card-member-row { min-height:58px; font-size:11px; }
   .card-member-identity { gap:6px; }
   .card-member-thumbnail-button { min-width:44px; min-height:44px; }
   .card-member-thumbnail-button .card-thumbnail { width:28px; height:39px; }
-  .card-member-name strong { font-size:12px; white-space:normal; overflow-wrap:anywhere; }
-  .card-member-name small { font-size:9px; }
+  .card-member-name strong { white-space:normal; overflow-wrap:anywhere; }
   .buyer-slot-open { gap:6px; }
   .buyer-slot-open .buyer-slot-member-count { font-size:9px; }
   .card-inspector .card-inspector-body { grid-template-columns:minmax(0,1fr); gap:18px; padding:12px max(14px, env(safe-area-inset-right)) max(20px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left)); }
   .card-inspector .card-art { position:static; }
-  .card-inspector .card-art .card-full-image { max-height:48dvh; }
+  .card-inspector .card-art .card-full-image { max-height:none; }
 }
 
 .card-member-columns button:focus-visible, .card-member-name:focus-visible, .buyer-slot-open:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }

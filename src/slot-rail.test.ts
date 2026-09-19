@@ -57,7 +57,7 @@ describe("buyer color controls", () => {
     expect(within(members).getAllByRole("row")[1]).toHaveTextContent("Big Dragon");
     expect(screen.getByRole("button", { name: "Mark Red as mine" })).toHaveAttribute("aria-pressed", "false");
     const thumbnail = within(members).getByRole("button", { name: "Open Big Dragon card details" });
-    thumbnail.focus();
+    screen.getByRole("button", { name: "Mark Red as mine" }).focus();
     fireEvent.click(thumbnail);
     expect(screen.getByRole("dialog", { name: "Big Dragon" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Close card details" }));
