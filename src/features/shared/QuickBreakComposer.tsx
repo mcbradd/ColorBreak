@@ -84,6 +84,9 @@ export function QuickBreakComposer({ lines, onChange, onImport, headingLabel = "
   }
 
   function changeQuery(value: string) {
+    // Native text owns the field while valuation renders in the background.
+    // Only deliberate search changes (clear, selection, typing) rewrite it.
+    if (inputRef.current && inputRef.current.value !== value) inputRef.current.value = value;
     setQuery(value);
     setActive(0);
     setShowAll(false);
@@ -156,10 +159,10 @@ export function QuickBreakComposer({ lines, onChange, onImport, headingLabel = "
       <div className="quick-search-field">
         <Search size={19} aria-hidden="true" />
         <input ref={inputRef} id={`${id}-search`} type="search" role="combobox" autoComplete="off"
-          placeholder="Set or product…" value={query}
+          placeholder="Set or product…" defaultValue=""
           aria-autocomplete="list" aria-expanded={results.length > 0} aria-controls={isSearching ? `${id}-results` : undefined}
           aria-activedescendant={results.length ? `${id}-option-${Math.min(active, results.length - 1)}` : undefined}
-          aria-describedby={`${id}-hint`} onChange={(event) => changeQuery(event.target.value)} onKeyDown={onSearchKeyDown} />
+          aria-describedby={`${id}-hint`} onInput={(event) => changeQuery(event.currentTarget.value)} onKeyDown={onSearchKeyDown} />
         {query && <button type="button" aria-label="Clear product search" onClick={() => { changeQuery(""); inputRef.current?.focus(); }}><X size={17} aria-hidden="true" /></button>}
       </div>
       <p className="quick-search-hint" id={`${id}-hint`}>Tap a match. Keep adding.</p>

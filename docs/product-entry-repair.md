@@ -35,3 +35,9 @@ Initial full check: 496 application tests, six root Vitest tests, 42 Node tests;
 Final local browser acceptance: all 62 scenarios passed across Chromium and WebKit. Added Done/Close/Escape variants pass (eight tests across exit and cost-persistence suites). Header screenshots were inspected at 320px; both engines capture the four-width header geometry in the browser evidence artifact. Build 18 is the release candidate; CI and public verification enforce the delivery gate.
 
 CI attempt d5f1d2c passed all application tests and Chromium scenarios, then WebKit timed out selecting the second seller product (FIN Play Booster Pack). Thirty local WebKit consecutive-entry repetitions and the full command-panel rerun passed. No application cause was reproduced. The browser check now captures query, visible page text, request failures and a screenshot on failure, and explicitly checks the second query survives recalculation; its assertions and timeout remain unchanged. A fresh CI gate is required before publishing.
+
+## Recalculation input iteration
+
+Intent: native search text must survive a background valuation/metadata render, including the second product entered in WebKit. Measure with a deterministic unit sequence that edits the DOM, rerenders metadata, then delivers the input event; retain the existing browser assertion and repeat the full gate.
+
+The second CI capture had an empty query, no page errors and no failed requests immediately after entering FIN. The new unit sequence failed because a controlled rerender erased the pending native text. Search now lets the input own its text, synchronizes filtering on native input events, and changes the DOM only for an intentional clear, suggestion selection or product addition. Recalculation cannot overwrite a partially delivered edit. This unit sequence models the observed race; final WebKit CI still decides acceptance.

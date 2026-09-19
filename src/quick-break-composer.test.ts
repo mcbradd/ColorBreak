@@ -21,7 +21,7 @@ function Harness({ initial = [], change = vi.fn() }: { initial?: BreakLine[]; ch
   const [lines, setLines] = useState(initial);
   return createElement(QuickBreakComposer, { lines, onChange: (next) => { change(next); setLines(next); }, onImport: vi.fn() });
 }
-const search = (query: string) => fireEvent.change(screen.getByRole("combobox"), { target: { value: query } });
+const search = (query: string) => fireEvent.input(screen.getByRole("combobox"), { target: { value: query } });
 
 beforeEach(() => {
   loader.index.mockReset().mockResolvedValue(sets);
@@ -41,6 +41,21 @@ describe("fast inline break composition", () => {
     expect(within(matches).getByRole("button", { name: "Select set FIN Final Fantasy" })).toBeInTheDocument();
     expect(within(matches).queryByText("Edge of Eternities")).toBeNull();
   });
+  it("preserves native search text when valuation metadata renders before its input event", async () => {
+    const line: BreakLine = { id: "eoe", set: "EOE", productKey: "sealed:play-booster-pack", productLabel: "Play Booster Pack", quantity: 1 };
+    const props = { lines: [line], onChange: vi.fn(), onImport: vi.fn() };
+    const view = render(createElement(QuickBreakComposer, props));
+    await screen.findByRole("button", { name: "FIN Final Fantasy" });
+    const input = screen.getByRole<HTMLInputElement>("combobox");
+    // Model the native edit arriving before the search notification while the
+    // workspace hydrates price metadata. A render must not erase that edit.
+    input.value = "fin play";
+    view.rerender(createElement(QuickBreakComposer, { ...props, lines: [{ ...line, marketCost: 12 }] }));
+    expect(input).toHaveValue("fin play");
+    fireEvent.input(input);
+    expect(await screen.findByRole("option", { name: "Add Final Fantasy (FIN) Play Booster Pack" })).toBeInTheDocument();
+  });
+
   it("adds, edits quantities, then adds another set without leaving the screen or losing costs", async () => {
     const change = vi.fn();
     render(createElement(Harness, { change, initial: [{ id: "paid", set: "FIN", productKey: "sealed:collector-booster-box", productLabel: "Collector Booster Box", quantity: 1, packCount: 12, myCost: 180, marketCost: 210 }] }));
