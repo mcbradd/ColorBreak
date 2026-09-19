@@ -6,7 +6,7 @@
 .command-workspace > .workspace-title { flex: none; }
 .command-workspace .command-panels { display: flex; flex-direction: column; flex: 1; min-height: 0; }
 .command-workspace .command-navigation { flex: none; }
-.command-workspace .command-body { flex: 1; min-height: 0; max-height: none; }
+.command-workspace .command-body { position: relative; flex: 1; min-height: 0; max-height: none; }
 .command-workspace .workspace-title { margin: 16px 0; }
 .command-workspace .workspace-title h1 { font-size: clamp(28px, 3vw, 42px) !important; text-transform: none; }
 .command-workspace .bid-live-decision .verdict-decision h2 { font-size: 20px !important; }

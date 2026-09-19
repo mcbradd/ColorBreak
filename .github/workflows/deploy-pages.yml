@@ -41,6 +41,15 @@ jobs:
         run: npx playwright install --with-deps chromium webkit
       - name: Check desktop and mobile browser flows
         run: npm run test:browser
+      - name: Retain browser screenshots
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4, also used by data-audit
+        with:
+          name: command-panel-browser-evidence
+          path: .browser-evidence/
+          include-hidden-files: true
+          if-no-files-found: ignore
+          retention-days: 14
       - name: Report release evidence
         run: |
           node -e "import('./tools/build-release-manifest.mjs').then(m => m.verifyReleaseArtifact({ outputDir: './dist' }))"

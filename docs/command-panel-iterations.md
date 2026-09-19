@@ -30,9 +30,37 @@ The user-requested public interfaces are the test seams: buyer/seller product en
 
 **Measurements:** Full regression suite and production build for each loop; desktop keyboard and pointer checks; phone widths 320/390/430px and landscape; normal, short and modeled keyboard viewports; changing top/bottom offsets; focus preservation, numeric Done, scrolling and rotation; no horizontal page overflow, occluded close controls or overlapping card art. Run browser checks against the built app and the final Pages deployment. Record timings as observations, not device-independent guarantees.
 
-**Execution:** Implementation complete; final release checks are running. Geometry checks reproduced Done overlapping the value dock at 350px visible height, and the final screen-frame check reproduced a seller scroll jump caused by legacy input padding. The command workspace now owns its frame and measured dock clearance. Review fixes preserve exact linked-field destinations, retain a valid panel after format changes, include section assumptions in value information, and make team ranges and desktop hover previews interactive. A failed deferred pricing module preserves entry and values and offers session-preserving recovery. Playwright is locked in the project; both browser engines now gate Pages deployment through `npm run test:browser`. Final evidence follows below.
+**Execution:** Complete locally for build 17. Geometry checks reproduced Done overlapping the value dock at 350px visible height, and the final screen-frame check reproduced a seller scroll jump caused by legacy input padding. A stricter one-screen assertion also caught an absolutely positioned status element extending the outer page by 21px; the scroll body now owns its positioning. The command workspace owns its frame and measured dock clearance. Review fixes preserve exact linked-field destinations, retain a valid panel after format changes, include section assumptions in value information, and make team ranges and desktop hover previews interactive. A failed deferred pricing module preserves entry and values and offers session-preserving recovery. Playwright is locked in the project; both browser engines now gate Pages deployment through `npm run test:browser`.
+
+### Final automated evidence
+
+| Check | Result |
+| --- | --- |
+| Full application regression | 494 tests across 106 files passed |
+| Root tooling regression | 6 Vitest tests and 42 Node tests passed |
+| Data and release gates | Shared-module boundaries, unused code, data coverage, collation, price snapshots, ready examples, production build, deployment subpath and OCR bundle checks passed |
+| Browser acceptance | All 46 width/job scenarios passed in Chromium and WebKit: desktop/mobile entry, nested information, retained context, team sorting/cards, clipboard sharing, linked assumptions, 350/190px visual viewports, landscape cutouts, quantity Done and failed-module recovery |
+| Entry bundle | 535.36kB / 167.01kB gzip, inside the existing 560kB budget; OCR and seller pricing remain deferred |
+| Observed selection-to-quantity | Chromium 245–284ms; WebKit 129–161ms on this machine. Includes automation overhead and is not an iPhone performance guarantee |
+| Visual review | Phone information layer and decision views, plus desktop command layouts reviewed from the built artifact |
+
+Local logs are `.preview-release17-check.log`, `.preview-release17-build.log` and `.preview-release17-browser.log`; screenshots are in `.browser-evidence/chromium` and `.browser-evidence/webkit`. CI repeats these gates against freshly generated prices and retains screenshots for 14 days. Public deployment and byte verification are recorded by the Pages workflow; the release runbook requires the same changed-flow checks against the published site.
 
 Physical iOS Chrome verification requires an actual device session and is reported separately from responsive Chromium/WebKit and deterministic geometry tests. The device procedure is in `docs/mobile-viewport-contract.md`.
+
+## Final review
+
+Frozen code candidate: `4fe49fa`; baseline: `12c2287`. Standards and Spec were reviewed independently under the code-review skill.
+
+### Standards
+
+No remaining actionable findings. Both earlier findings are resolved: dock navigation cancels stale input restoration, and value information includes primary section assumptions. The viewport fixes, nested information ownership, deferred-module recovery and browser deployment gate introduced no additional concrete regression found by this read-only review.
+
+### Spec
+
+No remaining concrete findings. All four earlier findings are resolved: exact anchor destinations, interactive team ranges, desktop hover previews and fallback when Teams disappears. The viewport, seller navigation and deferred-loading fixes are present. Physical iOS Chrome remains unverified and separately documented.
+
+Standards: 0 remaining findings. Spec: 0 remaining findings. Automated execution evidence is recorded separately from these reviews.
 
 ## Platform basis
 
