@@ -30,7 +30,9 @@ The user-requested public interfaces are the test seams: buyer/seller product en
 
 **Measurements:** Full regression suite and production build for each loop; desktop keyboard and pointer checks; phone widths 320/390/430px and landscape; normal, short and modeled keyboard viewports; changing top/bottom offsets; focus preservation, numeric Done, scrolling and rotation; no horizontal page overflow, occluded close controls or overlapping card art. Run browser checks against the built app and the final Pages deployment. Record timings as observations, not device-independent guarantees.
 
-**Execution:** Pending. Physical iOS Chrome verification requires an actual device session and must be reported separately from responsive Chromium/WebKit and deterministic geometry tests.
+**Execution:** Implementation complete; final release checks are running. Geometry checks reproduced Done overlapping the value dock at 350px visible height, and the final screen-frame check reproduced a seller scroll jump caused by legacy input padding. The command workspace now owns its frame and measured dock clearance. Review fixes preserve exact linked-field destinations, retain a valid panel after format changes, include section assumptions in value information, and make team ranges and desktop hover previews interactive. A failed deferred pricing module preserves entry and values and offers session-preserving recovery. Playwright is locked in the project; both browser engines now gate Pages deployment through `npm run test:browser`. Final evidence follows below.
+
+Physical iOS Chrome verification requires an actual device session and is reported separately from responsive Chromium/WebKit and deterministic geometry tests. The device procedure is in `docs/mobile-viewport-contract.md`.
 
 ## Platform basis
 

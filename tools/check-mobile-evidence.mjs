@@ -33,6 +33,16 @@ try {
     assert.ok(quantityBox.x >= rowBox.x + rowBox.width && quantityBox.y < rowBox.y + rowBox.height, 'quantity stays beside product');
     await page.getByRole('button', { name: 'Teams panel', exact: true }).click();
     await page.getByRole('heading', { name: 'Check a bid', exact: true }).waitFor();
+    const candle = page.getByRole('button', { name: /^White: MIN / });
+    await candle.click();
+    const range = page.getByRole('dialog', { name: 'White value range', exact: true });
+    await range.waitFor();
+    await range.getByRole('button', { name: /^White expected value:/ }).click();
+    await page.getByRole('dialog', { name: 'White expected value', exact: true }).waitFor();
+    await page.keyboard.press('Escape');
+    await range.waitFor();
+    await page.keyboard.press('Escape');
+    assert.equal(await candle.evaluate(el => document.activeElement === el), true, 'chart details return to the team range');
     await page.getByRole('button', { name: 'Mark Blue taken by another buyer', exact: true }).click();
     assert.equal(await page.getByRole('button', { name: 'Restore Blue', exact: true }).getAttribute('aria-pressed'), 'true');
     assert.match(await page.locator('.decision-kicker').innerText(), /7 slots left/);
@@ -143,6 +153,10 @@ try {
     await page.getByRole('button', { name: 'Close card details' }).click();
     await page.getByRole('button', { name: 'Break panel', exact: true }).click();
     await page.getByRole('button', { name: 'Large break', exact: true }).click();
+    await page.getByRole('button', { name: 'Decision panel', exact: true }).click();
+    await page.getByRole('link', { name: 'Adjust shipping & tax', exact: true }).click();
+    assert.equal(await page.getByRole('textbox', { name: 'Tax', exact: true }).isVisible(), true, 'cost link opens the right panel and disclosure');
+    await page.waitForFunction(() => document.activeElement?.id === 'buyer-costs');
     await page.getByRole('button', { name: 'Decision panel', exact: true }).click();
     const named = page.locator('.large-break-card-main').first();
     await named.waitFor();

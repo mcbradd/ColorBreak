@@ -88,7 +88,7 @@ export function BuyerSetup({
               text="Shipping and tax come off the bid limit. Flat fee charges once per combined shipment; per item charges every purchased spot."
             /><AnswerNote primary label="What affects the cost assumptions" detail={`Shipping: weight-based Whatnot US label estimate; seller profiles and destination can change it. Tax: a regional guess from your device time zone, not your delivery address. Your typed amounts replace these guesses.`} /></span>
           </div>
-          <div className="buyer-cost-fields">
+          <div id="buyer-costs" className="buyer-cost-fields" tabIndex={-1} data-viewport-navigation>
             <ShippingField value={costs.amount} mode={costs.mode} onValue={(shipping) => costs.update({ shipping })} onMode={(shippingMode) => costs.update({ shippingMode })} hint={costs.shippingNote} />
             <NumberField label="Tax" prefix="" suffix="%" value={costs.costs.taxPercent} onChange={(value) => costs.update({ taxPercent: value ?? 0 })} max={100} hint={costs.taxNote} live inline />
           </div>

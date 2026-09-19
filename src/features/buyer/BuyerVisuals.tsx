@@ -29,6 +29,7 @@ import type {
 import { SLOT_IDS, SLOT_NAMES } from "../../domain/types";
 import { DisclosureArrow, fmt, fmtCompact, InformationLabel, PanelHeading, Status, Tip, NumericInput, useDialogOwnership, plainEvidence } from "../shared/Primitives";
 import { CardMemberList } from "../shared/CardMemberList";
+import { InformationButton } from "../shared/InformationLayer";
 
 export function ValueSummary({ result }: { result: ValuationResult }) {
   const ignoredEV = Math.max(0, result.marketEV - result.sellableEV);
@@ -179,7 +180,10 @@ export function SlotCandle({
   const minimum = distribution?.min ?? expectedValue;
   const maximum = distribution?.max ?? expectedValue;
   return (
-    <div className="slot-candle" aria-label={`${label}: MIN ${fmt(minimum)}, expected ${fmt(expectedValue)}, MAX ${fmt(maximum)}; probable low ${fmt(low)}, probable high ${fmt(high)}`}>
+    <InformationButton className="slot-candle" title={`${label} value range`} label={`${label}: MIN ${fmt(minimum)}, expected ${fmt(expectedValue)}, MAX ${fmt(maximum)}; probable low ${fmt(low)}, probable high ${fmt(high)}`} preview={`${label}: minimum ${fmt(minimum)}, average ${fmt(expectedValue)}, maximum ${fmt(maximum)}. ${CANDLE_EXPLANATION}`} content={<>
+      <p>Minimum <AnswerValue label={`${label} minimum`} value={minimum} /> · Expected <AnswerValue label={`${label} expected value`} value={expectedValue} /> · Maximum <AnswerValue label={`${label} maximum`} value={maximum} /></p>
+      <p>{CANDLE_EXPLANATION}</p><p>MIN and MAX are separate possible limits using the available pack rules and prices. Missing prices or estimated odds can change them.</p>
+    </>}>
       <div className="slot-candle-track" aria-hidden="true">
         <span className="slot-candle-wick" style={{ left: `${position(low)}%`, width: `${Math.max(0, position(high) - position(low))}%` }} />
         <span className="slot-candle-body" style={{ left: `${position(bodyLow)}%`, width: `${Math.max(1, position(bodyHigh) - position(bodyLow))}%` }} />
@@ -191,7 +195,7 @@ export function SlotCandle({
         <b><small>EV</small>{fmtCompact(expectedValue)}</b>
         <span><small>MAX</small>{fmtCompact(maximum)}</span>
       </div>
-    </div>
+    </InformationButton>
   );
 }
 
@@ -477,4 +481,3 @@ function EvidenceLens({ analysis }: { analysis: BreakAnalysis }) {
     </details>
   );
 }
-

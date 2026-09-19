@@ -130,7 +130,9 @@ export function installMobileInputViewport() {
       const delta = scrollDelta(element, safeTop, safeBottom);
       // Fixed sheets own their scrolling; moving the underlying page cannot
       // reveal a field inside them. Avoid smooth scrolling against native pan.
-      if (!sheet && Math.abs(delta) > 1) window.scrollBy({ behavior: "instant", top: delta, left: 0 });
+      const workspace = element.closest<HTMLElement>(".command-workspace");
+      const fixedWorkspace = workspace && getComputedStyle(workspace).position === "fixed";
+      if (!sheet && !fixedWorkspace && Math.abs(delta) > 1) window.scrollBy({ behavior: "instant", top: delta, left: 0 });
     }, 50);
   };
 
@@ -169,7 +171,7 @@ export function installMobileInputViewport() {
     // A details layer or explicit panel navigation owns the current position.
     // Its dialog will restore that position; an older input session must not
     // move the page behind it when the keyboard finishes closing.
-    if (event.target instanceof HTMLElement && event.target.closest('[aria-haspopup="dialog"], [data-viewport-navigation]')) {
+    if (event.target instanceof HTMLElement && (event.target.matches('[data-command-panel]') || event.target.closest('[aria-haspopup="dialog"], [data-viewport-navigation]'))) {
       onScrollIntent();
     }
     const element = editableTarget(event.target);

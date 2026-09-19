@@ -4,7 +4,7 @@ import { loadProductSearchIndex, quickProductsForSet } from "../../data/product-
 import { breakLineKey, breakLineKeyForChoice, mergeBreakLines, productKeyForChoice } from "../../domain/break-line-identity";
 import { matchingProducts, rankSearchSets, suggestedSearchSets, type ProductSearchSet } from "../../domain/product-search";
 import type { BreakLine, ProductChoice } from "../../domain/types";
-import { InformationLabel } from "./Primitives";
+import { InformationLabel, fmt } from "./Primitives";
 import { QuantityControl } from "./QuantityControl";
 import { InformationButton } from "./InformationLayer";
 import { AnswerValue } from "./Answer";
@@ -149,7 +149,7 @@ export function QuickBreakComposer({ lines, onChange, onImport, headingLabel = "
     <section className="quick-break-composer" aria-labelledby={`${id}-heading`}>
       <div className="quick-composer-heading">
         <div><InformationLabel>{headingLabel}</InformationLabel><h2 id={`${id}-heading`}>Add products</h2></div>
-        <button type="button" className="quick-import-button" aria-label="Paste / screenshot" title="Import a product list, break link or screenshot" onClick={(event) => onImport(event.currentTarget)}>Import</button>
+        <button type="button" className="quick-import-button" aria-label="Paste / screenshot" aria-haspopup="dialog" title="Import a product list, break link or screenshot" onClick={(event) => onImport(event.currentTarget)}>Import</button>
       </div>
       <label className="quick-search-label" htmlFor={`${id}-search`}>Find a set and product</label>
       <div className="quick-search-field">
@@ -191,7 +191,7 @@ export function QuickBreakComposer({ lines, onChange, onImport, headingLabel = "
         <div className="quick-contents-heading"><h3>In this break</h3><span>{lines.reduce((total, line) => total + line.quantity, 0)} products</span></div>
         {!lines.length ? <p className="quick-contents-empty">Add everything being opened. Mix sets, boxes and packs in one break.</p> : <ul className="quick-break-lines">
           {lines.map((line) => <li key={breakLineKey(line)} className="quick-break-line">
-            <div className="quick-line-identity"><InformationButton title={`${line.set} ${line.productLabel}`} label={`Details for ${line.set} ${line.productLabel}`} content={<>
+            <div className="quick-line-identity"><InformationButton title={`${line.set} ${line.productLabel}`} label={`Details for ${line.set} ${line.productLabel}`} preview={`${line.quantity} × ${line.set} ${line.productLabel}. Market per product: ${fmt(line.marketCost)}. Select for contents and price evidence.`} content={<>
               <p>{sets.find((set) => set.code === line.set)?.name ?? line.set}</p>
               <p>{line.quantity} × {line.productLabel}{line.packCount ? ` · ${line.quantity * line.packCount} packs in this break` : ". Pack count is being resolved."}</p>
               <p>Market per product: <AnswerValue value={line.marketCost} label="Product market price" detail="Latest loaded sealed-product market reference. This is not your acquisition cost; seller costs can be entered in Plan." /></p>

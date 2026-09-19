@@ -4,6 +4,7 @@ import { ShippingField } from "../shared/ShippingField";
 import { probableRange, chartPosition, CANDLE_EXPLANATION } from "../../domain/outcome-chart";
 import { bestAvailableAnalysis } from "../../data/answer-cache";
 import { AnswerValue, AnswerNote, AnswerGroup } from "../shared/Answer";
+import { useCommandNavigation } from "../shared/CommandPanel";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { DollarSign, Lock, PackagePlus, Trash2, Unlock, X } from "lucide-react";
 import { evaluateBreakAnalysis } from "../../data/evaluate";
@@ -401,6 +402,7 @@ export function SellerView({
   remove: (id: string) => void;
   compact?: boolean;
 }) {
+  const navigate = useCommandNavigation();
   const owner = useMemo(() => sellerPlanOwner(lines, analysis.valuation.dataVersion), [lines, analysis.valuation.dataVersion]);
   const [draft, setDraft] = useState<SellerPlanDraft>(readSellerPlanDraft);
   const previousOwner = useRef(owner);
@@ -581,7 +583,7 @@ export function SellerView({
       <AnswerGroup><section className="seller-contents" aria-labelledby="seller-contents-heading"><div className="section-estimate"><AnswerNote primary detail="Product costs use your entries, then market estimates. An unknown product cost currently adds $0." /></div>
         <div className="seller-section-heading">
           <div><InformationLabel>1 · BREAK</InformationLabel><h2 id="seller-contents-heading">Contents &amp; cost basis</h2></div>
-          <button className="primary seller-add-products" onClick={(event) => add(event.currentTarget)}><PackagePlus />Add products</button>
+          <button className="primary seller-add-products" data-viewport-navigation onClick={(event) => navigate ? navigate("products", "search") : add(event.currentTarget)}><PackagePlus />Add products</button>
         </div>
         <div className="seller-break-reconciliation" aria-label="Seller break composition summary">
           <strong>{lines.length} lines · {totalOpenings} openings · {transactionCount} spots</strong>

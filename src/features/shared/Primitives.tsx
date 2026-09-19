@@ -2,13 +2,12 @@ import {
   useCallback,
   useEffect,
   useId,
-  useLayoutEffect,
   useRef,
   useState,
 } from "react";
 import type { ReactNode } from "react";
 import { useDialogOwnership } from "./dialog-ownership";
-import { createPortal } from "react-dom";
+import { AnchoredTip } from "./AnchoredTip";
 import {
   ChevronRight,
   CircleHelp,
@@ -278,18 +277,6 @@ export function NumberField({
  * Blank lines separate them, and a leading "Term:" is set apart so the reader
  * can find the term they tapped without reading the sentence first.
  */
-function tipParagraphs(text: string) {
-  return text.split(/\n\s*\n/).map((paragraph) => {
-    const trimmed = paragraph.trim();
-    const lead = /^([A-Z][A-Za-z' -]{0,24}):\s+(.*)$/s.exec(trimmed);
-    return (
-      <span className="tip-paragraph" key={trimmed}>
-        {lead ? <><b>{lead[1]}</b> {lead[2]}</> : trimmed}
-      </span>
-    );
-  });
-}
-
 export function EstimateTip({ text, label = "What affects this estimate" }: { text: string; label?: string }) {
   return <Tip className="answer-note" label={label} text={text}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v10M7.67 9.5l8.66 5M7.67 14.5l8.66-5" /></svg></Tip>;
 }
@@ -307,73 +294,7 @@ export function Tip({
 }) {
   const id = useId();
   const anchorRef = useRef<HTMLSpanElement>(null);
-  const popoverRef = useRef<HTMLSpanElement>(null);
   const [open, setOpen] = useState(false);
-  const [position, setPosition] = useState({ left: 12, top: 12 });
-
-  const place = useCallback(() => {
-    const anchor = anchorRef.current;
-    const popover = popoverRef.current;
-    if (!anchor || !popover) return;
-    const anchorBox = anchor.getBoundingClientRect();
-    const gutter = 12;
-    const viewport = window.visualViewport;
-    const viewportLeft = viewport?.offsetLeft ?? 0;
-    const viewportTop = viewport?.offsetTop ?? 0;
-    const width = viewport?.width ?? window.innerWidth;
-    const height = viewport?.height ?? window.innerHeight;
-    popover.style.maxHeight = `${Math.max(24, Math.min(240, height - gutter * 2))}px`;
-    popover.style.maxWidth = `${Math.max(24, width - gutter * 2)}px`;
-    const popoverBox = popover.getBoundingClientRect();
-    const left = Math.min(
-      viewportLeft + width - popoverBox.width - gutter,
-      Math.max(viewportLeft + gutter, anchorBox.left + anchorBox.width / 2 - popoverBox.width / 2),
-    );
-    const top = anchorBox.top >= popoverBox.height + gutter
-      ? anchorBox.top - popoverBox.height - 8
-      : anchorBox.bottom + 8;
-    setPosition({
-      left: Math.max(viewportLeft + gutter, left),
-      top: Math.min(
-        viewportTop + height - popoverBox.height - gutter,
-        Math.max(viewportTop + gutter, top),
-      ),
-    });
-  }, []);
-
-  useLayoutEffect(() => {
-    if (open) place();
-  }, [open, place]);
-
-  useEffect(() => {
-    if (!open) return;
-    const dismiss = (event: PointerEvent) => {
-      const target = event.target as Node;
-      if (!anchorRef.current?.contains(target) && !popoverRef.current?.contains(target)) {
-        setOpen(false);
-      }
-    };
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setOpen(false);
-        anchorRef.current?.focus();
-      }
-    };
-    document.addEventListener("pointerdown", dismiss);
-    document.addEventListener("keydown", onKeyDown);
-    window.addEventListener("resize", place);
-    window.visualViewport?.addEventListener("resize", place);
-    window.visualViewport?.addEventListener("scroll", place);
-    window.addEventListener("scroll", place, true);
-    return () => {
-      document.removeEventListener("pointerdown", dismiss);
-      document.removeEventListener("keydown", onKeyDown);
-      window.removeEventListener("resize", place);
-      window.visualViewport?.removeEventListener("resize", place);
-      window.visualViewport?.removeEventListener("scroll", place);
-      window.removeEventListener("scroll", place, true);
-    };
-  }, [open, place]);
 
   return (
     <>
@@ -405,18 +326,7 @@ export function Tip({
       >
         {children ?? <CircleHelp />}
       </span>
-      {open && createPortal(
-        <span
-          ref={popoverRef}
-          id={id}
-          className="tip-popover"
-          role="tooltip"
-          style={position}
-        >
-          {tipParagraphs(text)}
-        </span>,
-        document.body,
-      )}
+      {open && <AnchoredTip id={id} text={text} anchor={anchorRef} onDismiss={() => setOpen(false)} />}
     </>
   );
 }
@@ -532,4 +442,3 @@ export function Home({ choose, buildId, recentBuyerCount = 0, recentSellerCount 
 }
 
 export { fmt, fmtChart, oddsLabel, useDialogOwnership, useDeferredOwnedFocus, DisclosureArrow, countedPriceLabel, NumericInput, InformationLabel, PanelHeading, Status, plainEvidence };
-

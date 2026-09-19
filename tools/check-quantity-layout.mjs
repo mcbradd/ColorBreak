@@ -1,4 +1,4 @@
-// Optional real-browser regression: NODE_PATH must include Playwright.
+// Real-browser regression; Playwright is a locked development dependency.
 // Run against the preview or deployed site: node tools/check-quantity-layout.mjs <url>
 import { createRequire } from 'node:module';
 import assert from 'node:assert/strict';

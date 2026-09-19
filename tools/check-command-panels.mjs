@@ -38,11 +38,17 @@ try {
       await page.mouse.wheel(0, 1);
       const productName = page.getByRole('button', { name: 'Details for EOE Collector Booster Pack', exact: true });
       await productName.scrollIntoViewIfNeeded();
+      if (width === 1440) {
+        const focusBefore = await page.evaluate(() => document.activeElement?.outerHTML);
+        await productName.hover();
+        await page.getByRole('tooltip').filter({ hasText: 'Market per product' }).waitFor();
+        assert.equal(await page.evaluate(() => document.activeElement?.outerHTML), focusBefore, 'hover never takes keyboard focus');
+      }
       const scrollBefore = await page.locator('.command-body').evaluate(el => ({ top: el.scrollTop, left: el.scrollLeft }));
       await productName.click();
       const productDetails = page.getByRole('dialog', { name: 'EOE Collector Booster Pack', exact: true });
       await productDetails.waitFor();
-      if (evidence && width === 390) await page.screenshot({ path: join(evidence, `${job}-product-information.png`) });
+      if (evidence && width === 390) await page.screenshot({ path: join(evidence, `${job}-product-information.png`), animations: 'disabled' });
       await productDetails.getByRole('button', { name: /Product market price:/ }).click();
       await page.getByRole('dialog', { name: 'Product market price', exact: true }).waitFor();
       await page.keyboard.press('Escape');
@@ -55,6 +61,7 @@ try {
       assert.equal(await search.inputValue(), 'eoe');
       await page.getByRole('button', { name: job === 'buyer' ? 'Decision panel' : 'Values panel', exact: true }).click();
       await page.getByRole('region', { name: job === 'buyer' ? 'Bid decision' : 'Break value at a glance' }).waitFor();
+      if (evidence && (width === 390 || width === 1440)) await page.screenshot({ path: join(evidence, `${job}-decision-${width}.png`), animations: 'disabled' });
       if (job === 'buyer') {
         await page.getByRole('button', { name: /^Your bid limit:/ }).click();
         await page.getByRole('dialog', { name: 'Your bid limit' }).waitFor();
@@ -85,7 +92,15 @@ try {
       await search.fill('');
       await search.blur();
       assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), 'page fits viewport');
-      if (evidence) await page.screenshot({ path: join(evidence, `${job}-command-${width}.png`) });
+      assert.ok(await page.evaluate(() => document.documentElement.scrollHeight <= innerHeight + 1), 'workspace stays within one screen');
+      if (evidence) await page.screenshot({ path: join(evidence, `${job}-command-${width}.png`), animations: 'disabled' });
+      if (job === 'buyer' && width === 1440) {
+        await page.getByRole('button', { name: 'Teams panel', exact: true }).click();
+        await page.getByRole('button', { name: 'Large break', exact: true }).click();
+        await page.setViewportSize({ width: 390, height: 800 });
+        assert.equal(await search.isVisible(), true, 'removing Teams retains an available panel after resizing');
+        assert.equal(await page.getByRole('button', { name: 'Break panel', exact: true }).getAttribute('aria-pressed'), 'true');
+      }
       assert.deepEqual(errors, []);
       assert.equal(await page.locator('button button, button [role="button"], [aria-hidden="true"] button:not([tabindex="-1"])').count(), 0, 'no nested or hidden interactive controls');
       console.log(`PASS ${job} ${width}px: one-selection add ${latency}ms, consecutive entry, live quantity, panel/query retention, no overflow`);

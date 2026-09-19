@@ -3,7 +3,7 @@ import { CommandPanel } from "../shared/CommandPanel";
 import { bestAvailableAnalysis } from "../../data/answer-cache";
 import { answerFactors } from "../../domain/answer-quality";
 import { AnswerProvider } from "../shared/Answer";
-import { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Copy, Sparkles } from "lucide-react";
 import { evaluateBreakAnalysis } from "../../data/evaluate";
 import type { BreakAnalysis } from "../../data/evaluate";
@@ -19,9 +19,7 @@ import { Builder } from "../shared/ProductBuilder";
 import { QuickBreakComposer } from "../shared/QuickBreakComposer";
 import { CompactWarning } from "../shared/Feedback";
 import { SellerGlance } from "./SellerGlance";
-
-// The long economics/receipt workbench arrives after the first usable value.
-const SellerView = lazy(() => import("./SellerView").then(module => ({ default: module.SellerView })));
+import { SellerPlan } from "./SellerPlan";
 
 /** Owns seller composition and analysis state; it never hydrates buyer decisions. */
 export function SellerWorkspace({ exit }: { exit: () => void }) {
@@ -94,7 +92,7 @@ export function SellerWorkspace({ exit }: { exit: () => void }) {
       <div id="seller-plan" data-command-panel="plan" tabIndex={-1}>{!analysis && <p>Add a product in Break to see pricing and profit.</p>}{analysis && <fieldset className="seller-fast-plan" aria-busy={!analysisCurrent}>
         <legend>Price the break</legend>
         {!analysisCurrent && <p className="glance-updating">{busy ? "Updating seller economics for your new mix…" : "Retry analysis to update seller economics."}</p>}
-        <Suspense fallback={<p role="status">Loading pricing tools… Your break values are ready in Values.</p>}><SellerView compact analysis={analysis} lines={lines} transactionCount={transactionCount} add={() => { document.querySelector<HTMLInputElement>(".quick-search-field input")?.focus(); document.querySelector(".quick-break-composer")?.scrollIntoView({ block: "start" }); }} update={update} remove={(id) => setLines((rows) => rows.filter((row) => row.id !== id))} /></Suspense>
+        <SellerPlan compact analysis={analysis} lines={lines} transactionCount={transactionCount} add={openBuilder} update={update} remove={(id) => setLines((rows) => rows.filter((row) => row.id !== id))} />
       </fieldset>}</div>
       </CommandPanel>
     </main></AnswerProvider>

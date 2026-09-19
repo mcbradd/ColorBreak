@@ -3,6 +3,7 @@
 .agents/
 skills-lock.json
 .playwright-mcp/
+.browser-evidence/
 node_modules/
 node_modules.*/
 dist/

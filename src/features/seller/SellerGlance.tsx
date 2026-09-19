@@ -70,7 +70,7 @@ function GlanceResult({ analysis, current, busy, lines }: { analysis: BreakAnaly
         const range = simulation.result?.slotDistributions[id];
         const value = analysis.valuation.slots.find((row) => row.id === id)?.sellableEV;
         const { low, high } = probableRange(range, 0, "80");
-        return <InformationButton className="glance-color" key={id} title={`${SLOT_NAMES[id]} team`} label={`Inspect ${SLOT_NAMES[id]} value`} pressed={slot === id} onOpen={() => setSlot(id)} content={<>
+        return <InformationButton className="glance-color" key={id} title={`${SLOT_NAMES[id]} team`} label={`Inspect ${SLOT_NAMES[id]} value`} preview={`${SLOT_NAMES[id]} average ${fmt(value)}. MIN ${fmt(range?.min)} · MAX ${fmt(range?.max)}. Select to see the cards in this team.`} pressed={slot === id} onOpen={() => setSlot(id)} content={<>
           <p>Average <AnswerValue label={`${SLOT_NAMES[id]} average value`} value={value} detail="Expected card value for this color across possible openings; actual pulls vary." /> · MIN {fmtCompact(range?.min ?? 0)} · MAX {fmtCompact(range?.max ?? 0)}</p>
           <CardMemberList rows={analysis.valuation.slots.find(row => row.id === id)?.contributors ?? []} onInspect={setInspected} groupName={`${SLOT_NAMES[id]} team`} />
         </>}>

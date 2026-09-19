@@ -1485,11 +1485,11 @@ img.card-thumbnail { object-fit: cover; background: #171b23; }
   .scrim .sheet { top: 0; bottom: auto; height: calc(var(--visual-viewport-height, 100dvh) - 12px); }
 }
 @media (max-width: 760px) {
-  .workspace.page.seller-fast { padding-bottom: calc(180px + var(--safe-bottom)); }
+  .workspace.page.seller-fast:not(.command-workspace) { padding-bottom: calc(180px + var(--safe-bottom)); }
   /* iOS can shrink only the visual viewport. Extra document height gives
    * measured scrolling room to lift the last input above its keyboard and dock. */
-  .input-focus-active .workspace.page { padding-bottom: calc(48px + var(--safe-bottom) + var(--visual-viewport-inset-bottom, 0px)); }
-  .input-focus-active .workspace.page.seller-fast { padding-bottom: calc(180px + var(--safe-bottom) + var(--visual-viewport-inset-bottom, 0px)); }
+  .input-focus-active .workspace.page:not(.command-workspace) { padding-bottom: calc(48px + var(--safe-bottom) + var(--visual-viewport-inset-bottom, 0px)); }
+  .input-focus-active .workspace.page.seller-fast:not(.command-workspace) { padding-bottom: calc(180px + var(--safe-bottom) + var(--visual-viewport-inset-bottom, 0px)); }
   .keyboard-open:has(.seller-fast) nav { position: static; }
   .keyboard-open .seller-fast .quick-search-hint { display: none; }
   .keyboard-open .seller-fast .quick-product-option { padding-block: 10px; }

@@ -99,10 +99,10 @@ export function CardMemberList({
         const cardLabel = cardDisplayName(row.card, row.finish);
         return <div className="card-member-row" role="row" key={`${row.card.id}|${row.finish ?? "nonfoil"}`}>
           <div className="card-member-identity" role="cell">
-            <button type="button" className="card-member-thumbnail-button" onClick={(event) => inspect(row, event.currentTarget)} aria-label={`Open ${cardLabel} card details`}>
+            <button type="button" className="card-member-thumbnail-button" aria-haspopup="dialog" onClick={(event) => inspect(row, event.currentTarget)} aria-label={`Open ${cardLabel} card details`}>
               <PublicCardPlaceholder name={row.card.name} image={row.card.image} className="card-thumbnail" />
             </button>
-            <button type="button" className="card-member-name" onClick={(event) => inspect(row, event.currentTarget)}>
+            <button type="button" className="card-member-name" aria-haspopup="dialog" onClick={(event) => inspect(row, event.currentTarget)}>
               <strong>{row.card.name}</strong><small>{cardTreatmentLabel(row.card, selectedFinish(row))} · {row.card.set} #{row.card.collectorNumber}</small>
             </button>
           </div>

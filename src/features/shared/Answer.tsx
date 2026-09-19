@@ -38,7 +38,7 @@ export function AnswerNote({ detail, label = "What affects this estimate", prima
   const register = group?.register;
   const id = useId();
   useEffect(() => {
-    if (!register || primary || !detail) return;
+    if (!register || !detail) return;
     register(id, detail);
     return () => register(id);
   }, [register, primary, id, detail]);
@@ -54,7 +54,7 @@ export function AnswerValue({ value, detail, compact = false, label = "Value det
   const invalid = value != null && !Number.isFinite(value);
   const explanation = invalid ? "These assumptions leave no finite break-even price. Percentage fees consume all revenue; lower the fee assumptions to calculate a usable price." : value == null ? "No amount is available yet. $0 counts only what is known, not a confirmed zero." : detail;
   const display = invalid ? "No finite amount" : compact ? fmtCompact(value ?? 0) : fmt(value ?? 0);
-  return <span className="answer-value">{interactive ? <InformationButton title={label} label={`${label}: ${display}`} className="value-information" content={<>
+  return <span className="answer-value">{interactive ? <InformationButton title={label} label={`${label}: ${display}`} preview={`${invalid ? display : fmt(value ?? 0)}. ${explanation ?? conciseExplanation([...factors, ...(group?.notes.values() ?? [])])}`} className="value-information" content={<>
     <p className="information-amount">{invalid ? display : fmt(value ?? 0)}</p>
     <p>{explanation ?? "Uses the best available prices and current assumptions. This amount can change as evidence improves."}</p>
     {[...new Set([...factors, ...(group?.notes.values() ?? [])])].filter(note => note !== detail).map(note => <p key={note}>{note}</p>)}
@@ -63,5 +63,5 @@ export function AnswerValue({ value, detail, compact = false, label = "Value det
 
 export function AnswerGraphic({ children, detail }: { children: ReactNode; detail: string }) {
   const factors = useContext(AnswerContext);
-  return <div className="answer-graphic"><InformationButton title="Chart details" className="chart-information" content={<><p>{detail}</p>{factors.map(note => <p key={note}>{note}</p>)}</>}><span className="sr-only">Explore this chart</span></InformationButton><div className="answer-graphic-content">{children}</div><AnswerNote detail={detail} label="What affects this chart" /></div>;
+  return <div className="answer-graphic"><InformationButton title="Chart details" preview={detail} className="chart-information" content={<><p>{detail}</p>{factors.map(note => <p key={note}>{note}</p>)}</>}><span className="sr-only">Explore this chart</span></InformationButton><div className="answer-graphic-content">{children}</div><AnswerNote detail={detail} label="What affects this chart" /></div>;
 }

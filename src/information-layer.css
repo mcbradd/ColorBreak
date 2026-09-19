@@ -1,6 +1,7 @@
 .information-trigger { cursor: pointer; color: inherit; font: inherit; line-height: inherit; text-align: inherit; }
 .answer-value, .answer-value > .value-information { font-size: inherit !important; color: inherit !important; font-weight: inherit; }
 .tip-popover { z-index: 600; }
+.card-inspector > header { padding-left: max(16px, var(--safe-left)); padding-right: max(16px, var(--safe-right)); }
 .value-information.information-trigger { display: inline-flex; align-items: center; min-height: 44px; padding: 0; border: 0; border-bottom: 1px dotted currentColor; border-radius: 0; background: transparent; font: inherit; color: inherit; white-space: inherit; }
 .information-trigger:hover { color: var(--accent); }
 .information-trigger:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
@@ -17,6 +18,8 @@
 .answer-graphic-content :is(button, a, input, [role="button"]) { pointer-events: auto; }
 .quick-line-identity > .information-trigger { display: grid; gap: 6px; padding: 0; min-height: 48px; text-align: left; background: transparent; border: 0; }
 .quick-line-identity .information-trigger strong { text-decoration: underline dotted; text-underline-offset: 4px; }
+.slot-candle.information-trigger { width: 100%; padding: 0; border: 0; background: transparent; }
+.viewport-short .information-layer { max-height: 100%; }
 @media (max-width: 700px) {
   .information-scrim { align-items: flex-end; }
   .information-layer { max-height: 85%; }

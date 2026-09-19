@@ -303,7 +303,7 @@ export function LargeBreakView({
         </div>
         <div className="large-break-cost-fields">
           <NumberField id="large-break-bid" label="Bid for one spot" value={bid} onChange={setBid} />
-          <a className="quiet" href="#buyer-break-setup" onClick={() => { const panel = document.querySelector<HTMLDetailsElement>(".buyer-assumptions"); if (panel) panel.open = true; }}>Adjust shipping &amp; tax</a>
+          <a className="quiet" href="#buyer-costs" data-viewport-navigation onClick={() => { const panel = document.querySelector<HTMLDetailsElement>(".buyer-assumptions"); if (panel) panel.open = true; }}>Adjust shipping &amp; tax</a>
           <label className="large-break-haircut"><span>Listed card value you expect to recover</span><div><NumericInput value={100 - haircut} max={100} ariaLabel="Percent of listed card value you expect to recover" onCommit={(value) => setHaircut(value == null ? haircut : 100 - Math.min(100, Math.max(0, value)))} /><b>%</b></div><small>After selling fees and typical discounts</small></label>
         </div>
         <div className="large-break-cost-equation">

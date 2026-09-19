@@ -37,6 +37,10 @@ jobs:
         run: npm run check:prices && npm run check:sealed-prices
       - name: Test and build
         run: npm run check
+      - name: Install browser test engines
+        run: npx playwright install --with-deps chromium webkit
+      - name: Check desktop and mobile browser flows
+        run: npm run test:browser
       - name: Report release evidence
         run: |
           node -e "import('./tools/build-release-manifest.mjs').then(m => m.verifyReleaseArtifact({ outputDir: './dist' }))"

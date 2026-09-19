@@ -1,5 +1,5 @@
 import { createElement as h } from "react";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { expect, it } from "vitest";
 import { AnswerGroup, AnswerNote, AnswerProvider, AnswerValue } from "./features/shared/Answer";
 import { InformationButton } from "./features/shared/InformationLayer";
@@ -15,9 +15,22 @@ it("opens an amount with its exact value and evidence, then restores its caller"
   expect(dialog).toHaveTextContent("$1,234.56");
   expect(dialog).toHaveTextContent("Expected card value across openings.");
   expect(dialog).toHaveTextContent("The bonus pack has no price.");
+  expect(dialog).toHaveTextContent("Uses weighted pack outcomes.");
   fireEvent.keyDown(document, { key: "Escape" });
   await waitFor(() => expect(amount).toHaveFocus());
   expect(screen.queryByRole("dialog")).toBeNull();
+});
+
+it("offers hover information without taking focus, and still opens full details on click", async () => {
+  render(h(AnswerValue, { value: 25, detail: "Latest observed card price." }));
+  const amount = screen.getByRole("button", { name: /Value details/ });
+  fireEvent.pointerEnter(amount, { pointerType: "mouse" });
+  await act(async () => { await new Promise(resolve => setTimeout(resolve, 400)); });
+  expect(screen.getByRole("tooltip")).toHaveTextContent("Latest observed card price.");
+  expect(amount).not.toHaveFocus();
+  fireEvent.click(amount);
+  expect(screen.queryByRole("tooltip")).toBeNull();
+  expect(screen.getByRole("dialog", { name: "Value details" })).toBeInTheDocument();
 });
 
 it.each(["close", "Escape", "outside"])("returns from nested information with %s, preserving both scroll axes and focus", async (method) => {
