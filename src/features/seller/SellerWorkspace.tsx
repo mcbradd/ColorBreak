@@ -1,4 +1,5 @@
 import { useShareFeedback } from "../shared/ShareFeedback";
+import { CommandPanel } from "../shared/CommandPanel";
 import { bestAvailableAnalysis } from "../../data/answer-cache";
 import { answerFactors } from "../../domain/answer-quality";
 import { AnswerProvider } from "../shared/Answer";
@@ -81,17 +82,19 @@ export function SellerWorkspace({ exit }: { exit: () => void }) {
     <nav><button className="wordmark" onClick={exit}><span className="brand-mark"><Sparkles /></span>COLORBREAK</button><div className="nav-actions">{lines.length > 0 && <button className="icon-button" onClick={share} title="Copy break link — private costs are excluded." aria-label="Copy break link"><Copy /></button>}</div></nav>
     {legacyNotice && <p role="status">Legacy durable drafts were removed because they could contain financial data. Current drafts stay only in this browser session.</p>}
     {toast}
-    <AnswerProvider value={analysis ? answerFactors(analysis.valuation, analysis.outcomeModel.complete, busy, analysis.outcomeOmissions) : []}><main className="workspace page seller-fast" tabIndex={-1} data-focus-fallback><header className="workspace-title"><div><p className="eyebrow">SELLER STUDIO</p><h1>Build &amp; value a break</h1></div></header>
+    <AnswerProvider value={analysis ? answerFactors(analysis.valuation, analysis.outcomeModel.complete, busy, analysis.outcomeOmissions) : []}><main className="workspace page seller-fast command-workspace" tabIndex={-1} data-focus-fallback><header className="workspace-title"><div><p className="eyebrow">SELLER STUDIO</p><h1>Build &amp; value a break</h1></div></header>
+      <CommandPanel panels={[{ id: "products", label: "Break", target: "seller-products" }, { id: "values", label: "Values", target: "seller-value" }, { id: "plan", label: "Plan", target: "seller-plan" }]}>
       <div className="seller-fast-grid">
-        <QuickBreakComposer lines={lines} onChange={setLines} onImport={() => openBuilder()} />
-        <SellerGlance lines={lines} analysis={analysis} current={analysisCurrent} busy={busy} />
+        <div id="seller-products" data-command-panel="products" tabIndex={-1}><QuickBreakComposer lines={lines} onChange={setLines} onImport={openBuilder} /></div>
+        <div data-command-panel="values"><SellerGlance lines={lines} analysis={analysis} current={analysisCurrent} busy={busy} /></div>
       </div>
       {error && <CompactWarning title="Couldn’t load this result" summary="Your products are saved. Retry the calculation." className="load-warning"><p role="alert">{error}</p><button type="button" className="quiet" onClick={() => setGeneration((value) => value + 1)}>Retry analysis</button></CompactWarning>}
-      {analysis && <fieldset className="seller-fast-plan" aria-busy={!analysisCurrent}>
+      <div id="seller-plan" data-command-panel="plan" tabIndex={-1}>{!analysis && <p>Add a product in Break to see pricing and profit.</p>}{analysis && <fieldset className="seller-fast-plan" aria-busy={!analysisCurrent}>
         <legend>Price the break</legend>
         {!analysisCurrent && <p className="glance-updating">{busy ? "Updating seller economics for your new mix…" : "Retry analysis to update seller economics."}</p>}
         <SellerView compact analysis={analysis} lines={lines} transactionCount={transactionCount} add={() => { document.querySelector<HTMLInputElement>(".quick-search-field input")?.focus(); document.querySelector(".quick-break-composer")?.scrollIntoView({ block: "start" }); }} update={update} remove={(id) => setLines((rows) => rows.filter((row) => row.id !== id))} />
-      </fieldset>}
+      </fieldset>}</div>
+      </CommandPanel>
     </main></AnswerProvider>
     <Builder open={builder} initialMode="paste" onClose={() => setBuilder(false)} lines={lines} invokingElement={builderOpener} onApply={(nextLines, settings) => { setLines(nextLines); if (settings?.largeSpots != null) setTransactionCount(settings.largeSpots); }} />
   </>;

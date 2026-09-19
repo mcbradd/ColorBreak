@@ -108,7 +108,7 @@ describe("buyer assumption persistence", () => {
     render(createElement(App));
 
     expect(await screen.findByRole("heading", { name: "Check a bid" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Add products/ })).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Find a set and product" })).toBeInTheDocument();
     expect(screen.queryByText("Play Booster Box")).not.toBeInTheDocument();
   });
 });

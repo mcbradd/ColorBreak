@@ -53,7 +53,7 @@ describe("a break travels in its own link", () => {
 
     expect(share).not.toHaveBeenCalled();
     expect(decodeLegacySearch(new URL(writeText.mock.calls[0][0]).search)).toHaveLength(2);
-    expect(screen.getByRole("status")).toHaveTextContent("Break link copied to clipboard");
+    expect(screen.getByText("Break link copied to clipboard")).toHaveAttribute("role", "status");
     expect(screen.queryByLabelText("Break link")).not.toBeInTheDocument();
     Reflect.deleteProperty(navigator, "share");
   });
@@ -70,7 +70,7 @@ describe("a break travels in its own link", () => {
     await act(async () => { fireEvent.click(screen.getByLabelText("Copy break link")); });
 
     expect(decodeLegacySearch(location.search)).toHaveLength(2);
-    expect(screen.getByRole("status")).toHaveTextContent("Copy the link from your address bar");
+    expect(screen.getByText("Couldn’t copy. Copy the link from your address bar.")).toHaveAttribute("role", "status");
     expect(screen.queryByLabelText("Break link")).not.toBeInTheDocument();
   });
 });

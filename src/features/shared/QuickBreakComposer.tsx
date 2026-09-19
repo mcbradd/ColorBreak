@@ -10,11 +10,12 @@ import { QuantityControl } from "./QuantityControl";
 interface QuickBreakComposerProps {
   lines: BreakLine[];
   onChange: (lines: BreakLine[]) => void;
-  onImport: () => void;
+  onImport: (opener?: HTMLElement) => void;
+  headingLabel?: string;
 }
 
 /** The working break is updated on every tap, without a draft/apply boundary. */
-export function QuickBreakComposer({ lines, onChange, onImport }: QuickBreakComposerProps) {
+export function QuickBreakComposer({ lines, onChange, onImport, headingLabel = "1 · Break contents" }: QuickBreakComposerProps) {
   const id = useId();
   const inputRef = useRef<HTMLInputElement>(null);
   const linesRef = useRef(lines);
@@ -145,8 +146,8 @@ export function QuickBreakComposer({ lines, onChange, onImport }: QuickBreakComp
   return (
     <section className="quick-break-composer" aria-labelledby={`${id}-heading`}>
       <div className="quick-composer-heading">
-        <div><InformationLabel>1 · Break contents</InformationLabel><h2 id={`${id}-heading`}>Add products</h2></div>
-        <button type="button" className="quick-import-button" aria-label="Paste / screenshot" title="Import a product list, break link or screenshot" onClick={onImport}>Import</button>
+        <div><InformationLabel>{headingLabel}</InformationLabel><h2 id={`${id}-heading`}>Add products</h2></div>
+        <button type="button" className="quick-import-button" aria-label="Paste / screenshot" title="Import a product list, break link or screenshot" onClick={(event) => onImport(event.currentTarget)}>Import</button>
       </div>
       <label className="quick-search-label" htmlFor={`${id}-search`}>Find a set and product</label>
       <div className="quick-search-field">

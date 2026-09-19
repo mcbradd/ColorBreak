@@ -9,7 +9,8 @@ try {
   for (const width of [320, 390, 768]) {
     const page = await browser.newPage({ viewport: { width, height: 700 } });
     await page.goto(`${base}#buyer`);
-    await page.getByRole('button', { name: 'Add products', exact: true }).click();
+    await page.getByRole('button', { name: 'Paste / screenshot', exact: true }).click();
+    await page.getByRole('button', { name: 'Browse products' }).click();
     await page.getByRole('textbox', { name: 'Search sets by name or code' }).fill('tmt');
     await page.getByRole('button', { name: /TMT Teenage Mutant Ninja Turtles/ }).click();
     const before = page.getByRole('button', { name: 'Play Booster Pack', exact: true });

@@ -160,12 +160,13 @@ describe("Bid Check command center", () => {
 
   it("names result navigation from the active assignment mode", async () => {
     render(createElement(BuyerWorkspace, { exit: vi.fn(), startFresh: false, startReady: false }));
-    expect(await screen.findByLabelText("Break sections")).toBeInTheDocument();
-    expect(screen.queryByLabelText("Large Break sections")).toBeNull();
+    expect(await screen.findByRole("navigation", { name: "Workspace panels" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Teams panel" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Large break" }));
-    expect(screen.getByLabelText("Large Break sections")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Teams panel" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Decision panel" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Color slots" }));
-    expect(screen.getByLabelText("Break sections")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Teams panel" })).toBeInTheDocument();
   });
 });
 

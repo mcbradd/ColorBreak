@@ -69,7 +69,7 @@ describe("break format sequencing", () => {
 
     // Nothing is in the break yet, and the page says so by showing an Add
     // products button rather than a count of zero.
-    expect(screen.getByRole("button", { name: /Add products/ })).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Find a set and product" })).toBeInTheDocument();
     const formats = screen.getByRole("group", { name: "Type of break" });
     expect(within(formats).getByRole("button", { name: "Color slots" })).toHaveAttribute("aria-pressed", "true");
     expect(within(formats).getByRole("button", { name: "Large break" })).toBeInTheDocument();

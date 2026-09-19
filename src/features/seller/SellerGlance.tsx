@@ -4,7 +4,7 @@ import { probableRange, chartPosition } from "../../domain/outcome-chart";
 import { answerFactors } from "../../domain/answer-quality";
 import { AnswerValue, AnswerNote, AnswerGraphic, AnswerProvider, AnswerGroup } from "../shared/Answer";
 import { useEffect, useState, type CSSProperties } from "react";
-import { createPortal } from "react-dom";
+import { CommandDock } from "../shared/CommandPanel";
 import type { BreakAnalysis } from "../../data/evaluate";
 import { bidCeiling } from "../../domain/bid-ceiling";
 import { decisionEligibility } from "../../domain/valuation";
@@ -74,11 +74,6 @@ function GlanceResult({ analysis, current, busy, lines }: { analysis: BreakAnaly
     </div>
     {simulation.error && <p role="alert">Quick estimates shown. <button className="quiet" onClick={simulation.retry}>Retry ranges</button></p>}
     <IncompleteDataWarning analysis={analysis} title="Partial estimate — see missing data" />
-    {createPortal(<aside className="seller-value-dock" aria-label="Quick break values">
-      <div><span>Break EV</span><b>{dockValue(analysis.valuation.sellableEV)}<AnswerNote /></b></div>
-      <div><span>{slot === "random" ? "Random · typical" : `${slot} · typical`}</span><b>{dockValue(distribution?.median ?? 0)}<AnswerNote /></b></div>
-      <button type="button" onClick={() => { document.activeElement instanceof HTMLElement && document.activeElement.blur(); const target = document.getElementById("seller-value"); target?.scrollIntoView({ block: "start" }); target?.focus({ preventScroll: true }); }}>Colors ↓</button>
-      <small>{!current || !rangesCurrent ? "Updating your mix" : evidence}</small>
-    </aside>, document.body)}
+    <CommandDock panel="values" values={[{ label: "Break EV", value: dockValue(analysis.valuation.sellableEV) }, { label: slot === "random" ? "Random · typical" : `${slot} · typical`, value: dockValue(distribution?.median ?? 0) }]} status={!current || !rangesCurrent ? "Updating your mix" : evidence} />
   </AnswerGroup></AnswerProvider>;
 }

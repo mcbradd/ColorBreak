@@ -1,12 +1,12 @@
 import { createElement } from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { Composition } from "./features/buyer/BuyerVisuals";
+import { QuickBreakComposer } from "./features/shared/QuickBreakComposer";
 
 describe("break composition", () => {
   it("removes the final line by stepping its quantity below one", async () => {
     const remove = vi.fn();
-    render(createElement(Composition, {
+    render(createElement(QuickBreakComposer, {
       lines: [{
         id: "only-line",
         set: "TST",
@@ -14,18 +14,17 @@ describe("break composition", () => {
         productLabel: "Play Booster Box",
         quantity: 1,
       }],
-      add: vi.fn(),
-      update: vi.fn(),
-      remove,
+      onImport: vi.fn(),
+      onChange: remove,
     }));
 
     // Quantity is the only removal control: a separate bin icon beside it was
     // a second control for the same job.
-    expect(screen.queryByRole("button", { name: /Remove Play Booster Box from break/ })).toBe(
-      screen.getByRole("button", { name: "Remove Play Booster Box from break" }),
+    expect(screen.queryByRole("button", { name: /Remove TST Play Booster Box from break/ })).toBe(
+      screen.getByRole("button", { name: "Remove TST Play Booster Box from break" }),
     );
-    fireEvent.click(screen.getByRole("button", { name: "Remove Play Booster Box from break" }));
-    await waitFor(() => expect(remove).toHaveBeenCalledWith("only-line"));
+    fireEvent.click(screen.getByRole("button", { name: "Remove TST Play Booster Box from break" }));
+    await waitFor(() => expect(remove).toHaveBeenCalledWith([]));
   });
 });
 

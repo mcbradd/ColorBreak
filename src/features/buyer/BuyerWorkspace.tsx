@@ -1,4 +1,5 @@
 import { useShareFeedback } from "../shared/ShareFeedback";
+import { CommandPanel } from "../shared/CommandPanel";
 import { bestAvailableAnalysis } from "../../data/answer-cache";
 import { answerFactors } from "../../domain/answer-quality";
 import { AnswerProvider } from "../shared/Answer";
@@ -255,8 +256,6 @@ export function BuyerWorkspace({
     }
     setBuyerRecoveryReady(true);
   }, [analysis, buyerRecoveryReady, initialBuyerRecord, lines, recoveryRecord]);
-  const update = (id: string, patch: Partial<BreakLine>) =>
-    setLines((rows) => rows.map((r) => (r.id === id ? { ...r, ...patch } : r)));
   const openBuilder = (opener?: HTMLElement) => {
     setBuilderOpener(opener ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null));
     setBuilder(true);
@@ -357,7 +356,7 @@ export function BuyerWorkspace({
         </div>
       </aside>}
       {toast}
-      <AnswerProvider value={analysis ? answerFactors(analysis.valuation, analysis.outcomeModel.complete, busy, analysis.outcomeOmissions) : []}><main className="workspace page" tabIndex={-1} data-focus-fallback>
+      <AnswerProvider value={analysis ? answerFactors(analysis.valuation, analysis.outcomeModel.complete, busy, analysis.outcomeOmissions) : []}><main className="workspace page command-workspace" tabIndex={-1} data-focus-fallback>
         <header className="workspace-title">
           <div>
             <h1>{assignmentMode === "large" ? "Large break" : "Check a bid"}</h1>
@@ -367,14 +366,12 @@ export function BuyerWorkspace({
           <Lock />
           <span><b>SHARED CALCULATION · USD · MODEL v4</b><small>Editing updates this break link · {lines.length} products / {lines.reduce((total, line) => total + line.quantity * Math.max(1, line.packCount ?? 1), 0)} openings · Prices observed {analysis?.priceAvailability?.observedAt ? new Date(analysis.priceAvailability.observedAt).toLocaleString() : "loading"}</small></span>
         </aside>}
-        <>
-          {lines.length > 0 && <div className="mobile-stage-nav" aria-label={assignmentMode === "large" ? "Large Break sections" : "Break sections"}><a href="#buyer-large-result">Decision</a>{assignmentMode === "large" && <a href="#buyer-large-assignments">Assignments</a>}<a href="#buyer-break-setup">{isSharedBreak ? "Customize" : "Edit break"}</a></div>}
+        <CommandPanel panels={[{ id: "products", label: "Break", target: "buyer-products" }, ...(lines.length && assignmentMode !== "large" ? [{ id: "teams", label: "Teams", target: "buyer-teams" }] : []), { id: "decision", label: "Decision", target: "buyer-large-result" }]}>
           <div className={`bid-check-workbench ${lines.length ? "has-break" : "is-empty"}`}>
             <BuyerSetup
               lines={lines}
-              add={openBuilder}
-              update={update}
-              remove={(id) => setLines((rows) => rows.filter((row) => row.id !== id))}
+              onImport={openBuilder}
+              onChange={setLines}
               result={analysis?.valuation}
               auction={auction}
               setAuction={setAuction}
@@ -391,7 +388,8 @@ export function BuyerWorkspace({
               largeSpots={largeSpots}
               setLargeSpots={setLargeSpots}
             />
-            <div id="buyer-large-result" className="results buyer-results buyer-decision-stage">
+            <div id="buyer-large-result" className="results buyer-results buyer-decision-stage" data-command-panel="decision" tabIndex={-1}>
+              {!lines.length && <p>Add a product in Break to see your bid decision.</p>}
               {manualCapOpen ? <ManualBudgetCap onBack={() => { setManualCapOpen(false); openBuilder(); }} target={manualTarget} setTarget={setManualTarget} shipping={manualShipping} setShipping={setManualShipping} hammer={manualHammer} setHammer={setManualHammer} /> : null}
               {busy && <div className="calculating" role="status" aria-live="polite"><span />Improving the estimate…</div>}
               {error && <CompactWarning title="Couldn’t load this result" summary="The best available estimate remains visible. Retry to improve it." className="load-warning"><p role="alert">{error}</p><div className="buyer-recovery-actions"><button type="button" className="quiet" onClick={() => setCalculationGeneration((value) => value + 1)}>Retry analysis</button><button type="button" className="quiet" onClick={() => setManualCapOpen(true)}>Use manual budget cap</button></div></CompactWarning>}
@@ -414,10 +412,11 @@ export function BuyerWorkspace({
               ))}
             </div>
           </div>
-        </>
+        </CommandPanel>
       </main></AnswerProvider>
       <Builder
         open={builder}
+        initialMode="paste"
         onClose={() => setBuilder(false)}
         lines={lines}
         invokingElement={builderOpener}

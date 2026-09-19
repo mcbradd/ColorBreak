@@ -15,12 +15,9 @@ try {
     page.on('pageerror', error => errors.push(error.message));
     await page.goto(`${base}#buyer`);
     assert.equal(await page.getByText('Add a product to begin', { exact: true }).count(), 0);
-    await page.getByRole('button', { name: 'Add products', exact: true }).click();
-    await page.getByRole('textbox', { name: 'Search sets by name or code' }).fill('eoe');
-    await page.getByRole('button', { name: /EOE Edge of Eternities/ }).click();
-    await page.getByRole('button', { name: 'Collector Booster Pack', exact: true }).click();
-    await page.getByRole('button', { name: 'Done', exact: true }).click();
-    await page.locator('.buyer-slot-row').first().waitFor();
+    await page.getByRole('combobox', { name: 'Find a set and product' }).fill('eoe collector');
+    await page.getByRole('option', { name: /EOE\) Collector Booster Pack$/ }).click();
+    await page.locator('.buyer-slot-row').first().waitFor({ state: 'attached' });
     assert.equal(await page.locator('.buyer-slot-control .answer-note').count(), 1);
     assert.equal(await page.locator('.buyer-slot-row .answer-note').count(), 0);
     assert.equal(await page.locator('.import-undo').count(), 0);
@@ -31,19 +28,20 @@ try {
     assert.equal(await page.evaluate(() => navigator.clipboard.readText()), url);
     assert.equal(await page.getByRole('textbox', { name: 'Buyer setup URL' }).count(), 0);
     await page.locator('.share-toast').waitFor({ state: 'hidden', timeout: 5000 });
-    const rowBox = await page.locator('.composition .line-identity').boundingBox();
-    const quantityBox = await page.locator('.composition .quantity-selector').boundingBox();
+    const rowBox = await page.locator('.quick-break-line .quick-line-identity').boundingBox();
+    const quantityBox = await page.locator('.quick-break-line .quantity-selector').boundingBox();
     assert.ok(quantityBox.x >= rowBox.x + rowBox.width && quantityBox.y < rowBox.y + rowBox.height, 'quantity stays beside product');
-    if (width < 600) await page.getByRole('link', { name: 'Edit break', exact: true }).click();
+    await page.getByRole('button', { name: 'Teams panel', exact: true }).click();
     await page.getByRole('heading', { name: 'Check a bid', exact: true }).waitFor();
     await page.getByRole('button', { name: 'Mark Blue taken by another buyer', exact: true }).click();
     assert.equal(await page.getByRole('button', { name: 'Restore Blue', exact: true }).getAttribute('aria-pressed'), 'true');
     assert.match(await page.locator('.decision-kicker').innerText(), /7 slots left/);
     await page.getByRole('button', { name: 'Restore Blue', exact: true }).click();
     await page.getByRole('button', { name: 'Mark Red as mine', exact: true }).click();
-    await page.locator('.owned-slot-value').waitFor();
+    await page.locator('.owned-slot-value').waitFor({ state: 'attached' });
     assert.match(await page.locator('.owned-slot-value').innerText(), /Red/);
     await page.getByRole('button', { name: 'Red is mine — undo', exact: true }).click();
+    await page.getByRole('button', { name: 'Decision panel', exact: true }).click();
     const refresh = page.getByRole('button', { name: /Prices over 6 hours old.*Refresh/ });
     if (await refresh.count()) {
       await refresh.click();
@@ -51,6 +49,7 @@ try {
       assert.equal(await page.locator('.refresh-prices').isEnabled(), true);
       assert.ok((await page.locator('.price-refresh-answer').innerText()).length > 0);
     }
+    await page.getByRole('button', { name: 'Teams panel', exact: true }).click();
     await page.getByRole('button', { name: 'Show cards in White team', exact: true }).click();
     const team = page.getByRole('table', { name: 'Cards in White team', exact: true });
     await team.locator('.card-member-row').first().waitFor();
@@ -82,16 +81,18 @@ try {
     if (width === 390) {
       const recipient = await browser.newPage({ viewport: { width, height: 720 } });
       await recipient.goto(url);
-      await recipient.locator('.composition').getByText('Collector Booster Pack', { exact: true }).waitFor();
-      assert.match(await recipient.locator('.composition').innerText(), /Collector Booster Pack/);
-      assert.equal(await recipient.locator('.composition .quantity-selector input').inputValue(), '1');
+      await recipient.locator('.quick-break-lines').getByText('Collector Booster Pack', { exact: true }).waitFor();
+      assert.match(await recipient.locator('.quick-break-lines').innerText(), /Collector Booster Pack/);
+      assert.equal(await recipient.locator('.quick-break-line .quantity-selector input').inputValue(), '1');
       await recipient.close();
     }
+    await page.getByRole('button', { name: 'Break panel', exact: true }).click();
     await page.getByText('Adjust assumptions', { exact: true }).click();
     const widths = await page.locator('.buyer-assumptions .shipping-mode, .buyer-assumptions .number-field > div, .buyer-assumptions .bulk-value-field > div').evaluateAll(els => els.map(el => el.getBoundingClientRect().width));
     assert.ok(Math.max(...widths) - Math.min(...widths) < 2, `matched input widths: ${widths}`);
     assert.equal(await page.getByRole('textbox', { name: 'Tax', exact: true }).evaluate(el => getComputedStyle(el).textAlign), 'right');
     assert.equal(await page.getByRole('textbox', { name: 'Tax', exact: true }).locator('..').locator('..').locator('b').innerText(), '%');
+    await page.getByRole('button', { name: 'Decision panel', exact: true }).click();
     await page.getByText('Break evidence', { exact: true }).click();
     await page.locator('.slot-detail .card-member-row').first().waitFor({ timeout: 30000 });
     assert.equal(await page.locator('.slot-detail .answer-note').count(), 2, 'one note per value-summary and membership section');
@@ -140,7 +141,9 @@ try {
     await art.evaluate(async el => { if (el instanceof HTMLImageElement && !el.complete) await new Promise(resolve => { el.onload = resolve; el.onerror = resolve; }); });
     if (evidenceDir) await page.screenshot({ path: join(evidenceDir, `card-details-${width}.png`) });
     await page.getByRole('button', { name: 'Close card details' }).click();
+    await page.getByRole('button', { name: 'Break panel', exact: true }).click();
     await page.getByRole('button', { name: 'Large break', exact: true }).click();
+    await page.getByRole('button', { name: 'Decision panel', exact: true }).click();
     const named = page.locator('.large-break-card-main').first();
     await named.waitFor();
     await named.click();

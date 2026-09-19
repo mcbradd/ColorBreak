@@ -9,7 +9,6 @@ import {
   Check,
   ChevronDown,
   ChevronRight,
-  PackagePlus,
   RotateCw,
   ShieldAlert,
   X,
@@ -23,63 +22,14 @@ import { CompactWarning } from "../shared/Feedback";
 import { IncompleteDataWarning, useOutcomeSimulation as useSharedOutcomeSimulation } from "../shared/OutcomeFeedback";
 import type { DistributionSummary, SimulationResult } from "../../domain/simulation";
 import type {
-  BreakLine,
   Contributor,
   SlotId,
   ValuationResult,
 } from "../../domain/types";
 import { SLOT_IDS, SLOT_NAMES } from "../../domain/types";
 import { DisclosureArrow, fmt, fmtCompact, InformationLabel, PanelHeading, Status, Tip, NumericInput, useDialogOwnership, plainEvidence } from "../shared/Primitives";
-import { QuantityControl } from "../shared/QuantityControl";
 import { PublicCardPlaceholder } from "../shared/CardPlaceholder";
 import { CardMemberList } from "../shared/CardMemberList";
-
-export function Composition({
-  lines,
-  add,
-  update,
-  remove,
-  headingLabel = "BREAK",
-  showHelp = true,
-}: {
-  lines: BreakLine[];
-  add: (opener?: HTMLElement) => void;
-  update: (id: string, patch: Partial<BreakLine>) => void;
-  remove: (id: string) => void;
-  headingLabel?: string;
-  showHelp?: boolean;
-}) {
-  const rows = lines.map((line) => (
-    <div className="line" key={line.id}>
-      <span className="set-glyph">{line.set}</span>
-      <span className="line-identity">
-        <strong>{line.productLabel}</strong>
-        <small>{line.set}</small>
-      </span>
-      <QuantityControl
-        line={line}
-        update={(quantity) => update(line.id, { quantity })}
-        onEmpty={() => remove(line.id)}
-      />
-    </div>
-  ));
-  return (
-    <section className="composition" aria-label="What is in the break">
-      <div className="step-heading">
-        <InformationLabel>{headingLabel}</InformationLabel>
-        {showHelp && <Tip label="What products do here" text="The sealed products being opened in this break. Changing any line recalculates card contents, prices, and color value straight away." />}
-      </div>
-      {rows}
-      <button
-        type="button"
-        className={`add-products ${lines.length ? "quiet" : "primary"}`}
-        onClick={(event) => add(event.currentTarget)}
-      >
-        <PackagePlus /> Add products
-      </button>
-    </section>
-  );
-}
 
 export function ValueSummary({ result }: { result: ValuationResult }) {
   const ignoredEV = Math.max(0, result.marketEV - result.sellableEV);

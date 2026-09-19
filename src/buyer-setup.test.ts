@@ -37,9 +37,8 @@ const result = {
 describe("Check a Bid setup order", () => {
   const baseProps = {
     lines,
-    add: vi.fn(),
-    update: vi.fn(),
-    remove: vi.fn(),
+    onImport: vi.fn(),
+    onChange: vi.fn(),
     result,
     setAuction: vi.fn(),
     setAssignmentMode: vi.fn(),
@@ -63,12 +62,12 @@ describe("Check a Bid setup order", () => {
       selectedSlots: ["W"],
     }));
     const setup = container.querySelector(".buyer-setup")!;
-    const directSections = Array.from(setup.children);
+    const directSections = Array.from(setup.querySelector(".buyer-entry-panel")!.children);
 
     expect(directSections[0]).toHaveClass("break-format-choice");
-    expect(directSections[1]).toHaveClass("composition");
-    expect(directSections[2]).toHaveClass("buyer-slot-control");
-    expect(directSections[3].tagName).toBe("DETAILS");
+    expect(directSections[1]).toHaveClass("quick-break-composer");
+    expect(setup.querySelector(".buyer-team-panel .buyer-slot-control")).toBeInTheDocument();
+    expect(directSections[2].tagName).toBe("DETAILS");
     expect(screen.getByText("1 · TYPE OF BREAK")).toBeInTheDocument();
     expect(screen.getByText("2 · WHAT’S IN IT")).toBeInTheDocument();
     expect(screen.getByText("3 · MY SLOTS")).toBeInTheDocument();

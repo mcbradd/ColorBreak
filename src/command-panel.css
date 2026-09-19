@@ -1,0 +1,45 @@
+/* Command panels own workspace layout; evidence components keep their local styling. */
+.command-workspace .workspace-title { margin: 16px 0; }
+.command-workspace .workspace-title h1 { font-size: clamp(28px, 3vw, 42px) !important; }
+.command-navigation { display: flex; gap: 8px; padding: 0 0 12px; margin: 0; border: 0; height: auto; position: static; background: none; }
+.command-navigation button { flex: 1; min-height: 48px; border: 1px solid var(--line); background: var(--panel); color: var(--muted); font: inherit; font-weight: 700; }
+.command-navigation button[aria-pressed="true"] { color: var(--accent-ink); background: var(--accent); border-color: var(--accent); }
+.buyer-entry-panel { display: grid; gap: 16px; min-width: 0; }
+.buyer-team-panel { min-width: 0; }
+[data-command-panel][tabindex="-1"]:focus { outline: none; }
+.command-workspace .quick-break-line { display: grid; grid-template-columns: minmax(0, 1fr) 156px; gap: 10px; }
+.command-workspace .quick-line-identity { min-width: 0; }
+.command-workspace .quick-break-lines { max-height: 280px; overflow: auto; overscroll-behavior: contain; }
+.command-workspace .quick-set-suggestions.has-lines { display: none; }
+.command-workspace .quick-search-hint { margin-bottom: 10px; }
+.command-workspace .quick-break-contents:has(.quick-contents-empty) { display: none; }
+.command-dock.seller-value-dock { display: none; }
+@media (min-width: 900px) {
+  .command-body { max-height: calc(100dvh - 210px); overflow: auto; scrollbar-gutter: stable; }
+  .command-workspace .bid-check-workbench { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; }
+  .command-workspace .buyer-results { position: sticky; top: 0; }
+  .command-workspace .buyer-setup { display: grid; gap: 20px; }
+}
+@media (max-width: 899px) {
+  .command-workspace.workspace.page { padding-bottom: 130px; }
+  .command-workspace .workspace-title { margin: 10px 0; }
+  .command-workspace .workspace-title h1 { font-size: 26px !important; }
+  .command-workspace .workspace-title .eyebrow { display: none; }
+  .command-navigation { gap: 6px; }
+  .command-body { max-height: calc(var(--visual-viewport-height, 100dvh) - 280px); min-height: 160px; overflow: auto; overscroll-behavior-y: contain; padding-bottom: 12px; }
+  .command-panels[data-active-panel="products"] [data-command-panel]:not([data-command-panel="products"]),
+  .command-panels[data-active-panel="teams"] [data-command-panel]:not([data-command-panel="teams"]),
+  .command-panels[data-active-panel="decision"] [data-command-panel]:not([data-command-panel="decision"]),
+  .command-panels[data-active-panel="values"] [data-command-panel]:not([data-command-panel="values"]),
+  .command-panels[data-active-panel="plan"] [data-command-panel]:not([data-command-panel="plan"]) { display: none !important; }
+  .command-workspace .buyer-results, .command-workspace .seller-fast-plan { margin-top: 0; }
+  .command-workspace .quick-break-composer { padding-top: 12px; }
+  .command-workspace .break-format-choice { padding: 0; border: 0; }
+  .command-workspace .break-format-heading h2 { display: none; }
+  .command-workspace .break-format-options { margin-top: 8px; }
+  .command-dock.seller-value-dock { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 8px max(12px, var(--safe-left)) calc(8px + var(--safe-bottom)); gap: 4px 12px; }
+  .command-dock.seller-value-dock > button { display: grid; gap: 2px; text-align: left; background: transparent; color: var(--ink); padding: 0; min-width: 0; }
+  .command-dock.seller-value-dock > button b { color: var(--accent); }
+  .command-dock.seller-value-dock > small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  body:has(#root[inert]) .command-dock { display: none; }
+}

@@ -1,7 +1,7 @@
 import { createElement } from "react";
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { BuyerWorkspace } from "./features/buyer/BuyerWorkspace";
+import { Builder } from "./features/shared/ProductBuilder";
 
 const sets = Object.fromEntries(Array.from({ length: 12 }, (_, index) => {
   const number = index + 1;
@@ -35,16 +35,14 @@ describe("Add Product set browser", () => {
   });
 
   it("shows the full set catalog instead of only the latest eight sets", async () => {
-    render(createElement(BuyerWorkspace, { exit: vi.fn(), startFresh: false, startReady: false }));
-    fireEvent.click(screen.getByRole("button", { name: /Add products/i }));
+    render(createElement(Builder, { open: true, onClose: vi.fn(), lines: [], onApply: vi.fn() }));
 
     expect(await screen.findByRole("button", { name: /Oldest Alpha/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Set 12/ })).toBeInTheDocument();
   });
 
   it("sorts the catalog by release date or alphabetically from quick tabs", async () => {
-    render(createElement(BuyerWorkspace, { exit: vi.fn(), startFresh: false, startReady: false }));
-    fireEvent.click(screen.getByRole("button", { name: /Add products/i }));
+    render(createElement(Builder, { open: true, onClose: vi.fn(), lines: [], onApply: vi.fn() }));
     const dialog = await screen.findByRole("dialog", { name: "Add product" });
     const setButtons = () => within(dialog).getAllByRole("button", { name: /Oldest Alpha|Set \d+/ });
 
@@ -56,8 +54,7 @@ describe("Add Product set browser", () => {
   });
 
   it("filters immediately by either set code or set name", async () => {
-    render(createElement(BuyerWorkspace, { exit: vi.fn(), startFresh: false, startReady: false }));
-    fireEvent.click(screen.getByRole("button", { name: /Add products/i }));
+    render(createElement(Builder, { open: true, onClose: vi.fn(), lines: [], onApply: vi.fn() }));
     const dialog = await screen.findByRole("dialog", { name: "Add product" });
     const search = within(dialog).getByRole("textbox", { name: "Search sets by name or code" });
 

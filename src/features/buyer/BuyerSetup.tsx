@@ -11,14 +11,14 @@ import type { useBuyerCosts } from "../shared/useBuyerCosts";
 import { ShippingField } from "../shared/ShippingField";
 import { SLOT_IDS } from "../../domain/types";
 import { DisclosureArrow, InformationLabel, NumberField, Tip } from "../shared/Primitives";
-import { BreakFormatChoice, Composition, SlotRail } from "./BuyerVisuals";
+import { BreakFormatChoice, SlotRail } from "./BuyerVisuals";
+import { QuickBreakComposer } from "../shared/QuickBreakComposer";
 import { BulkFilterControl } from "./BuyerDetails";
 
 export function BuyerSetup({
   lines,
-  add,
-  update,
-  remove,
+  onChange,
+  onImport,
   result,
   auction,
   setAuction,
@@ -36,9 +36,8 @@ export function BuyerSetup({
   setLargeSpots,
 }: {
   lines: BreakLine[];
-  add: (opener?: HTMLElement) => void;
-  update: (id: string, patch: Partial<BreakLine>) => void;
-  remove: (id: string) => void;
+  onChange: (lines: BreakLine[]) => void;
+  onImport: (opener?: HTMLElement) => void;
   result?: ValuationResult;
   auction: AuctionState;
   setAuction: (state: AuctionState) => void;
@@ -61,6 +60,7 @@ export function BuyerSetup({
   const takenSlots = SLOT_IDS.filter((id) => !auction.remaining.includes(id) && !selectedSlots.includes(id));
   return (
     <section id="buyer-break-setup" className="buyer-setup" aria-label="Bid setup">
+      <div id="buyer-products" className="buyer-entry-panel" data-command-panel="products" tabIndex={-1}>
       <BreakFormatChoice
         assignmentMode={assignmentMode}
         setAssignmentMode={setAssignmentMode}
@@ -69,22 +69,12 @@ export function BuyerSetup({
         setLargeSpots={setLargeSpots}
         takenSlots={takenSlots}
       />
-      <Composition
+      <QuickBreakComposer
         lines={lines}
-        add={add}
-        update={update}
-        remove={remove}
+        onChange={onChange}
+        onImport={onImport}
         headingLabel="2 · WHAT’S IN IT"
-        showHelp={false}
       />
-      {lines.length > 0 && !isLarge && <SlotRail
-        result={result}
-        auction={auction}
-        setAuction={setAuction}
-        selectedSlots={selectedSlots}
-        setSelectedSlots={setSelectedSlots}
-        distributions={distributions}
-      />}
       {lines.length > 0 && <details className="buyer-assumptions">
         <summary className="disclosure-summary">
           <span>Adjust assumptions</span>
@@ -119,6 +109,15 @@ export function BuyerSetup({
           />
         </div>
       </details>}
+      </div>
+      {lines.length > 0 && !isLarge && <div id="buyer-teams" className="buyer-team-panel" data-command-panel="teams" tabIndex={-1}><SlotRail
+        result={result}
+        auction={auction}
+        setAuction={setAuction}
+        selectedSlots={selectedSlots}
+        setSelectedSlots={setSelectedSlots}
+        distributions={distributions}
+      /></div>}
     </section>
   );
 }

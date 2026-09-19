@@ -10,6 +10,8 @@ Quantity changes reuse only the matching product's values and scale them immedia
 
 ## Buyer
 
+The buyer and seller workspaces share inline set/product search: typing a query and choosing one match immediately adds it, clears search and leaves focus ready for the next product. No set page or apply step is required. Import and full catalog browsing remain optional. Command panels stay mounted when switching; phones expose Break, Teams and Decision (seller: Break, Values, Plan), while desktop shows the panels together. The live decision strip reflects the same calculated result as its owning panel.
+
 1. Entry is the job chooser: a hash-less or unrecognized URL resolves to it, and it offers **Buyer** and **Seller** as separate jobs. A shared break link opens the buyer workspace directly.
 2. Set → product selection is searchable, touch-friendly, and automatically calculates the break.
 3. The first buyer result shows Sellable EV, confidence, the slots still in the pool, and a bid ceiling. The buyer never types a bid or a shipping figure into the live decision: shipping and tax are standing assumptions with editable content/location estimates, and the ceiling is the highest hammer price whose landed cost still fits inside the modeled value.

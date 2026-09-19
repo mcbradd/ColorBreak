@@ -422,6 +422,7 @@ export function Builder({
             </div>}
             {composerMode === "paste" ? (
               <section className="break-import">
+                <button type="button" className="quiet" onClick={() => setComposerMode("search")}>Browse products</button>
                 <p><strong>Paste a ColorBreak link or product list</strong> — accepted formats are a ColorBreak link or one canonical product per line.</p>
                 <code>SPM | Play Booster Pack | 10</code>
                 <button type="button" className="screenshot-action" onClick={chooseScreenshot} disabled={Boolean(scanProgress)}>

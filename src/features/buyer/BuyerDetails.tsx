@@ -28,6 +28,7 @@ import { cardPreviewSubtitle, CardInspector, CompactWarning, IncompleteDataWarni
 import type { OutcomeSimulation } from "./BuyerVisuals";
 import { PublicCardPlaceholder } from "../shared/CardPlaceholder";
 import { CardMemberList } from "../shared/CardMemberList";
+import { CommandDock } from "../shared/CommandPanel";
 
 export function ChaseConstellation({
   slot,
@@ -288,6 +289,7 @@ export function LargeBreakView({
   const maxAssignment = Math.max(1, ...assignment.values);
   return (
     <AnswerGroup><section className="large-break-results" aria-label="Large break spot value">
+      <CommandDock values={[{ label: "Spot average", value: fmt(liquidMean) }, { label: "Spots", value: String(plan.spotCount) }]} status={coverageReady ? "Modeled average · tap for details" : "Estimate · missing data may lower values"} />
       <header className="large-break-result-head">
         <div><InformationLabel>LARGE RANDOM BREAK</InformationLabel><h2>{plan.spotCount} spots</h2></div>
         <Status result={result} /><AnswerNote primary detail="Average spot values use available card prices and estimated pack odds. Actual assignments can contain multiple cards or none." />
@@ -485,6 +487,7 @@ export function BuyerView({
   return (
     <>
       <AnswerGroup><section className="bid-live-decision" aria-label="Bid decision">
+        <CommandDock values={[{ label: "Bid limit", value: fmt(ceiling.kind === "ceiling" ? ceiling.hammer : 0) }, { label: "Slots left", value: String(pool.length) }]} status={simulation.busy ? "Refining estimate" : eligibility.status === "eligible" ? "Fresh estimate · tap for details" : "Estimate · check price evidence"} />
         <div className="decision-kicker">
           <span title={decisionKicker}>{decisionKicker}</span><AnswerNote primary label="What affects the bid limit" detail="Typical card value minus added shipping and tax. MIN and MAX are possible limits; typical is the median. Missing prices or estimated pack rules can change the result." />
           {(eligibility.status === "stale" || priceRefresh !== "idle") && onRefreshPrices
