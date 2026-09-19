@@ -1,7 +1,7 @@
 // Real browser acceptance for the user-facing command-panel loops.
 import { createRequire } from 'node:module';
 import assert from 'node:assert/strict';
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 const { chromium, webkit } = createRequire(import.meta.url)('playwright');
 const base = process.argv[2] ?? 'http://127.0.0.1:4173/';
@@ -14,6 +14,10 @@ try {
       const page = await browser.newPage({ viewport: { width, height: 800 } });
       const errors = [];
       page.on('pageerror', error => errors.push(error.message));
+      const failedRequests = [];
+      page.on('requestfailed', request => failedRequests.push({ url: request.url(), error: request.failure()?.errorText }));
+      page.on('response', response => { if (response.status() >= 400) failedRequests.push({ url: response.url(), status: response.status() }); });
+      try {
       await page.goto(`${base}#${job}`);
       const search = page.getByRole('combobox', { name: 'Find a set and product' });
       await search.fill('eoe collector');
@@ -29,6 +33,7 @@ try {
       assert.equal(await search.evaluate(el => document.activeElement === el), true);
       assert.equal(await page.getByRole('dialog').count(), 0);
       await search.fill('fin play');
+      assert.equal(await search.inputValue(), 'fin play', 'the next query survives recalculation');
       await page.getByRole('option', { name: /FIN\) Play Booster Pack$/ }).click();
       await page.getByRole('button', { name: 'Increase EOE Collector Booster Pack quantity' }).click();
       assert.equal(await quantity.inputValue(), '2');
@@ -104,7 +109,19 @@ try {
       assert.deepEqual(errors, []);
       assert.equal(await page.locator('button button, button [role="button"], [aria-hidden="true"] button:not([tabindex="-1"])').count(), 0, 'no nested or hidden interactive controls');
       console.log(`PASS ${job} ${width}px: one-selection add ${latency}ms, consecutive entry, live quantity, panel/query retention, no overflow`);
-      await page.close();
+      } catch (error) {
+        const state = {
+          job, width, url: page.url(), errors, failedRequests,
+          query: await page.getByRole('combobox').inputValue().catch(() => null),
+          visibleText: await page.locator('body').innerText().catch(() => null),
+        };
+        console.error('Command-panel failure context:', JSON.stringify(state));
+        if (evidence) {
+          writeFileSync(join(evidence, `${job}-${width}-failure.json`), JSON.stringify(state, null, 2));
+          await page.screenshot({ path: join(evidence, `${job}-${width}-failure.png`) }).catch(() => {});
+        }
+        throw error;
+      } finally { await page.close(); }
     }
   }
 } finally { await browser.close(); }
