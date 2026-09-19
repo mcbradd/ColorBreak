@@ -6,6 +6,7 @@ import type { Contributor, Finish } from "../../domain/types";
 import { fmt, oddsLabel, Tip } from "./Primitives";
 import { AnswerGroup, AnswerNote, AnswerValue } from "./Answer";
 import { PublicCardPlaceholder } from "./CardPlaceholder";
+import { InformationButton } from "./InformationLayer";
 
 type SortKey = "name" | "price" | "chance" | "adds";
 type SortDirection = "asc" | "desc";
@@ -105,9 +106,9 @@ export function CardMemberList({
               <strong>{row.card.name}</strong><small>{cardTreatmentLabel(row.card, selectedFinish(row))} · {row.card.set} #{row.card.collectorNumber}</small>
             </button>
           </div>
-          <span role="cell" className="card-member-price" aria-label={price == null ? "Market price unavailable" : `${fmt(price)} market price`}>{price == null ? "—" : <AnswerValue value={price} compact />}</span>
-          <span role="cell" className="card-member-chance" aria-label={`${oddsLabel(row.sellablePullProbability)} pull chance`}>{oddsLabel(row.sellablePullProbability)}</span>
-          <span role="cell" className="card-member-adds" aria-label={`${fmt(row.sellableValue)} added to average`}><AnswerValue value={row.sellableValue} compact /></span>
+          <span role="cell" className="card-member-price" aria-label={price == null ? "Market price unavailable" : `${fmt(price)} market price`}><AnswerValue value={price ?? undefined} compact label={`${cardLabel} market price`} detail={`Price for one ${selectedFinish(row)} card, ${row.card.set} #${row.card.collectorNumber}. ${row.priceBasis === "listed-tcg" ? "Uses the listed TCG price for this printing." : row.priceBasis === "same-printing-foil-market" ? "Uses the same printing’s foil-market estimate for this treatment." : "Uses this printing’s available market observation."} This is card value before selling fees.`} /></span>
+          <span role="cell" className="card-member-chance" aria-label={`${oddsLabel(row.sellablePullProbability)} pull chance`}><InformationButton title={`${cardLabel} pull chance`} className="value-information" content={<p>{oddsLabel(row.sellablePullProbability)} chance of at least one counted copy across this break. This uses the available pack rules and your current value filter; it is not a guarantee. {row.pullRateVerified === false ? "The exact pull rate is estimated." : ""}</p>}>{oddsLabel(row.sellablePullProbability)}</InformationButton></span>
+          <span role="cell" className="card-member-adds" aria-label={`${fmt(row.sellableValue)} added to average`}><AnswerValue value={row.sellableValue} compact label={`${cardLabel} average contribution`} detail="This card’s contribution to the break’s average value: counted price × expected copies. Multiple copies and the current value filter affect this amount." /></span>
         </div>;
       })}
     </div>

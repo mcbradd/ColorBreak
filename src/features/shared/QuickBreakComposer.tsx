@@ -6,6 +6,8 @@ import { matchingProducts, rankSearchSets, suggestedSearchSets, type ProductSear
 import type { BreakLine, ProductChoice } from "../../domain/types";
 import { InformationLabel } from "./Primitives";
 import { QuantityControl } from "./QuantityControl";
+import { InformationButton } from "./InformationLayer";
+import { AnswerValue } from "./Answer";
 
 interface QuickBreakComposerProps {
   lines: BreakLine[];
@@ -189,7 +191,12 @@ export function QuickBreakComposer({ lines, onChange, onImport, headingLabel = "
         <div className="quick-contents-heading"><h3>In this break</h3><span>{lines.reduce((total, line) => total + line.quantity, 0)} products</span></div>
         {!lines.length ? <p className="quick-contents-empty">Add everything being opened. Mix sets, boxes and packs in one break.</p> : <ul className="quick-break-lines">
           {lines.map((line) => <li key={breakLineKey(line)} className="quick-break-line">
-            <div className="quick-line-identity"><strong>{line.productLabel}</strong><small>{sets.find((set) => set.code === line.set)?.name ?? line.set} <b>{line.set}</b></small></div>
+            <div className="quick-line-identity"><InformationButton title={`${line.set} ${line.productLabel}`} label={`Details for ${line.set} ${line.productLabel}`} content={<>
+              <p>{sets.find((set) => set.code === line.set)?.name ?? line.set}</p>
+              <p>{line.quantity} × {line.productLabel}{line.packCount ? ` · ${line.quantity * line.packCount} packs in this break` : ". Pack count is being resolved."}</p>
+              <p>Market per product: <AnswerValue value={line.marketCost} label="Product market price" detail="Latest loaded sealed-product market reference. This is not your acquisition cost; seller costs can be entered in Plan." /></p>
+              <p>Product selection changes card contents and value immediately. Use the quantity beside this name to adjust how many are opened.</p>
+            </>}><strong>{line.productLabel}</strong><small>{sets.find((set) => set.code === line.set)?.name ?? line.set} <b>{line.set}</b></small></InformationButton></div>
             <QuantityControl line={line} label={`${line.set} ${line.productLabel}`} ariaLabel={`${line.set} ${line.productLabel} quantity`} update={(value) => quantity(line, value)} onEmpty={() => quantity(line, 0)} />
           </li>)}
         </ul>}

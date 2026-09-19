@@ -32,7 +32,7 @@ export function CommandPanel({ panels, children }: { panels: Panel[]; children: 
       if (section?.dataset.commandPanel) { event.preventDefault(); navigate(section.dataset.commandPanel); }
     }}>
     <nav className="command-navigation" aria-label="Workspace panels">
-      {panels.map((panel) => <button key={panel.id} type="button" aria-label={`${panel.label} panel`} aria-controls={panel.target} aria-pressed={active === panel.id} onClick={() => navigate(panel.id)}>{panel.label}</button>)}
+      {panels.map((panel) => <button key={panel.id} type="button" data-viewport-navigation aria-label={`${panel.label} panel`} aria-controls={panel.target} aria-pressed={active === panel.id} onClick={() => navigate(panel.id)}>{panel.label}</button>)}
     </nav>
     <div className="command-body">{children}</div>
   </div></Navigation.Provider>;

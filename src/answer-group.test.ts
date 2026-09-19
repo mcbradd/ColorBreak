@@ -9,13 +9,13 @@ it("collects repeated value caveats once and removes evidence for unmounted valu
     h(AnswerValue, { value: 10, detail: "Prices change." }),
     show && h(AnswerValue, { value: 20, detail: "This topper has no price." }));
   const { rerender } = render(view(true));
-  expect(screen.getAllByRole("button")).toHaveLength(1);
-  fireEvent.click(screen.getByRole("button"));
+  expect(document.querySelectorAll(".answer-note")).toHaveLength(1);
+  fireEvent.click(screen.getByRole("button", { name: "What affects this estimate", exact: true }));
   expect([...screen.getByRole("tooltip").querySelectorAll(".tip-paragraph")].map(node => node.textContent))
     .toEqual(["Prices change.", "This topper has no price."]);
   fireEvent.keyDown(document, { key: "Escape" });
   rerender(view(false));
-  fireEvent.click(screen.getByRole("button"));
+  fireEvent.click(screen.getByRole("button", { name: "What affects this estimate", exact: true }));
   expect(screen.getByRole("tooltip")).not.toHaveTextContent("topper");
 });
 
@@ -26,7 +26,7 @@ it("keeps nested card explanations independent and prioritizes named gaps over r
     h(AnswerGroup, null,
       h(AnswerNote, { primary: true, label: "Card evidence", detail: "This card uses a foil price estimate." }),
       h(AnswerValue, { value: 40, detail: "This treatment has no observed price." })))));
-  expect(screen.getAllByRole("button")).toHaveLength(2);
+  expect(document.querySelectorAll(".answer-note")).toHaveLength(2);
   fireEvent.click(screen.getByRole("button", { name: "Section evidence" }));
   expect(screen.getByRole("tooltip")).toHaveTextContent("The bonus pack has no price.");
   expect(screen.getByRole("tooltip")).not.toHaveTextContent("This treatment");

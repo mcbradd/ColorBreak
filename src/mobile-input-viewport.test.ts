@@ -37,6 +37,17 @@ describe("mobile input viewport", () => {
     document.body.replaceChildren();
   });
 
+  it("hands scroll ownership to an information trigger when leaving an input", () => {
+    const input = document.createElement("input");
+    const trigger = document.createElement("button");
+    trigger.setAttribute("aria-haspopup", "dialog");
+    document.body.append(input, trigger);
+    input.focus();
+    trigger.focus();
+    vi.runAllTimers();
+    expect(scrollTo).not.toHaveBeenCalled();
+  });
+
   it("keeps the focused field inside the keyboard-safe visual viewport", () => {
     const input = document.createElement("input");
     const reveal = vi.fn();

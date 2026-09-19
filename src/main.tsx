@@ -8,6 +8,7 @@ import "./modern.css";
 import "./card-preview.css";
 import "./future.css";
 import "./command-panel.css";
+import "./information-layer.css";
 
 createRoot(document.getElementById("root")!).render(<StrictMode><App releaseContext={runtimeReleaseContext} /></StrictMode>);
 

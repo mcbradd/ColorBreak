@@ -166,6 +166,12 @@ export function installMobileInputViewport() {
   };
 
   const onFocusIn = (event: FocusEvent) => {
+    // A details layer or explicit panel navigation owns the current position.
+    // Its dialog will restore that position; an older input session must not
+    // move the page behind it when the keyboard finishes closing.
+    if (event.target instanceof HTMLElement && event.target.closest('[aria-haspopup="dialog"], [data-viewport-navigation]')) {
+      onScrollIntent();
+    }
     const element = editableTarget(event.target);
     if (!element) return;
     window.clearTimeout(restoreTimer);

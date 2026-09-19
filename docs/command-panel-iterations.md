@@ -22,7 +22,7 @@ The user-requested public interfaces are the test seams: buyer/seller product en
 
 **Measurements:** Tests cover pointer and keyboard entry, explicit close, Escape, outside dismissal, nested layers, focus ownership, exact formatting/evidence, and state retention. Browser checks open details from scrolled lists and both workspaces, then compare their original scroll position and state. Avoid nested interactive controls.
 
-**Execution:** Pending.
+**Execution:** Complete locally. Red/green tests added for exact amounts/evidence, close/Escape/outside dismissal, nested focus ownership, help-first Escape and keyboard-to-information scroll handoff. CardInspector is now shared, as are seller team members. Full check passed: 491 application tests, 6 root Vitest tests and 42 root Node tests, plus build/data/bundle gates. The first build exceeded the unchanged 560kB entry budget; deferring the seller pricing/receipt workbench reduced entry to 532.24kB (166.06kB gzip). Chromium and WebKit passed both jobs at 320/390/430/768/1440px, including product → price and team → card nested layers, focus, preserved query/quantities/scroll and invalid-nesting checks. Existing buyer evidence checks passed again at 320/390/768px. Logs: `.preview-loop2-*.log`; evidence: `.git/command-panel-evidence/loop2` and `loop2-webkit`. These are desktop browser engines, not a physical iPhone session.
 
 ## Loop 3 — viewport, performance and release
 

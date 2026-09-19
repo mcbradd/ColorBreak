@@ -137,7 +137,7 @@ export function UpsideCandles({ base, bonus, bonusLabel, selectedSlot, selectSlo
       <div className="candle-grid">{rows.map(({ id, before, after, lift }) => (
         <button type="button" className={`candle-column ${!useRandom && selectedSlot === id ? "active" : ""}`} key={id} onClick={() => selectSlot(id)}>
           <div className="candle-pair"><RangeCandle summary={before} max={colorMaximum} /><RangeCandle summary={after} max={colorMaximum} bonus /></div>
-          <b>{id}</b><small>+<AnswerValue value={lift} /> MAX</small>
+          <b>{id}</b><small>+<AnswerValue value={lift} interactive={false} /> MAX</small>
         </button>
       ))}</div>
       {unpricedOutcomes.length > 0 && <CompactWarning

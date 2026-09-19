@@ -5,6 +5,10 @@ import { answerFactors } from "../../domain/answer-quality";
 import { AnswerValue, AnswerNote, AnswerGraphic, AnswerProvider, AnswerGroup } from "../shared/Answer";
 import { useEffect, useState, type CSSProperties } from "react";
 import { CommandDock } from "../shared/CommandPanel";
+import { InformationButton } from "../shared/InformationLayer";
+import { CardMemberList } from "../shared/CardMemberList";
+import { CardInspector } from "../shared/CardInspector";
+import type { Contributor } from "../../domain/types";
 import type { BreakAnalysis } from "../../data/evaluate";
 import { bidCeiling } from "../../domain/bid-ceiling";
 import { decisionEligibility } from "../../domain/valuation";
@@ -30,6 +34,7 @@ export function SellerGlance({ analysis, current, busy, lines = [] }: { analysis
 
 function GlanceResult({ analysis, current, busy, lines }: { analysis: BreakAnalysis; current: boolean; busy: boolean; lines: BreakLine[] }) {
   const [slot, setSlot] = useState<SlotId | "random">("random");
+  const [inspected, setInspected] = useState<Contributor | null>(null);
   const costs = useBuyerCosts(lines, analysis.valuation);
   const shipping = costs.costs.shipping;
   const [now, setNow] = useState(Date.now);
@@ -65,13 +70,17 @@ function GlanceResult({ analysis, current, busy, lines }: { analysis: BreakAnaly
         const range = simulation.result?.slotDistributions[id];
         const value = analysis.valuation.slots.find((row) => row.id === id)?.sellableEV;
         const { low, high } = probableRange(range, 0, "80");
-        return <button type="button" className="glance-color" key={id} aria-label={`Inspect ${SLOT_NAMES[id]} value`} aria-pressed={slot === id} onClick={() => setSlot(id)}>
-          <span className={`glance-color-letter slot-letter-${id}`}>{id}</span><span className="glance-color-name">{SLOT_NAMES[id]}</span><b><AnswerValue value={value} /></b>
+        return <InformationButton className="glance-color" key={id} title={`${SLOT_NAMES[id]} team`} label={`Inspect ${SLOT_NAMES[id]} value`} pressed={slot === id} onOpen={() => setSlot(id)} content={<>
+          <p>Average <AnswerValue label={`${SLOT_NAMES[id]} average value`} value={value} detail="Expected card value for this color across possible openings; actual pulls vary." /> · MIN {fmtCompact(range?.min ?? 0)} · MAX {fmtCompact(range?.max ?? 0)}</p>
+          <CardMemberList rows={analysis.valuation.slots.find(row => row.id === id)?.contributors ?? []} onInspect={setInspected} groupName={`${SLOT_NAMES[id]} team`} />
+        </>}>
+          <span className={`glance-color-letter slot-letter-${id}`}>{id}</span><span className="glance-color-name">{SLOT_NAMES[id]}</span><b><AnswerValue value={value} interactive={false} /></b>
           <span className="glance-color-bar" aria-hidden="true"><i style={{ left: `${chartPosition(low, max)}%`, width: `${Math.max(1, chartPosition(high, max) - chartPosition(low, max))}%` } as CSSProperties} /><em style={{ left: `${chartPosition(range?.median ?? 0, max)}%` }} /></span>
           <small>{`MIN ${fmtCompact(range?.min ?? 0)} · MAX ${fmtCompact(range?.max ?? 0)}`}<AnswerNote detail={`The bar shows the middle 80% of modeled openings, excluding the most extreme 10% at each end. The marker shows the median. MIN and MAX are numerical limits only; they do not set the bar scale.${simulation.result?.sampleCount === 0 ? " This is a provisional range while sampling finishes." : ""}`} /></small>
-        </button>;
+        </InformationButton>;
       })}
     </div>
+    <CardInspector row={inspected} status={analysis.valuation.status} threshold={analysis.valuation.threshold} onClose={() => setInspected(null)} />
     {simulation.error && <p role="alert">Quick estimates shown. <button className="quiet" onClick={simulation.retry}>Retry ranges</button></p>}
     <IncompleteDataWarning analysis={analysis} title="Partial estimate — see missing data" />
     <CommandDock panel="values" values={[{ label: "Break EV", value: dockValue(analysis.valuation.sellableEV) }, { label: slot === "random" ? "Random · typical" : `${slot} · typical`, value: dockValue(distribution?.median ?? 0) }]} status={!current || !rangesCurrent ? "Updating your mix" : evidence} />

@@ -6,7 +6,8 @@ import {
   useRef,
   useState,
 } from "react";
-import type { ReactNode, RefObject } from "react";
+import type { ReactNode } from "react";
+import { useDialogOwnership } from "./dialog-ownership";
 import { createPortal } from "react-dom";
 import {
   ChevronRight,
@@ -35,55 +36,6 @@ const oddsLabel = (probability: number) =>
     : probability > 0
       ? `${(probability * 100).toFixed(probability < 0.01 ? 2 : 1)}%`
       : "0%";
-const FOCUSABLE_SELECTOR = "button:not(:disabled), a[href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex='-1'])";
-
-/** Keeps a dialog's opener stable even while its owning screen re-renders. */
-function useDialogOwnership(open: boolean, onClose: () => void, dialogRef: RefObject<HTMLElement | null>, initialFocus?: RefObject<HTMLElement | null>, invokingElement?: HTMLElement | null) {
-  const opener = useRef<HTMLElement | null>(null);
-  const close = useRef(onClose);
-  close.current = onClose;
-  useEffect(() => {
-    if (!open) return;
-    // The launcher captures this before React mounts the portal. Reading only
-    // activeElement here loses pointer launchers and native Escape ownership.
-    opener.current = invokingElement ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null);
-    const scrollY = window.scrollY;
-    const previousOverflow = document.body.style.overflow;
-    const application = document.getElementById("root");
-    document.body.style.overflow = "hidden";
-    application?.setAttribute("inert", "");
-    application?.setAttribute("aria-hidden", "true");
-    initialFocus?.current?.focus({ preventScroll: true });
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") { event.preventDefault(); close.current(); return; }
-      if (event.key !== "Tab" || !dialogRef.current) return;
-      const focusable = [...dialogRef.current.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)].filter((element) => element.offsetParent !== null);
-      if (!focusable.length) return;
-      const first = focusable[0], last = focusable[focusable.length - 1];
-      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
-      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
-    };
-    document.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.removeEventListener("keydown", onKeyDown);
-      document.body.style.overflow = previousOverflow;
-      application?.removeAttribute("inert");
-      application?.removeAttribute("aria-hidden");
-      const candidate = opener.current;
-      const canRestore = candidate?.isConnected
-        && !candidate.matches(":disabled, [inert]")
-        && !candidate.closest("[inert]");
-      const fallback = document.querySelector<HTMLElement>("[data-focus-fallback]")
-        ?? document.querySelector<HTMLElement>("main");
-      // The exit animation and inert teardown complete after this effect.
-      // Restore in a microtask so every dismissal path has one ownership rule.
-      queueMicrotask(() => (canRestore ? candidate : fallback)?.focus({ preventScroll: true }));
-      window.scrollTo(0, scrollY);
-      opener.current = null;
-    };
-  }, [open]); // onClose/opener intentionally live outside dependencies: close retains its original caller.
-}
-
 /** Schedules focus only while the originating control still owns it. */
 function useDeferredOwnedFocus() {
   const timer = useRef<ReturnType<typeof window.setTimeout> | undefined>(undefined);

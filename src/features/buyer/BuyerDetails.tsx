@@ -56,8 +56,8 @@ export function ChaseConstellation({
         <><AnswerNote label="What affects the chase chart" detail="Uses listed card prices and modeled pull chances. Rare-card odds and missing prices can change which cards appear most valuable." /><div className="chase-map" aria-label={`${SLOT_NAMES[slot.id]} card price and pull chance map`}>
           <div className="constellation">
             <div className="chase-plot" aria-hidden="true">
-              <span className="plot-price plot-price-high"><AnswerValue value={scale.maxPrice} /></span>
-              <span className="plot-price plot-price-mid"><AnswerValue value={scale.maxPrice / 2} /></span>
+              <span className="plot-price plot-price-high"><AnswerValue value={scale.maxPrice} interactive={false} /></span>
+              <span className="plot-price plot-price-mid"><AnswerValue value={scale.maxPrice / 2} interactive={false} /></span>
               <span className="plot-price plot-price-low">$0</span>
               <span className="plot-odds plot-odds-low">0%</span>
               <span className="plot-odds plot-odds-mid">{oddsLabel(scale.maxProbability / 2)}</span>
@@ -92,7 +92,7 @@ export function ChaseConstellation({
                 <b>{index + 1}</b>
                 <CardThumbnail row={row} />
                 <span><strong>{row.card.name}</strong><small>{cardPreviewSubtitle(row, datum(row).price)}</small></span>
-                <em><AnswerValue value={row.sellableValue} /></em>
+                <em><AnswerValue value={row.sellableValue} interactive={false} /></em>
               </button>
             ))}
           </div>
@@ -510,7 +510,7 @@ export function BuyerView({
         <div className="verdict-head">
           <div className="verdict-decision">
             <h2 aria-live="polite">{heading}</h2>
-            <strong className="max-hammer" aria-label="Highest bid to make" aria-live="polite"><AnswerValue value={ceiling.kind === "ceiling" ? ceiling.hammer : 0} detail="Based on typical card value after your shipping and tax assumptions. This is a guide, not a guaranteed resale return." /></strong>
+            <strong className="max-hammer" aria-label="Highest bid to make" aria-live="polite"><AnswerValue label="Your bid limit" value={ceiling.kind === "ceiling" ? ceiling.hammer : 0} detail="Based on typical card value after your shipping and tax assumptions. This is a guide, not a guaranteed resale return." /></strong>
             <p className="decision-reason">
               {ceiling.kind === "no-room" && !distribution?.preview ? "Your shipping and tax already meet the typical card value. " : ""}Typical card value <AnswerValue value={typicalValue} />, average <AnswerValue value={distribution?.mean ?? fallbackMean} />.
             </p>
