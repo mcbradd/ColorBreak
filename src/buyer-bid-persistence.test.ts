@@ -1,5 +1,5 @@
 import { createElement } from "react";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { calculateBreak } from "./domain/valuation";
 import type { BreakAnalysis } from "./data/evaluate";
@@ -46,9 +46,8 @@ describe("buyer assumption persistence", () => {
   });
 
   const openAssumptions = async () => {
-    const summary = await screen.findByText("Adjust assumptions");
+    const summary = await screen.findByRole("button", { name: "Adjust assumptions" });
     fireEvent.click(summary);
-    summary.closest("details")!.open = true;
   };
 
   it("keeps the buyer's costs while the bulk setting recalculates results", async () => {
@@ -61,7 +60,7 @@ describe("buyer assumption persistence", () => {
     await waitFor(() => expect(screen.getByLabelText("Shipping")).toHaveValue("4.25"));
 
     evaluateBreakAnalysis.mockClear();
-    fireEvent.click(screen.getByRole("switch", { name: /Bulk filter/ }));
+    fireEvent.click(within(screen.getByRole("dialog", { name: "Assumptions" })).getByRole("switch", { name: /Bulk filter/ }));
 
     await waitFor(() => expect(evaluateBreakAnalysis).toHaveBeenCalled());
     expect(screen.getByLabelText("Shipping")).toHaveValue("4.25");

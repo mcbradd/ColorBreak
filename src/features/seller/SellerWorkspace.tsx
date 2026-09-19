@@ -96,6 +96,6 @@ export function SellerWorkspace({ exit }: { exit: () => void }) {
       </fieldset>}</div>
       </CommandPanel>
     </main></AnswerProvider>
-    <Builder open={builder} initialMode="paste" onClose={() => setBuilder(false)} lines={lines} invokingElement={builderOpener} onApply={(nextLines, settings) => { setLines(nextLines); if (settings?.largeSpots != null) setTransactionCount(settings.largeSpots); }} />
+    <Builder open={builder} initialMode="paste" onClose={() => setBuilder(false)} lines={lines} invokingElement={builderOpener} onApply={(nextLines, settings) => { setGeneration(value => value + 1); setLines(nextLines); if (settings?.largeSpots != null) setTransactionCount(settings.largeSpots); }} />
   </>;
 }

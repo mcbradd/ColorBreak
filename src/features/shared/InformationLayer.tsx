@@ -5,10 +5,13 @@ import { useDialogOwnership } from "./Primitives";
 import { AnchoredTip } from "./AnchoredTip";
 
 /** One owned information layer for pointer, touch and keyboard explanations. */
-export function InformationButton({ title, children, content, className = "", label, onOpen, pressed, preview }: {
+export function InformationButton({ title, children, content, className = "", label, onOpen, pressed, preview, open: controlledOpen, onOpenChange, invokingElement }: {
   title: string; children: ReactNode; content: ReactNode; className?: string; label?: string; onOpen?: () => void; pressed?: boolean; preview?: string;
+  open?: boolean; onOpenChange?: (open: boolean) => void; invokingElement?: HTMLElement | null;
 }) {
-  const [open, setOpen] = useState(false);
+  const [localOpen, setLocalOpen] = useState(false);
+  const open = controlledOpen ?? localOpen;
+  const setOpen = (next: boolean) => { setLocalOpen(next); onOpenChange?.(next); };
   const [hovered, setHovered] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const clear = () => { clearTimeout(timer.current); };
@@ -19,7 +22,7 @@ export function InformationButton({ title, children, content, className = "", la
   const dialog = useRef<HTMLElement>(null);
   const close = useRef<HTMLButtonElement>(null);
   const id = useId();
-  useDialogOwnership(open, () => setOpen(false), dialog, close, trigger.current);
+  useDialogOwnership(open, () => setOpen(false), dialog, close, invokingElement ?? trigger.current);
   return <>
     <button ref={trigger} type="button" className={`information-trigger ${className}`} aria-label={label ?? title} aria-haspopup="dialog" aria-expanded={open} aria-pressed={pressed}
       aria-describedby={hovered ? `${id}-preview` : undefined}

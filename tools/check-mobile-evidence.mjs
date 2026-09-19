@@ -97,11 +97,12 @@ try {
       await recipient.close();
     }
     await page.getByRole('button', { name: 'Break panel', exact: true }).click();
-    await page.getByText('Adjust assumptions', { exact: true }).click();
-    const widths = await page.locator('.buyer-assumptions .shipping-mode, .buyer-assumptions .number-field > div, .buyer-assumptions .bulk-value-field > div').evaluateAll(els => els.map(el => el.getBoundingClientRect().width));
+    await page.getByRole('button', { name: 'Adjust assumptions', exact: true }).click();
+    const widths = await page.locator('.buyer-assumptions-body .shipping-mode, .buyer-assumptions-body .number-field > div, .buyer-assumptions-body .bulk-value-field > div').evaluateAll(els => els.map(el => el.getBoundingClientRect().width));
     assert.ok(Math.max(...widths) - Math.min(...widths) < 2, `matched input widths: ${widths}`);
     assert.equal(await page.getByRole('textbox', { name: 'Tax', exact: true }).evaluate(el => getComputedStyle(el).textAlign), 'right');
     assert.equal(await page.getByRole('textbox', { name: 'Tax', exact: true }).locator('..').locator('..').locator('b').innerText(), '%');
+    await page.getByRole('button', { name: 'Close Assumptions', exact: true }).click();
     await page.getByRole('button', { name: 'Decision panel', exact: true }).click();
     await page.getByText('Break evidence', { exact: true }).click();
     await page.locator('.slot-detail .card-member-row').first().waitFor({ timeout: 30000 });
@@ -154,9 +155,10 @@ try {
     await page.getByRole('button', { name: 'Break panel', exact: true }).click();
     await page.getByRole('button', { name: 'Large break', exact: true }).click();
     await page.getByRole('button', { name: 'Decision panel', exact: true }).click();
-    await page.getByRole('link', { name: 'Adjust shipping & tax', exact: true }).click();
-    assert.equal(await page.getByRole('textbox', { name: 'Tax', exact: true }).isVisible(), true, 'cost link opens the right panel and disclosure');
-    await page.waitForFunction(() => document.activeElement?.id === 'buyer-costs');
+    await page.getByRole('button', { name: 'Adjust shipping & tax', exact: true }).click();
+    assert.equal(await page.getByRole('textbox', { name: 'Tax', exact: true }).isVisible(), true, 'cost button opens assumptions');
+    await page.getByRole('button', { name: 'Close Assumptions', exact: true }).click();
+    await page.waitForFunction(() => document.activeElement?.textContent === 'Adjust shipping & tax');
     await page.getByRole('button', { name: 'Decision panel', exact: true }).click();
     const named = page.locator('.large-break-card-main').first();
     await named.waitFor();

@@ -81,8 +81,6 @@ it.each(["publication", "assessment"])("ignores a completed %s from a previous t
   if (phase === "publication") refreshPublishedPrices.mockReturnValueOnce(publication.promise);
   await begin(() => { if (phase === "assessment") evaluateBreakAnalysis.mockReturnValueOnce(assessment.promise); });
   await screen.findByRole("button", { name: phase === "publication" ? "Searching…" : "Checking…" });
-  const assumptions = screen.getByText("Adjust assumptions").closest("details")!;
-  assumptions.open = true;
   evaluateBreakAnalysis.mockResolvedValue(analysis(30, 0));
   fireEvent.click(screen.getByRole("switch", { name: /Bulk filter/ }));
   await waitFor(() => expect(screen.getByRole("button", { name: /Prices over 6 hours old/ })).toBeEnabled());

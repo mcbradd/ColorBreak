@@ -133,9 +133,8 @@ describe("Bid Check command center", () => {
     await screen.findByRole("region", { name: "Bid decision" });
     await waitFor(() => expect(screen.getByLabelText("Highest bid to make")).toHaveTextContent("$12.00"));
 
-    const summary = screen.getByText("Adjust assumptions");
+    const summary = screen.getByRole("button", { name: "Adjust assumptions" });
     fireEvent.click(summary);
-    summary.closest("details")!.open = true;
     fireEvent.change(screen.getByLabelText("Shipping"), { target: { value: "5" } });
 
     await waitFor(() => expect(screen.getByLabelText("Highest bid to make")).toHaveTextContent("$7.00"));
@@ -145,9 +144,8 @@ describe("Bid Check command center", () => {
     render(createElement(BuyerWorkspace, { exit: vi.fn(), startFresh: false, startReady: false }));
     await screen.findByRole("region", { name: "Bid decision" });
 
-    const summary = screen.getByText("Adjust assumptions");
+    const summary = screen.getByRole("button", { name: "Adjust assumptions" });
     fireEvent.click(summary);
-    summary.closest("details")!.open = true;
     fireEvent.change(screen.getByLabelText("Shipping"), { target: { value: "20" } });
 
     // Shipping alone ($20) exceeds the typical value ($12): a resolved fact,

@@ -59,3 +59,14 @@
   .keyboard-open .command-workspace .command-body { min-height: 48px; max-height: calc(var(--visual-viewport-height, 100dvh) - var(--command-dock-height, 96px) - max(8px, calc(var(--safe-top) - var(--visual-viewport-top, 0px))) - 12px); }
   .keyboard-open .command-dock.seller-value-dock { padding-block: 6px; }
 }
+
+/* Buyer controls stay beside the title, including the narrowest phone. */
+.command-workspace .buyer-workspace-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.buyer-workspace-heading > div:first-child { min-width: 0; }
+.command-workspace .buyer-workspace-heading h1 { font-size: clamp(22px, 6vw, 42px) !important; white-space: nowrap; margin: 0; }
+.buyer-header-actions { display: flex; align-items: center; flex: none; gap: 6px; }
+.buyer-header-actions > button { display: flex; align-items: center; justify-content: center; gap: 5px; min-height: 48px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); color: var(--ink); padding: 8px; }
+.buyer-header-actions .buyer-assumptions-button { width: 48px; padding: 10px; }
+.buyer-header-actions svg { width: 20px; height: 20px; flex: none; }
+.buyer-header-bulk[aria-checked="true"] { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 18%, var(--panel)); color: var(--accent); }
+.buyer-assumptions-body { --entry-width: min(48%, 180px); }

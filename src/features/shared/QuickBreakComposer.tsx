@@ -2,7 +2,7 @@ import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from 
 import { Check, Plus, Search, Undo2, X } from "lucide-react";
 import { loadProductSearchIndex, quickProductsForSet } from "../../data/product-search";
 import { breakLineKey, breakLineKeyForChoice, mergeBreakLines, productKeyForChoice } from "../../domain/break-line-identity";
-import { matchingProducts, rankSearchSets, suggestedSearchSets, type ProductSearchSet } from "../../domain/product-search";
+import { matchingProducts, matchingSets, rankSearchSets, suggestedSearchSets, type ProductSearchSet } from "../../domain/product-search";
 import type { BreakLine, ProductChoice } from "../../domain/types";
 import { InformationLabel, fmt } from "./Primitives";
 import { QuantityControl } from "./QuantityControl";
@@ -41,7 +41,8 @@ export function QuickBreakComposer({ lines, onChange, onImport, headingLabel = "
   const suggestions = suggestedSearchSets(sets, lines.map((line) => line.set));
   const matches = candidates.flatMap((set) => matchingProducts(loaded[set.code] ?? [], query));
   const results = showAll ? matches : matches.slice(0, 6);
-  const isSearching = query.trim().length >= 2;
+  const isSearching = query.trim().length > 0;
+  const setMatches = useMemo(() => isSearching ? matchingSets(sets, query).slice(0, 8) : [], [sets, query, isSearching]);
   const isLoading = candidates.some((set) => pending.includes(set.code) || (!loaded[set.code] && !failed.includes(set.code)));
   const failedSets = candidates.filter((set) => failed.includes(set.code));
 
@@ -169,6 +170,9 @@ export function QuickBreakComposer({ lines, onChange, onImport, headingLabel = "
             {suggestions.map((set) => <button type="button" key={set.code} onClick={() => { changeQuery(`${set.code} `); inputRef.current?.focus(); }}><b>{set.code}</b> <span>{set.name}</span></button>)}
           </div> : null}
       {isSearching && !indexError && <div className="quick-search-results-wrap">
+        {setMatches.length > 0 && <div className="quick-set-matches" role="group" aria-label="Matching sets">
+          {setMatches.map(set => <button type="button" key={set.code} aria-label={`Select set ${set.code} ${set.name}`} onClick={() => { changeQuery(`${set.code} `); inputRef.current?.focus({ preventScroll: true }); }}><b>{set.code}</b><span>{set.name}</span></button>)}
+        </div>}
         <div id={`${id}-results`} className="quick-search-results" role="listbox" aria-label="Matching products" aria-busy={isLoading}>
           {results.map((product, index) => {
             const inBreak = lines.find((line) => breakLineKey(line) === breakLineKeyForChoice(product));
@@ -184,7 +188,7 @@ export function QuickBreakComposer({ lines, onChange, onImport, headingLabel = "
         </div>
         {isLoading && <p className="quick-composer-status" role="status">Finding exact products…</p>}
         {failedSets.length > 0 && <div className="quick-composer-error" role="alert">Could not load {failedSets.map((set) => set.name).join(", ")}. <button type="button" onClick={() => setRetry((value) => value + 1)}>Retry products</button></div>}
-        {!isLoading && !indexLoading && !matches.length && !failedSets.length && <p className="quick-composer-status" role="status">No matching product. Try a set code or a shorter product name.</p>}
+        {!isLoading && !indexLoading && !matches.length && !setMatches.length && !failedSets.length && <p className="quick-composer-status" role="status">No matching product. Try a set code or a shorter product name.</p>}
         {!showAll && matches.length > results.length && <button type="button" className="quick-show-more" onClick={() => setShowAll(true)}>Show {matches.length - results.length} more products</button>}
       </div>}
       <div className="quick-break-contents">

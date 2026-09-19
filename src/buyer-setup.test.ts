@@ -67,11 +67,11 @@ describe("Check a Bid setup order", () => {
     expect(directSections[0]).toHaveClass("break-format-choice");
     expect(directSections[1]).toHaveClass("quick-break-composer");
     expect(setup.querySelector(".buyer-team-panel .buyer-slot-control")).toBeInTheDocument();
-    expect(directSections[2].tagName).toBe("DETAILS");
+    expect(directSections).toHaveLength(2);
     expect(screen.getByText("1 · TYPE OF BREAK")).toBeInTheDocument();
     expect(screen.getByText("2 · WHAT’S IN IT")).toBeInTheDocument();
     expect(screen.getByText("3 · MY SLOTS")).toBeInTheDocument();
-    expect(screen.getByText("Adjust assumptions")).toBeInTheDocument();
+    expect(screen.queryByText("Adjust assumptions")).not.toBeInTheDocument();
   });
 
   it("offers both formats before a single product exists", () => {
@@ -123,9 +123,9 @@ describe("Check a Bid setup order", () => {
 
     expect(screen.getByRole("button", { name: "Large break" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByLabelText("Large break spot count")).toHaveValue("120");
-    // No color-slot step in this format, so costs are step 3.
+    // Large breaks omit slots; assumptions live in the workspace header.
     expect(screen.queryByText("3 · MY SLOTS")).toBeNull();
-    expect(screen.getByText("3 · MY COSTS")).toBeInTheDocument();
+    expect(screen.queryByText("3 · MY COSTS")).toBeNull();
     expect(screen.queryByRole("group", { name: "Color slots" })).toBeNull();
   });
 

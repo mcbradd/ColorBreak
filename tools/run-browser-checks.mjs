@@ -31,7 +31,7 @@ try {
   for (const engine of engines) {
     const directory = join(evidence, engine);
     mkdirSync(directory, { recursive: true });
-    const checks = ['check-command-panels', 'check-command-viewport'];
+    const checks = ['check-command-panels', 'check-command-viewport', 'check-product-entry'];
     if (engine === 'chromium') checks.push('check-mobile-evidence', 'check-quantity-layout', 'check-command-loading');
     for (const check of checks) {
       console.log(`\n${engine}: ${check} against ${base}`);

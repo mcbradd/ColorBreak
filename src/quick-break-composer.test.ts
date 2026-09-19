@@ -29,6 +29,18 @@ beforeEach(() => {
 });
 
 describe("fast inline break composition", () => {
+  it("filters set buttons on the first character without waiting for product requests", async () => {
+    render(createElement(Harness));
+    await screen.findByRole("button", { name: "FIN Final Fantasy" });
+    loader.products.mockImplementation(() => new Promise(() => {}));
+    search("e");
+    const matches = screen.getByRole("group", { name: "Matching sets" });
+    expect(within(matches).getByRole("button", { name: "Select set EOE Edge of Eternities" })).toBeInTheDocument();
+    expect(within(matches).queryByText("Final Fantasy")).toBeNull();
+    search("f");
+    expect(within(matches).getByRole("button", { name: "Select set FIN Final Fantasy" })).toBeInTheDocument();
+    expect(within(matches).queryByText("Edge of Eternities")).toBeNull();
+  });
   it("adds, edits quantities, then adds another set without leaving the screen or losing costs", async () => {
     const change = vi.fn();
     render(createElement(Harness, { change, initial: [{ id: "paid", set: "FIN", productKey: "sealed:collector-booster-box", productLabel: "Collector Booster Box", quantity: 1, packCount: 12, myCost: 180, marketCost: 210 }] }));

@@ -29,6 +29,7 @@ import { useBuyerCosts } from "../shared/useBuyerCosts";
 import { Builder, ManualBudgetCap } from "../shared/ProductBuilder";
 import { CompactWarning, useOutcomeSimulation } from "./BuyerVisuals";
 import { BuyerSetup } from "./BuyerSetup";
+import { BuyerAssumptions } from "./BuyerAssumptions";
 import { BuyerView, LargeBreakView, type PriceRefreshState } from "./BuyerDetails";
 
 /** Owns only buyer decision state; seller planning has its own controller. */
@@ -87,6 +88,8 @@ export function BuyerWorkspace({
   const refreshRequest = useRef(0);
   const refreshBusy = useRef(false);
   const pendingPriceRefresh = useRef<{ request: number; context: string; result: PriceRefreshResult } | null>(null);
+  const [assumptionsOpen, setAssumptionsOpen] = useState(false);
+  const [assumptionsOpener, setAssumptionsOpener] = useState<HTMLElement | null>(null);
   const [manualCapOpen, setManualCapOpen] = useState(false);
   const [manualTarget, setManualTarget] = useState<number>();
   const [manualShipping, setManualShipping] = useState<number>();
@@ -357,10 +360,11 @@ export function BuyerWorkspace({
       </aside>}
       {toast}
       <AnswerProvider value={analysis ? answerFactors(analysis.valuation, analysis.outcomeModel.complete, busy, analysis.outcomeOmissions) : []}><main className="workspace page command-workspace" tabIndex={-1} data-focus-fallback>
-        <header className="workspace-title">
+        <header className="workspace-title buyer-workspace-heading">
           <div>
             <h1>{assignmentMode === "large" ? "Large break" : "Check a bid"}</h1>
           </div>
+          <BuyerAssumptions costs={costSettings} bulkEnabled={bulkEnabled} bulkThreshold={bulkThreshold} setBulkEnabled={setBulkEnabled} setBulkThreshold={setBulkThreshold} result={analysis?.valuation} open={assumptionsOpen} onOpenChange={setAssumptionsOpen} opener={assumptionsOpener} onOpen={() => setAssumptionsOpener(null)} />
         </header>
         {isSharedBreak && lines.length > 0 && <aside className="shared-calculation-notice" aria-label="Shared calculation details">
           <Lock />
@@ -379,12 +383,7 @@ export function BuyerWorkspace({
               setAssignmentMode={setAssignmentMode}
               selectedSlots={selectedSlots}
               setSelectedSlots={setSelectedSlots}
-              bulkEnabled={bulkEnabled}
-              bulkThreshold={bulkThreshold}
-              setBulkEnabled={setBulkEnabled}
-              setBulkThreshold={setBulkThreshold}
               distributions={simulation.result?.slotDistributions}
-              costs={costSettings}
               largeSpots={largeSpots}
               setLargeSpots={setLargeSpots}
             />
@@ -394,7 +393,7 @@ export function BuyerWorkspace({
               {busy && <div className="calculating" role="status" aria-live="polite"><span />Improving the estimate…</div>}
               {error && <CompactWarning title="Couldn’t load this result" summary="The best available estimate remains visible. Retry to improve it." className="load-warning"><p role="alert">{error}</p><div className="buyer-recovery-actions"><button type="button" className="quiet" onClick={() => setCalculationGeneration((value) => value + 1)}>Retry analysis</button><button type="button" className="quiet" onClick={() => setManualCapOpen(true)}>Use manual budget cap</button></div></CompactWarning>}
               {analysis && (assignmentMode === "large" ? (
-                <LargeBreakView analysis={analysis} lines={lines} spots={largeSpots} bid={buyerBid} setBid={setBuyerBid} costs={costs} />
+                <LargeBreakView analysis={analysis} lines={lines} spots={largeSpots} bid={buyerBid} setBid={setBuyerBid} costs={costs} onAdjustCosts={opener => { setAssumptionsOpener(opener); setAssumptionsOpen(true); }} />
               ) : (
                 <BuyerView
                   analysis={analysis}
@@ -422,6 +421,7 @@ export function BuyerWorkspace({
         invokingElement={builderOpener}
         valueThreshold={threshold}
         onApply={(nextLines, settings, prepared) => {
+          setCalculationGeneration(value => value + 1);
           setPreparedSelection(prepared);
           setLines(nextLines);
           if (settings) {

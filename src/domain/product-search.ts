@@ -17,6 +17,12 @@ const productWords = searchWords("play collector draft set booster box pack bund
 const stopWords = new Set(["the", "of", "in", "a", "and", "for", "to"]);
 const matches = (word: string, haystack: readonly string[]) => haystack.some((candidate) => candidate.startsWith(word));
 
+/** Metadata-only filtering runs on every character, including one-letter names/codes. */
+export function matchingSets<T extends SetChoice>(sets: readonly T[], query: string): T[] {
+  const words = searchWords(query);
+  return sets.filter(set => words.every(word => matches(word, searchWords(`${set.code} ${set.name}`))));
+}
+
 /**
  * Rank metadata first, so a search never downloads the whole sealed catalog.
  * A recognized set name/code also permits specialty product words absent from

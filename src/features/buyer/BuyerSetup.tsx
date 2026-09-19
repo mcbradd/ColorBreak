@@ -1,4 +1,3 @@
-import { AnswerNote } from "../shared/Answer";
 import type {
   BreakLine,
   SlotId,
@@ -7,13 +6,9 @@ import type {
 import type { AuctionState } from "../../domain/auction";
 import type { AssignmentMode } from "../../domain/share-url";
 import type { DistributionSummary } from "../../domain/simulation";
-import type { useBuyerCosts } from "../shared/useBuyerCosts";
-import { ShippingField } from "../shared/ShippingField";
 import { SLOT_IDS } from "../../domain/types";
-import { DisclosureArrow, InformationLabel, NumberField, Tip } from "../shared/Primitives";
 import { BreakFormatChoice, SlotRail } from "./BuyerVisuals";
 import { QuickBreakComposer } from "../shared/QuickBreakComposer";
-import { BulkFilterControl } from "./BuyerDetails";
 
 export function BuyerSetup({
   lines,
@@ -27,11 +22,6 @@ export function BuyerSetup({
   selectedSlots,
   setSelectedSlots,
   distributions,
-  bulkEnabled,
-  bulkThreshold,
-  setBulkEnabled,
-  setBulkThreshold,
-  costs,
   largeSpots,
   setLargeSpots,
 }: {
@@ -46,11 +36,6 @@ export function BuyerSetup({
   selectedSlots: SlotId[];
   setSelectedSlots: (ids: SlotId[]) => void;
   distributions?: Record<SlotId, DistributionSummary>;
-  bulkEnabled: boolean;
-  bulkThreshold: number;
-  setBulkEnabled: (enabled: boolean) => void;
-  setBulkThreshold: (threshold: number) => void;
-  costs: ReturnType<typeof useBuyerCosts>;
   largeSpots: number;
   setLargeSpots: (spots: number) => void;
 }) {
@@ -75,40 +60,7 @@ export function BuyerSetup({
         onImport={onImport}
         headingLabel="2 · WHAT’S IN IT"
       />
-      {lines.length > 0 && <details className="buyer-assumptions">
-        <summary className="disclosure-summary">
-          <span>Adjust assumptions</span>
-          <DisclosureArrow />
-        </summary>
-        <div className="buyer-assumptions-body">
-          <div className="step-heading">
-            <InformationLabel>{isLarge ? "3 · MY COSTS" : "4 · MY COSTS"}</InformationLabel>
-            <span className="section-help"><Tip
-              label="What these costs do"
-              text="Shipping and tax come off the bid limit. Flat fee charges once per combined shipment; per item charges every purchased spot."
-            /><AnswerNote primary label="What affects the cost assumptions" detail={`Shipping: weight-based Whatnot US label estimate; seller profiles and destination can change it. Tax: a regional guess from your device time zone, not your delivery address. Your typed amounts replace these guesses.`} /></span>
-          </div>
-          <div id="buyer-costs" className="buyer-cost-fields" tabIndex={-1} data-viewport-navigation>
-            <ShippingField value={costs.amount} mode={costs.mode} onValue={(shipping) => costs.update({ shipping })} onMode={(shippingMode) => costs.update({ shippingMode })} hint={costs.shippingNote} />
-            <NumberField label="Tax" prefix="" suffix="%" value={costs.costs.taxPercent} onChange={(value) => costs.update({ taxPercent: value ?? 0 })} max={100} hint={costs.taxNote} live inline />
-          </div>
-          <div className="step-heading">
-            <InformationLabel>VALUE FILTER</InformationLabel>
-            <Tip
-              label="What the value filter does"
-              text="Cards worth less than this each are left out of every number in ColorBreak. Cards worth exactly this amount are still counted. It is a value cut-off, not a claim about what will sell."
-            />
-          </div>
-          <BulkFilterControl
-            enabled={bulkEnabled}
-            threshold={bulkThreshold}
-            result={result}
-            onToggle={setBulkEnabled}
-            onThreshold={setBulkThreshold}
-            compact
-          />
-        </div>
-      </details>}
+
       </div>
       {lines.length > 0 && !isLarge && <div id="buyer-teams" className="buyer-team-panel" data-command-panel="teams" tabIndex={-1}><SlotRail
         result={result}

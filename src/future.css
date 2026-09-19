@@ -1576,7 +1576,7 @@ img.card-thumbnail { object-fit: cover; background: #171b23; }
 .shipping-mode { display: flex; justify-content: flex-end; gap: 0; }
 .shipping-mode button { min-height: 44px; padding: 6px 12px; border: 1px solid var(--line-strong); background: #090d13; font-size: 12px; cursor: pointer; }
 .shipping-mode button[aria-pressed="true"] { background: var(--accent); color: #090d13; font-weight: 800; }
-.buyer-assumptions .buyer-cost-fields { grid-template-columns: minmax(0, 1fr); gap: 14px; }
+.buyer-assumptions-body .buyer-cost-fields { grid-template-columns: minmax(0, 1fr); gap: 14px; }
 .seller-cost-rollout .seller-cost-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); align-items: end; gap: 14px 24px; }
 .number-field-suffix { padding-right: 10px; }
 .bulk-filter-control .bulk-filter-main { display: flex; flex-wrap: wrap; gap: 8px 12px; }
@@ -1633,17 +1633,17 @@ img.card-thumbnail { object-fit: cover; background: #171b23; }
 .numeric-input > input { text-align:right; font-variant-numeric:tabular-nums; }
 .quantity-selector .numeric-input > input { text-align:center; }
 .buyer-assumptions { --entry-width: min(48%, 180px); }
-.buyer-assumptions .inline-number-field { grid-template-columns:minmax(0,1fr) var(--entry-width); gap:10px; }
-.buyer-assumptions .shipping-mode { width:var(--entry-width); justify-self:end; display:grid; grid-template-columns:1fr 1fr; }
-.buyer-assumptions .shipping-mode button { padding:6px 4px; width:100%; }
-.buyer-assumptions .bulk-filter-main { display:grid; grid-template-columns:1fr; padding:0; border:0; gap:10px; }
-.buyer-assumptions .bulk-filter-control { border:0; background:none; }
-.buyer-assumptions .bulk-filter-main .bulk-value-field { display:grid; grid-template-columns:minmax(0,1fr) var(--entry-width); gap:10px; }
-.buyer-assumptions .bulk-value-field > span { text-align:left; }
-.buyer-assumptions .bulk-value-field > div { min-width:0; }
-.buyer-assumptions .number-field > div, .buyer-assumptions .bulk-value-field > div { min-height:48px; }
-.buyer-assumptions .bulk-value-field input { padding:10px 8px; }
-.buyer-assumptions .number-field:focus-within, .buyer-assumptions .bulk-value-field:focus-within { --entry-width: max(156px, 48%); }
+.buyer-assumptions-body .inline-number-field { grid-template-columns:minmax(0,1fr) var(--entry-width); gap:10px; }
+.buyer-assumptions-body .shipping-mode { width:var(--entry-width); justify-self:end; display:grid; grid-template-columns:1fr 1fr; }
+.buyer-assumptions-body .shipping-mode button { padding:6px 4px; width:100%; }
+.buyer-assumptions-body .bulk-filter-main { display:grid; grid-template-columns:1fr; padding:0; border:0; gap:10px; }
+.buyer-assumptions-body .bulk-filter-control { border:0; background:none; }
+.buyer-assumptions-body .bulk-filter-main .bulk-value-field { display:grid; grid-template-columns:minmax(0,1fr) var(--entry-width); gap:10px; }
+.buyer-assumptions-body .bulk-value-field > span { text-align:left; }
+.buyer-assumptions-body .bulk-value-field > div { min-width:0; }
+.buyer-assumptions-body .number-field > div, .buyer-assumptions-body .bulk-value-field > div { min-height:48px; }
+.buyer-assumptions-body .bulk-value-field input { padding:10px 8px; }
+.buyer-assumptions-body .number-field:focus-within, .buyer-assumptions-body .bulk-value-field:focus-within { --entry-width: max(156px, 48%); }
 @media(max-width:600px) {
   .bid-check-workbench .composition .line { grid-template-columns:minmax(0,1fr) 156px; gap:10px; }
   .bid-check-workbench .composition .line > .set-glyph { display:none; }

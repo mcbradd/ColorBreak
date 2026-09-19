@@ -1,4 +1,5 @@
 import { compareProducts } from "../../domain/product-order";
+import { matchingSets } from "../../domain/product-search";
 import { refreshPublishedPrices, type PriceRefreshResult } from "../../data/scryfall";
 import { AnswerValue } from "./Answer";
 import {
@@ -145,10 +146,9 @@ export function Builder({
    */
   const commit = () => {
     if (!refreshedForCommit.current && draftSignature(draft) === draftSignature(linesRef.current)) { onClose(); return; }
-    void prepareProductSelection(draft, valueThreshold).then((selection) => {
-      onApply(draft, undefined, selection);
-      onClose();
-    });
+    // The workspace owns enrichment. Leaving entry must never wait for it.
+    onApply(draft);
+    onClose();
   };
   const commitRef = useRef(commit);
   commitRef.current = commit;
@@ -157,13 +157,7 @@ export function Builder({
   // freshly mounted scrim, which read as "opened, then nothing happened".
   const openedAt = useRef(0);
   useEffect(() => { if (open) openedAt.current = Date.now(); }, [open]);
-  const normalizedQuery = query.trim().toLocaleLowerCase();
-  const visible = sets
-    .filter((set) =>
-      !normalizedQuery
-      || set.name.toLocaleLowerCase().includes(normalizedQuery)
-      || set.code.toLocaleLowerCase().includes(normalizedQuery),
-    )
+  const visible = matchingSets(sets, query)
     .sort((left, right) => setSort === "release"
       ? right.released.localeCompare(left.released)
         || left.name.localeCompare(right.name)
@@ -303,7 +297,7 @@ export function Builder({
     if (importRows.some((row) => row.error) || !additions.length) return;
     const next = importSettings ? mergeBreakLines(additions) : mergeBreakLines([...draft, ...additions]);
     setDraft(next);
-    onApply(next, importSettings, await prepareProductSelection(next, valueThreshold));
+    onApply(next, importSettings);
     setComposerMode("search");
     setImportSource("");
     setImportRows([]);
@@ -363,7 +357,7 @@ export function Builder({
         >
           <motion.section
             ref={dialogRef}
-            className="sheet"
+            className="sheet product-entry-frame"
             role="dialog"
             aria-modal="true"
             aria-label="Add product"
@@ -374,14 +368,13 @@ export function Builder({
             onPointerDown={(e) => e.stopPropagation()}
           >
             <header>
-              <button
-                ref={closeRef}
+              {(selected || composerMode === "review" || (composerMode === "paste" && initialMode !== "paste")) && <button
                 className="icon-button"
                 onClick={selected ? () => setSelected(undefined) : composerMode === "review" ? () => setComposerMode("paste") : composerMode === "paste" && initialMode !== "paste" ? () => setComposerMode("search") : commit}
-                aria-label={selected || composerMode === "review" || (composerMode === "paste" && initialMode !== "paste") ? "Back" : "Close"}
+                aria-label="Back"
               >
-                {selected || composerMode === "review" || (composerMode === "paste" && initialMode !== "paste") ? <ArrowLeft /> : <X />}
-              </button>
+                <ArrowLeft />
+              </button>}
               <div>
                 <small>ADD TO BREAK</small>
                 <h2>{composerMode === "paste" ? "Paste or scan a break" : composerMode === "review" ? "Review matches" : selected ? selected.name : "Add products"}</h2>
@@ -398,6 +391,7 @@ export function Builder({
                 {refreshBusy && <span className="refresh-spinner" aria-hidden="true" />}
                 <span role="status" aria-live="polite">{refreshLabel}</span>
               </button>}
+              <button ref={closeRef} type="button" className="icon-button product-entry-close" onClick={commit} aria-label="Close"><X /></button>
             </header>
             <input
               ref={screenshotInput}

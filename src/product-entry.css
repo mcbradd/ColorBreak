@@ -1,0 +1,28 @@
+/* Product entry owns a fixed frame. Only contents/results can scroll. */
+html:has(.command-workspace), body:has(.command-workspace) { overflow: hidden; overscroll-behavior: none; }
+.scrim:has(> .product-entry-frame) { position: fixed; inset: auto 0; top: var(--visual-viewport-top, 0px); height: var(--visual-viewport-height, 100dvh); display: flex; align-items: center; justify-content: center; padding: 0; overflow: hidden; }
+.scrim .product-entry-frame { position: relative; inset: auto; display: flex; flex-direction: column; width: min(100%, 680px); height: 100%; max-height: 100%; min-height: 0; margin: 0; padding: 0; overflow: hidden; border-radius: 0; }
+.product-entry-frame > header { position: static; flex: none; display: flex; gap: 8px; min-width: 0; padding: max(8px, calc(var(--safe-top) - var(--visual-viewport-top, 0px))) max(12px, var(--safe-right)) 8px max(12px, var(--safe-left)); }
+.product-entry-frame > header > div { flex: 1; min-width: 0; }
+.product-entry-frame > header .icon-button { flex: 0 0 48px; width: 48px; height: 48px; }
+.product-entry-frame > header h2 { font-size: 20px !important; }
+.product-entry-frame > header small { display: none; }
+.product-entry-frame > :is(.set-browser-tools, .break-input-actions, .section-label, .composer-actions) { position: static; flex: none; }
+.product-entry-frame > :is(.choice-list, .product-groups, .import-review, .break-import) { position: relative; flex: 1; min-height: 0; margin-block: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; touch-action: pan-y; }
+.product-entry-frame .choice-list { padding-inline: max(12px, var(--safe-left)) max(12px, var(--safe-right)); }
+.product-entry-frame > .composer-actions { padding: 8px max(12px, var(--safe-right)) max(8px, var(--safe-bottom)) max(12px, var(--safe-left)); }
+.product-entry-frame > .composer-status { position: static; flex: none; max-height: 100px; overflow: auto; }
+.quick-set-matches { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; max-height: 160px; overflow: auto; overscroll-behavior: contain; margin-bottom: 8px; }
+.quick-set-matches > button { display: grid; gap: 3px; min-width: 0; min-height: 48px; padding: 8px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); text-align: left; }
+.quick-set-matches b { color: var(--accent); }
+.quick-set-matches span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.viewport-short .product-entry-frame > :is(.break-input-actions, .section-label, .composer-status),
+.viewport-short .product-entry-frame .set-sort-tabs { display: none; }
+.viewport-short .product-entry-frame > header { min-height: 48px; padding-top: max(0px, calc(var(--safe-top) - var(--visual-viewport-top, 0px))); padding-bottom: 0; }
+.viewport-short .product-entry-frame > .set-browser-tools { padding-block: 4px; }
+.viewport-short .product-entry-frame > .composer-actions { display: none; }
+.viewport-short .product-entry-frame .picker-header-refresh { max-width: 100px; }
+@media (min-width: 900px) { .scrim .product-entry-frame { height: min(900px, calc(var(--visual-viewport-height, 100dvh) - 32px)); } }
+
+@media (min-width: 720px) { .scrim .product-entry-frame { transform: none !important; } }
+.product-entry-frame > .break-import { align-content: start; }
