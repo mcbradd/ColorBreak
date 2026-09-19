@@ -1,8 +1,9 @@
 import { createElement, useState } from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { SlotRail } from "./features/buyer/BuyerVisuals";
 import { createAuction } from "./domain/auction";
+import { calculateBreak } from "./domain/valuation";
 import type { AuctionState } from "./domain/auction";
 import { SLOT_IDS } from "./domain/types";
 import type { DistributionSummary } from "./domain/simulation";
@@ -41,6 +42,31 @@ function Harness() {
 }
 
 describe("buyer color controls", () => {
+  it("opens a team's price-ranked members and returns from a card to its thumbnail", async () => {
+    const memberResult = calculateBreak({
+      threshold: 0,
+      prices: [
+        { id: "small", name: "Small Dragon", set: "TST", collectorNumber: "1", slot: "R", nonfoil: 5, foil: null },
+        { id: "big", name: "Big Dragon", set: "TST", collectorNumber: "2", slot: "R", nonfoil: 50, foil: null },
+      ],
+      draws: [1, 2].map(number => ({ set: "TST", collectorNumber: String(number), copies: 1, foil: false, source: "fixed" })),
+    });
+    render(createElement(SlotRail, { result: memberResult, auction: createAuction(), setAuction: () => {}, selectedSlots: [], setSelectedSlots: () => {} }));
+    fireEvent.click(screen.getByRole("button", { name: "Show cards in Red team" }));
+    const members = screen.getByRole("table", { name: "Cards in Red team" });
+    expect(within(members).getAllByRole("row")[1]).toHaveTextContent("Big Dragon");
+    expect(screen.getByRole("button", { name: "Mark Red as mine" })).toHaveAttribute("aria-pressed", "false");
+    const thumbnail = within(members).getByRole("button", { name: "Open Big Dragon card details" });
+    thumbnail.focus();
+    fireEvent.click(thumbnail);
+    expect(screen.getByRole("dialog", { name: "Big Dragon" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Close card details" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(thumbnail).toHaveFocus();
+    fireEvent.click(screen.getByRole("button", { name: "Show cards in Blue team" }));
+    expect(screen.queryByRole("table", { name: "Cards in Red team" })).not.toBeInTheDocument();
+  });
+
   it("marks a slot the buyer already owns and takes it out of the remaining pool", () => {
     render(createElement(Harness));
 

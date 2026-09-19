@@ -1,8 +1,9 @@
 import { AnswerValue, AnswerNote, AnswerGraphic, AnswerGroup } from "../shared/Answer";
 import { useMemo, useState } from "react";
 import type { CSSProperties } from "react";
-import { ShieldAlert } from "lucide-react";
+import { RefreshCw, ShieldAlert } from "lucide-react";
 import type { BreakAnalysis } from "../../data/evaluate";
+import type { PriceRefreshPhase, PriceRefreshResult } from "../../data/scryfall";
 import { bidCeiling, landedCost } from "../../domain/bid-ceiling";
 import type { BuyerCosts } from "../../domain/bid-ceiling";
 import { decisionEligibility } from "../../domain/valuation";
@@ -27,11 +28,6 @@ import { cardPreviewSubtitle, CardInspector, CompactWarning, IncompleteDataWarni
 import type { OutcomeSimulation } from "./BuyerVisuals";
 import { PublicCardPlaceholder } from "../shared/CardPlaceholder";
 import { CardMemberList } from "../shared/CardMemberList";
-
-/** Compatibility entry point; all rendering and ordering live in CardMemberList. */
-export function ContributorRows({ slot, onInspect }: { slot: SlotValuation; onInspect: (row: Contributor) => void }) {
-  return <CardMemberList rows={slot.contributors} onInspect={onInspect} groupName={slot.name} emptyMessage={`No cards in ${slot.name.toLowerCase()} are above the current bulk limit.`} />;
-}
 
 export function ChaseConstellation({
   slot,
@@ -237,7 +233,7 @@ export function SlotValueDetails({
           </span>
           <DisclosureArrow />
         </summary>
-        <CardMemberList rows={slot.contributors} onInspect={onInspect} groupName={slot.name} emptyMessage={`No cards in ${slot.name.toLowerCase()} are above the current bulk limit.`} />
+        <CardMemberList key={slot.id} rows={slot.contributors} onInspect={onInspect} groupName={slot.name} emptyMessage={`No cards in ${slot.name.toLowerCase()} are above the current bulk limit.`} />
       </details>
     </section></AnswerGroup>
   );
@@ -401,6 +397,46 @@ export function LargeBreakView({
   );
 }
 
+/**
+ * The buyer's refresh speaks the same vocabulary as the product picker's, so
+ * one word means one thing across the app. Phases are transient; the rest are
+ * the answer the buyer asked for and stay on screen until the break changes.
+ */
+export type PriceRefreshState = "idle" | PriceRefreshPhase | PriceRefreshResult | "error";
+
+const PRICE_REFRESH_BUSY: PriceRefreshState[] = ["searching", "updating"];
+
+const PRICE_REFRESH_LABEL: Record<PriceRefreshState, string> = {
+  idle: "Prices over 6 hours old · Refresh",
+  searching: "Searching…",
+  updating: "Updating…",
+  updated: "Updated",
+  current: "Up to date",
+  stale: "No newer data",
+  partial: "Partial update",
+  error: "Retry",
+};
+
+const PRICE_REFRESH_DETAIL: Record<PriceRefreshState, string> = {
+  idle: "Check the latest published prices and update this estimate.",
+  searching: "Checking the price publication.",
+  updating: "Loading newer prices.",
+  updated: "Newer prices loaded. Tap to check again.",
+  current: "This estimate already uses the latest publication. Tap to check again.",
+  stale: "Checked the latest publication; newer prices are not available yet. Tap to check again.",
+  partial: "Some new prices could not load. Existing prices fill those gaps. Tap to retry.",
+  error: "Refresh failed. Your existing estimates are kept. Tap to retry.",
+};
+
+const PRICE_REFRESH_ANSWER: Record<PriceRefreshState, string> = {
+  idle: "", searching: "", updating: "",
+  updated: "Newer prices are in this estimate.",
+  current: "This estimate already used the latest published prices.",
+  stale: "No newer prices are published yet. The estimate still uses the latest published snapshot.",
+  partial: "Some prices could not be refreshed. The estimate keeps the prices it already had for those.",
+  error: "The price publication could not be checked. The estimate keeps the prices it already had.",
+};
+
 export function BuyerView({
   analysis,
   eligibility: assessedEligibility,
@@ -409,6 +445,8 @@ export function BuyerView({
   breakLabel,
   costs,
   simulation,
+  priceRefresh = "idle",
+  onRefreshPrices,
 }: {
   analysis: BreakAnalysis;
   eligibility?: DecisionEligibility;
@@ -419,6 +457,8 @@ export function BuyerView({
   simulation: OutcomeSimulation;
   onChooseReady?: () => void;
   onUseManualCap?: () => void;
+  priceRefresh?: PriceRefreshState;
+  onRefreshPrices?: () => void;
 }) {
   const result = analysis.valuation;
   const eligibility = assessedEligibility ?? decisionEligibility(result);
@@ -445,7 +485,22 @@ export function BuyerView({
       <AnswerGroup><section className="bid-live-decision" aria-label="Bid decision">
         <div className="decision-kicker">
           <span title={decisionKicker}>{decisionKicker}</span><AnswerNote primary label="What affects the bid limit" detail="Typical card value minus added shipping and tax. MIN and MAX are possible limits; typical is the median. Missing prices or estimated pack rules can change the result." />
-          <span className={`decision-evidence evidence-${result.status}`}>{eligibility.status === "eligible" ? "Fresh estimate" : eligibility.status === "stale" ? "Prices over 6 hours old" : result.status}</span>
+          {(eligibility.status === "stale" || priceRefresh !== "idle") && onRefreshPrices
+            // Stale prices are something the buyer can act on, so the label is
+            // the control that acts on it rather than a notice they can only
+            // read. It stays put after the check so the answer is legible.
+            ? <button
+              type="button"
+              className={`decision-evidence evidence-${result.status} refresh-prices`}
+              onClick={onRefreshPrices}
+              disabled={PRICE_REFRESH_BUSY.includes(priceRefresh)}
+              aria-busy={PRICE_REFRESH_BUSY.includes(priceRefresh)}
+              title={PRICE_REFRESH_DETAIL[priceRefresh]}
+            >
+              <RefreshCw aria-hidden="true" className={PRICE_REFRESH_BUSY.includes(priceRefresh) ? "spinning" : undefined} />
+              {PRICE_REFRESH_LABEL[priceRefresh]}
+            </button>
+            : <span className={`decision-evidence evidence-${result.status}`}>{eligibility.status === "eligible" ? "Fresh estimate" : eligibility.status === "stale" ? "Prices over 6 hours old" : result.status}</span>}
         </div>
         <div className="verdict-head">
           <div className="verdict-decision">
@@ -461,6 +516,7 @@ export function BuyerView({
           <span>My {selectedSlots.length === 1 ? "slot" : "slots"}: {selectedSlots.map((id) => SLOT_NAMES[id]).join(", ")}</span>
           <b><AnswerValue value={ownedValue} /></b>
         </p>}
+        {PRICE_REFRESH_ANSWER[priceRefresh] && <p className="price-refresh-answer" role="status">{PRICE_REFRESH_ANSWER[priceRefresh]}</p>}
         <AnswerGraphic detail={simulation.result?.sampleCount === 0 ? "MIN and MAX use available pack rules. The typical result is still being refined; missing data can change the limits." : "MIN and MAX are the smallest and largest values possible for one remaining spot under the current pack rules and prices. Missing data can change these limits."}><OutcomeRange summary={distribution} compact /></AnswerGraphic>
         {simulation.busy && <p className="simulation-state" role="status" aria-live="polite">Checking more possible openings…</p>}
         {simulation.error && <CompactWarning title="Pull ranges unavailable" summary="The non-simulation value remains visible." className="inline-warning"><p role="alert">{simulation.error}</p><button type="button" className="quiet" onClick={simulation.retry}>Retry pull ranges</button></CompactWarning>}

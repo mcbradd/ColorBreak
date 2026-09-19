@@ -263,6 +263,8 @@ Each proposal states the problem, the evidence, the change, acceptance criteria,
 
 **Change.** Where a sheet carries `balanceColors`, surface a named omission stating that per-colour counts on that sheet are not derivable, and treat the slot's card count as a range rather than a point value. Where a sheet does not carry the flag, per-card weights are usable directly and confidence stays higher.
 
+**Superseded (2026-09).** The current per-product collation policy translates supported color-balancing evidence into a minimum-color constraint. Sampling and possible-value bounds preserve that constraint and duplicate rules while leaving colorless and land cards eligible. Missing colors produce a named omission when the available pool cannot support the guarantee. See `docs/adr/0005-product-collation-evidence.md`; no exact within-pack order or stronger per-color distribution is implied.
+
 **Acceptance.** No code path infers a colour split from an unbalanced-unknown sheet. The omission is named specifically enough for a reviewer to act on.
 
 **Constraint.** This is the CLAUDE.md rule applied literally: never silently infer sheet weights, emit a named omission and lower confidence.

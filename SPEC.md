@@ -27,6 +27,8 @@ Quantity changes reuse only the matching product's values and scale them immedia
 12. In the product picker, selected products have an obvious contrasting border/background and a visible editable quantity. Minus and plus stay beside the product name at its trailing edge; the visible quantity between them is an editable numeric field. All product surfaces use the same quantity control. Focusing the number opens the numeric keyboard, with the field and its Done action kept inside the visual viewport. The picker footer says only Done, including after the last product is removed.
 13. Selecting a product never inserts a current-break panel or changes the row geometry; the list remains in place. Estimate freshness is omitted from individual product rows. When an estimate needs attention, one refresh action appears above the list.
 
+Buyer card membership uses one shared list in color teams, value details, named Large Break slots and residual slots. Tapping a team opens its members with exact-finish market price descending by default. Card, Price, Chance and Adds headings sort their displayed value and reverse direction on a second tap; the active heading has an up/down arrow and accessible sort direction. A thumbnail opens full-page card details; closing returns focus to the invoking list. Ownership/taken controls remain independent of opening the list.
+
 ## Seller
 
 1. Product market cost is populated when tcgcsv is reachable; actual cost is always editable.

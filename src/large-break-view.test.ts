@@ -84,7 +84,8 @@ describe("large break card list", () => {
     expect(slot).toHaveTextContent("$50.00 · Nonfoil · TST");
     fireEvent.click(slot);
     const entry = screen.getByRole("button", { name: "Open Named Dragon card details" });
-    expect(entry).toHaveTextContent("$50.00 · Nonfoil · TST");
+    expect(entry.closest('[role="row"]')).toHaveTextContent("Nonfoil · TST #1");
+    expect(entry.closest('[role="row"]')).toHaveTextContent("$50.00");
     expect(container.querySelector(".large-break-slot-cards .card-thumbnail")).toHaveAttribute("alt", "Named Dragon");
     fireEvent.click(entry);
     expect(screen.getByRole("dialog", { name: "Named Dragon" })).toBeInTheDocument();
@@ -109,7 +110,8 @@ describe("large break card list", () => {
     render(createElement(LargeBreakView, { analysis, bid: undefined, setBid: () => {}, costs: { shipping: 0, taxPercent: 0 }, lines: [], spots: 18 }));
     fireEvent.click(screen.getByRole("button", { name: "Show cards in Listed Foil slot" }));
     const compactCard = screen.getByRole("button", { name: "Open Listed Foil (Foil) card details" });
-    expect(compactCard).toHaveTextContent("$18.25 · Foil · TST");
+    expect(compactCard.closest('[role="row"]')).toHaveTextContent("Foil · TST #1");
+    expect(compactCard.closest('[role="row"]')).toHaveTextContent("$18.25");
     fireEvent.click(compactCard);
 
     const dialog = screen.getByRole("dialog", { name: "Listed Foil (Foil)" });

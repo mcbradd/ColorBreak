@@ -9,6 +9,7 @@ import type { BreakAnalysis } from "../../data/evaluate";
 import { assessBuyerDecision, type BuyerDecisionAssessment, type PreparedProductSelection } from "../../domain/decision-evidence";
 import { canonicalCompositionFingerprint } from "../../domain/canonical-composition";
 import { sealedMarketPrice } from "../../data/sealed-prices";
+import { refreshPublishedPrices } from "../../data/scryfall";
 import { createAuction } from "../../domain/auction";
 import type { AuctionState } from "../../domain/auction";
 import { decodeLegacySearch } from "../../domain/legacy";
@@ -27,7 +28,7 @@ import { useBuyerCosts } from "../shared/useBuyerCosts";
 import { Builder, ManualBudgetCap } from "../shared/ProductBuilder";
 import { CompactWarning, useOutcomeSimulation } from "./BuyerVisuals";
 import { BuyerSetup } from "./BuyerSetup";
-import { BuyerView, LargeBreakView } from "./BuyerDetails";
+import { BuyerView, LargeBreakView, type PriceRefreshState } from "./BuyerDetails";
 
 /** Owns only buyer decision state; seller planning has its own controller. */
 export function BuyerWorkspace({
@@ -42,7 +43,11 @@ export function BuyerWorkspace({
   const mode = "buyer" as const;
   const legacy = useMemo(() => decodeLegacySearch(location.search), []);
   const sharedBuyer = useMemo(() => decodeBuyerShare(location.search), []);
-  const isSharedBreak = legacy.length > 0;
+  // The workspace keeps the break in the address bar, so a reload lands on a
+  // URL this browser wrote itself. The history entry says which it is; without
+  // that marker your own reload would be announced as someone else's link.
+  const ownUrl = useMemo(() => (history.state as { colorbreakOwn?: boolean } | null)?.colorbreakOwn === true, []);
+  const isSharedBreak = legacy.length > 0 && !ownUrl;
   const initialBuyerRecord = useMemo(() => readBuyerDecisionRecord(), []);
   const firstResultTracked = useRef(false);
   const [legacyNotice, setLegacyNotice] = useState(false);
@@ -74,7 +79,12 @@ export function BuyerWorkspace({
     // checked until they say so.
     [selectedSlots, setSelectedSlots] = useState<SlotId[]>(() => sharedBuyer.selectedSlots ?? []),
     [busy, setBusy] = useState(false),
+    // The buyer asked, so the buyer gets told what happened: the phase while
+    // it runs, and the real answer after, including "nothing newer exists".
+    [priceRefresh, setPriceRefresh] = useState<PriceRefreshState>("idle"),
     [calculationGeneration, setCalculationGeneration] = useState(0);
+  const refreshRequest = useRef(0);
+  const refreshBusy = useRef(false);
   const [manualCapOpen, setManualCapOpen] = useState(false);
   const [manualTarget, setManualTarget] = useState<number>();
   const [manualShipping, setManualShipping] = useState<number>();
@@ -117,8 +127,16 @@ export function BuyerWorkspace({
     bulkThreshold,
     largeSpots,
   });
+  // A link only propagates a break if the address bar carries one. Stripping
+  // the query on arrival meant the only shareable URL lived behind the share
+  // control, and a recipient who forwarded what they saw sent an empty break.
   useEffect(() => {
-    history.replaceState(null, "", lines.length ? sharedHref : `${location.pathname}#buyer`);
+    const target = lines.length ? new URL(sharedHref) : null;
+    history.replaceState(
+      { ...(history.state as object | null), colorbreakOwn: true },
+      "",
+      target ? `${target.pathname}${target.search}${target.hash}` : `${location.pathname}#buyer`,
+    );
   }, [sharedHref, lines.length]);
   useLayoutEffect(() => {
     if (!lines.length) {
@@ -171,6 +189,35 @@ export function BuyerWorkspace({
         if (request === analysisRequest.current) setBusy(false);
       });
   }, [lines, threshold, calculationGeneration]);
+  const refreshContext = `${canonicalCompositionFingerprint(lines)}|${threshold}`;
+  // A completed request may only update the break that started it.
+  useEffect(() => {
+    refreshRequest.current += 1;
+    refreshBusy.current = false;
+    setPriceRefresh("idle");
+    return () => { refreshRequest.current += 1; refreshBusy.current = false; };
+  }, [refreshContext]);
+  const refreshPrices = async () => {
+    if (refreshBusy.current) return;
+    const request = ++refreshRequest.current;
+    refreshBusy.current = true;
+    setPriceRefresh("searching");
+    track("price_refresh_requested", { mode, productCount: lines.length });
+    try {
+      // Same publication check the product picker runs: usable prices survive a
+      // failure, so a refused refresh never costs the buyer their estimate.
+      const result = await refreshPublishedPrices((phase) => {
+        if (request === refreshRequest.current) setPriceRefresh(phase);
+      });
+      if (request !== refreshRequest.current) return;
+      setPriceRefresh(result);
+      setCalculationGeneration((generation) => generation + 1);
+    } catch {
+      if (request === refreshRequest.current) setPriceRefresh("error");
+    } finally {
+      if (request === refreshRequest.current) refreshBusy.current = false;
+    }
+  };
   useEffect(() => {
     if (buyerRecoveryReady || !initialBuyerRecord || !analysis || analysis.valuation.dataVersion.startsWith("preview:") || recoveryRecord) return;
     const recovered = readBuyerDecisionRecord({
@@ -223,7 +270,9 @@ export function BuyerWorkspace({
           ...(line.marketCost == null && row.price != null ? { marketCost: row.price } : {}),
         };
       }));
-    });
+    // A catalog or sealed-price fetch that fails leaves the break lines as the
+    // buyer entered them; it must not surface as an unhandled rejection.
+    }).catch(() => undefined);
     return () => { cancelled = true; };
   }, [lines.map((line) => `${line.id}:${line.productKey}:${line.tcgId ?? ""}`).join("|")]);
   const { copy, toast } = useShareFeedback();
@@ -245,12 +294,13 @@ export function BuyerWorkspace({
         </button>
         <div className="nav-actions">
           {lines.length > 0 && <button
-            className="icon-button"
+            className="icon-button share-break"
             onClick={share}
             title="Copy break link — private costs are excluded."
             aria-label="Copy break link"
           >
             <Copy />
+            <span>Copy link</span>
           </button>}
         </div>
       </nav>
@@ -344,6 +394,8 @@ export function BuyerWorkspace({
                   simulation={simulation}
                   onChooseReady={() => setLines([readyExampleLine()])}
                   onUseManualCap={() => setManualCapOpen(true)}
+                  priceRefresh={priceRefresh}
+                  onRefreshPrices={refreshPrices}
                 />
               ))}
             </div>
