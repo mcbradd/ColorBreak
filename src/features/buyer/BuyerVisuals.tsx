@@ -7,6 +7,7 @@ import { AnimatePresence, motion } from "motion/react";
 import {
   Ban,
   Check,
+  ChevronDown,
   ChevronRight,
   PackagePlus,
   RotateCw,
@@ -30,7 +31,8 @@ import type {
 import { SLOT_IDS, SLOT_NAMES } from "../../domain/types";
 import { DisclosureArrow, fmt, fmtCompact, InformationLabel, PanelHeading, Status, Tip, NumericInput, useDialogOwnership, plainEvidence } from "../shared/Primitives";
 import { QuantityControl } from "../shared/QuantityControl";
-import { PublicCardPlaceholder } from "./CardPlaceholder";
+import { PublicCardPlaceholder } from "../shared/CardPlaceholder";
+import { CardMemberList } from "../shared/CardMemberList";
 
 export function Composition({
   lines,
@@ -268,6 +270,8 @@ export function SlotRail({
   distributions?: Record<SlotId, DistributionSummary>;
   stepLabel?: string;
 }) {
+  const [expandedSlot, setExpandedSlot] = useState<SlotId | null>(null);
+  const [inspectedCard, setInspectedCard] = useState<Contributor | null>(null);
   const scaleMax = Math.max(
     1,
     ...SLOT_IDS.map((id) => probableRange(distributions?.[id], result?.slots.find((slot) => slot.id === id)?.sellableEV ?? 0).high),
@@ -292,12 +296,14 @@ export function SlotRail({
           return (
             <div className={`buyer-slot-row ${mine ? "mine" : ""} ${taken ? "taken" : ""}`} key={id}>
               <div className="buyer-slot-top">
-                <span className="buyer-slot-name">
+                <button type="button" className="buyer-slot-name buyer-slot-open" aria-label={`${expandedSlot === id ? "Hide" : "Show"} cards in ${SLOT_NAMES[id]} team`} aria-expanded={expandedSlot === id} onClick={() => setExpandedSlot((current) => current === id ? null : id)}>
                   <i className={`buyer-slot-swatch slot-${id}`} aria-hidden="true" />
                   {SLOT_NAMES[id]}
                   {mine && <b className="buyer-slot-tag buyer-slot-mine-tag">Mine</b>}
                   {taken && <b className="buyer-slot-tag buyer-slot-taken-tag">Taken</b>}
-                </span>
+                  <span className="buyer-slot-member-count">{slot?.contributors.length ?? 0} cards</span>
+                  <ChevronDown className={expandedSlot === id ? "expanded" : ""} aria-hidden="true" />
+                </button>
                 <div className="buyer-slot-actions">
                   <button
                     type="button"
@@ -330,10 +336,19 @@ export function SlotRail({
                 scaleMax={scaleMax}
                 label={SLOT_NAMES[id]}
               />
+              {expandedSlot === id && <div className="buyer-slot-members">
+                <CardMemberList
+                  rows={slot?.contributors ?? []}
+                  onInspect={setInspectedCard}
+                  groupName={`${SLOT_NAMES[id]} team`}
+                  emptyMessage={`No ${SLOT_NAMES[id].toLowerCase()} cards are above the current bulk limit.`}
+                />
+              </div>}
             </div>
           );
         })}
       </div>
+      <CardInspector row={inspectedCard} status={result?.status ?? "incomplete"} threshold={result?.threshold ?? 0} onClose={() => setInspectedCard(null)} />
     </section>
   );
 }

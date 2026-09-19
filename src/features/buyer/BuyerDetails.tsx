@@ -1,7 +1,7 @@
 import { AnswerValue, AnswerNote, AnswerGraphic, AnswerGroup } from "../shared/Answer";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import type { CSSProperties } from "react";
-import { Search, ShieldAlert } from "lucide-react";
+import { ShieldAlert } from "lucide-react";
 import type { BreakAnalysis } from "../../data/evaluate";
 import { bidCeiling, landedCost } from "../../domain/bid-ceiling";
 import type { BuyerCosts } from "../../domain/bid-ceiling";
@@ -22,10 +22,16 @@ import { chaseMapLayout } from "../../constellation-layout";
 
 import { createLargeBreakPlan, sortNamedCards, summarizeAssignmentValues } from "../../domain/large-break";
 import type { TopCardSort } from "../../domain/large-break";
-import { DisclosureArrow, fmt, InformationLabel, NumberField, PanelHeading, Status, Tip, countedPriceLabel, oddsLabel, NumericInput } from "../shared/Primitives";
+import { DisclosureArrow, fmt, InformationLabel, NumberField, PanelHeading, Status, Tip, oddsLabel, NumericInput } from "../shared/Primitives";
 import { cardPreviewSubtitle, CardInspector, CompactWarning, IncompleteDataWarning, OutcomeRange, EvidenceLens, ValueSummary } from "./BuyerVisuals";
 import type { OutcomeSimulation } from "./BuyerVisuals";
-import { PublicCardPlaceholder } from "./CardPlaceholder";
+import { PublicCardPlaceholder } from "../shared/CardPlaceholder";
+import { CardMemberList } from "../shared/CardMemberList";
+
+/** Compatibility entry point; all rendering and ordering live in CardMemberList. */
+export function ContributorRows({ slot, onInspect }: { slot: SlotValuation; onInspect: (row: Contributor) => void }) {
+  return <CardMemberList rows={slot.contributors} onInspect={onInspect} groupName={slot.name} emptyMessage={`No cards in ${slot.name.toLowerCase()} are above the current bulk limit.`} />;
+}
 
 export function ChaseConstellation({
   slot,
@@ -166,83 +172,6 @@ function CardThumbnail({ row }: { row: Contributor }) {
   return <PublicCardPlaceholder name={row.card.name} image={row.card.image} className="card-thumbnail" />;
 }
 
-const CONTRIBUTOR_PAGE = 10;
-
-const CONTRIBUTOR_COLUMN_HELP = "Chance: how often at least one copy of this exact card version turns up when this break is opened. Adds: how much that card contributes to the colour's average value, which is its price multiplied by the average number of copies opened.";
-
-/**
- * The ranked card list is long — hundreds of printings in a big break — so it
- * pages in ten at a time and takes a search box rather than making the buyer
- * scroll for a card they can name.
- */
-export function ContributorRows({
-  slot,
-  onInspect,
-  limit = CONTRIBUTOR_PAGE,
-}: {
-  slot: SlotValuation;
-  onInspect: (row: Contributor) => void;
-  limit?: number;
-}) {
-  const [query, setQuery] = useState("");
-  const [shown, setShown] = useState(limit);
-  useEffect(() => { setShown(limit); }, [limit, slot.id, query]);
-  const normalized = query.trim().toLocaleLowerCase();
-  const matches = normalized
-    ? slot.contributors.filter((row) => row.card.name.toLocaleLowerCase().includes(normalized))
-    : slot.contributors;
-  if (!slot.contributors.length) {
-    return <p className="no-contributors">No cards in this color are above the current bulk limit.</p>;
-  }
-  return (
-    <>
-      <div className="contributor-toolbar">{slot.contributors.length > CONTRIBUTOR_PAGE && <label className="contributor-search">
-        <Search aria-hidden="true" />
-        <input
-          type="search"
-          value={query}
-          placeholder="Find a card"
-          aria-label="Find a card in this color"
-          onChange={(event) => setQuery(event.target.value)}
-        />
-      </label>}
-      <div className="contributor-list-help"><Tip label="What Chance and Adds mean" text={CONTRIBUTOR_COLUMN_HELP} /></div></div>
-      <div className="contributor-columns">
-        <span>Card</span>
-        <span>Chance</span>
-        <span>Adds</span>
-      </div>
-      {matches.slice(0, shown).map((row) => (
-        <button
-          type="button"
-          className="card-row contributor-card"
-          key={`${row.card.id}|${row.finish ?? "nonfoil"}`}
-          onClick={() => onInspect(row)}
-          aria-label={`Open ${cardDisplayName(row.card, row.finish)}: ${oddsLabel(row.sellablePullProbability)} pull odds, ${countedPriceLabel(row)}, adds ${fmt(row.sellableValue)} to the average`}
-        >
-          <CardThumbnail row={row} />
-          <span className="card-summary">
-            <strong>{row.card.name}</strong>
-            <small>{cardPreviewSubtitle(row)}</small>
-          </span>
-          <span className="pull-odds">
-            <b>{oddsLabel(row.sellablePullProbability)}<AnswerNote detail="Estimated chance of at least one copy in this break. Pack assumptions and missing rare-card odds can change it." /></b>
-          </span>
-          <span className="ev-contribution">
-            <b><AnswerValue value={row.sellableValue} compact /></b>
-          </span>
-        </button>
-      ))}
-      {!matches.length && <p className="no-contributors">No card in this color matches “{query}”.</p>}
-      {matches.length > shown && <button
-        type="button"
-        className="quiet show-more-cards"
-        onClick={() => setShown((current) => current + CONTRIBUTOR_PAGE)}
-      >Show {Math.min(CONTRIBUTOR_PAGE, matches.length - shown)} more</button>}
-    </>
-  );
-}
-
 export function SlotValueDetails({
   slot,
   threshold,
@@ -303,51 +232,14 @@ export function SlotValueDetails({
       <details open className="contributors">
         <summary className="disclosure-summary">
           <span>
-            Cards adding the most value
-            <small>Largest effect on the average first</small>
+            Cards in this color
+            <small>Tap a heading to sort cards</small>
           </span>
           <DisclosureArrow />
         </summary>
-        <ContributorRows slot={slot} onInspect={onInspect} />
+        <CardMemberList rows={slot.contributors} onInspect={onInspect} groupName={slot.name} emptyMessage={`No cards in ${slot.name.toLowerCase()} are above the current bulk limit.`} />
       </details>
     </section></AnswerGroup>
-  );
-}
-
-function LargeBreakSlotCards({
-  rows,
-  onInspect,
-}: {
-  rows: Contributor[];
-  onInspect: (row: Contributor) => void;
-}) {
-  const sortedRows = [...rows].sort((left, right) =>
-    (right.marketPrice ?? right.card.foil ?? right.card.nonfoil ?? 0)
-      - (left.marketPrice ?? left.card.foil ?? left.card.nonfoil ?? 0)
-      || left.card.name.localeCompare(right.card.name),
-  );
-  return (
-    <div className="large-break-slot-cards">
-      <div className="contributor-columns">
-        <span>Card and exact printing</span>
-        <span>Pull odds</span>
-        <span>Adds to average</span>
-      </div>
-      {sortedRows.length ? sortedRows.map((row) => (
-        <button
-          type="button"
-          className="card-row contributor-card"
-          key={`${row.card.id}|${row.finish ?? "nonfoil"}`}
-          onClick={() => onInspect(row)}
-          aria-label={`Open ${cardDisplayName(row.card, row.finish)} card details`}
-        >
-          <CardThumbnail row={row} />
-          <span className="card-summary"><strong>{row.card.name}</strong><small>{cardPreviewSubtitle(row)}</small></span>
-          <span className="pull-odds"><b>{oddsLabel(row.sellablePullProbability)}<AnswerNote detail="Estimated chance of at least one copy in this break. Pack assumptions and missing rare-card odds can change it." /></b></span>
-          <span className="ev-contribution"><b><AnswerValue value={row.sellableValue} compact /></b></span>
-        </button>
-      )) : <p className="no-contributors">No priced cards are assigned to this slot.</p>}
-    </div>
   );
 }
 
@@ -481,7 +373,7 @@ export function LargeBreakView({
             </button>
             <div className="large-break-card-value"><span>Pull EV</span><b><AnswerValue value={card.pullEV} detail={card.pullRateVerified ? undefined : `${card.name}: the exact pull chance cannot be checked. This estimate uses community or inferred odds and improves when stronger evidence becomes available.`} /></b></div>
 
-            {isOpen && <LargeBreakSlotCards rows={card.cards} onInspect={setInspectedCard} />}
+            {isOpen && <div className="large-break-slot-cards"><CardMemberList rows={card.cards} onInspect={setInspectedCard} groupName={`${card.name} slot`} emptyMessage="No priced cards are assigned to this slot." /></div>}
           </div>})}
         </div>
         {rankedNamedCards.length > namedLimit && <button type="button" className="show-more-assignments" onClick={() => setNamedLimit(rankedNamedCards.length)}>Show {rankedNamedCards.length - namedLimit} more named assignments</button>}
@@ -498,7 +390,7 @@ export function LargeBreakView({
             <strong>{category.label}</strong><small>{category.cardCount} remaining card{category.cardCount === 1 ? "" : "s"}</small>
           </button>
           <b><AnswerValue value={category.pullEV} /></b>
-          {isOpen && <LargeBreakSlotCards rows={category.cards} onInspect={setInspectedCard} />}
+          {isOpen && <div className="large-break-slot-cards"><CardMemberList rows={category.cards} onInspect={setInspectedCard} groupName={`${category.label} slot`} emptyMessage="No priced cards are assigned to this slot." /></div>}
         </div>})}
         {plan.categories.length > categoryLimit && <button type="button" className="show-more-assignments" onClick={() => setCategoryLimit(plan.categories.length)}>Show all {plan.categories.length} category assignments</button>}
         {categoryLimit > 5 && <button type="button" className="show-more-assignments" onClick={() => setCategoryLimit(5)}>Show first 5 categories</button>}

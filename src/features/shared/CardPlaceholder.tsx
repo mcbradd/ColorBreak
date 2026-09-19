@@ -1,10 +1,6 @@
 import { useEffect, useState } from "react";
 
-/**
- * Card art, with the initial-letter tile as its fallback rather than its
- * only state. Scryfall serves the images; a card that has no image URL, or
- * whose image fails to load, keeps the tile so a row never collapses.
- */
+/** Card art with a stable initial tile when the public image is missing. */
 export function PublicCardPlaceholder({
   name,
   image,
