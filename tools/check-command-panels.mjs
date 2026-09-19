@@ -19,7 +19,33 @@ try {
       page.on('response', response => { if (response.status() >= 400) failedRequests.push({ url: response.url(), status: response.status() }); });
       try {
       await page.goto(`${base}#${job}`);
-      const search = page.getByRole('combobox', { name: 'Find a set and product' });
+      const search = page.getByRole('combobox', { name: 'Find a set or product' });
+      if (job === 'buyer' && width < 900) {
+        const suggestions = page.getByRole('group', { name: 'Recent sets' });
+        await suggestions.waitFor();
+        assert.ok(await suggestions.getByRole('button').count() > 4, 'recent set list contains enough tiles to scroll');
+        const listLayout = await suggestions.evaluate(el => ({
+          columns: getComputedStyle(el).gridTemplateColumns.trim().split(/\s+/).length,
+          clientHeight: el.clientHeight,
+          scrollHeight: el.scrollHeight,
+          clientWidth: el.clientWidth,
+          scrollWidth: el.scrollWidth,
+          overflowY: getComputedStyle(el).overflowY,
+          scrollbar: getComputedStyle(el, '::-webkit-scrollbar').display,
+        }));
+        assert.equal(listLayout.columns, 3, `recent sets use three columns: ${JSON.stringify(listLayout)}`);
+        assert.equal(listLayout.overflowY, 'auto');
+        assert.ok(listLayout.scrollHeight > listLayout.clientHeight, 'recent set tiles extend below the visible list');
+        assert.ok(listLayout.scrollWidth <= listLayout.clientWidth + 1, 'recent set tiles never scroll horizontally');
+        assert.equal(listLayout.scrollbar, 'none', 'recent set scroller hides its scrollbar');
+        const body = page.locator('.command-body');
+        const parentScrollBefore = await body.evaluate(el => el.scrollTop);
+        await suggestions.hover();
+        await page.mouse.wheel(0, 140);
+        await page.waitForFunction(() => document.querySelector('.quick-set-suggestions')?.scrollTop > 0);
+        assert.equal(await body.evaluate(el => el.scrollTop), parentScrollBefore, 'scrolling recent sets leaves content above in place');
+        assert.deepEqual(await page.evaluate(() => [scrollX, scrollY]), [0, 0], 'set scrolling never moves the page');
+      }
       await search.fill('eoe collector');
       const match = page.getByRole('option', { name: /EOE\) Collector Booster Pack$/ });
       await match.waitFor();
@@ -100,10 +126,10 @@ try {
       assert.ok(await page.evaluate(() => document.documentElement.scrollHeight <= innerHeight + 1), 'workspace stays within one screen');
       if (evidence) await page.screenshot({ path: join(evidence, `${job}-command-${width}.png`), animations: 'disabled' });
       if (job === 'buyer' && width === 1440) {
-        await page.getByRole('button', { name: 'Teams panel', exact: true }).click();
+        await page.getByRole('button', { name: 'Break panel', exact: true }).click();
         await page.getByRole('button', { name: 'Large break', exact: true }).click();
         await page.setViewportSize({ width: 390, height: 800 });
-        assert.equal(await search.isVisible(), true, 'removing Teams retains an available panel after resizing');
+        assert.equal(await search.isVisible(), true, 'the Break panel stays active after changing the break format and resizing');
         assert.equal(await page.getByRole('button', { name: 'Break panel', exact: true }).getAttribute('aria-pressed'), 'true');
       }
       assert.deepEqual(errors, []);

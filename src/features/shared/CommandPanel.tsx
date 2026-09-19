@@ -6,7 +6,7 @@ const Navigation = createContext<((id: string, target?: HTMLElement | "search") 
 export const useCommandNavigation = () => useContext(Navigation);
 
 /** One workspace, with mounted panels that retain their own input and disclosure state. */
-export function CommandPanel({ panels, children }: { panels: Panel[]; children: ReactNode }) {
+export function CommandPanel({ panels, children, actions }: { panels: Panel[]; children: ReactNode; actions?: ReactNode }) {
   const [active, setActive] = useState(panels[0].id);
   const activePanel = panels.some(panel => panel.id === active) ? active : panels[0].id;
   const root = useRef<HTMLDivElement>(null);
@@ -38,8 +38,9 @@ export function CommandPanel({ panels, children }: { panels: Panel[]; children: 
       const section = target?.closest<HTMLElement>("[data-command-panel]") ?? target?.querySelector<HTMLElement>("[data-command-panel]");
       if (section?.dataset.commandPanel && target) { event.preventDefault(); navigate(section.dataset.commandPanel, target); }
     }}>
-    <nav className="command-navigation" aria-label="Workspace panels">
+    <nav className="command-navigation" aria-label="Workspace controls">
       {panels.map((panel) => <button key={panel.id} type="button" data-viewport-navigation aria-label={`${panel.label} panel`} aria-controls={panel.target} aria-pressed={activePanel === panel.id} onClick={() => navigate(panel.id)}>{panel.label}</button>)}
+      {actions}
     </nav>
     <div className="command-body">{children}</div>
   </div></Navigation.Provider>;

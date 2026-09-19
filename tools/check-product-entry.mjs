@@ -29,17 +29,30 @@ try {
     await query.fill('');
     await query.blur();
     if (job === 'buyer') {
-      const heading = page.locator('.buyer-workspace-heading');
-      const assumptions = heading.getByRole('button', { name: 'Adjust assumptions' });
-      const bulk = heading.getByRole('switch', { name: 'Bulk filter' });
-      const boxes = await Promise.all([heading.locator('h1'), assumptions, bulk].map(el => el.boundingBox()));
-      assert.ok(boxes.every(b => b && b.x >= 0 && b.x + b.width <= width + 1), `header fits ${width}: ${JSON.stringify(boxes)}`);
-      assert.ok(Math.max(...boxes.map(b => b.y)) < Math.min(...boxes.map(b => b.y + b.height)), 'title and controls share a row');
-      assert.ok(boxes[0].x + boxes[0].width <= boxes[1].x, 'title and controls do not overlap');
+      const topbar = page.locator('.buyer-topbar');
+      const brand = topbar.locator('.wordmark');
+      const title = topbar.locator('h1');
+      const topBoxes = await Promise.all([brand, title].map(el => el.boundingBox()));
+      assert.ok(topBoxes.every(b => b && b.x >= 0 && b.x + b.width <= width + 1), `brand and task title fit ${width}: ${JSON.stringify(topBoxes)}`);
+      assert.ok(Math.max(...topBoxes.map(b => b.y)) < Math.min(...topBoxes.map(b => b.y + b.height)), 'brand and task title share a row');
+      assert.ok(topBoxes[0].x + topBoxes[0].width <= topBoxes[1].x, 'task title follows the brand without overlap');
+      assert.ok(topBoxes[1].height <= 20, `task title stays on one line: ${JSON.stringify(topBoxes[1])}`);
+      assert.equal(await title.evaluate(el => getComputedStyle(el).textTransform), 'uppercase');
+      const controls = page.locator('.command-navigation');
+      const assumptions = controls.getByRole('button', { name: 'Adjust assumptions' });
+      const bulk = controls.getByRole('switch', { name: 'Bulk filter' });
+      const controlBoxes = await Promise.all([
+        controls.getByRole('button', { name: 'Break panel' }),
+        controls.getByRole('button', { name: 'Decision panel' }),
+        assumptions,
+        bulk,
+      ].map(el => el.boundingBox()));
+      assert.ok(controlBoxes.every(b => b && b.x >= 0 && b.x + b.width <= width + 1), `break, decision and controls fit ${width}: ${JSON.stringify(controlBoxes)}`);
+      assert.ok(controlBoxes.every(b => Math.abs(b.y - controlBoxes[0].y) < 1), 'break, decision and controls share one row');
       const enabled = await bulk.getAttribute('aria-checked');
       await bulk.click();
       assert.equal(await bulk.getAttribute('aria-checked'), enabled === 'true' ? 'false' : 'true');
-      if (process.env.COLORBREAK_EVIDENCE_DIR) await heading.screenshot({ path: join(process.env.COLORBREAK_EVIDENCE_DIR, `buyer-header-${width}.png`) });
+      if (process.env.COLORBREAK_EVIDENCE_DIR) await page.screenshot({ path: join(process.env.COLORBREAK_EVIDENCE_DIR, `buyer-header-${width}.png`) });
       await assumptions.click();
       const panel = page.getByRole('dialog', { name: 'Assumptions', exact: true });
       await panel.getByRole('textbox', { name: 'Tax', exact: true }).fill('7');

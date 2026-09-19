@@ -63,5 +63,5 @@ export function suggestedSearchSets(sets: readonly ProductSearchSet[], currentSe
     .sort((a, b) => b.released.localeCompare(a.released));
   const byCode = new Map(sets.map((set) => [set.code, set]));
   const codes = [...new Set([...currentSets, ...recent.map((set) => set.code)])];
-  return codes.flatMap((code) => byCode.has(code) ? [byCode.get(code)!] : []).slice(0, 4);
+  return codes.flatMap((code) => byCode.has(code) ? [byCode.get(code)!] : []).slice(0, 24);
 }

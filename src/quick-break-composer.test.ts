@@ -29,6 +29,17 @@ beforeEach(() => {
 });
 
 describe("fast inline break composition", () => {
+  it("keeps product search and recent sets compact without losing accessible names", async () => {
+    render(createElement(Harness));
+    const search = screen.getByRole("combobox", { name: "Find a set or product" });
+    expect(search).toHaveAttribute("placeholder", "Find a set or product");
+    expect(screen.getByRole("heading", { name: "Add products" })).toBeInTheDocument();
+    expect(screen.queryByText("Recent sets")).toBeNull();
+    expect(screen.queryByText("Tap a match. Keep adding.")).toBeNull();
+    const recentSets = await screen.findByRole("group", { name: "Recent sets" });
+    expect(within(recentSets).getAllByRole("button")).toHaveLength(2);
+  });
+
   it("filters set buttons on the first character without waiting for product requests", async () => {
     render(createElement(Harness));
     await screen.findByRole("button", { name: "FIN Final Fantasy" });

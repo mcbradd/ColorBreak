@@ -54,7 +54,7 @@ describe("Check a Bid setup order", () => {
 
   afterEach(cleanup);
 
-  it("asks the format question first, then contents, then the slot", () => {
+  it("keeps the break setup compact and places slot selection in the Break panel", () => {
     const { container } = render(createElement(BuyerSetup, {
       ...baseProps,
       auction: createAuction(),
@@ -68,9 +68,9 @@ describe("Check a Bid setup order", () => {
     expect(directSections[1]).toHaveClass("quick-break-composer");
     expect(setup.querySelector(".buyer-team-panel .buyer-slot-control")).toBeInTheDocument();
     expect(directSections).toHaveLength(2);
-    expect(screen.getByText("1 · TYPE OF BREAK")).toBeInTheDocument();
-    expect(screen.getByText("2 · WHAT’S IN IT")).toBeInTheDocument();
-    expect(screen.getByText("3 · MY SLOTS")).toBeInTheDocument();
+    expect(screen.getByText("Break type")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Add products" })).toBeInTheDocument();
+    expect(screen.queryByText(/\d+ ·/)).not.toBeInTheDocument();
     expect(screen.queryByText("Adjust assumptions")).not.toBeInTheDocument();
   });
 
@@ -85,7 +85,7 @@ describe("Check a Bid setup order", () => {
 
     // The format question is the whole point of leading with it: a buyer
     // looking for a large break must not have to build a break to find it.
-    expect(screen.getByRole("group", { name: "Type of break" })).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Break type" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Color slots" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByRole("button", { name: "Large break" })).toHaveAttribute("aria-pressed", "false");
     expect(screen.queryByRole("group", { name: "Color slots" })).toBeNull();
@@ -124,8 +124,7 @@ describe("Check a Bid setup order", () => {
     expect(screen.getByRole("button", { name: "Large break" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByLabelText("Large break spot count")).toHaveValue("120");
     // Large breaks omit slots; assumptions live in the workspace header.
-    expect(screen.queryByText("3 · MY SLOTS")).toBeNull();
-    expect(screen.queryByText("3 · MY COSTS")).toBeNull();
+    expect(screen.queryByText(/\d+ ·/)).toBeNull();
     expect(screen.queryByRole("group", { name: "Color slots" })).toBeNull();
   });
 
@@ -146,7 +145,7 @@ describe("Check a Bid setup order", () => {
       selectedSlots: ["W"],
     }));
     expect(screen.getByText("Play Booster Box")).toBeInTheDocument();
-    expect(screen.getByText("2 · WHAT’S IN IT")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Add products" })).toBeInTheDocument();
   });
 
   it("names the color-slot choices a large break cannot use instead of dropping them silently", () => {

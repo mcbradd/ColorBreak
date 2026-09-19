@@ -18,7 +18,7 @@ beforeEach(() => {
 it.each(["buyer", "seller"])("lets a %s add consecutive products with one selection each on the working screen", async (job) => {
   history.replaceState(null, "", `/#${job}`);
   render(createElement(App));
-  const search = await screen.findByRole("combobox", { name: "Find a set and product" });
+  const search = await screen.findByRole("combobox", { name: "Find a set or product" });
   fireEvent.input(search, { target: { value: "eoe collector" } });
   fireEvent.click(await screen.findByRole("option", { name: "Add Edge of Eternities (EOE) Collector Booster Pack" }));
   expect(search).toHaveValue("");

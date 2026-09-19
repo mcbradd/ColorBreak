@@ -301,13 +301,14 @@ export function BuyerWorkspace({
   };
   return (
     <>
-      <nav>
+      <nav className="buyer-topbar">
         <button className="wordmark" onClick={exit}>
           <span className="brand-mark">
             <Sparkles />
           </span>
           COLORBREAK
         </button>
+        <h1 className="buyer-topbar-title">{assignmentMode === "large" ? "Large break" : "Check a bid"}</h1>
         <div className="nav-actions">
           {lines.length > 0 && <button
             className="icon-button share-break"
@@ -360,17 +361,14 @@ export function BuyerWorkspace({
       </aside>}
       {toast}
       <AnswerProvider value={analysis ? answerFactors(analysis.valuation, analysis.outcomeModel.complete, busy, analysis.outcomeOmissions) : []}><main className="workspace page command-workspace" tabIndex={-1} data-focus-fallback>
-        <header className="workspace-title buyer-workspace-heading">
-          <div>
-            <h1>{assignmentMode === "large" ? "Large break" : "Check a bid"}</h1>
-          </div>
-          <BuyerAssumptions costs={costSettings} bulkEnabled={bulkEnabled} bulkThreshold={bulkThreshold} setBulkEnabled={setBulkEnabled} setBulkThreshold={setBulkThreshold} result={analysis?.valuation} open={assumptionsOpen} onOpenChange={setAssumptionsOpen} opener={assumptionsOpener} onOpen={() => setAssumptionsOpener(null)} />
-        </header>
         {isSharedBreak && lines.length > 0 && <aside className="shared-calculation-notice" aria-label="Shared calculation details">
           <Lock />
           <span><b>SHARED CALCULATION · USD · MODEL v4</b><small>Editing updates this break link · {lines.length} products / {lines.reduce((total, line) => total + line.quantity * Math.max(1, line.packCount ?? 1), 0)} openings · Prices observed {analysis?.priceAvailability?.observedAt ? new Date(analysis.priceAvailability.observedAt).toLocaleString() : "loading"}</small></span>
         </aside>}
-        <CommandPanel panels={[{ id: "products", label: "Break", target: "buyer-products" }, ...(lines.length && assignmentMode !== "large" ? [{ id: "teams", label: "Teams", target: "buyer-teams" }] : []), { id: "decision", label: "Decision", target: "buyer-large-result" }]}>
+        <CommandPanel
+          panels={[{ id: "products", label: "Break", target: "buyer-products" }, { id: "decision", label: "Decision", target: "buyer-large-result" }]}
+          actions={<BuyerAssumptions costs={costSettings} bulkEnabled={bulkEnabled} bulkThreshold={bulkThreshold} setBulkEnabled={setBulkEnabled} setBulkThreshold={setBulkThreshold} result={analysis?.valuation} open={assumptionsOpen} onOpenChange={setAssumptionsOpen} opener={assumptionsOpener} onOpen={() => setAssumptionsOpener(null)} />}
+        >
           <div className={`bid-check-workbench ${lines.length ? "has-break" : "is-empty"}`}>
             <BuyerSetup
               lines={lines}

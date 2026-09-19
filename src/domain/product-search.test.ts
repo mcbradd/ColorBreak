@@ -33,4 +33,12 @@ describe("combined product search", () => {
     expect(rankSearchSets(sets, "TRK collector")[0].code).toBe("TRK");
     expect(suggestedSearchSets(sets, ["FIN", "EOE", "FIN"], "2026-01-01").map((row) => row.code)).toEqual(["FIN", "EOE", "MSH", "DSK"]);
   });
+
+  it("offers enough recent sets to fill a scrollable mobile tile list", () => {
+    const manySets = Array.from({ length: 32 }, (_, index) => set(`S${index}`, `Set ${index}`, `2026-01-${String(index + 1).padStart(2, "0")}`));
+    const suggestions = suggestedSearchSets(manySets, ["S0"], "2026-12-31");
+    expect(suggestions).toHaveLength(24);
+    expect(suggestions[0].code).toBe("S0");
+    expect(suggestions[1].code).toBe("S31");
+  });
 });

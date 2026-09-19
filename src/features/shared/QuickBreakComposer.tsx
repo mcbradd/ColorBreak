@@ -4,7 +4,7 @@ import { loadProductSearchIndex, quickProductsForSet } from "../../data/product-
 import { breakLineKey, breakLineKeyForChoice, mergeBreakLines, productKeyForChoice } from "../../domain/break-line-identity";
 import { matchingProducts, matchingSets, rankSearchSets, suggestedSearchSets, type ProductSearchSet } from "../../domain/product-search";
 import type { BreakLine, ProductChoice } from "../../domain/types";
-import { InformationLabel, fmt } from "./Primitives";
+import { fmt } from "./Primitives";
 import { QuantityControl } from "./QuantityControl";
 import { InformationButton } from "./InformationLayer";
 import { AnswerValue } from "./Answer";
@@ -13,11 +13,10 @@ interface QuickBreakComposerProps {
   lines: BreakLine[];
   onChange: (lines: BreakLine[]) => void;
   onImport: (opener?: HTMLElement) => void;
-  headingLabel?: string;
 }
 
 /** The working break is updated on every tap, without a draft/apply boundary. */
-export function QuickBreakComposer({ lines, onChange, onImport, headingLabel = "1 · Break contents" }: QuickBreakComposerProps) {
+export function QuickBreakComposer({ lines, onChange, onImport }: QuickBreakComposerProps) {
   const id = useId();
   const inputRef = useRef<HTMLInputElement>(null);
   const linesRef = useRef(lines);
@@ -152,24 +151,21 @@ export function QuickBreakComposer({ lines, onChange, onImport, headingLabel = "
   return (
     <section className="quick-break-composer" aria-labelledby={`${id}-heading`}>
       <div className="quick-composer-heading">
-        <div><InformationLabel>{headingLabel}</InformationLabel><h2 id={`${id}-heading`}>Add products</h2></div>
+        <h2 id={`${id}-heading`}>Add products</h2>
         <button type="button" className="quick-import-button" aria-label="Paste / screenshot" aria-haspopup="dialog" title="Import a product list, break link or screenshot" onClick={(event) => onImport(event.currentTarget)}>Import</button>
       </div>
-      <label className="quick-search-label" htmlFor={`${id}-search`}>Find a set and product</label>
       <div className="quick-search-field">
         <Search size={19} aria-hidden="true" />
         <input ref={inputRef} id={`${id}-search`} type="search" role="combobox" autoComplete="off"
-          placeholder="Set or product…" defaultValue=""
+          aria-label="Find a set or product" placeholder="Find a set or product" defaultValue=""
           aria-autocomplete="list" aria-expanded={results.length > 0} aria-controls={isSearching ? `${id}-results` : undefined}
           aria-activedescendant={results.length ? `${id}-option-${Math.min(active, results.length - 1)}` : undefined}
-          aria-describedby={`${id}-hint`} onInput={(event) => changeQuery(event.currentTarget.value)} onKeyDown={onSearchKeyDown} />
+          onInput={(event) => changeQuery(event.currentTarget.value)} onKeyDown={onSearchKeyDown} />
         {query && <button type="button" aria-label="Clear product search" onClick={() => { changeQuery(""); inputRef.current?.focus(); }}><X size={17} aria-hidden="true" /></button>}
       </div>
-      <p className="quick-search-hint" id={`${id}-hint`}>Tap a match. Keep adding.</p>
       {indexError ? <div className="quick-composer-error" role="alert">The catalog could not load. <button type="button" onClick={() => setRetry((value) => value + 1)}>Retry catalog</button></div>
         : indexLoading ? <p className="quick-composer-status" role="status">Loading product catalog…</p>
-          : !isSearching ? <div className={`quick-set-suggestions${lines.length ? " has-lines" : ""}`} aria-label="Suggested sets">
-            <span>{lines.length ? "Continue with" : "Recent sets"}</span>
+          : !isSearching ? <div className={`quick-set-suggestions${lines.length ? " has-lines" : ""}`} role="group" aria-label="Recent sets">
             {suggestions.map((set) => <button type="button" key={set.code} onClick={() => { changeQuery(`${set.code} `); inputRef.current?.focus(); }}><b>{set.code}</b> <span>{set.name}</span></button>)}
           </div> : null}
       {isSearching && !indexError && <div className="quick-search-results-wrap">

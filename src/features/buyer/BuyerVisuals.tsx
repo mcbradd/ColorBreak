@@ -79,7 +79,7 @@ export function BreakFormatChoice({
   largeSpots,
   setLargeSpots,
   takenSlots = [],
-  stepLabel = "1 · TYPE OF BREAK",
+  stepLabel = "Break type",
 }: {
   assignmentMode: AssignmentMode;
   setAssignmentMode: (mode: AssignmentMode) => void;
@@ -91,7 +91,7 @@ export function BreakFormatChoice({
 }) {
   const isLarge = assignmentMode === "large";
   return (
-    <section className="break-format-choice" aria-label="Type of break">
+    <section className="break-format-choice" aria-label="Break type">
       <div className="step-heading">
         <InformationLabel>{stepLabel}</InformationLabel>
         <Tip
@@ -99,7 +99,7 @@ export function BreakFormatChoice({
           text="Color slots: one slot per color, the standard prize wheel. Large break: many random spots, usually 100–200. Sellers change this between auctions, so match the listing."
         />
       </div>
-      <div className="break-format-options" role="group" aria-label="Type of break">
+      <div className="break-format-options" role="group" aria-label="Break type">
         <button
           type="button"
           aria-pressed={!isLarge}
@@ -121,7 +121,7 @@ export function BreakFormatChoice({
       </div>
       {isLarge && <>
         <div className="large-break-spot-input">
-          <div className="large-break-spot-label"><span>Random spots</span><Tip label="What the spot count means" text="How many random spots the seller is selling. Usually 100–200. 17 are catch-all spots; the rest use top-value cards, with characters grouped by name." /></div>
+          <div className="large-break-spot-label"><span className="large-break-spot-label-text">Random spots</span><Tip label="What the spot count means" text="How many random spots the seller is selling. Usually 100–200. 17 are catch-all spots; the rest use top-value cards, with characters grouped by name." /></div>
           <NumericInput value={largeSpots} onCommit={(value) => setLargeSpots(Math.max(1, Math.min(500, Math.round(value ?? 1))))} ariaLabel="Large break spot count" live />
         </div>
         <FormatCarryOverNotice selectedSlots={selectedSlots} takenSlots={takenSlots} />
@@ -213,7 +213,7 @@ export function SlotRail({
   selectedSlots,
   setSelectedSlots,
   distributions,
-  stepLabel = "3 · MY SLOTS",
+  stepLabel = "My slots",
 }: {
   result?: ValuationResult;
   auction: AuctionState;

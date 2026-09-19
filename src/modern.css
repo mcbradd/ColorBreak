@@ -434,9 +434,10 @@ body {
   border: 1px solid var(--line-strong);
   background: #0c0f13;
 }
-.large-break-spot-label span,
+.large-break-spot-label { display: flex; align-items: center; gap: 2px; min-width: 0; }
+.large-break-spot-label .large-break-spot-label-text { flex: 0 1 auto; font-size: 12px; font-weight: 800; }
+.large-break-spot-label > .tip { display: inline-flex; flex: 0 0 32px; align-items: center; justify-content: center; width: 32px; height: 32px; margin: 0; }
 .large-break-spot-label small { display: block; }
-.large-break-spot-label span { font-size: 12px; font-weight: 800; }
 .large-break-spot-label small { margin-top: 4px; color: var(--muted); font-size: 9px; }
 .large-break-spot-input .numeric-input { min-width: 0; }
 .large-break-spot-input input { font-size: 20px; text-align: right; }

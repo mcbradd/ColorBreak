@@ -58,11 +58,10 @@ export function BuyerSetup({
         lines={lines}
         onChange={onChange}
         onImport={onImport}
-        headingLabel="2 · WHAT’S IN IT"
       />
 
       </div>
-      {lines.length > 0 && !isLarge && <div id="buyer-teams" className="buyer-team-panel" data-command-panel="teams" tabIndex={-1}><SlotRail
+      {lines.length > 0 && !isLarge && <div id="buyer-teams" className="buyer-team-panel" data-command-panel="products" tabIndex={-1}><SlotRail
         result={result}
         auction={auction}
         setAuction={setAuction}

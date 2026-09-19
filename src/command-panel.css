@@ -11,9 +11,12 @@
 .command-workspace .workspace-title h1 { font-size: clamp(28px, 3vw, 42px) !important; text-transform: none; }
 .command-workspace .bid-live-decision .verdict-decision h2 { font-size: 20px !important; }
 .command-workspace .bid-live-decision .verdict-decision .max-hammer { display: block; font-size: clamp(40px, 10vw, 64px) !important; line-height: 1.1; color: var(--accent); margin-block: 8px; font-variant-numeric: tabular-nums; }
-.command-navigation { display: flex; gap: 8px; padding: 0 0 12px; margin: 0; border: 0; height: auto; min-height: 0; position: static; background: none; }
-.command-navigation button { flex: 1; min-height: 48px; border: 1px solid var(--line); background: var(--panel); color: var(--muted); font: inherit; font-weight: 700; }
-.command-navigation button[aria-pressed="true"] { color: var(--accent-ink); background: var(--accent); border-color: var(--accent); }
+.command-navigation { display: flex; align-items: stretch; gap: 8px; padding: 0 0 12px; margin: 0; border: 0; height: auto; min-height: 0; position: static; background: none; }
+.command-navigation > button { flex: 1 1 0; min-width: 0; min-height: 48px; border: 1px solid var(--line); background: var(--panel); color: var(--muted); font: inherit; font-weight: 700; }
+.command-navigation > button[aria-pressed="true"] { color: var(--accent-ink); background: var(--accent); border-color: var(--accent); }
+.command-navigation > .buyer-header-actions { flex: 0 0 auto; align-self: stretch; }
+.command-navigation > .buyer-header-actions > button { flex: 0 0 48px; width: 48px; }
+.command-navigation > .buyer-header-actions > .buyer-header-bulk { flex-basis: 70px; width: 70px; }
 .buyer-entry-panel { display: grid; gap: 16px; min-width: 0; }
 .buyer-team-panel { min-width: 0; }
 [data-command-panel][tabindex="-1"]:focus { outline: none; }
@@ -33,13 +36,20 @@
 @media (max-width: 899px) {
   #root > div:has(> .command-workspace) > nav { padding-left: max(12px, var(--safe-left)); padding-right: max(12px, var(--safe-right)); padding-top: var(--safe-top); min-height: calc(52px + var(--safe-top)); }
   .command-workspace.workspace.page { padding-left: max(12px, var(--safe-left)); padding-right: max(12px, var(--safe-right)); padding-bottom: calc(var(--command-dock-height, 0px) + 12px); }
-  .command-workspace .workspace-title { margin: 10px 0; }
-  .command-workspace .workspace-title h1 { font-size: 26px !important; }
-  .command-workspace .workspace-title .eyebrow { display: none !important; }
+  .buyer-topbar { justify-content: space-between; gap: 8px; }
+  .buyer-topbar .wordmark { gap: 7px; font-size: clamp(11px, 3.6vw, 14px) !important; white-space: nowrap; }
+  .buyer-topbar .brand-mark { flex: 0 0 26px; width: 26px; height: 26px; }
+  .buyer-topbar-title { font-size: clamp(11px, 3.6vw, 14px); }
+  .buyer-topbar .share-break { width: 40px; min-width: 40px; padding: 0; justify-content: center; }
+  .buyer-topbar .share-break span { display: none; }
   .command-navigation { gap: 6px; }
+  .command-navigation > .buyer-header-actions { gap: 4px; }
+  .command-navigation > .buyer-header-actions > button { flex-basis: 44px; width: 44px; padding: 8px; }
+  .command-navigation > .buyer-header-actions > .buyer-header-bulk { flex-basis: 60px; width: 60px; gap: 4px; padding-inline: 5px; }
+  .command-navigation > .buyer-header-actions > .buyer-header-bulk span { font-size: 12px !important; }
+  .command-navigation > .buyer-header-actions > .buyer-header-bulk svg { width: 16px; height: 16px; }
   .command-body { max-height: calc(var(--visual-viewport-height, 100dvh) - 280px); min-height: 160px; overflow-x: hidden; overflow-y: auto; overscroll-behavior-y: contain; padding-bottom: 12px; }
   .command-panels[data-active-panel="products"] [data-command-panel]:not([data-command-panel="products"]),
-  .command-panels[data-active-panel="teams"] [data-command-panel]:not([data-command-panel="teams"]),
   .command-panels[data-active-panel="decision"] [data-command-panel]:not([data-command-panel="decision"]),
   .command-panels[data-active-panel="values"] [data-command-panel]:not([data-command-panel="values"]),
   .command-panels[data-active-panel="plan"] [data-command-panel]:not([data-command-panel="plan"]) { display: none !important; }
@@ -48,6 +58,35 @@
   .command-workspace .break-format-choice { padding: 0; border: 0; }
   .command-workspace .break-format-heading h2 { display: none; }
   .command-workspace .break-format-options { margin-top: 8px; }
+  .command-workspace:not(.seller-fast) .quick-set-suggestions:not(.has-lines) {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-auto-rows: minmax(68px, auto);
+    gap: 6px;
+    height: 156px;
+    max-height: min(156px, 24dvh);
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    overflow-anchor: none;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    touch-action: pan-y;
+  }
+  .command-workspace:not(.seller-fast) .quick-set-suggestions:not(.has-lines)::-webkit-scrollbar { display: none; }
+  .command-workspace:not(.seller-fast) .quick-set-suggestions:not(.has-lines) > button {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-content: center;
+    gap: 2px;
+    width: auto;
+    min-width: 0;
+    min-height: 68px;
+    padding: 5px 6px;
+    overflow-wrap: anywhere;
+  }
+  .command-workspace:not(.seller-fast) .quick-set-suggestions:not(.has-lines) > button b { margin: 0; }
+  .command-workspace:not(.seller-fast) .quick-set-suggestions:not(.has-lines) > button span { display: block; min-width: 0; line-height: 1.15; }
   .command-dock.seller-value-dock { position: fixed; left: 0; right: 0; top: calc(var(--visual-viewport-top, 0px) + var(--visual-viewport-height, 100dvh)); bottom: auto; transform: translateY(-100%); z-index: 40; border-top: 2px solid var(--accent); background: var(--panel-raised); display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 8px max(12px, var(--safe-right)) calc(8px + var(--safe-bottom)) max(12px, var(--safe-left)); gap: 4px 12px; }
   .command-dock.seller-value-dock > button { display: grid; gap: 2px; text-align: left; background: transparent; color: var(--ink); padding: 0; min-width: 0; }
   .command-dock.seller-value-dock > button b { color: var(--accent); }
@@ -60,10 +99,12 @@
   .keyboard-open .command-dock.seller-value-dock { padding-block: 6px; }
 }
 
-/* Buyer controls stay beside the title, including the narrowest phone. */
-.command-workspace .buyer-workspace-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.buyer-workspace-heading > div:first-child { min-width: 0; }
-.command-workspace .buyer-workspace-heading h1 { font-size: clamp(22px, 6vw, 42px) !important; white-space: nowrap; margin: 0; }
+/* The buyer task shares the brand row; its controls share the panel tabs. */
+.buyer-topbar { gap: 8px; }
+.buyer-topbar .wordmark { flex: 0 0 auto; white-space: nowrap; }
+.buyer-topbar-title { flex: 1 1 auto; min-width: 0; margin: 0; color: var(--purple); font: 800 clamp(11px, 3.6vw, 14px)/1 Manrope, sans-serif; letter-spacing: .12em; text-align: right; text-transform: uppercase; white-space: nowrap; }
+.command-workspace:not(.seller-fast) .quick-composer-heading { align-items: center; margin-bottom: 8px; }
+.command-workspace:not(.seller-fast) .quick-composer-heading h2 { margin: 0; font-size: 20px; }
 .buyer-header-actions { display: flex; align-items: center; flex: none; gap: 6px; }
 .buyer-header-actions > button { display: flex; align-items: center; justify-content: center; gap: 5px; min-height: 48px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); color: var(--ink); padding: 8px; }
 .buyer-header-actions .buyer-assumptions-button { width: 48px; padding: 10px; }
