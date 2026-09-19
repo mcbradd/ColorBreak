@@ -11,3 +11,4 @@ coverage/
 .preview*.log
 .preview*.err
 public/ocr/
+/data/prices/*.json

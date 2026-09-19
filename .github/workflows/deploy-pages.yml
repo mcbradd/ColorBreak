@@ -33,7 +33,7 @@ jobs:
         run: npm run data:prices
       - name: Refresh the sealed-product price snapshot for the 36-hour freshness gate
         run: npm run data:sealed-prices
-      - name: Verify committed price snapshots
+      - name: Verify generated price snapshots
         run: npm run check:prices && npm run check:sealed-prices
       - name: Test and build
         run: npm run check

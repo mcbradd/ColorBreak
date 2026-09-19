@@ -2,7 +2,7 @@
 
 ## Reproducible releases
 
-Price snapshots are committed release inputs. The Pages workflow verifies them but never regenerates them, so the deployed artifact is traceable to the commit and its release manifest. Refresh snapshots in a dedicated commit before release; the app shows a bid ceiling only when its exact-printing snapshot is current.
+Scryfall price snapshots are generated local data and are not committed. Run `npm run data:prices` to create them for local development; the Pages workflow regenerates and validates them before building. The app shows a bid ceiling only when its exact-printing snapshot is current.
 
 ColorBreak is a mobile-first planner for Magic: The Gathering color breaks. Build the exact products, compare color outcomes, and set a modeled bid ceiling or seller plan.
 
@@ -33,7 +33,7 @@ npm run check
 
 - `data/sealed/*.json`: normalized MTGJSON sealed products and collation.
 - `data/corrections.json`: narrowly scoped, sourced product corrections. This layer is authoritative over upstream sealed metadata.
-- `data/prices/*.json`: a compact, timestamped Scryfall bulk-data snapshot containing only exact printings referenced by the normalized corpus. It is refreshed in a separately reviewed commit; deployment only verifies that committed input.
+- `data/prices/*.json`: ignored, generated Scryfall snapshots containing only exact printings referenced by the normalized corpus. They are refreshed locally or during deployment and should not be committed.
 - There is no live-price repair path in the picker. A snapshot miss remains visible and prevents a ceiling until the next data refresh.
 - tcgcsv: best-effort sealed market cost. The seller can always enter actual cost.
 
