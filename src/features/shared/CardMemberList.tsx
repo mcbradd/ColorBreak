@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowDown, ArrowUp, Search } from "lucide-react";
+import { ArrowDown, ArrowUp, CreditCard, DollarSign, Percent, Search, TrendingUp } from "lucide-react";
 import { cardDisplayName, cardTreatmentLabel } from "../../domain/card-label";
 import { resolveCardPrice } from "../../domain/card-price";
 import type { Contributor, Finish } from "../../domain/types";
@@ -69,12 +69,13 @@ export function CardMemberList({
 
   if (!rows.length) return <p className="no-contributors">{emptyMessage}</p>;
 
-  const headers: Array<{ key: SortKey; label: string }> = [
+  const headers: Array<{ key: SortKey; label: string; title?: string }> = [
     { key: "name", label: "Card" },
-    { key: "price", label: "Price" },
-    { key: "chance", label: "Chance" },
-    { key: "adds", label: "Adds" },
+    { key: "price", label: "Price", title: "Market price" },
+    { key: "chance", label: "Chance", title: "Pull chance" },
+    { key: "adds", label: "Adds", title: "Value added to average" },
   ];
+  const columnIcons = { name: CreditCard, price: DollarSign, chance: Percent, adds: TrendingUp };
 
   return <AnswerGroup><div className="card-member-list">
     <div className="card-member-toolbar">{rows.length > PAGE_SIZE && <label className="card-member-search">
@@ -85,14 +86,20 @@ export function CardMemberList({
       <Tip label="What Chance and Adds mean" text={"Chance: how often at least one copy of this exact card version turns up when this break is opened.\n\nAdds: how much that card contributes to the group's average value, which is its price multiplied by the average number of copies opened."} />
       <AnswerNote primary label="What affects these card values" detail="Prices apply to the selected printing and finish. Chance and Adds use available pack rules; missing prices and estimated odds can change these values." />
     </span></div>
-    <div className="card-member-scroll" role="region" aria-label={`Scrollable cards in ${groupName}`} tabIndex={0}>
+    <div className="card-member-list-body">
     <div className="card-member-table" role="table" aria-label={`Cards in ${groupName}`}>
       <div className="card-member-columns" role="row">
-        {headers.map(({ key, label }) => <div role="columnheader" key={key} aria-sort={sort.key === key ? sort.direction === "asc" ? "ascending" : "descending" : "none"}>
-          <button type="button" onClick={() => toggleSort(key)} aria-label={`Sort by ${label}${sort.key === key ? `, currently ${sort.direction === "asc" ? "ascending" : "descending"}` : ""}`}>
-            {label}{sort.key === key && (sort.direction === "asc" ? <ArrowUp aria-hidden="true" /> : <ArrowDown aria-hidden="true" />)}
-          </button>
-        </div>)}
+        {headers.map(({ key, label, title }) => {
+          const fullLabel = title ?? label;
+          const Icon = columnIcons[key];
+          return <div role="columnheader" key={key} aria-sort={sort.key === key ? sort.direction === "asc" ? "ascending" : "descending" : "none"}>
+            <button type="button" title={fullLabel} onClick={() => toggleSort(key)} aria-label={`Sort by ${label}${sort.key === key ? `, currently ${sort.direction === "asc" ? "ascending" : "descending"}` : ""}`}>
+              {Icon && <Icon className="card-member-column-icon" aria-hidden="true" />}
+              <span className="card-member-column-label">{label}</span>
+              {sort.key === key && (sort.direction === "asc" ? <ArrowUp aria-hidden="true" /> : <ArrowDown aria-hidden="true" />)}
+            </button>
+          </div>;
+        })}
       </div>
       {matches.slice(0, shown).map((row) => {
         const price = marketPrice(row);

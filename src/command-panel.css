@@ -19,13 +19,13 @@
 [data-command-panel][tabindex="-1"]:focus { outline: none; }
 .command-workspace .quick-break-line { display: grid; grid-template-columns: minmax(0, 1fr) 156px; gap: 10px; }
 .command-workspace .quick-line-identity { min-width: 0; }
-.command-workspace .quick-break-lines { max-height: 280px; overflow: auto; overscroll-behavior: contain; }
+.command-workspace .quick-break-lines { max-height: 280px; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; }
 .command-workspace .quick-set-suggestions.has-lines { display: none; }
 .command-workspace .quick-search-hint { margin-bottom: 10px; }
 .command-workspace .quick-break-contents:has(.quick-contents-empty) { display: none; }
 .command-dock.seller-value-dock { display: none; }
 @media (min-width: 900px) {
-  .command-body { max-height: calc(100dvh - 210px); overflow: auto; scrollbar-gutter: stable; }
+  .command-body { max-height: calc(100dvh - 210px); overflow-x: hidden; overflow-y: auto; scrollbar-gutter: stable; }
   .command-workspace .bid-check-workbench { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; }
   .command-workspace .buyer-results { position: sticky; top: 0; }
   .command-workspace .buyer-setup { display: grid; gap: 20px; }
@@ -37,7 +37,7 @@
   .command-workspace .workspace-title h1 { font-size: 26px !important; }
   .command-workspace .workspace-title .eyebrow { display: none !important; }
   .command-navigation { gap: 6px; }
-  .command-body { max-height: calc(var(--visual-viewport-height, 100dvh) - 280px); min-height: 160px; overflow: auto; overscroll-behavior-y: contain; padding-bottom: 12px; }
+  .command-body { max-height: calc(var(--visual-viewport-height, 100dvh) - 280px); min-height: 160px; overflow-x: hidden; overflow-y: auto; overscroll-behavior-y: contain; padding-bottom: 12px; }
   .command-panels[data-active-panel="products"] [data-command-panel]:not([data-command-panel="products"]),
   .command-panels[data-active-panel="teams"] [data-command-panel]:not([data-command-panel="teams"]),
   .command-panels[data-active-panel="decision"] [data-command-panel]:not([data-command-panel="decision"]),

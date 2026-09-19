@@ -11,8 +11,8 @@ html:has(.command-workspace), body:has(.command-workspace) { overflow: hidden; o
 .product-entry-frame > :is(.choice-list, .product-groups, .import-review, .break-import) { position: relative; flex: 1; min-height: 0; margin-block: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; touch-action: pan-y; }
 .product-entry-frame .choice-list { padding-inline: max(12px, var(--safe-left)) max(12px, var(--safe-right)); }
 .product-entry-frame > .composer-actions { padding: 8px max(12px, var(--safe-right)) max(8px, var(--safe-bottom)) max(12px, var(--safe-left)); }
-.product-entry-frame > .composer-status { position: static; flex: none; max-height: 100px; overflow: auto; }
-.quick-set-matches { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; max-height: 160px; overflow: auto; overscroll-behavior: contain; margin-bottom: 8px; }
+.product-entry-frame > .composer-status { position: static; flex: none; max-height: 100px; overflow-x: hidden; overflow-y: auto; overflow-wrap: anywhere; }
+.quick-set-matches { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; max-height: 160px; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; margin-bottom: 8px; }
 .quick-set-matches > button { display: grid; gap: 3px; min-width: 0; min-height: 48px; padding: 8px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); text-align: left; }
 .quick-set-matches b { color: var(--accent); }
 .quick-set-matches span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

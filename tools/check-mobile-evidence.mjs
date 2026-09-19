@@ -70,10 +70,14 @@ try {
       await header.getByRole('button').click();
       const direction = previous === 'descending' || (previous === 'none' && column === 'Card') ? 'ascending' : 'descending';
       assert.equal(await header.getAttribute('aria-sort'), direction);
-      assert.equal(await header.locator('svg').count(), 1);
+      assert.equal(await header.locator('.card-member-column-icon').count(), 1);
+      assert.equal(await header.locator('svg:not(.card-member-column-icon)').count(), 1);
       await header.getByRole('button').click();
       assert.equal(await header.getAttribute('aria-sort'), direction === 'ascending' ? 'descending' : 'ascending');
     }
+    assert.deepEqual(await team.locator('.card-member-columns button').evaluateAll(buttons => buttons.map(button => button.title)), [
+      'Card', 'Market price', 'Pull chance', 'Value added to average',
+    ]);
     const teamThumbnail = team.locator('.card-member-thumbnail-button').first();
     await teamThumbnail.click();
     const fullPage = page.getByRole('dialog');
@@ -114,24 +118,20 @@ try {
     await page.keyboard.press('Escape');
     const overlaps = await page.locator('.slot-detail .card-member-columns, .slot-detail .card-member-row').evaluateAll(rows => rows.some(row => {
       const cells = [...row.children].filter(el => getComputedStyle(el).display !== 'none');
-      return cells.some((el, i) => i && el.getBoundingClientRect().left < cells[i - 1].getBoundingClientRect().right - 1);
+      return cells.some((el, i) => cells.slice(i + 1).some(other => {
+        const a = el.getBoundingClientRect(); const b = other.getBoundingClientRect();
+        return a.left < b.right - 1 && a.right > b.left + 1 && a.top < b.bottom - 1 && a.bottom > b.top + 1;
+      }));
     }));
-    assert.equal(overlaps, false, 'card-list columns never overlap');
+    assert.equal(overlaps, false, 'card-list cells never overlap');
     if (width < 700) {
       const fontSizes = await page.locator('.slot-detail .card-member-columns button, .slot-detail .card-member-name strong, .slot-detail .card-member-row > span').evaluateAll(elements => elements.map(el => parseFloat(getComputedStyle(el).fontSize)));
       assert.ok(fontSizes.every(size => size >= 17), `phone table respects readable text size: ${fontSizes}`);
-      const scrollport = page.locator('.slot-detail .card-member-scroll');
-      await scrollport.evaluate(el => { el.scrollLeft = el.scrollWidth; });
-      assert.ok(await scrollport.evaluate(el => el.scrollLeft > 0), 'columns scroll inside their panel');
-      await scrollport.evaluate(el => { el.scrollLeft = 0; });
     }
-    const overflowingLabels = await page.locator('.slot-detail .card-member-columns > div').evaluateAll(cells => cells.flatMap(cell => {
-      const range = document.createRange(); range.selectNodeContents(cell);
-      const text = range.getBoundingClientRect(); const box = cell.getBoundingClientRect();
-      return text.left < box.left - 1 || text.right > box.right + 1 ? [{ label: cell.textContent, text: { left: text.left, right: text.right }, box: { left: box.left, right: box.right } }] : [];
-    }));
+    const memberTableWidth = await page.locator('.slot-detail .card-member-table').evaluate(table => ({ client: table.clientWidth, content: table.scrollWidth }));
+    assert.ok(memberTableWidth.content <= memberTableWidth.client + 1, `card list fits without horizontal scrolling: ${JSON.stringify(memberTableWidth)}`);
+    assert.equal(await page.locator('.slot-detail .card-member-scroll').count(), 0, 'card list has no horizontal scroll container');
     if (evidenceDir) await page.locator('.slot-detail').screenshot({ path: join(evidenceDir, `value-details-${width}.png`) });
-    assert.deepEqual(overflowingLabels, [], 'Chance and Adds text fits its column');
     await page.locator('.slot-detail .card-member-thumbnail-button').first().click();
     const dialog = page.getByRole('dialog', { name: /./ });
     await dialog.waitFor();
