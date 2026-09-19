@@ -1,5 +1,5 @@
 import { createElement } from "react";
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 const catalogSets = vi.hoisted(() => vi.fn().mockResolvedValue([
@@ -28,6 +28,13 @@ vi.mock("./data/scryfall", () => ({ refreshPublishedPrices }));
 
 import { Builder } from "./features/shared/ProductBuilder";
 
+async function requestRefresh() {
+  // The label can render while product preparation is still settling. A real
+  // user cannot activate a disabled control, so wait for the actionable state.
+  await waitFor(() => expect(screen.getByRole("button", { name: /Refresh now/ })).toBeEnabled());
+  fireEvent.click(screen.getByRole("button", { name: /Refresh now/ }));
+}
+
 describe("Add to Break product picker", () => {
   it("puts one optional estimate refresh action in the fixed picker header instead of repeating freshness on each product", async () => {
     render(createElement(Builder, { open: true, onClose: vi.fn(), lines: [], onApply: vi.fn() }));
@@ -45,7 +52,7 @@ describe("Add to Break product picker", () => {
     expect(screen.getAllByRole("button", { name: "Estimates may be outdated. Refresh now" })).toHaveLength(1);
 
     const initialCalls = prepareProductSelection.mock.calls.length;
-    fireEvent.click(screen.getByRole("button", { name: "Estimates may be outdated. Refresh now" }));
+    await requestRefresh();
     expect(screen.getByRole("button", { name: /Searching/ })).toHaveTextContent("Searching…");
     await vi.waitFor(() => expect(prepareProductSelection.mock.calls.length).toBeGreaterThan(initialCalls));
   });
@@ -56,7 +63,7 @@ describe("Add to Break product picker", () => {
     refreshPublishedPrices.mockImplementationOnce((report) => { progress = report; return new Promise(resolve => { finish = resolve; }); });
     const { rerender } = render(createElement(Builder, { open: true, onClose: vi.fn(), lines: [], onApply: vi.fn() }));
     fireEvent.click(await screen.findByRole("button", { name: /Test Set/ }));
-    fireEvent.click(await screen.findByRole("button", { name: /Refresh now/ }));
+    await requestRefresh();
     const button = screen.getByRole("button", { name: /Searching/ });
     expect(button).toBeDisabled();
     expect(button).toHaveAttribute("aria-busy", "true");
@@ -89,7 +96,7 @@ describe("Add to Break product picker", () => {
     const line = { id: "existing", set: "TST", productKey: "tst-box", productLabel: "Collector Booster Box", quantity: 2 };
     render(createElement(Builder, { open: true, onClose, lines: [line], onApply }));
     fireEvent.click(await screen.findByRole("button", { name: /Test Set/ }));
-    fireEvent.click(await screen.findByRole("button", { name: /Refresh now/ }));
+    await requestRefresh();
     await screen.findByRole("button", { name: "No newer data" });
     fireEvent.click(screen.getByRole("button", { name: "Done", exact: true }));
     await vi.waitFor(() => expect(onApply).toHaveBeenCalled());

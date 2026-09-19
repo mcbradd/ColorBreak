@@ -49,6 +49,7 @@ Standards: 2 findings resolved, 0 unresolved. Spec: 1 finding resolved, 0 unreso
 - `tools/check-mobile-evidence.mjs` passes in Chromium at 320, 390 and 768 pixels, including team expansion, four sortable columns, independent owned/taken actions, full-page details, focus restoration, named/residual slots, sharing and price-refresh feedback.
 - Screenshot review caught an image/text overlap in the constrained full-page grid. Content-sized grid rows now keep information below the full portrait. The browser check asserts no overlap. Phone tables retain the 17px text floor and scroll within their own region, with no page overflow.
 - `git diff --check` passed. Build number advances once, from 15 to 16.
+- The first CI run exposed a picker-test timing race: it clicked a refresh label before preparation finished enabling the control. Refresh tests now wait for the button to be enabled before activation; the user-facing implementation is unchanged.
 
 Delivery requires the Pages workflow for the integration commit to succeed, public-byte verification to match its SHA, and the same browser flow to pass on the published site before cleanup. GitHub Actions records deployment evidence; local logs/screenshots and the pre-prune refs bundle are retained in `.git/integration-backup-20260919-015946/`.
 
