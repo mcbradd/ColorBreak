@@ -103,12 +103,14 @@ describe("live random-slot buyer workflow", () => {
     expect(screen.getByRole("region", { name: "Bid decision" })).not.toHaveTextContent("Blue selected for bid preview");
   });
 
-  it("shows a cost-adjusted break-even bid ceiling for each slot", async () => {
+  it("shows each cost-adjusted bid ceiling once beside the slot's EV chart", async () => {
     render(createElement(Harness));
     await waitFor(() => expect(screen.getByLabelText("Highest bid to make")).not.toHaveTextContent("Checking…"));
 
-    expect(screen.getByLabelText("White bid calculation")).toHaveTextContent(/Break-even EV\s+\$10\.00.*Bid ceiling\s+\$10\.00/);
-    expect(screen.getByLabelText("Blue bid calculation")).toHaveTextContent(/Break-even EV\s+\$20\.00.*Bid ceiling\s+\$20\.00/);
+    expect(screen.getByLabelText("White bid calculation")).toHaveTextContent(/^Bid ceiling\s+\$10\.00$/);
+    expect(screen.getByLabelText("Blue bid calculation")).toHaveTextContent(/^Bid ceiling\s+\$20\.00$/);
+    expect(screen.getByLabelText(/^White: expected/)).toHaveAccessibleName(/expected \$10\.00/);
+    expect(screen.getByLabelText(/^Blue: expected/)).toHaveAccessibleName(/expected \$20\.00/);
   });
 
   it("applies shipping and tax to every slot's own bid ceiling", () => {

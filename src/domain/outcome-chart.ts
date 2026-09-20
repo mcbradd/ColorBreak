@@ -13,4 +13,4 @@ export function chartPosition(value: number, scale: number): number {
   return Math.min(100, Math.max(0, value / Math.max(scale, .01) * 100));
 }
 
-export const CANDLE_EXPLANATION = "The whiskers show the middle 98% of modeled openings, excluding the most extreme 1% at each end. The body shows the middle half. MIN and MAX remain separate numbers and do not set the chart scale. Pack estimates and missing prices can change the range.";
+export const CANDLE_EXPLANATION = "The whiskers show the middle 98% of modeled openings, excluding the most extreme 1% at each end. The body shows the middle half. Maximum value is listed separately from expected EV and does not set the chart scale. Pack estimates and missing prices can change these values.";

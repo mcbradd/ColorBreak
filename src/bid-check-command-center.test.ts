@@ -95,13 +95,15 @@ describe("Bid Check command center", () => {
     expect(screen.queryByText(/BREAK BALANCE/i)).not.toBeInTheDocument();
   });
 
-  it("shows MIN, expected and MAX value on each slot, at the point of decision", async () => {
+  it("shows expected and maximum values on each slot without a redundant zero minimum", async () => {
     render(createElement(BuyerWorkspace, { exit: vi.fn(), startFresh: false, startReady: false }));
     await screen.findByRole("region", { name: "Bid decision" });
 
     await waitFor(() => expect(document.querySelectorAll(".slot-candle")).toHaveLength(8));
-    const white = screen.getByLabelText(/^White: MIN/);
-    await waitFor(() => expect(white).toHaveAccessibleName(/MIN \$0\.00, expected \$20\.00, MAX \$30\.00/));
+    const white = screen.getByLabelText(/^White: expected/);
+    await waitFor(() => expect(white).toHaveAccessibleName(/expected \$20\.00, MAX \$30\.00/));
+    expect(white).not.toHaveAccessibleName(/MIN/);
+    expect(white).not.toHaveTextContent("MIN");
   });
 
   it("shows incomplete projections with the exact omission warning", async () => {
@@ -187,13 +189,14 @@ describe("Bid Check command center", () => {
   it("names result navigation from the active assignment mode", async () => {
     render(createElement(BuyerWorkspace, { exit: vi.fn(), startFresh: false, startReady: false }));
     expect(await screen.findByRole("navigation", { name: "Workspace controls" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Break panel" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Break panel" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Decision panel" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Adjust assumptions" })).toBeInTheDocument();
     expect(screen.getByRole("switch", { name: "Bulk filter" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Custom" }));
-    expect(screen.getByRole("button", { name: "Decision panel" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Decision panel" })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Standard (8 Slots)" }));
-    expect(screen.getByRole("button", { name: "Break panel" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Break panel" })).not.toBeInTheDocument();
   });
 });
 

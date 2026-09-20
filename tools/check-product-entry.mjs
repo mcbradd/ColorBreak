@@ -41,14 +41,14 @@ try {
       const controls = page.locator('.command-navigation');
       const assumptions = controls.getByRole('button', { name: 'Adjust assumptions' });
       const bulk = controls.getByRole('switch', { name: 'Bulk filter' });
+      assert.equal(await controls.getByRole('button', { name: 'Break panel' }).count(), 0, 'buyer workspace has no Break tab');
+      assert.equal(await controls.getByRole('button', { name: 'Decision panel' }).count(), 0, 'buyer workspace has no Decision tab');
       const controlBoxes = await Promise.all([
-        controls.getByRole('button', { name: 'Break panel' }),
-        controls.getByRole('button', { name: 'Decision panel' }),
         assumptions,
         bulk,
       ].map(el => el.boundingBox()));
-      assert.ok(controlBoxes.every(b => b && b.x >= 0 && b.x + b.width <= width + 1), `break, decision and controls fit ${width}: ${JSON.stringify(controlBoxes)}`);
-      assert.ok(controlBoxes.every(b => Math.abs(b.y - controlBoxes[0].y) < 1), 'break, decision and controls share one row');
+      assert.ok(controlBoxes.every(b => b && b.x >= 0 && b.x + b.width <= width + 1), `buyer controls fit ${width}: ${JSON.stringify(controlBoxes)}`);
+      assert.ok(controlBoxes.every(b => Math.abs(b.y - controlBoxes[0].y) < 1), 'buyer controls share one row');
       const enabled = await bulk.getAttribute('aria-checked');
       await bulk.click();
       assert.equal(await bulk.getAttribute('aria-checked'), enabled === 'true' ? 'false' : 'true');

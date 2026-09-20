@@ -184,6 +184,46 @@
   .command-workspace:has(#buyer-break-setup) .break-format-choice .step-heading { justify-content: flex-end; }
 }
 
+/* With a single buyer surface, setup and its answer share one scrollable view. */
+@media (max-width: 899px) {
+  .command-workspace:has(#buyer-break-setup) .command-panels[data-single-panel="true"] .command-body {
+    display: block;
+    max-height: none;
+    overflow-y: auto;
+  }
+  .command-workspace:has(#buyer-break-setup) .command-panels[data-single-panel="true"] .bid-check-workbench {
+    display: block !important;
+  }
+  .command-workspace:has(#buyer-break-setup) .command-panels[data-single-panel="true"] #buyer-break-setup {
+    display: grid;
+    flex: none;
+    min-height: 0;
+  }
+  .command-workspace:has(#buyer-break-setup) .command-panels[data-single-panel="true"] .buyer-entry-panel {
+    display: grid;
+    flex: none;
+  }
+  .command-workspace:has(#buyer-break-setup) .command-panels[data-single-panel="true"] .quick-break-composer {
+    display: block;
+    flex: none;
+  }
+  .command-workspace:has(#buyer-break-setup):not(.seller-fast) .command-panels[data-single-panel="true"] .quick-set-suggestions:not(.has-lines) {
+    flex: none;
+    height: 156px;
+    max-height: min(156px, 24dvh);
+  }
+  .command-workspace:has(#buyer-break-setup) .command-panels[data-single-panel="true"] .quick-search-results-wrap {
+    display: block;
+    flex: none;
+  }
+  .command-workspace:has(#buyer-break-setup) .command-panels[data-single-panel="true"] .quick-search-results {
+    max-height: min(400px, 40dvh);
+  }
+  .command-workspace:has(#buyer-break-setup) .command-panels[data-single-panel="true"] .buyer-results {
+    order: initial;
+  }
+}
+
 /* The buyer task shares the brand row; its controls share the panel tabs. */
 .buyer-topbar { gap: 8px; }
 .buyer-topbar .wordmark { flex: 0 0 auto; white-space: nowrap; }

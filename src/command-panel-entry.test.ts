@@ -33,9 +33,16 @@ it.each(["buyer", "seller"])("lets a %s add consecutive products with one select
   await waitFor(() => expect(new URL(location.href).searchParams.get("b")).toContain("FIN"));
   expect(screen.queryByRole("button", { name: "Done", exact: true })).not.toBeInTheDocument();
   fireEvent.input(search, { target: { value: "collector" } });
-  fireEvent.click(screen.getByRole("button", { name: job === "buyer" ? "Decision panel" : "Values panel" }));
-  expect(screen.getByRole("button", { name: job === "buyer" ? "Decision panel" : "Values panel" })).toHaveAttribute("aria-pressed", "true");
-  fireEvent.click(screen.getByRole("button", { name: "Break panel" }));
+  if (job === "buyer") {
+    expect(screen.queryByRole("button", { name: "Decision panel" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Break panel" })).not.toBeInTheDocument();
+    expect(document.querySelector(".command-panels")).toHaveAttribute("data-single-panel", "true");
+    expect(document.querySelector("#buyer-large-result")).not.toHaveAttribute("data-command-panel");
+  } else {
+    fireEvent.click(screen.getByRole("button", { name: "Values panel" }));
+    expect(screen.getByRole("button", { name: "Values panel" })).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(screen.getByRole("button", { name: "Break panel" }));
+  }
   expect(search).toHaveValue("collector");
   expect(screen.getByRole("textbox", { name: "EOE Collector Booster Pack quantity" })).toHaveValue("1");
   expect(screen.getByRole("complementary", { name: "Live decision" })).toBeInTheDocument();

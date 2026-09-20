@@ -291,7 +291,7 @@ export function LargeBreakView({
   const maxAssignment = Math.max(1, ...assignment.values);
   return (
     <AnswerGroup><section className="large-break-results" aria-label="Large break spot value">
-      <CommandDock values={[{ label: "Spot average", value: fmt(liquidMean) }, { label: "Spots", value: String(plan.spotCount) }]} status={coverageReady ? "Modeled average · tap for details" : "Estimate · missing data may lower values"} />
+      <CommandDock panel="products" targetId="buyer-large-result" values={[{ label: "Spot average", value: fmt(liquidMean) }, { label: "Spots", value: String(plan.spotCount) }]} status={coverageReady ? "Modeled average · tap for details" : "Estimate · missing data may lower values"} />
       <header className="large-break-result-head">
         <div><InformationLabel>LARGE RANDOM BREAK</InformationLabel><h2>{plan.spotCount} spots</h2></div>
         <Status result={result} /><AnswerNote primary detail="Average spot values use available card prices and estimated pack odds. Actual assignments can contain multiple cards or none." />
@@ -522,7 +522,7 @@ export function BuyerView({
   return (
     <>
       <AnswerGroup><section className="bid-live-decision" aria-label="Bid decision">
-        <CommandDock values={[{ label: "Bid limit", value: fmt(hammerLimit) }, { label: "Slots left", value: String(pool.length) }]} status={dockStatus} detail={dockDetail} explanation={`${dockStatus}. ${bidLimitDetail}`} />
+        <CommandDock panel="products" targetId="buyer-large-result" values={[{ label: "Bid limit", value: fmt(hammerLimit) }, { label: "Slots left", value: String(pool.length) }]} status={dockStatus} detail={dockDetail} explanation={`${dockStatus}. ${bidLimitDetail}`} />
         <div className="decision-kicker">
           <span title={decisionKicker}>{decisionKicker}</span><AnswerNote primary label="What affects the bid limit" detail="With no slots selected for preview, the recommendation uses average EV across every remaining slot. Selecting one or more available slots uses only their average EV. Slots marked Taken leave the remaining pool. Shipping and tax are deducted from the average EV; missing prices or estimated pack rules can change the result." />
           {(eligibility.status === "stale" || priceRefresh !== "idle") && onRefreshPrices

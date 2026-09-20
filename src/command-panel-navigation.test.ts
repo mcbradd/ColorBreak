@@ -12,11 +12,12 @@ it("reveals and focuses the exact field addressed by a panel link", async () => 
   expect(screen.getByRole("button", { name: "Plan panel" })).toHaveAttribute("aria-pressed", "true");
 });
 
-it("returns to an available panel when the selected format removes Teams", () => {
+it("hides panel controls when only one panel remains", () => {
   const panels = [{ id: "products", label: "Break", target: "products" }, { id: "teams", label: "Teams", target: "teams" }];
   const { rerender, container } = render(h(CommandPanel, { panels, children: "Panels" }));
   fireEvent.click(screen.getByRole("button", { name: "Teams panel" }));
   rerender(h(CommandPanel, { panels: panels.slice(0, 1), children: "Panels" }));
-  expect(screen.getByRole("button", { name: "Break panel" })).toHaveAttribute("aria-pressed", "true");
+  expect(screen.queryByRole("button", { name: "Break panel" })).not.toBeInTheDocument();
+  expect(container.querySelector(".command-panels")).toHaveAttribute("data-single-panel", "true");
   expect(container.querySelector(".command-panels")).toHaveAttribute("data-active-panel", "products");
 });

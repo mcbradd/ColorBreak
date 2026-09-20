@@ -31,7 +31,7 @@ export function CommandPanel({ panels, children, actions }: { panels: Panel[]; c
       target?.focus({ preventScroll: true });
     });
   }
-  return <Navigation.Provider value={navigate}><div ref={root} className="command-panels" data-active-panel={activePanel}
+  return <Navigation.Provider value={navigate}><div ref={root} className="command-panels" data-active-panel={activePanel} data-single-panel={panels.length === 1}
     onClickCapture={(event) => {
       const link = (event.target as HTMLElement).closest<HTMLAnchorElement>("a[href^='#']");
       const target = link && document.getElementById(link.hash.slice(1));
@@ -39,7 +39,7 @@ export function CommandPanel({ panels, children, actions }: { panels: Panel[]; c
       if (section?.dataset.commandPanel && target) { event.preventDefault(); navigate(section.dataset.commandPanel, target); }
     }}>
     <nav className="command-navigation" aria-label="Workspace controls">
-      {panels.map((panel) => <button key={panel.id} type="button" data-viewport-navigation aria-label={`${panel.label} panel`} aria-controls={panel.target} aria-pressed={activePanel === panel.id} onClick={() => navigate(panel.id)}>{panel.label}</button>)}
+      {panels.length > 1 && panels.map((panel) => <button key={panel.id} type="button" data-viewport-navigation aria-label={`${panel.label} panel`} aria-controls={panel.target} aria-pressed={activePanel === panel.id} onClick={() => navigate(panel.id)}>{panel.label}</button>)}
       {actions}
     </nav>
     <div className="command-body">{children}</div>
@@ -47,7 +47,7 @@ export function CommandPanel({ panels, children, actions }: { panels: Panel[]; c
 }
 
 /** Shares the values already calculated by the visible decision, without a second calculation. */
-export function CommandDock({ values, status, detail, explanation, panel = "decision" }: { values: { label: string; value: string }[]; status: string; detail?: string; explanation?: string; panel?: string }) {
+export function CommandDock({ values, status, detail, explanation, panel = "decision", targetId }: { values: { label: string; value: string }[]; status: string; detail?: string; explanation?: string; panel?: string; targetId?: string }) {
   const navigate = useContext(Navigation);
   const dock = useRef<HTMLElement>(null);
   useLayoutEffect(() => {
@@ -62,8 +62,9 @@ export function CommandDock({ values, status, detail, explanation, panel = "deci
     return () => { observer.disconnect(); document.documentElement.style.removeProperty("--command-dock-height"); };
   }, [navigate != null]);
   if (!navigate) return null;
+  const destination = targetId ? document.getElementById(targetId) ?? undefined : undefined;
   return createPortal(<aside ref={dock} className={`command-dock seller-value-dock${detail ? " has-detail" : ""}`} aria-label="Live decision">
-    {values.map(({ label, value }) => <button key={label} type="button" data-viewport-navigation onClick={() => navigate(panel)} aria-label={`${label}: ${value}. Open ${panel} panel`}><span>{label}</span><b>{value}</b></button>)}
+    {values.map(({ label, value }) => <button key={label} type="button" data-viewport-navigation onClick={() => navigate(panel, targetId ? document.getElementById(targetId) ?? undefined : destination)} aria-label={`${label}: ${value}. ${targetId ? "Open break result" : `Open ${panel} panel`}`}><span>{label}</span><b>{value}</b></button>)}
     <small className="command-dock-status" title={explanation ?? status} aria-label={`${status}. ${explanation ?? detail ?? ""}`}>{detail ?? status}</small>
   </aside>, document.body);
 }

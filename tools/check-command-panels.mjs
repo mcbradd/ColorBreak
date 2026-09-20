@@ -90,7 +90,13 @@ try {
       assert.equal(await productName.evaluate(el => document.activeElement === el), true);
       assert.deepEqual(await page.locator('.command-body').evaluate(el => ({ top: el.scrollTop, left: el.scrollLeft })), scrollBefore);
       assert.equal(await search.inputValue(), 'eoe');
-      await page.getByRole('button', { name: job === 'buyer' ? 'Decision panel' : 'Values panel', exact: true }).click();
+      if (job === 'buyer') {
+        assert.equal(await page.getByRole('button', { name: 'Break panel', exact: true }).count(), 0, 'buyer has one integrated break surface');
+        assert.equal(await page.getByRole('button', { name: 'Decision panel', exact: true }).count(), 0, 'buyer has no separate decision surface');
+        assert.equal(await page.locator('#buyer-large-result').getAttribute('data-command-panel'), null, 'buyer result is part of the break surface');
+      } else {
+        await page.getByRole('button', { name: 'Values panel', exact: true }).click();
+      }
       await page.getByRole('region', { name: job === 'buyer' ? 'Bid decision' : 'Break value at a glance' }).waitFor();
       if (evidence && (width === 390 || width === 1440)) await page.screenshot({ path: join(evidence, `${job}-decision-${width}.png`), animations: 'disabled' });
       if (job === 'buyer') {
@@ -114,23 +120,23 @@ try {
         await team.waitFor({ state: 'hidden' });
       }
       if (width < 900) {
-        assert.equal(await search.isVisible(), false);
+        assert.equal(await search.isVisible(), job === 'buyer', 'buyer setup stays mounted while seller panels retain their navigation');
         await page.getByRole('complementary', { name: 'Live decision' }).waitFor();
       }
-      await page.getByRole('button', { name: 'Break panel', exact: true }).click();
+      if (job === 'seller') await page.getByRole('button', { name: 'Break panel', exact: true }).click();
       assert.equal(await search.inputValue(), 'eoe');
       assert.equal(await quantity.inputValue(), '2');
       await search.fill('');
       await search.blur();
       assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), 'page fits viewport');
-      assert.ok(await page.evaluate(() => document.documentElement.scrollHeight <= innerHeight + 1), 'workspace stays within one screen');
+      if (job === 'seller') assert.ok(await page.evaluate(() => document.documentElement.scrollHeight <= innerHeight + 1), 'seller workspace stays within one screen');
+      else assert.ok(await page.locator('.command-body').evaluate(el => el.scrollHeight >= el.clientHeight), 'integrated buyer workspace owns its scrolling');
       if (evidence) await page.screenshot({ path: join(evidence, `${job}-command-${width}.png`), animations: 'disabled' });
       if (job === 'buyer' && width === 1440) {
-        await page.getByRole('button', { name: 'Break panel', exact: true }).click();
         await page.getByRole('button', { name: 'Custom', exact: true }).click();
         await page.setViewportSize({ width: 390, height: 800 });
-        assert.equal(await search.isVisible(), true, 'the Break panel stays active after changing the break format and resizing');
-        assert.equal(await page.getByRole('button', { name: 'Break panel', exact: true }).getAttribute('aria-pressed'), 'true');
+        assert.equal(await search.isVisible(), true, 'the integrated break stays available after changing format and resizing');
+        assert.equal(await page.getByRole('button', { name: 'Break panel', exact: true }).count(), 0);
       }
       assert.deepEqual(errors, []);
       assert.equal(await page.locator('button button, button [role="button"], [aria-hidden="true"] button:not([tabindex="-1"])').count(), 0, 'no nested or hidden interactive controls');

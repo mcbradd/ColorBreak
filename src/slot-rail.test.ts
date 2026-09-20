@@ -90,13 +90,14 @@ describe("buyer color controls", () => {
     expect(screen.getByRole("button", { name: "Select Blue for bid preview" })).toBeEnabled();
   });
 
-  it("shows MIN, expected and MAX value for every slot", () => {
+  it("shows EV and MAX without a redundant zero minimum for every slot", () => {
     const { container } = render(createElement(Harness));
 
     // The candle is the whole point of this rail: eight slots, eight candles,
-    // each keeping numerical MIN/EV/MAX separate from probable-range geometry.
+    // each keeping EV/MAX separate from probable-range geometry.
     expect(container.querySelectorAll(".slot-candle")).toHaveLength(8);
-    expect(container.querySelectorAll(".slot-candle-values small")).toHaveLength(24);
+    expect(container.querySelectorAll(".slot-candle-values small")).toHaveLength(16);
+    expect([...container.querySelectorAll(".slot-candle-values small")].map((label) => label.textContent)).not.toContain("MIN");
   });
 
   it("scales the probable range independently of numerical MIN and MAX", () => {

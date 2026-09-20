@@ -370,7 +370,7 @@ export function BuyerWorkspace({
           <span><b>SHARED CALCULATION · USD · MODEL v4</b><small>Editing updates this break link · {lines.length} products / {lines.reduce((total, line) => total + line.quantity * Math.max(1, line.packCount ?? 1), 0)} openings · Prices observed {analysis?.priceAvailability?.observedAt ? new Date(analysis.priceAvailability.observedAt).toLocaleString() : "loading"}</small></span>
         </aside>}
         <CommandPanel
-          panels={[{ id: "products", label: "Break", target: "buyer-products" }, { id: "decision", label: "Decision", target: "buyer-large-result" }]}
+          panels={[{ id: "products", label: "Break", target: "buyer-products" }]}
           actions={<BuyerAssumptions costs={costSettings} bulkEnabled={bulkEnabled} bulkThreshold={bulkThreshold} setBulkEnabled={setBulkEnabled} setBulkThreshold={setBulkThreshold} result={analysis?.valuation} open={assumptionsOpen} onOpenChange={setAssumptionsOpen} opener={assumptionsOpener} onOpen={() => setAssumptionsOpener(null)} />}
         >
           <div className={`bid-check-workbench ${lines.length ? "has-break" : "is-empty"}`}>
@@ -390,7 +390,7 @@ export function BuyerWorkspace({
               largeSpots={largeSpots}
               setLargeSpots={setLargeSpots}
             />
-            <div id="buyer-large-result" className="results buyer-results buyer-decision-stage" data-command-panel="decision" tabIndex={-1}>
+            <div id="buyer-large-result" className="results buyer-results buyer-decision-stage" tabIndex={-1}>
               {!lines.length && <p>Add a product in Break to see your bid decision.</p>}
               {manualCapOpen ? <ManualBudgetCap onBack={() => { setManualCapOpen(false); openBuilder(); }} target={manualTarget} setTarget={setManualTarget} shipping={manualShipping} setShipping={setManualShipping} hammer={manualHammer} setHammer={setManualHammer} /> : null}
               {busy && <div className="calculating" role="status" aria-live="polite"><span />Improving the estimate…</div>}

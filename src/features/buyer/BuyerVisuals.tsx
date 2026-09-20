@@ -176,12 +176,11 @@ export function SlotCandle({
 }) {
   const position = (value: number) => chartPosition(value, scaleMax);
   const { low, high, bodyLow, bodyHigh } = probableRange(distribution, expectedValue);
-  const minimum = distribution?.min ?? expectedValue;
   const maximum = distribution?.max ?? expectedValue;
   return (
-    <InformationButton className="slot-candle" title={`${label} value range`} label={`${label}: MIN ${fmt(minimum)}, expected ${fmt(expectedValue)}, MAX ${fmt(maximum)}; probable low ${fmt(low)}, probable high ${fmt(high)}`} preview={`${label}: minimum ${fmt(minimum)}, average ${fmt(expectedValue)}, maximum ${fmt(maximum)}. ${CANDLE_EXPLANATION}`} content={<>
-      <p>Minimum <AnswerValue label={`${label} minimum`} value={minimum} /> · Expected <AnswerValue label={`${label} expected value`} value={expectedValue} /> · Maximum <AnswerValue label={`${label} maximum`} value={maximum} /></p>
-      <p>{CANDLE_EXPLANATION}</p><p>MIN and MAX are separate possible limits using the available pack rules and prices. Missing prices or estimated odds can change them.</p>
+    <InformationButton className="slot-candle" title={`${label} value range`} label={`${label}: expected ${fmt(expectedValue)}, MAX ${fmt(maximum)}; probable low ${fmt(low)}, probable high ${fmt(high)}`} preview={`${label}: average ${fmt(expectedValue)}, maximum ${fmt(maximum)}. ${CANDLE_EXPLANATION}`} content={<>
+      <p>Expected <AnswerValue label={`${label} expected value`} value={expectedValue} /> · Maximum <AnswerValue label={`${label} maximum`} value={maximum} /></p>
+      <p>{CANDLE_EXPLANATION}</p><p>MAX is a possible upper limit using the available pack rules and prices. Missing prices or estimated odds can change it.</p>
     </>}>
       <div className="slot-candle-track" aria-hidden="true">
         <span className="slot-candle-wick" style={{ left: `${position(low)}%`, width: `${Math.max(0, position(high) - position(low))}%` }} />
@@ -190,7 +189,6 @@ export function SlotCandle({
       </div>
 
       <div className="slot-candle-values" aria-hidden="true">
-        <span><small>MIN</small>{fmtCompact(minimum)}</span>
         <b><small>EV</small>{fmtCompact(expectedValue)}</b>
         <span><small>MAX</small>{fmtCompact(maximum)}</span>
       </div>
@@ -198,7 +196,7 @@ export function SlotCandle({
   );
 }
 
-const SLOT_HELP = "Mark a slot taken when another buyer wins it; it immediately leaves the remaining EV calculation. Select one or more available slots to preview their bid ceilings. With no selection, the overall recommendation uses the average EV across every remaining slot. Each slot shows its break-even EV and cost-adjusted bid ceiling.";
+const SLOT_HELP = "Mark a slot taken when another buyer wins it; it immediately leaves the remaining EV calculation. Select one or more available slots to preview their bid ceilings. With no selection, the overall recommendation uses the average EV across every remaining slot. Each slot shows its cost-adjusted bid ceiling.";
 
 /**
  * The slot rail shows each color's EV and bid ceiling alongside availability
@@ -292,7 +290,6 @@ export function SlotRail({
                 label={SLOT_NAMES[id]}
               />
               <div className="slot-bid-math" aria-label={`${SLOT_NAMES[id]} bid calculation`}>
-                <span>Break-even EV <b>{fmt(expectedValue)}</b></span>
                 <span>Bid ceiling <b>{ceilingText}</b></span>
               </div>
               {expandedSlot === id && <div className="buyer-slot-members">

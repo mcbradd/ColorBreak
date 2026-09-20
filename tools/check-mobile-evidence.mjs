@@ -44,9 +44,8 @@ try {
     const rowBox = await page.locator('.quick-break-line .quick-line-identity').boundingBox();
     const quantityBox = await page.locator('.quick-break-line .quantity-selector').boundingBox();
     assert.ok(quantityBox.x >= rowBox.x + rowBox.width && quantityBox.y < rowBox.y + rowBox.height, 'quantity stays beside product');
-    await page.getByRole('button', { name: 'Break panel', exact: true }).click();
     await page.getByRole('heading', { name: 'Check a bid', exact: true }).waitFor();
-    const candle = page.getByRole('button', { name: /^White: MIN / });
+    const candle = page.getByRole('button', { name: /^White: expected / });
     await candle.click();
     const range = page.getByRole('dialog', { name: 'White value range', exact: true });
     await range.waitFor();
@@ -69,7 +68,6 @@ try {
     await page.getByRole('button', { name: 'Remove White from bid preview', exact: true }).click();
     assert.match(await page.locator('.decision-reason').innerText(), /all 8 remaining slots/);
     assert.equal(await page.getByRole('button', { name: /mine/i }).count(), 0, 'buyer view has no ownership controls');
-    await page.getByRole('button', { name: 'Decision panel', exact: true }).click();
     const refresh = page.getByRole('button', { name: /Prices over 6 hours old.*Refresh/ });
     await refresh.waitFor({ state: 'visible' });
     await refresh.click();
@@ -81,7 +79,6 @@ try {
     assert.doesNotMatch(await page.locator('.command-dock-status').innerText(), /Older prices/, 'acknowledged age warning clears from the live estimate');
     const refreshBox = await checked.boundingBox();
     assert.ok(refreshBox && refreshBox.x >= 0 && refreshBox.x + refreshBox.width <= width + 1, `refresh status fits ${width}px: ${JSON.stringify(refreshBox)}`);
-    await page.getByRole('button', { name: 'Break panel', exact: true }).click();
     await page.getByRole('button', { name: 'Show cards in White team', exact: true }).click();
     const team = page.getByRole('table', { name: 'Cards in White team', exact: true });
     await team.locator('.card-member-row').first().waitFor();
@@ -122,14 +119,12 @@ try {
       assert.equal(await recipient.locator('.quick-break-line .quantity-selector input').inputValue(), '1');
       await recipient.close();
     }
-    await page.getByRole('button', { name: 'Break panel', exact: true }).click();
     await page.getByRole('button', { name: 'Adjust assumptions', exact: true }).click();
     const widths = await page.locator('.buyer-assumptions-body .shipping-mode, .buyer-assumptions-body .number-field > div, .buyer-assumptions-body .bulk-value-field > div').evaluateAll(els => els.map(el => el.getBoundingClientRect().width));
     assert.ok(Math.max(...widths) - Math.min(...widths) < 2, `matched input widths: ${widths}`);
     assert.equal(await page.getByRole('textbox', { name: 'Tax', exact: true }).evaluate(el => getComputedStyle(el).textAlign), 'right');
     assert.equal(await page.getByRole('textbox', { name: 'Tax', exact: true }).locator('..').locator('..').locator('b').innerText(), '%');
     await page.getByRole('button', { name: 'Close Assumptions', exact: true }).click();
-    await page.getByRole('button', { name: 'Decision panel', exact: true }).click();
     await page.getByText('Break evidence', { exact: true }).click();
     await page.locator('.slot-detail .card-member-row').first().waitFor({ timeout: 30000 });
     assert.equal(await page.locator('.slot-detail .answer-note').count(), 2, 'one note per value-summary and membership section');
@@ -174,7 +169,6 @@ try {
     await art.evaluate(async el => { if (el instanceof HTMLImageElement && !el.complete) await new Promise(resolve => { el.onload = resolve; el.onerror = resolve; }); });
     if (evidenceDir) await page.screenshot({ path: join(evidenceDir, `card-details-${width}.png`) });
     await page.getByRole('button', { name: 'Close card details' }).click();
-    await page.getByRole('button', { name: 'Break panel', exact: true }).click();
     await page.getByRole('button', { name: 'Custom', exact: true }).click();
     const largeBreakLayout = await page.evaluate(() => ({
       viewportWidth: innerWidth,
@@ -191,12 +185,10 @@ try {
     assert.deepEqual([largeBreakLayout.scrollX, largeBreakLayout.scrollY], [0, 0], 'large break does not move the page');
     assert.ok(largeBreakLayout.help.left >= largeBreakLayout.randomSpots.right - 1, `random-spots help follows its label: ${JSON.stringify(largeBreakLayout)}`);
     if (evidenceDir && width === 320) await page.screenshot({ path: join(evidenceDir, 'large-break-320.png') });
-    await page.getByRole('button', { name: 'Decision panel', exact: true }).click();
     await page.getByRole('button', { name: 'Adjust shipping & tax', exact: true }).click();
     assert.equal(await page.getByRole('textbox', { name: 'Tax', exact: true }).isVisible(), true, 'cost button opens assumptions');
     await page.getByRole('button', { name: 'Close Assumptions', exact: true }).click();
     await page.waitForFunction(() => document.activeElement?.textContent === 'Adjust shipping & tax');
-    await page.getByRole('button', { name: 'Decision panel', exact: true }).click();
     const named = page.locator('.large-break-card-main').first();
     await named.waitFor();
     await named.click();
