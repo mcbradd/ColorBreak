@@ -47,7 +47,7 @@ export function CommandPanel({ panels, children, actions }: { panels: Panel[]; c
 }
 
 /** Shares the values already calculated by the visible decision, without a second calculation. */
-export function CommandDock({ values, status, panel = "decision" }: { values: { label: string; value: string }[]; status: string; panel?: string }) {
+export function CommandDock({ values, status, detail, explanation, panel = "decision" }: { values: { label: string; value: string }[]; status: string; detail?: string; explanation?: string; panel?: string }) {
   const navigate = useContext(Navigation);
   const dock = useRef<HTMLElement>(null);
   useLayoutEffect(() => {
@@ -62,8 +62,8 @@ export function CommandDock({ values, status, panel = "decision" }: { values: { 
     return () => { observer.disconnect(); document.documentElement.style.removeProperty("--command-dock-height"); };
   }, [navigate != null]);
   if (!navigate) return null;
-  return createPortal(<aside ref={dock} className="command-dock seller-value-dock" aria-label="Live decision">
+  return createPortal(<aside ref={dock} className={`command-dock seller-value-dock${detail ? " has-detail" : ""}`} aria-label="Live decision">
     {values.map(({ label, value }) => <button key={label} type="button" data-viewport-navigation onClick={() => navigate(panel)} aria-label={`${label}: ${value}. Open ${panel} panel`}><span>{label}</span><b>{value}</b></button>)}
-    <small>{status}</small>
+    <small className="command-dock-status" title={explanation ?? status} aria-label={`${status}. ${explanation ?? detail ?? ""}`}>{detail ?? status}</small>
   </aside>, document.body);
 }

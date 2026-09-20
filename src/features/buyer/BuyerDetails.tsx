@@ -473,6 +473,7 @@ export function BuyerView({
   // slots the buyer already owns and slots another buyer took are both out.
   const pool = auction.remaining;
   const poolSlots = result.slots.filter((row) => pool.includes(row.id));
+  const lowestRemainingSlot = [...poolSlots].sort((a, b) => a.sellableEV - b.sellableEV)[0];
   // The card-level breakdown below always focuses on one representative slot.
   const slot = result.slots.find((row) => row.id === pool[0]) ?? poolSlots[0] ?? result.slots[0];
   const distribution = simulation.result?.remainingPool;
@@ -480,18 +481,44 @@ export function BuyerView({
     ? poolSlots.reduce((sum, row) => sum + row.sellableEV, 0) / poolSlots.length
     : 0;
   const typicalValue = distribution?.median ?? fallbackMean;
+  const averageValue = distribution?.mean ?? fallbackMean;
+  const lowestRemainingEV = lowestRemainingSlot?.sellableEV ?? 0;
   const ownedValue = result.slots
     .filter((row) => selectedSlots.includes(row.id))
     .reduce((sum, row) => sum + row.sellableEV, 0);
   const ceiling = bidCeiling(typicalValue, costs);
+  const hammerLimit = ceiling.kind === "ceiling" ? ceiling.hammer : 0;
+  const hasUnverifiedPullRates = result.omissions.some((item) => item.material && item.code === "unverifiable-pull-rate");
+  const dockStatus = simulation.busy ? "Refining estimate"
+    : eligibility.status === "stale" ? "Estimate · prices are over 6 hours old"
+      : eligibility.status === "eligible" && analysis.outcomeModel.complete !== false ? "Fresh estimate"
+        : hasUnverifiedPullRates ? "Partial estimate · some rare pull rates are estimated"
+          : analysis.outcomeModel.complete === false ? "Partial estimate · pack outcomes are incomplete"
+            : eligibility.status === "material-incomplete" ? "Partial estimate · missing product or price details"
+              : "Estimate · price evidence needs review";
+  const effectiveTax = Math.max(0, costs.taxPercent);
+  const effectiveShipping = Math.max(0, costs.shipping);
+  const bidLimitMath = ceiling.kind === "ceiling"
+    ? `Bid limit = ${fmt(typicalValue)} ÷ (1 + ${effectiveTax.toFixed(2)}% tax) − ${fmt(effectiveShipping)} shipping = ${fmt(hammerLimit)} (rounded down to cents).`
+    : `Shipping and tax exceed the ${fmt(typicalValue)} median, so the bid limit is ${fmt(hammerLimit)}.`;
+  const lowestSlotDescription = lowestRemainingSlot
+    ? `${SLOT_NAMES[lowestRemainingSlot.id]} EV ${fmt(lowestRemainingEV)}`
+    : "No slots remain";
+  const bidLimitDetail = `Random-slot median ${fmt(typicalValue)}; mean ${fmt(averageValue)}. Lowest remaining slot: ${lowestSlotDescription} (average). ${bidLimitMath}`;
+  const briefEstimateStatus = simulation.busy ? "Refining"
+    : eligibility.status === "stale" ? "Older prices"
+      : hasUnverifiedPullRates ? "Odds estimated"
+        : dockStatus.startsWith("Partial estimate") ? "Partial"
+          : dockStatus === "Fresh estimate" ? "Fresh" : "Estimate";
+  const dockDetail = `${briefEstimateStatus} · median ${fmt(typicalValue)} vs ${fmt(lowestRemainingEV)} ${lowestRemainingSlot ? SLOT_NAMES[lowestRemainingSlot.id] : "slot"} EV; ship ${fmt(effectiveShipping)}, tax ${effectiveTax.toFixed(2)}%`;
   const heading = ceiling.kind === "no-room" && !distribution?.preview && !simulation.busy && result.status === "verified" ? "DO NOT BID" : "DON’T BID OVER";
   const decisionKicker = `${breakLabel ? `${breakLabel} · ` : ""}${pool.length} slot${pool.length === 1 ? "" : "s"} left`;
   return (
     <>
       <AnswerGroup><section className="bid-live-decision" aria-label="Bid decision">
-        <CommandDock values={[{ label: "Bid limit", value: fmt(ceiling.kind === "ceiling" ? ceiling.hammer : 0) }, { label: "Slots left", value: String(pool.length) }]} status={simulation.busy ? "Refining estimate" : eligibility.status === "eligible" ? "Fresh estimate · tap for details" : "Estimate · check price evidence"} />
+        <CommandDock values={[{ label: "Bid limit", value: fmt(hammerLimit) }, { label: "Slots left", value: String(pool.length) }]} status={dockStatus} detail={dockDetail} explanation={`${dockStatus}. ${bidLimitDetail}`} />
         <div className="decision-kicker">
-          <span title={decisionKicker}>{decisionKicker}</span><AnswerNote primary label="What affects the bid limit" detail="Typical card value minus added shipping and tax. MIN and MAX are possible limits; typical is the median. Missing prices or estimated pack rules can change the result." />
+          <span title={decisionKicker}>{decisionKicker}</span><AnswerNote primary label="What affects the bid limit" detail="The random-slot typical is its median, not the average (EV) of any one color. The bid limit subtracts shipping and tax from that median. Missing prices or estimated pack rules can change the result." />
           {(eligibility.status === "stale" || priceRefresh !== "idle") && onRefreshPrices
             // Stale prices are something the buyer can act on, so the label is
             // the control that acts on it rather than a notice they can only

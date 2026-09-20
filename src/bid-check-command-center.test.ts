@@ -140,6 +140,34 @@ describe("Bid Check command center", () => {
     await waitFor(() => expect(screen.getByLabelText("Highest bid to make")).toHaveTextContent("$7.00"));
   });
 
+  it("shows why a low random-slot median differs from the slot EVs", async () => {
+    sessionStorage.setItem("colorbreak:buyer:cost-overrides:v2", JSON.stringify({ shipping: 4.47, taxPercent: 9.03 }));
+    const slotPrices = SLOT_IDS.map((slot, index) => ({
+      id: `slot-${slot}`, set: "TST", collectorNumber: String(index + 1), name: slot, slot,
+      nonfoil: slot === "L" ? 8.25 : 10 + index, foil: null,
+    }));
+    const incompleteValuation = calculateBreak({
+      prices: slotPrices,
+      draws: slotPrices.map((card, index) => ({ set: "TST", collectorNumber: String(index + 1), copies: 1, foil: false, source: "fixed" })),
+      threshold: 0,
+      sourceStatus: "incomplete",
+      omissions: [{ code: "unverifiable-pull-rate", message: "Some rare-card pull rates are estimates.", material: true }],
+    });
+    evaluateBreakAnalysis.mockResolvedValue({ ...analysis, valuation: incompleteValuation });
+    simulateOutcomesAsync.mockResolvedValue({
+      seed: "test",
+      sampleCount: 50_000,
+      slotDistributions: Object.fromEntries(SLOT_IDS.map((id) => [id, distribution])),
+      remainingPool: { ...distribution, median: 4.9, mean: 14.61 },
+    });
+
+    render(createElement(BuyerWorkspace, { exit: vi.fn(), startFresh: false, startReady: false }));
+
+    const dockStatus = await screen.findByText("Odds estimated · median $4.90 vs $8.25 Lands EV; ship $4.47, tax 9.03%");
+    expect(dockStatus).toBeInTheDocument();
+    expect(dockStatus).toHaveAttribute("aria-label", expect.stringContaining("Random-slot median $4.90; mean $14.61. Lowest remaining slot: Lands EV $8.25 (average). Bid limit = $4.90 ÷ (1 + 9.03% tax) − $4.47 shipping = $0.02 (rounded down to cents)."));
+  });
+
   it("resolves a costs-exceed-value verdict to a named fact instead of a stuck spinner", async () => {
     render(createElement(BuyerWorkspace, { exit: vi.fn(), startFresh: false, startReady: false }));
     await screen.findByRole("region", { name: "Bid decision" });

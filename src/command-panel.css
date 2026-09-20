@@ -91,6 +91,7 @@
   .command-dock.seller-value-dock > button { display: grid; gap: 2px; text-align: left; background: transparent; color: var(--ink); padding: 0; min-width: 0; }
   .command-dock.seller-value-dock > button b { color: var(--accent); }
   .command-dock.seller-value-dock > small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .command-dock.seller-value-dock.has-detail > .command-dock-status { overflow: visible; text-overflow: clip; white-space: normal; }
   body:has(#root[inert]) .command-dock { display: none; }
   .keyboard-open #root:has(.command-workspace) > div > nav,
   .keyboard-open .command-workspace :is(.workspace-title, .command-navigation) { display: none; }
