@@ -8,8 +8,21 @@ const evidenceDir = process.env.COLORBREAK_EVIDENCE_DIR;
 if (evidenceDir) mkdirSync(evidenceDir, { recursive: true });
 const browser = await chromium.launch({ headless: true });
 try {
+  const publicationResponse = await fetch(new URL("data/prices/index.json", base));
+  assert.ok(publicationResponse.ok, "published price index is available");
+  const publication = await publicationResponse.json();
+  const staleClock = Date.parse(publication.observedAt) + 7 * 60 * 60 * 1000;
+  assert.ok(Number.isFinite(staleClock), "published price timestamp is valid");
   for (const width of [320, 390, 768]) {
     const context = await browser.newContext({ viewport: { width, height: 720 }, permissions: ['clipboard-read', 'clipboard-write'] });
+    await context.addInitScript((now) => {
+      const NativeDate = Date;
+      class StaleClock extends NativeDate {
+        constructor(...args) { if (args.length) super(...args); else super(now); }
+        static now() { return now; }
+      }
+      globalThis.Date = StaleClock;
+    }, staleClock);
     const page = await context.newPage();
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
@@ -58,12 +71,16 @@ try {
     assert.equal(await page.getByRole('button', { name: /mine/i }).count(), 0, 'buyer view has no ownership controls');
     await page.getByRole('button', { name: 'Decision panel', exact: true }).click();
     const refresh = page.getByRole('button', { name: /Prices over 6 hours old.*Refresh/ });
-    if (await refresh.count()) {
-      await refresh.click();
-      await page.locator('.price-refresh-answer').waitFor({ timeout: 30000 });
-      assert.equal(await page.locator('.refresh-prices').isEnabled(), true);
-      assert.ok((await page.locator('.price-refresh-answer').innerText()).length > 0);
-    }
+    await refresh.waitFor({ state: 'visible' });
+    await refresh.click();
+    await page.locator('.price-refresh-answer').waitFor({ timeout: 30000 });
+    const checked = page.getByRole('button', { name: 'No newer data' });
+    await checked.waitFor({ state: 'visible' });
+    assert.equal(await checked.isEnabled(), true);
+    assert.ok(await checked.evaluate(element => element.classList.contains('is-cleared')), 'no-newer result uses the neutral status style');
+    assert.doesNotMatch(await page.locator('.command-dock-status').innerText(), /Older prices/, 'acknowledged age warning clears from the live estimate');
+    const refreshBox = await checked.boundingBox();
+    assert.ok(refreshBox && refreshBox.x >= 0 && refreshBox.x + refreshBox.width <= width + 1, `refresh status fits ${width}px: ${JSON.stringify(refreshBox)}`);
     await page.getByRole('button', { name: 'Break panel', exact: true }).click();
     await page.getByRole('button', { name: 'Show cards in White team', exact: true }).click();
     const team = page.getByRole('table', { name: 'Cards in White team', exact: true });

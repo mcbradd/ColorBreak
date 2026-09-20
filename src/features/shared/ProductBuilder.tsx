@@ -320,7 +320,7 @@ export function Builder({
   const refreshLabels = { idle: hasEstimateWarning ? "Refresh now" : "Up to date", searching: "Searching…", updating: "Updating…", checking: "Checking…", updated: "Updated", current: "Up to date", stale: "No newer data", partial: "Partial update", error: "Retry" };
   const refreshLabel = loading || estimating ? "Checking…" : refreshLabels[refreshState];
   const refreshDetail = refreshState === "error" ? "Refresh failed. Your existing estimates are kept. Tap to retry."
-    : refreshState === "stale" ? "Checked the latest publication; newer prices are not available yet. Tap to check again."
+    : refreshState === "stale" ? "Checked the latest publication. No newer prices are available yet."
     : refreshState === "partial" ? "Some new prices could not load. Existing prices fill those gaps. Tap to retry."
     : "Check the latest published prices and update estimates. Pack-model limitations may still apply.";
   const refreshEstimates = async () => {
@@ -381,7 +381,7 @@ export function Builder({
               </div>
               {selected && <button
                 type="button"
-                className="picker-header-refresh"
+                className={`picker-header-refresh${refreshState === "stale" ? " is-cleared" : ""}`}
                 aria-label={refreshLabel === "Refresh now" ? "Estimates may be outdated. Refresh now" : refreshLabel}
                 aria-busy={refreshBusy}
                 title={refreshDetail}

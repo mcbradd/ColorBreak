@@ -82,7 +82,9 @@ describe("Add to Break product picker", () => {
     expect(button).toHaveTextContent("Checking…");
     expect(button.querySelector(".refresh-spinner")).not.toBeNull();
     await act(async () => finishChecking());
-    expect(await screen.findByRole("button", { name: "No newer data" })).toBeEnabled();
+    const checked = await screen.findByRole("button", { name: "No newer data" });
+    expect(checked).toBeEnabled();
+    expect(checked).toHaveClass("is-cleared");
     expect(button.querySelector(".refresh-spinner")).toBeNull();
     refreshPublishedPrices.mockRejectedValueOnce(new Error("offline"));
     fireEvent.click(button);

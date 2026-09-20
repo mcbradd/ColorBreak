@@ -429,7 +429,7 @@ const PRICE_REFRESH_DETAIL: Record<PriceRefreshState, string> = {
   checking: "Recalculating this estimate with the available prices.",
   updated: "Newer prices loaded. Tap to check again.",
   current: "This estimate already uses the latest publication. Tap to check again.",
-  stale: "Checked the latest publication; newer prices are not available yet. Tap to check again.",
+  stale: "Checked the latest publication. No newer prices are available yet.",
   partial: "Some new prices could not load. Existing prices fill those gaps. Tap to retry.",
   error: "Refresh failed. Your existing estimates are kept. Tap to retry.",
 };
@@ -489,14 +489,16 @@ export function BuyerView({
   const lowestRemainingEV = lowestRemainingSlot?.sellableEV ?? 0;
   const ceiling = bidCeiling(averageEV, costs);
   const hammerLimit = ceiling.kind === "ceiling" ? ceiling.hammer : 0;
+  const noNewerPricesAvailable = priceRefresh === "stale";
+  const priceAgeWarning = eligibility.status === "stale" && !noNewerPricesAvailable;
   const hasUnverifiedPullRates = result.omissions.some((item) => item.material && item.code === "unverifiable-pull-rate");
   const dockStatus = simulation.busy ? "Refining estimate"
-    : eligibility.status === "stale" ? "Estimate · prices are over 6 hours old"
+    : priceAgeWarning ? "Estimate · prices are over 6 hours old"
       : eligibility.status === "eligible" && analysis.outcomeModel.complete !== false ? "Fresh estimate"
         : hasUnverifiedPullRates ? "Partial estimate · some rare pull rates are estimated"
           : analysis.outcomeModel.complete === false ? "Partial estimate · pack outcomes are incomplete"
             : eligibility.status === "material-incomplete" ? "Partial estimate · missing product or price details"
-              : "Estimate · price evidence needs review";
+              : noNewerPricesAvailable ? "Estimate" : "Estimate · price evidence needs review";
   const effectiveTax = Math.max(0, costs.taxPercent);
   const effectiveShipping = Math.max(0, costs.shipping);
   const bidLimitMath = ceiling.kind === "ceiling"
@@ -507,7 +509,7 @@ export function BuyerView({
     : "No slots remain.";
   const bidLimitDetail = `Based on ${basisDescription}: average EV ${fmt(averageEV)} per spot. ${lowestSlotDetail} ${bidLimitMath}`;
   const briefEstimateStatus = simulation.busy ? "Refining"
-    : eligibility.status === "stale" ? "Older prices"
+    : priceAgeWarning ? "Older prices"
       : hasUnverifiedPullRates ? "Odds estimated"
         : dockStatus.startsWith("Partial estimate") ? "Partial"
           : dockStatus === "Fresh estimate" ? "Fresh" : "Estimate";
@@ -529,7 +531,7 @@ export function BuyerView({
             // read. It stays put after the check so the answer is legible.
             ? <button
               type="button"
-              className={`decision-evidence evidence-${result.status} refresh-prices`}
+              className={`decision-evidence evidence-${result.status} refresh-prices${noNewerPricesAvailable ? " is-cleared" : ""}`}
               onClick={onRefreshPrices}
               disabled={PRICE_REFRESH_BUSY.includes(priceRefresh)}
               aria-busy={PRICE_REFRESH_BUSY.includes(priceRefresh)}

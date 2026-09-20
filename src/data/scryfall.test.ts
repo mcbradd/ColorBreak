@@ -195,6 +195,21 @@ describe("exact-printing price module", () => {
 
 
 describe("explicit price refresh", () => {
+  it("distinguishes a stale unchanged publication from a stale publication that has newer prices", async () => {
+    const observedAt = new Date(Date.now() - 7 * 60 * 60 * 1000).toISOString();
+    let version = 1;
+    vi.stubGlobal("fetch", async (input: string) => new Response(JSON.stringify(String(input).endsWith("index.json")
+      ? { schemaVersion: 1, provider: "Scryfall", observedAt, sets: { ONE: { file: "ONE.json", sha256: String(version) } } }
+      : { schemaVersion: 1, set: "ONE", observedAt, generatedAt: observedAt, cards: [{ ...card, prices: { usd: String(version) } }] })));
+
+    await loadPrices({ sets: ["ONE"], printings: [{ set: "ONE", collectorNumber: "1" }] });
+    expect(await refreshPublishedPrices(vi.fn())).toBe("stale");
+
+    version = 2;
+    expect(await refreshPublishedPrices(vi.fn())).toBe("updated");
+    expect((await loadPrices({ sets: ["ONE"], printings: [{ set: "ONE", collectorNumber: "1" }] })).cards[0].nonfoil).toBe(2);
+  });
+
   it("bypasses the cached publication, reports phases, and replaces loaded prices", async () => {
     const observedAt = new Date().toISOString();
     let version = 1;

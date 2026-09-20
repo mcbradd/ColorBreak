@@ -360,6 +360,6 @@ export async function refreshPublishedPrices(onProgress: (phase: PriceRefreshPha
     snapshotSetRevisions.set(set, `${index.sets[set].sha256}|${index.observedAt}`);
   }
   if (failed) return "partial";
-  if (Date.now() - Date.parse(index.observedAt) > SNAPSHOT_STALE_MS) return "stale";
-  return changed ? "updated" : "current";
+  if (changed) return "updated";
+  return Date.now() - Date.parse(index.observedAt) > SNAPSHOT_STALE_MS ? "stale" : "current";
 }

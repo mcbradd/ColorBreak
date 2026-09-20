@@ -2,6 +2,7 @@ import { createElement } from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { BuyerView, type PriceRefreshState } from "./features/buyer/BuyerDetails";
+import { CommandPanel } from "./features/shared/CommandPanel";
 import { CardMemberList } from "./features/shared/CardMemberList";
 import { useOutcomeSimulation } from "./features/buyer/BuyerVisuals";
 import { createAuction } from "./domain/auction";
@@ -50,15 +51,17 @@ function Decision({
 }) {
   const auction = createAuction();
   const simulation = useOutcomeSimulation(analysis, auction.remaining, undefined);
-  return createElement(BuyerView, {
-    analysis,
-    eligibility,
-    auction,
-    costs: DEFAULT_BUYER_COSTS,
-    simulation,
-    priceRefresh,
-    onRefreshPrices,
-  });
+  return createElement(CommandPanel, { panels: [{ id: "decision", label: "Decision", target: "decision-test" }] },
+    createElement("div", { id: "decision-test" }, createElement(BuyerView, {
+      analysis,
+      eligibility,
+      auction,
+      costs: DEFAULT_BUYER_COSTS,
+      simulation,
+      priceRefresh,
+      onRefreshPrices,
+    })),
+  );
 }
 
 describe("stale prices are an action, not an announcement", () => {
@@ -92,7 +95,10 @@ describe("stale prices are an action, not an announcement", () => {
       eligibility: staleEligibility, onRefreshPrices: () => {}, priceRefresh: "stale",
     }));
     await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("No newer prices are published yet"));
-    expect(screen.getByRole("button", { name: /No newer data/ })).toBeEnabled();
+    const checked = screen.getByRole("button", { name: /No newer data/ });
+    expect(checked).toBeEnabled();
+    expect(checked).toHaveClass("is-cleared");
+    expect(document.querySelector(".command-dock-status")).not.toHaveTextContent("Older prices");
 
     // A refused refresh keeps the estimate and offers the retry.
     rerender(createElement(Decision, {
