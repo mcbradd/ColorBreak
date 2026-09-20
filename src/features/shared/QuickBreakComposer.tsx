@@ -37,7 +37,7 @@ export function QuickBreakComposer({ lines, onChange, onImport }: QuickBreakComp
   const candidateKey = candidates.map((set) => set.code).join("|");
   const candidatesRef = useRef(candidates);
   candidatesRef.current = candidates;
-  const suggestions = suggestedSearchSets(sets, lines.map((line) => line.set));
+  const suggestions = suggestedSearchSets(sets);
   const matches = candidates.flatMap((set) => matchingProducts(loaded[set.code] ?? [], query));
   const results = showAll ? matches : matches.slice(0, 6);
   const isSearching = query.trim().length > 0;
@@ -165,7 +165,7 @@ export function QuickBreakComposer({ lines, onChange, onImport }: QuickBreakComp
       </div>
       {indexError ? <div className="quick-composer-error" role="alert">The catalog could not load. <button type="button" onClick={() => setRetry((value) => value + 1)}>Retry catalog</button></div>
         : indexLoading ? <p className="quick-composer-status" role="status">Loading product catalog…</p>
-          : !isSearching ? <div className={`quick-set-suggestions${lines.length ? " has-lines" : ""}`} role="group" aria-label="Recent sets">
+          : !isSearching ? <div className={`quick-set-suggestions${lines.length ? " has-lines" : ""}`} role="group" aria-label="Available sets, newest releases first">
             {suggestions.map((set) => <button type="button" key={set.code} onClick={() => { changeQuery(`${set.code} `); inputRef.current?.focus(); }}><b>{set.code}</b> <span>{set.name}</span></button>)}
           </div> : null}
       {isSearching && !indexError && <div className="quick-search-results-wrap">

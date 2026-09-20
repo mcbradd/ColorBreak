@@ -29,20 +29,21 @@ beforeEach(() => {
 });
 
 describe("fast inline break composition", () => {
-  it("keeps product search and recent sets compact without losing accessible names", async () => {
+  it("shows available sets under product search without losing accessible names", async () => {
     render(createElement(Harness));
     const search = screen.getByRole("combobox", { name: "Find a set or product" });
     expect(search).toHaveAttribute("placeholder", "Find a set or product");
     expect(screen.getByRole("heading", { name: "Add products" })).toBeInTheDocument();
     expect(screen.queryByText("Recent sets")).toBeNull();
     expect(screen.queryByText("Tap a match. Keep adding.")).toBeNull();
-    const recentSets = await screen.findByRole("group", { name: "Recent sets" });
+    const recentSets = await screen.findByRole("group", { name: "Available sets, newest releases first" });
     expect(within(recentSets).getAllByRole("button")).toHaveLength(2);
   });
 
   it("filters set buttons on the first character without waiting for product requests", async () => {
     render(createElement(Harness));
-    await screen.findByRole("button", { name: "FIN Final Fantasy" });
+    const setBrowser = await screen.findByRole("group", { name: "Available sets, newest releases first" });
+    expect(within(setBrowser).getByRole("button", { name: "FIN Final Fantasy" })).toBeInTheDocument();
     loader.products.mockImplementation(() => new Promise(() => {}));
     search("e");
     const matches = screen.getByRole("group", { name: "Matching sets" });
@@ -56,7 +57,6 @@ describe("fast inline break composition", () => {
     const line: BreakLine = { id: "eoe", set: "EOE", productKey: "sealed:play-booster-pack", productLabel: "Play Booster Pack", quantity: 1 };
     const props = { lines: [line], onChange: vi.fn(), onImport: vi.fn() };
     const view = render(createElement(QuickBreakComposer, props));
-    await screen.findByRole("button", { name: "FIN Final Fantasy" });
     const input = screen.getByRole<HTMLInputElement>("combobox");
     // Model the native edit arriving before the search notification while the
     // workspace hydrates price metadata. A render must not erase that edit.
@@ -70,7 +70,6 @@ describe("fast inline break composition", () => {
   it("adds, edits quantities, then adds another set without leaving the screen or losing costs", async () => {
     const change = vi.fn();
     render(createElement(Harness, { change, initial: [{ id: "paid", set: "FIN", productKey: "sealed:collector-booster-box", productLabel: "Collector Booster Box", quantity: 1, packCount: 12, myCost: 180, marketCost: 210 }] }));
-    await screen.findByRole("button", { name: "FIN Final Fantasy" });
     expect(loader.products).not.toHaveBeenCalled();
     search("final fan col");
     fireEvent.click(await screen.findByRole("option", { name: "Add Final Fantasy (FIN) Collector Booster Box" }));

@@ -371,7 +371,6 @@ export function BuyerWorkspace({
         </aside>}
         <CommandPanel
           panels={[{ id: "products", label: "Break", target: "buyer-products" }]}
-          actions={<BuyerAssumptions costs={costSettings} bulkEnabled={bulkEnabled} bulkThreshold={bulkThreshold} setBulkEnabled={setBulkEnabled} setBulkThreshold={setBulkThreshold} result={analysis?.valuation} open={assumptionsOpen} onOpenChange={setAssumptionsOpen} opener={assumptionsOpener} onOpen={() => setAssumptionsOpener(null)} />}
         >
           <div className={`bid-check-workbench ${lines.length ? "has-break" : "is-empty"}`}>
             <BuyerSetup
@@ -383,6 +382,7 @@ export function BuyerWorkspace({
               setAuction={updateAuction}
               assignmentMode={assignmentMode}
               setAssignmentMode={setAssignmentMode}
+              formatActions={<BuyerAssumptions costs={costSettings} bulkEnabled={bulkEnabled} bulkThreshold={bulkThreshold} setBulkEnabled={setBulkEnabled} setBulkThreshold={setBulkThreshold} result={analysis?.valuation} open={assumptionsOpen} onOpenChange={setAssumptionsOpen} opener={assumptionsOpener} onOpen={() => setAssumptionsOpener(null)} />}
               targetSlots={activeBidTargets}
               setTargetSlots={setTargetSlots}
               costs={costs}
@@ -391,7 +391,6 @@ export function BuyerWorkspace({
               setLargeSpots={setLargeSpots}
             />
             <div id="buyer-large-result" className="results buyer-results buyer-decision-stage" tabIndex={-1}>
-              {!lines.length && <p>Add a product in Break to see your bid decision.</p>}
               {manualCapOpen ? <ManualBudgetCap onBack={() => { setManualCapOpen(false); openBuilder(); }} target={manualTarget} setTarget={setManualTarget} shipping={manualShipping} setShipping={setManualShipping} hammer={manualHammer} setHammer={setManualHammer} /> : null}
               {busy && <div className="calculating" role="status" aria-live="polite"><span />Improving the estimate…</div>}
               {error && <CompactWarning title="Couldn’t load this result" summary="The best available estimate remains visible. Retry to improve it." className="load-warning"><p role="alert">{error}</p><div className="buyer-recovery-actions"><button type="button" className="quiet" onClick={() => setCalculationGeneration((value) => value + 1)}>Retry analysis</button><button type="button" className="quiet" onClick={() => setManualCapOpen(true)}>Use manual budget cap</button></div></CompactWarning>}

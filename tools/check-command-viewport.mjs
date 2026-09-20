@@ -22,6 +22,31 @@ try {
       };
     });
     await page.goto(`${base}#${job}`);
+    if (job === 'buyer' && width < 900) {
+      const search = page.getByRole('combobox', { name: 'Find a set or product' });
+      const sets = page.getByRole('group', { name: 'Available sets, newest releases first' });
+      await sets.waitFor();
+      const measureSetArea = () => page.evaluate(() => {
+        const list = document.querySelector('.quick-set-suggestions');
+        const body = document.querySelector('.command-body');
+        const listBounds = list.getBoundingClientRect();
+        const bodyBounds = body.getBoundingClientRect();
+        return { bottomGap: bodyBounds.bottom - listBounds.bottom, listHeight: list.clientHeight, listScrollHeight: list.scrollHeight, pageHeight: document.documentElement.scrollHeight, viewportHeight: innerHeight };
+      });
+      const closedArea = await measureSetArea();
+      assert.ok(closedArea.bottomGap >= 0 && closedArea.bottomGap <= 16, `set columns fill the closed viewport: ${JSON.stringify(closedArea)}`);
+      assert.ok(closedArea.listScrollHeight > closedArea.listHeight, 'the closed set area scrolls its full catalog');
+      await search.focus();
+      await page.evaluate(() => window.setTestViewport(350, 28));
+      await page.waitForFunction(() => document.documentElement.classList.contains('keyboard-open'));
+      const keyboardArea = await measureSetArea();
+      assert.ok(keyboardArea.bottomGap >= 0 && keyboardArea.bottomGap <= 16, `set columns fill the keyboard viewport: ${JSON.stringify(keyboardArea)}`);
+      assert.ok(keyboardArea.listScrollHeight > keyboardArea.listHeight, 'the keyboard set area scrolls its full catalog');
+      assert.equal(keyboardArea.pageHeight, keyboardArea.viewportHeight, 'keyboard resizing does not expand the page');
+      await page.evaluate(() => window.setTestViewport(844, 0));
+      await search.blur();
+      await page.waitForFunction(() => !document.documentElement.classList.contains('keyboard-open'));
+    }
     await page.getByRole('combobox').fill('eoe collector');
     await page.getByRole('option', { name: /EOE\) Collector Booster Pack$/ }).click();
     await page.getByRole('combobox').blur();
@@ -83,7 +108,7 @@ try {
     await page.waitForTimeout(200);
     const dockRight = await dock.getByRole('button').last().boundingBox();
     assert.ok(dockRight.x + dockRight.width <= 844 - 47 + 1, 'landscape dock clears the right-side cutout');
-    const panelRight = await page.locator('.command-navigation').boundingBox();
+    const panelRight = await page.locator(job === 'buyer' ? '.break-format-toolbar' : '.command-navigation').boundingBox();
     assert.ok(panelRight.x + panelRight.width <= 844 - 47 + 1, 'landscape workspace clears the right-side cutout');
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), 'landscape has no horizontal overflow');
     assert.deepEqual(errors, []);

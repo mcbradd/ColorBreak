@@ -38,7 +38,7 @@ try {
       assert.ok(topBoxes[0].x + topBoxes[0].width <= topBoxes[1].x, 'task title follows the brand without overlap');
       assert.ok(topBoxes[1].height <= 20, `task title stays on one line: ${JSON.stringify(topBoxes[1])}`);
       assert.equal(await title.evaluate(el => getComputedStyle(el).textTransform), 'uppercase');
-      const controls = page.locator('.command-navigation');
+      const controls = page.locator('.break-format-toolbar');
       const assumptions = controls.getByRole('button', { name: 'Adjust assumptions' });
       const bulk = controls.getByRole('switch', { name: 'Bulk filter' });
       assert.equal(await controls.getByRole('button', { name: 'Break panel' }).count(), 0, 'buyer workspace has no Break tab');
@@ -52,7 +52,7 @@ try {
       const enabled = await bulk.getAttribute('aria-checked');
       await bulk.click();
       assert.equal(await bulk.getAttribute('aria-checked'), enabled === 'true' ? 'false' : 'true');
-      if (process.env.COLORBREAK_EVIDENCE_DIR) await page.screenshot({ path: join(process.env.COLORBREAK_EVIDENCE_DIR, `buyer-header-${width}.png`) });
+      if (process.env.COLORBREAK_EVIDENCE_DIR) await page.screenshot({ path: join(process.env.COLORBREAK_EVIDENCE_DIR, `buyer-format-controls-${width}.png`) });
       await assumptions.click();
       const panel = page.getByRole('dialog', { name: 'Assumptions', exact: true });
       await panel.getByRole('textbox', { name: 'Tax', exact: true }).fill('7');
@@ -89,7 +89,7 @@ try {
     await sheet.waitFor({ state: 'hidden' });
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), 'no document horizontal overflow');
     assert.deepEqual(errors, []);
-    console.log(`PASS ${job} ${width}px: instant set buttons, header controls, fixed entry frame, keyboard search/exit, direct Close`);
+    console.log(`PASS ${job} ${width}px: instant set buttons, format controls, fixed entry frame, keyboard search/exit, direct Close`);
     await page.close();
   }
 } finally { await browser.close(); }

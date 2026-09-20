@@ -73,6 +73,10 @@ describe("break format sequencing", () => {
     const formats = screen.getByRole("group", { name: "Break format" });
     expect(within(formats).getByRole("button", { name: "Standard (8 Slots)" })).toHaveAttribute("aria-pressed", "true");
     expect(within(formats).getByRole("button", { name: "Custom" })).toBeInTheDocument();
+    const toolbar = formats.parentElement!;
+    expect(within(toolbar).getByRole("button", { name: "Adjust assumptions" })).toBeInTheDocument();
+    expect(within(toolbar).getByRole("switch", { name: "Bulk filter" })).toBeInTheDocument();
+    expect(screen.queryByText("Add a product in Break to see your bid decision.")).toBeNull();
   });
 
   it("switches to a large break with no product in the break", () => {

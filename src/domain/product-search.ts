@@ -58,10 +58,6 @@ export function matchingProducts(products: readonly ProductChoice[], query: stri
   }).sort(compareProducts);
 }
 
-export function suggestedSearchSets(sets: readonly ProductSearchSet[], currentSets: readonly string[], today = new Date().toISOString().slice(0, 10)): ProductSearchSet[] {
-  const recent = [...sets].filter((set) => set.released <= today)
-    .sort((a, b) => b.released.localeCompare(a.released));
-  const byCode = new Map(sets.map((set) => [set.code, set]));
-  const codes = [...new Set([...currentSets, ...recent.map((set) => set.code)])];
-  return codes.flatMap((code) => byCode.has(code) ? [byCode.get(code)!] : []).slice(0, 24);
+export function suggestedSearchSets(sets: readonly ProductSearchSet[]): ProductSearchSet[] {
+  return [...sets].sort((a, b) => b.released.localeCompare(a.released) || a.name.localeCompare(b.name));
 }

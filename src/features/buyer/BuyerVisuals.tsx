@@ -2,6 +2,7 @@ import { probableRange, chartPosition, CANDLE_EXPLANATION } from "../../domain/o
 import { summarizeDistribution } from "../../domain/simulation";
 import { AnswerValue, AnswerNote, AnswerGroup } from "../shared/Answer";
 import { useRef, useState } from "react";
+import type { ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { CardInspector } from "../shared/CardInspector";
 export { CardInspector } from "../shared/CardInspector";
@@ -77,6 +78,7 @@ export function ValueSummary({ result }: { result: ValuationResult }) {
 export function BreakFormatChoice({
   assignmentMode,
   setAssignmentMode,
+  actions,
   targetSlots = [],
   largeSpots,
   setLargeSpots,
@@ -84,6 +86,7 @@ export function BreakFormatChoice({
 }: {
   assignmentMode: AssignmentMode;
   setAssignmentMode: (mode: AssignmentMode) => void;
+  actions?: ReactNode;
   targetSlots?: SlotId[];
   largeSpots: number;
   setLargeSpots: (spots: number) => void;
@@ -92,31 +95,33 @@ export function BreakFormatChoice({
   const isLarge = assignmentMode === "large";
   return (
     <section className="break-format-choice" aria-label="Break format">
-      <div className="step-heading">
+      <div className="break-format-toolbar">
+        <div className="break-format-options" role="group" aria-label="Break format">
+          <button
+            type="button"
+            aria-pressed={!isLarge}
+            className={`break-format-option ${isLarge ? "" : "active"}`}
+            onClick={() => setAssignmentMode("random")}
+          >
+            <Check className="break-format-tick" aria-hidden="true" />
+            <span>Standard <span className="sr-only">(8 Slots)</span></span>
+          </button>
+          <button
+            type="button"
+            aria-pressed={isLarge}
+            className={`break-format-option ${isLarge ? "active" : ""}`}
+            onClick={() => setAssignmentMode("large")}
+          >
+            <Check className="break-format-tick" aria-hidden="true" />
+            Custom
+          </button>
+        </div>
+        {actions}
         <Tip
+          className="break-format-help"
           label="How break formats work"
           text="Standard (8 Slots): one slot for each color. Custom: choose 1–500 entries, matching Whatnot's limit of 500 products in a Surprise Set. Choose the format used by the listing."
         />
-      </div>
-      <div className="break-format-options" role="group" aria-label="Break format">
-        <button
-          type="button"
-          aria-pressed={!isLarge}
-          className={`break-format-option ${isLarge ? "" : "active"}`}
-          onClick={() => setAssignmentMode("random")}
-        >
-          <Check className="break-format-tick" aria-hidden="true" />
-          Standard (8 Slots)
-        </button>
-        <button
-          type="button"
-          aria-pressed={isLarge}
-          className={`break-format-option ${isLarge ? "active" : ""}`}
-          onClick={() => setAssignmentMode("large")}
-        >
-          <Check className="break-format-tick" aria-hidden="true" />
-          Custom
-        </button>
       </div>
       {isLarge && <>
         <div className="large-break-spot-input">

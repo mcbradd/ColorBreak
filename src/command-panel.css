@@ -6,6 +6,7 @@
 .command-workspace > .workspace-title { flex: none; }
 .command-workspace .command-panels { display: flex; flex-direction: column; flex: 1; min-height: 0; }
 .command-workspace .command-navigation { flex: none; }
+.command-workspace .command-navigation:empty { display: none; }
 .command-workspace .command-body { position: relative; flex: 1; min-height: 0; max-height: none; }
 .command-workspace .workspace-title { margin: 16px 0; }
 .command-workspace .workspace-title h1 { font-size: clamp(28px, 3vw, 42px) !important; text-transform: none; }
@@ -86,7 +87,7 @@
     overflow-wrap: anywhere;
   }
   .command-workspace:not(.seller-fast) .quick-set-suggestions:not(.has-lines) > button b { margin: 0; }
-  .command-workspace:not(.seller-fast) .quick-set-suggestions:not(.has-lines) > button span { display: block; min-width: 0; line-height: 1.15; }
+  .command-workspace:not(.seller-fast) .quick-set-suggestions:not(.has-lines) > button span { display: -webkit-box; min-width: 0; overflow: hidden; line-height: 1.05; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
   .command-dock.seller-value-dock { position: fixed; left: 0; right: 0; top: calc(var(--visual-viewport-top, 0px) + var(--visual-viewport-height, 100dvh)); bottom: auto; transform: translateY(-100%); z-index: 40; border-top: 2px solid var(--accent); background: var(--panel-raised); display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 8px max(12px, var(--safe-right)) calc(8px + var(--safe-bottom)) max(12px, var(--safe-left)); gap: 4px 12px; }
   .command-dock.seller-value-dock > button { display: grid; gap: 2px; text-align: left; background: transparent; color: var(--ink); padding: 0; min-width: 0; }
   .command-dock.seller-value-dock > button b { color: var(--accent); }
@@ -236,3 +237,83 @@
 .buyer-header-actions svg { width: 20px; height: 20px; flex: none; }
 .buyer-header-bulk[aria-checked="true"] { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 18%, var(--panel)); color: var(--accent); }
 .buyer-assumptions-body { --entry-width: min(48%, 180px); }
+
+/* Keep the listing format and its two most-used assumptions together. */
+.break-format-toolbar { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.break-format-toolbar .break-format-options { flex: 1 1 auto; min-width: 0; grid-template-columns: minmax(0, 1.35fr) minmax(0, .85fr); gap: 6px; margin: 0; }
+.break-format-toolbar .break-format-option { min-width: 0; white-space: nowrap; }
+.break-format-toolbar .buyer-header-actions { gap: 4px; }
+.break-format-toolbar .buyer-header-actions > button { min-height: 44px; }
+.break-format-toolbar .buyer-assumptions-button { width: 44px; padding: 9px; }
+.break-format-toolbar .buyer-header-bulk { flex: 0 0 58px; width: 58px; padding-inline: 5px; }
+.break-format-help { flex: 0 0 26px; }
+
+@media (min-width: 900px) {
+  .command-workspace:has(#buyer-break-setup) .command-body { display: flex; min-height: 0; }
+  .command-workspace:has(#buyer-break-setup) .bid-check-workbench.is-empty { flex: 1; min-height: 0; grid-template-columns: minmax(0, 1fr); }
+  .command-workspace:has(#buyer-break-setup) .bid-check-workbench.is-empty #buyer-break-setup,
+  .command-workspace:has(#buyer-break-setup) .bid-check-workbench.is-empty .buyer-entry-panel { display: flex; flex: 1; flex-direction: column; min-height: 0; }
+  .command-workspace:has(#buyer-break-setup) .bid-check-workbench.is-empty .quick-break-composer { display: flex; flex: 1; flex-direction: column; min-height: 0; }
+  .command-workspace:has(#buyer-break-setup) .bid-check-workbench.is-empty .quick-set-suggestions:not(.has-lines) {
+    display: grid; flex: 1; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); align-content: start;
+    min-height: 0; max-height: none; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain;
+  }
+}
+
+@media (max-width: 899px) {
+  .break-format-toolbar { gap: 4px; }
+  .break-format-toolbar .break-format-options { grid-template-columns: minmax(0, 1.35fr) minmax(0, .8fr); gap: 4px; }
+  .break-format-toolbar .break-format-option { min-height: 42px; gap: 3px; padding: 4px 5px; font-size: clamp(10px, 3vw, 12px); }
+  .break-format-toolbar .break-format-tick { width: 14px; height: 14px; }
+  .break-format-toolbar .buyer-assumptions-button { width: 40px; padding: 8px; }
+  .break-format-toolbar .buyer-header-actions > button { min-height: 42px; }
+  .break-format-toolbar .buyer-header-bulk { flex-basis: 54px; width: 54px; gap: 3px; padding-inline: 4px; }
+  .break-format-toolbar .buyer-header-bulk span { font-size: 11px !important; }
+  .break-format-toolbar .buyer-header-bulk svg { width: 15px; height: 15px; }
+  .break-format-toolbar .break-format-help { flex-basis: 22px; }
+
+  .command-workspace:has(#buyer-break-setup) .bid-check-workbench.is-empty { display: flex !important; flex: 1; flex-direction: column; min-height: 0; }
+  .command-workspace:has(#buyer-break-setup) .bid-check-workbench.is-empty #buyer-break-setup,
+  .command-workspace:has(#buyer-break-setup) .bid-check-workbench.is-empty .buyer-entry-panel { display: flex; flex: 1; flex-direction: column; min-height: 0; }
+  .command-workspace:has(#buyer-break-setup) .bid-check-workbench.is-empty .quick-break-composer { display: flex; flex: 1; flex-direction: column; min-height: 0; }
+  .command-workspace:has(#buyer-break-setup) .bid-check-workbench.is-empty .quick-set-suggestions:not(.has-lines) {
+    display: grid; flex: 1; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-auto-rows: minmax(74px, auto); align-content: start;
+    height: auto; min-height: 0; max-height: none; overflow-x: hidden; overflow-y: auto; overscroll-behavior-y: contain;
+    overflow-anchor: none; scrollbar-width: thin; touch-action: pan-y;
+  }
+  .command-workspace:has(#buyer-break-setup) .bid-check-workbench.is-empty .quick-set-suggestions:not(.has-lines) > button {
+    display: grid; grid-template-columns: minmax(0, 1fr); align-content: center; gap: 2px; width: auto; min-width: 0; min-height: 74px;
+    padding: 5px 6px; overflow-wrap: anywhere;
+  }
+  .command-workspace:has(#buyer-break-setup) .bid-check-workbench.is-empty .quick-set-suggestions > button b { margin: 0; }
+  .command-workspace:has(#buyer-break-setup) .bid-check-workbench.is-empty .quick-set-suggestions > button span { display: -webkit-box; min-width: 0; overflow: hidden; line-height: 1.05; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+  .command-workspace:has(#buyer-break-setup) .command-panels[data-single-panel="true"] .command-body:has(.quick-contents-empty) {
+    display: flex; flex: 1; min-height: 0; max-height: none; overflow: hidden;
+  }
+  .command-workspace:has(#buyer-break-setup) .command-panels[data-single-panel="true"] .bid-check-workbench.is-empty { display: flex !important; flex: 1; flex-direction: column; min-height: 0; }
+  .command-workspace:has(#buyer-break-setup) .command-panels[data-single-panel="true"] #buyer-break-setup,
+  .command-workspace:has(#buyer-break-setup) .command-panels[data-single-panel="true"] .buyer-entry-panel,
+  .command-workspace:has(#buyer-break-setup) .command-panels[data-single-panel="true"] .quick-break-composer { flex: 1; min-height: 0; }
+  .command-workspace:has(#buyer-break-setup):not(.seller-fast) .command-panels[data-single-panel="true"] .quick-set-suggestions:not(.has-lines) { flex: 1; height: auto; max-height: none; min-height: 0; }
+  .command-workspace:has(#buyer-break-setup) .command-panels[data-single-panel="true"] .quick-search-results-wrap { display: flex; flex: 1; flex-direction: column; min-height: 0; }
+  .command-workspace:has(#buyer-break-setup) .command-panels[data-single-panel="true"] .quick-search-results { flex: 1; max-height: none; min-height: 0; }
+}
+
+@media (max-width: 359px) {
+  .break-format-toolbar .break-format-help { display: none; }
+  .break-format-toolbar .buyer-header-actions { gap: 3px; }
+  .break-format-toolbar .buyer-assumptions-button { width: 36px; }
+  .break-format-toolbar .buyer-header-bulk { flex-basis: 58px; width: 58px; }
+  .break-format-toolbar .break-format-option { font-size: 10px; padding-inline: 3px; }
+}
+
+@media (max-width: 899px) {
+  .command-workspace .quick-set-suggestions:not(.has-lines) > button span {
+    display: -webkit-box;
+    min-width: 0;
+    overflow: hidden;
+    line-height: 1.05;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+}

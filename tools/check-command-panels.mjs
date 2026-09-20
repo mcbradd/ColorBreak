@@ -26,7 +26,7 @@ async function runCheck(job, width, repetition) {
     await page.goto(`${base}#${job}`);
     const search = page.getByRole('combobox', { name: 'Find a set or product' });
     if (job === 'buyer' && width < 900) {
-      const suggestions = page.getByRole('group', { name: 'Recent sets' });
+      const suggestions = page.getByRole('group', { name: 'Available sets, newest releases first' });
       await suggestions.waitFor();
       assert.ok(await suggestions.getByRole('button').count() > 4, 'recent set list contains enough tiles to scroll');
       const listLayout = await suggestions.evaluate(el => ({

@@ -11,6 +11,7 @@ import { BreakFormatChoice, SlotRail } from "./BuyerVisuals";
 import { QuickBreakComposer } from "../shared/QuickBreakComposer";
 import type { BuyerCosts } from "../../domain/bid-ceiling";
 import { DEFAULT_BUYER_COSTS } from "../../domain/bid-ceiling";
+import type { ReactNode } from "react";
 
 export function BuyerSetup({
   lines,
@@ -21,6 +22,7 @@ export function BuyerSetup({
   setAuction,
   assignmentMode,
   setAssignmentMode,
+  formatActions,
   costs = DEFAULT_BUYER_COSTS,
   targetSlots = [],
   setTargetSlots = () => {},
@@ -36,6 +38,7 @@ export function BuyerSetup({
   setAuction: (state: AuctionState) => void;
   assignmentMode: AssignmentMode;
   setAssignmentMode: (mode: AssignmentMode) => void;
+  formatActions?: ReactNode;
   costs?: BuyerCosts;
   targetSlots?: SlotId[];
   setTargetSlots?: (ids: SlotId[]) => void;
@@ -51,6 +54,7 @@ export function BuyerSetup({
       <BreakFormatChoice
         assignmentMode={assignmentMode}
         setAssignmentMode={setAssignmentMode}
+        actions={formatActions}
         targetSlots={targetSlots}
         largeSpots={largeSpots}
         setLargeSpots={setLargeSpots}

@@ -31,14 +31,16 @@ describe("combined product search", () => {
     expect(rankSearchSets(sets, "collector box", 2)).toHaveLength(2);
     expect(rankSearchSets(sets, "collector box", 2).some((row) => row.code === "TRK")).toBe(false);
     expect(rankSearchSets(sets, "TRK collector")[0].code).toBe("TRK");
-    expect(suggestedSearchSets(sets, ["FIN", "EOE", "FIN"], "2026-01-01").map((row) => row.code)).toEqual(["FIN", "EOE", "MSH", "DSK"]);
+    expect(suggestedSearchSets(sets).map((row) => row.code)).toEqual(["TRK", "DSK", "EOE", "FIN", "MSH"]);
   });
 
-  it("offers enough recent sets to fill a scrollable mobile tile list", () => {
-    const manySets = Array.from({ length: 32 }, (_, index) => set(`S${index}`, `Set ${index}`, `2026-01-${String(index + 1).padStart(2, "0")}`));
-    const suggestions = suggestedSearchSets(manySets, ["S0"], "2026-12-31");
-    expect(suggestions).toHaveLength(24);
-    expect(suggestions[0].code).toBe("S0");
+  it("shows every available set newest to oldest, including announced future releases", () => {
+    const manySets = Array.from({ length: 32 }, (_, index) => set(`S${index}`, `Set ${index}`, new Date(Date.UTC(2026, 0, index + 1)).toISOString().slice(0, 10)));
+    const upcoming = set("FRA", "Reality Fracture", "2026-10-02");
+    const suggestions = suggestedSearchSets([...manySets, upcoming]);
+    expect(suggestions).toHaveLength(33);
+    expect(suggestions[0].code).toBe("FRA");
     expect(suggestions[1].code).toBe("S31");
+    expect(suggestions.at(-1)?.code).toBe("S0");
   });
 });
