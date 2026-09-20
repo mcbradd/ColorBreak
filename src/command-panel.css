@@ -169,11 +169,15 @@
   .keyboard-open .command-workspace:has(#buyer-break-setup) .command-panels[data-active-panel="products"] :is(.break-format-choice, .quick-composer-heading, .quick-contents-heading) {
     display: none;
   }
+  .keyboard-open .command-workspace:has(#buyer-break-setup) .command-panels[data-active-panel="products"] .quick-break-composer:has(.quick-line-quantity input:focus) {
+    border-top: 0;
+    padding-top: 0;
+  }
   .keyboard-open .command-workspace:has(#buyer-break-setup) .command-panels[data-active-panel="products"] .quick-break-composer:has(.quick-line-quantity input:focus) .quick-search-field {
     display: none;
   }
   .keyboard-open .command-workspace:has(#buyer-break-setup):not(.seller-fast) .command-panels[data-active-panel="products"] .quick-break-line {
-    padding-block: 4px;
+    padding-block: 0;
   }
   .command-workspace:has(#buyer-break-setup) .break-format-choice .step-heading { justify-content: flex-end; }
 }
