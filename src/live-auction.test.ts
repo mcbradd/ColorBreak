@@ -38,11 +38,13 @@ const analysis: BreakAnalysis = {
 
 function Harness() {
   const [auction, setAuction] = useState<AuctionState>(() => createAuction());
-  const [selectedSlots, setSelectedSlots] = useState<SlotId[]>([]);
-  const simulation = useOutcomeSimulation(analysis, auction.remaining, undefined);
+  const [targetSlots, setTargetSlots] = useState<SlotId[]>([]);
+  const activeTargets = targetSlots.filter((slot) => auction.remaining.includes(slot));
+  const calculationSlots = activeTargets.length ? activeTargets : auction.remaining;
+  const simulation = useOutcomeSimulation(analysis, calculationSlots, undefined);
   return createElement(Fragment, null,
-    createElement(SlotRail, { result: valuation, auction, setAuction, selectedSlots, setSelectedSlots, distributions: simulation.result?.slotDistributions }),
-    createElement(BuyerView, { analysis, auction, selectedSlots, costs: DEFAULT_BUYER_COSTS, simulation }),
+    createElement(SlotRail, { result: valuation, auction, setAuction, targetSlots: activeTargets, setTargetSlots, distributions: simulation.result?.slotDistributions }),
+    createElement(BuyerView, { analysis, auction, targetSlots: activeTargets, costs: DEFAULT_BUYER_COSTS, simulation }),
   );
 }
 
@@ -58,6 +60,7 @@ describe("live random-slot buyer workflow", () => {
     expect(screen.queryByRole("button", { name: "Reconfirm current bid" })).not.toBeInTheDocument();
     expect(screen.queryByRole("group", { name: "Risk stance" })).not.toBeInTheDocument();
     await waitFor(() => expect(screen.getByLabelText("Highest bid to make")).not.toHaveTextContent("Checking…"));
+    expect(screen.getByRole("region", { name: "Bid decision" })).toHaveTextContent("Bid basis: all 8 remaining slots; average EV $3.75 per spot");
   });
 
   it("takes a slot out of the pool inline, without a separate editing screen", async () => {
@@ -67,35 +70,69 @@ describe("live random-slot buyer workflow", () => {
     expect(screen.queryByRole("button", { name: "Edit availability" })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Mark Blue taken by another buyer" }));
     expect(screen.getByRole("region", { name: "Bid decision" })).toHaveTextContent("7 slots left");
-    expect(screen.getByRole("button", { name: "Mark Blue as mine" })).toBeDisabled();
+    expect(screen.getByRole("region", { name: "Bid decision" })).toHaveTextContent("average EV $1.43 per spot");
+    expect(screen.queryByRole("button", { name: /mine/i })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Restore Blue" }));
     expect(screen.getByRole("region", { name: "Bid decision" })).toHaveTextContent("8 slots left");
+    expect(screen.getByRole("region", { name: "Bid decision" })).toHaveTextContent("average EV $3.75 per spot");
   });
 
-  it("reports the value of the slots the buyer already owns", async () => {
+  it("bases the recommendation on only the selected available bid targets", async () => {
     render(createElement(Harness));
     await waitFor(() => expect(screen.getByLabelText("Highest bid to make")).not.toHaveTextContent("Checking…"));
 
-    fireEvent.click(screen.getByRole("button", { name: "Mark Blue as mine" }));
+    fireEvent.click(screen.getByRole("button", { name: "Select Blue for bid preview" }));
+    expect(screen.getByRole("region", { name: "Bid decision" })).toHaveTextContent("average EV $20.00 per spot");
+    expect(screen.getByRole("region", { name: "Bid decision" })).toHaveTextContent("the selected preview slots (Blue)");
 
-    const owned = document.querySelector(".owned-slot-value")!;
-    expect(owned).toHaveTextContent("My slot: Blue");
-    expect(owned).toHaveTextContent("$20.00");
-    // An owned slot leaves the pool the next bid draws from.
+    fireEvent.click(screen.getByRole("button", { name: "Select White for bid preview" }));
+    expect(screen.getByRole("region", { name: "Bid decision" })).toHaveTextContent("average EV $15.00 per spot");
+  });
+
+  it("drops a selected preview as soon as another buyer takes that slot", async () => {
+    render(createElement(Harness));
+    await waitFor(() => expect(screen.getByLabelText("Highest bid to make")).not.toHaveTextContent("Checking…"));
+
+    fireEvent.click(screen.getByRole("button", { name: "Select Blue for bid preview" }));
+    expect(screen.getByRole("region", { name: "Bid decision" })).toHaveTextContent("average EV $20.00 per spot");
+    fireEvent.click(screen.getByRole("button", { name: "Mark Blue taken by another buyer" }));
+
     expect(screen.getByRole("region", { name: "Bid decision" })).toHaveTextContent("7 slots left");
+    expect(screen.getByRole("region", { name: "Bid decision" })).toHaveTextContent("average EV $1.43 per spot");
+    expect(screen.getByRole("region", { name: "Bid decision" })).not.toHaveTextContent("Blue selected for bid preview");
+  });
+
+  it("shows a cost-adjusted break-even bid ceiling for each slot", async () => {
+    render(createElement(Harness));
+    await waitFor(() => expect(screen.getByLabelText("Highest bid to make")).not.toHaveTextContent("Checking…"));
+
+    expect(screen.getByLabelText("White bid calculation")).toHaveTextContent(/Break-even EV\s+\$10\.00.*Bid ceiling\s+\$10\.00/);
+    expect(screen.getByLabelText("Blue bid calculation")).toHaveTextContent(/Break-even EV\s+\$20\.00.*Bid ceiling\s+\$20\.00/);
+  });
+
+  it("applies shipping and tax to every slot's own bid ceiling", () => {
+    render(createElement(SlotRail, {
+      result: valuation,
+      auction: createAuction(["W", "U"]),
+      setAuction: () => {},
+      costs: { ...DEFAULT_BUYER_COSTS, shipping: 4, taxPercent: 8 },
+    }));
+
+    expect(screen.getByLabelText("White bid calculation")).toHaveTextContent(/Bid ceiling\s+\$5\.25/);
+    expect(screen.getByLabelText("Blue bid calculation")).toHaveTextContent(/Bid ceiling\s+\$14\.51/);
   });
 
   it("removes the buyer's costs from the ceiling it recommends", async () => {
     // Only White and Blue hold value in this fixture, so a pool of those two
-    // has a non-zero typical value to take costs out of.
+    // has a non-zero average EV to take costs out of.
     const free = render(createElement(PricedPool, { costs: DEFAULT_BUYER_COSTS }));
-    await waitFor(() => expect(screen.getByLabelText("Highest bid to make")).toHaveTextContent("$10.00"));
+    await waitFor(() => expect(screen.getByLabelText("Highest bid to make")).toHaveTextContent("$15.00"));
     free.unmount();
 
     render(createElement(PricedPool, { costs: { ...DEFAULT_BUYER_COSTS, shipping: 4, taxPercent: 8 } }));
-    // $10 typical − $4 shipping, with 8% tax on the rest: $10/1.08 − $4.
-    await waitFor(() => expect(screen.getByLabelText("Highest bid to make")).toHaveTextContent("$5.25"));
+    // $15 average EV, less $4 shipping and 8% tax: $15/1.08 − $4.
+    await waitFor(() => expect(screen.getByLabelText("Highest bid to make")).toHaveTextContent("$9.88"));
   });
 
   it("shows the bid verdict before the supporting break-value summary", () => {
@@ -112,5 +149,5 @@ describe("live random-slot buyer workflow", () => {
 function PricedPool({ costs }: { costs: BuyerCosts }) {
   const [auction] = useState<AuctionState>(() => createAuction(["W", "U"]));
   const simulation = useOutcomeSimulation(analysis, auction.remaining, undefined);
-  return createElement(BuyerView, { analysis, auction, selectedSlots: [], costs, simulation });
+  return createElement(BuyerView, { analysis, auction, costs, simulation });
 }

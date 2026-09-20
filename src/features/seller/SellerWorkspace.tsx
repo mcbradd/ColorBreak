@@ -40,7 +40,7 @@ export function SellerWorkspace({ exit }: { exit: () => void }) {
   const calculationRevision = `${canonicalCompositionFingerprint(lines)}:${generation}`;
   const analysisCurrent = Boolean(analysis && analysisRevision === calculationRevision && !busy);
   const [transactionCount, setTransactionCount] = useState(() => sharedBuyer.assignmentMode === "large" ? (sharedBuyer.largeSpots ?? 120) : 8);
-  const sharedHref = createBreakShareUrl(`${location.origin}${location.pathname}#buyer`, { lines, assignmentMode: "pick", selectedSlots: ["W"], remaining: createAuction().remaining, bulkEnabled: true, bulkThreshold: 2, largeSpots: transactionCount });
+  const sharedHref = createBreakShareUrl(`${location.origin}${location.pathname}#buyer`, { lines, assignmentMode: "random", remaining: createAuction().remaining, bulkEnabled: true, bulkThreshold: 2, largeSpots: transactionCount });
   useEffect(() => { if (cleanupLegacyStorage()) setLegacyNotice(true); }, []);
   useEffect(() => { try { writeSessionLines("seller", lines); } catch { /* session persistence is optional */ } }, [lines]);
   useEffect(() => { history.replaceState(null, "", lines.length ? sharedHref.replace("#buyer", "#seller") : `${location.pathname}#seller`); }, [sharedHref, lines.length]);

@@ -9,7 +9,7 @@ describe("shared break URLs", () => {
         { id: "two", set: "TDM", productKey: "collector-pack", productLabel: "Collector Booster", quantity: 3 },
       ],
       assignmentMode: "random",
-      selectedSlots: ["G"],
+      targetSlots: ["G"],
       remaining: ["W", "U", "G"],
       bulkEnabled: false,
       bulkThreshold: 1.25,
@@ -24,24 +24,25 @@ describe("shared break URLs", () => {
     ]);
     expect(decoded).toMatchObject({
       assignmentMode: "random",
-      selectedSlots: ["G"],
+      targetSlots: ["G"],
       remaining: ["W", "U", "G"],
       bulkEnabled: false,
       bulkThreshold: 1.25,
     });
   });
 
-  it("round-trips several combined slots as a single selected lot", () => {
+  it("round-trips multiple slots selected for bid preview", () => {
     const href = createBreakShareUrl("https://example.com/#buyer", {
       lines: [],
-      assignmentMode: "pick",
-      selectedSlots: ["C", "L"],
+      assignmentMode: "random",
+      targetSlots: ["C", "L"],
       remaining: ["W", "U", "B", "R", "G", "M", "C", "L"],
       bulkEnabled: true,
       bulkThreshold: 2,
       largeSpots: 120,
     });
-    expect(decodeBuyerShare(new URL(href).search).selectedSlots).toEqual(["C", "L"]);
+    expect(decodeBuyerShare(new URL(href).search).targetSlots).toEqual(["C", "L"]);
+    expect(new URL(href).searchParams.has("s")).toBe(false);
   });
 
   it("decodes a legacy single-letter slot link exactly like a one-item list", () => {
@@ -51,7 +52,7 @@ describe("shared break URLs", () => {
 
   it("includes large-break spot count only for large mode", () => {
     const shared = new URL(createBreakShareUrl("https://example.com/#buyer", {
-      lines: [], assignmentMode: "large", selectedSlots: ["W"], remaining: ["W"],
+      lines: [], assignmentMode: "large", remaining: ["W"],
       bulkEnabled: true, bulkThreshold: 2, largeSpots: 175,
     }));
     expect(shared.searchParams.get("m")).toBe("large");

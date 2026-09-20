@@ -42,7 +42,6 @@ describe("Check a Bid setup order", () => {
     result,
     setAuction: vi.fn(),
     setAssignmentMode: vi.fn(),
-    setSelectedSlots: vi.fn(),
     bulkEnabled: true,
     bulkThreshold: 2,
     setBulkEnabled: vi.fn(),
@@ -59,7 +58,7 @@ describe("Check a Bid setup order", () => {
       ...baseProps,
       auction: createAuction(),
       assignmentMode: "random",
-      selectedSlots: ["W"],
+      targetSlots: ["W"],
     }));
     const setup = container.querySelector(".buyer-setup")!;
     const directSections = Array.from(setup.querySelector(".buyer-entry-panel")!.children);
@@ -80,7 +79,7 @@ describe("Check a Bid setup order", () => {
       lines: [],
       auction: createAuction(),
       assignmentMode: "random",
-      selectedSlots: [],
+      targetSlots: [],
     }));
 
     // The format question is the whole point of leading with it: a buyer
@@ -105,7 +104,7 @@ describe("Check a Bid setup order", () => {
       lines: [],
       auction: createAuction(),
       assignmentMode: "random",
-      selectedSlots: [],
+      targetSlots: [],
       setAssignmentMode,
     }));
 
@@ -118,7 +117,7 @@ describe("Check a Bid setup order", () => {
       ...baseProps,
       auction: createAuction(),
       assignmentMode: "large",
-      selectedSlots: [],
+      targetSlots: [],
     }));
 
     expect(screen.getByRole("button", { name: "Custom" })).toHaveAttribute("aria-pressed", "true");
@@ -133,7 +132,7 @@ describe("Check a Bid setup order", () => {
       ...baseProps,
       auction: createAuction(),
       assignmentMode: "random",
-      selectedSlots: ["W"],
+      targetSlots: ["W"],
     }));
     expect(screen.getByText("Play Booster Box")).toBeInTheDocument();
     colorFormat.unmount();
@@ -142,7 +141,7 @@ describe("Check a Bid setup order", () => {
       ...baseProps,
       auction: createAuction(),
       assignmentMode: "large",
-      selectedSlots: ["W"],
+      targetSlots: ["W"],
     }));
     expect(screen.getByText("Play Booster Box")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Add products" })).toBeInTheDocument();
@@ -153,14 +152,14 @@ describe("Check a Bid setup order", () => {
       ...baseProps,
       auction: markSlotsTaken(createAuction(), ["R"]),
       assignmentMode: "large",
-      selectedSlots: ["W", "U"],
+      targetSlots: ["W", "U"],
     }));
 
     const notice = screen.getByRole("status", { name: "Color-slot choices a large break does not use" });
     expect(notice).toHaveTextContent("Kept, but not used by a large break");
-    expect(notice).toHaveTextContent("the White, Blue slots you marked as yours");
+    expect(notice).toHaveTextContent("the White, Blue slots selected for bid preview");
     expect(notice).toHaveTextContent("the Red slot you marked taken");
-    expect(notice).toHaveTextContent("Nothing was deleted");
+    expect(notice).toHaveTextContent("the Red slot you marked taken");
   });
 
   it("stays quiet when a large break has nothing set aside", () => {
@@ -168,7 +167,7 @@ describe("Check a Bid setup order", () => {
       ...baseProps,
       auction: createAuction(),
       assignmentMode: "large",
-      selectedSlots: [],
+      targetSlots: [],
     }));
 
     expect(screen.queryByRole("status", { name: "Color-slot choices a large break does not use" })).toBeNull();

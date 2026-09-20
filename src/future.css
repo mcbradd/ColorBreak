@@ -1260,7 +1260,6 @@ input {
   align-items: center;
   gap: 10px;
 }
-.buyer-slot-row.mine { border-color: var(--accent); box-shadow: inset 3px 0 0 var(--accent); }
 .buyer-slot-row.taken { background: #0b0d11; opacity: .65; }
 .buyer-slot-tag {
   margin-left: auto;
@@ -1271,8 +1270,8 @@ input {
   letter-spacing: .06em;
   text-transform: uppercase;
 }
-.buyer-slot-mine-tag { color: #10140b; background: var(--accent); }
 .buyer-slot-taken-tag { color: #ffb2bf; background: #321820; }
+.buyer-slot-bid-tag { color: var(--accent); background: #253519; }
 
 .slot-candle { margin-top: 9px; }
 .slot-candle-track {
@@ -1321,6 +1320,15 @@ input {
 }
 .slot-candle-values > :nth-child(2) { text-align: center; color: var(--ink); font-weight: 800; }
 .slot-candle-values > :last-child { text-align: right; }
+.slot-bid-math {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 10px;
+}
+.slot-bid-math b { color: var(--ink); font-weight: 800; }
 
 /* Composition: products go straight on the page, no panel around a panel. */
 .composition { margin: 0 0 18px; }
@@ -1351,20 +1359,6 @@ input {
 }
 .number-field-suffix { margin-left: 4px; }
 .buyer-assumptions-body { padding-top: 12px; }
-
-.owned-slot-value {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin: 12px 0 0;
-  padding: 10px 12px;
-  border: 1px solid var(--line);
-  border-radius: 2px;
-  color: var(--muted);
-  font-size: 12px;
-}
-.owned-slot-value b { color: var(--ink); font: 900 16px Manrope, sans-serif; }
 
 /* Picker: the current break is the list of what is in it. */
 .composer-draft-list {

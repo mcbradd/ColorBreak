@@ -58,6 +58,9 @@ export function resolveCosts(overrides: CostOverrides, cards: number, spots: num
   const previous = mode === "flat" && owned > 0
     ? overrides.shipping ?? estimatedLabel(cards, spots, owned) : 0;
   const costs: BuyerCosts = { shipping: Math.max(0, Math.round((amount - previous) * 100) / 100), taxPercent: overrides.taxPercent ?? tax.rate };
+  const flatShippingNote = owned > 0
+    ? "Flat fee shows the combined label for spots already won plus the next spot. Only the increase is deducted from the next bid limit. An entered flat fee is charged once."
+    : "Flat fee uses a combined-purchase label estimate; the full amount is deducted for this purchase.";
   return { costs, amount, mode, taxNote: overrides.taxPercent == null ? tax.note : "Your saved checkout tax rate. Applied to bid plus added shipping; shipping exemptions can change the actual tax.",
-    shippingNote: `${SHIPPING_NOTE} ${mode === "flat" ? "Flat fee shows the combined label for your owned spots plus the next spot. Only the increase is deducted from the next bid limit. An entered flat fee is charged once, so additional owned spots add $0." : "Per item charges the displayed amount for every purchased spot."} ${overrides.shipping == null ? "Updates with break contents until you type an override." : "Your entered amount stays until all local app data is cleared."}` };
+    shippingNote: `${SHIPPING_NOTE} ${mode === "flat" ? flatShippingNote : "Per item charges the displayed amount for every purchased spot."} ${overrides.shipping == null ? "Updates with break contents until you type an override." : "Your entered amount stays until all local app data is cleared."}` };
 }

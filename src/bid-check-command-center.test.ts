@@ -69,7 +69,7 @@ describe("Bid Check command center", () => {
     expect(screen.queryByLabelText("Current bid")).not.toBeInTheDocument();
     expect(screen.queryByRole("group", { name: "Risk stance" })).not.toBeInTheDocument();
     expect(within(decision).getByText("DON’T BID OVER")).toBeInTheDocument();
-    await waitFor(() => expect(screen.getByLabelText("Highest bid to make")).toHaveTextContent("$12.00"));
+    await waitFor(() => expect(screen.getByLabelText("Highest bid to make")).toHaveTextContent("$2.50"));
   });
 
   it("keeps break evidence — the only audit trail for the model — behind a real, keyboard-operable disclosure", async () => {
@@ -123,7 +123,7 @@ describe("Bid Check command center", () => {
     await screen.findByText("Some estimates may be low");
     fireEvent.click(screen.getByRole("button", { name: "What affects the bid limit" }));
     expect(screen.getByRole("tooltip")).toHaveTextContent("1× foil box topper has no verified card list.");
-    await waitFor(() => expect(screen.getByLabelText("Highest bid to make")).toHaveTextContent("$12.00"));
+    await waitFor(() => expect(screen.getByLabelText("Highest bid to make")).toHaveTextContent("$2.50"));
     expect(screen.queryByText("LIMIT UNAVAILABLE")).not.toBeInTheDocument();
 
   });
@@ -131,16 +131,16 @@ describe("Bid Check command center", () => {
   it("takes the buyer's standing costs out of the ceiling", async () => {
     render(createElement(BuyerWorkspace, { exit: vi.fn(), startFresh: false, startReady: false }));
     await screen.findByRole("region", { name: "Bid decision" });
-    await waitFor(() => expect(screen.getByLabelText("Highest bid to make")).toHaveTextContent("$12.00"));
+    await waitFor(() => expect(screen.getByLabelText("Highest bid to make")).toHaveTextContent("$2.50"));
 
     const summary = screen.getByRole("button", { name: "Adjust assumptions" });
     fireEvent.click(summary);
     fireEvent.change(screen.getByLabelText("Shipping"), { target: { value: "5" } });
 
-    await waitFor(() => expect(screen.getByLabelText("Highest bid to make")).toHaveTextContent("$7.00"));
+    await waitFor(() => expect(screen.getByLabelText("Highest bid to make")).toHaveTextContent("$0.00"));
   });
 
-  it("shows why a low random-slot median differs from the slot EVs", async () => {
+  it("bases the ceiling on average EV rather than the random-slot median", async () => {
     sessionStorage.setItem("colorbreak:buyer:cost-overrides:v2", JSON.stringify({ shipping: 4.47, taxPercent: 9.03 }));
     const slotPrices = SLOT_IDS.map((slot, index) => ({
       id: `slot-${slot}`, set: "TST", collectorNumber: String(index + 1), name: slot, slot,
@@ -163,9 +163,9 @@ describe("Bid Check command center", () => {
 
     render(createElement(BuyerWorkspace, { exit: vi.fn(), startFresh: false, startReady: false }));
 
-    const dockStatus = await screen.findByText("Odds estimated · median $4.90 ÷ (1 + 9.03% tax) − ship $4.47 = $0.02; Lands avg EV $8.25");
+    const dockStatus = await screen.findByText("Odds estimated · 8 remaining avg EV $12.41 ÷ (1 + 9.03% tax) − ship $4.47 = $6.90");
     expect(dockStatus).toBeInTheDocument();
-    expect(dockStatus).toHaveAttribute("aria-label", expect.stringContaining("Random-slot median $4.90; mean $14.61. Lowest remaining slot: Lands EV $8.25 (average). Bid limit = $4.90 ÷ (1 + 9.03% tax) − $4.47 shipping = $0.02 (rounded down to cents)."));
+    expect(dockStatus).toHaveAttribute("aria-label", expect.stringContaining("Based on all 8 remaining slots: average EV $12.41 per spot. Lowest remaining slot: Lands, average EV $8.25. Bid limit = $12.41 average EV ÷ (1 + 9.03% tax) − $4.47 shipping = $6.90 per spot (rounded down to cents)."));
   });
 
   it("resolves a costs-exceed-value verdict to a named fact instead of a stuck spinner", async () => {
@@ -176,12 +176,12 @@ describe("Bid Check command center", () => {
     fireEvent.click(summary);
     fireEvent.change(screen.getByLabelText("Shipping"), { target: { value: "20" } });
 
-    // Shipping alone ($20) exceeds the typical value ($12): a resolved fact,
+    // Shipping alone ($20) exceeds the average EV ($2.50): a resolved fact,
     // not missing data, so it must never render as "Checking…".
     await waitFor(() => expect(screen.getByLabelText("Highest bid to make")).toHaveTextContent("$0.00"));
     expect(screen.getByLabelText("Highest bid to make")).not.toHaveTextContent("Checking…");
     expect(screen.getByText("DO NOT BID")).toBeInTheDocument();
-    expect(screen.getByText(/already meet the typical card value/)).toBeInTheDocument();
+    expect(screen.getByText(/already meet this average EV/)).toBeInTheDocument();
   });
 
   it("names result navigation from the active assignment mode", async () => {

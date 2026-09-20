@@ -6,7 +6,7 @@ export type AssignmentMode = "random" | "pick" | "large";
 export interface BreakShareState {
   lines: BreakLine[];
   assignmentMode: AssignmentMode;
-  selectedSlots: SlotId[];
+  targetSlots?: SlotId[];
   remaining: SlotId[];
   bulkEnabled: boolean;
   bulkThreshold: number;
@@ -17,6 +17,7 @@ export interface SharedBuyerOptions {
   lines: BreakLine[];
   assignmentMode: AssignmentMode;
   selectedSlots?: SlotId[];
+  targetSlots?: SlotId[];
   remaining?: SlotId[];
   bulkEnabled?: boolean;
   bulkThreshold?: number;
@@ -31,7 +32,9 @@ export function createBreakShareUrl(href: string, state: BreakShareState): strin
   if (composition) url.searchParams.set("b", composition);
   else url.searchParams.delete("b");
   url.searchParams.set("m", state.assignmentMode);
-  url.searchParams.set("s", state.selectedSlots.join(""));
+  url.searchParams.delete("s");
+  if (state.targetSlots?.length) url.searchParams.set("q", [...new Set(state.targetSlots)].join(""));
+  else url.searchParams.delete("q");
   url.searchParams.set("r", state.remaining.join(""));
   url.searchParams.set("f", state.bulkEnabled ? "1" : "0");
   url.searchParams.set("t", String(state.bulkThreshold));
@@ -48,6 +51,8 @@ export function decodeBuyerShare(search: string): SharedBuyerOptions {
   // split-and-filter reads it identically to a multi-slot list.
   const rawSlots = params.get("s")?.split("").filter((slot): slot is SlotId => SLOT_IDS.includes(slot as SlotId));
   const selectedSlots = rawSlots?.length ? [...new Set(rawSlots)] : undefined;
+  const rawTargets = params.get("q")?.split("").filter((slot): slot is SlotId => SLOT_IDS.includes(slot as SlotId));
+  const targetSlots = rawTargets?.length ? [...new Set(rawTargets)] : undefined;
   const remaining = params.get("r")?.split("").filter((slot): slot is SlotId => SLOT_IDS.includes(slot as SlotId));
   const rawThreshold = params.get("t");
   const threshold = rawThreshold == null ? undefined : Number(rawThreshold);
@@ -57,6 +62,7 @@ export function decodeBuyerShare(search: string): SharedBuyerOptions {
     lines: decodeComposition(params.get("b") ?? ""),
     assignmentMode,
     selectedSlots,
+    targetSlots,
     remaining: remaining?.length ? remaining : undefined,
     bulkEnabled: params.has("f") ? params.get("f") !== "0" : undefined,
     bulkThreshold: threshold != null && Number.isFinite(threshold) && threshold >= 0 ? threshold : undefined,

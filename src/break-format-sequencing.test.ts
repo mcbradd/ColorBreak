@@ -95,13 +95,13 @@ describe("break format sequencing", () => {
     expect(screen.queryByLabelText("Custom entry count")).toBeNull();
   });
 
-  it("keeps break contents and slot choices across a format change, naming what a large break cannot use", async () => {
+  it("keeps taken slots and bid previews across a format change", async () => {
     sessionStorage.setItem("colorbreak:buyer:draft:v1", JSON.stringify([savedLine]));
     render(createElement(BuyerWorkspace, { exit: vi.fn(), startFresh: false, startReady: false }));
 
     await screen.findByRole("region", { name: "Bid decision" });
-    fireEvent.click(screen.getByRole("button", { name: "Mark White as mine" }));
-    fireEvent.click(screen.getByRole("button", { name: "Mark Blue as mine" }));
+    fireEvent.click(screen.getByRole("button", { name: "Select White for bid preview" }));
+    fireEvent.click(screen.getByRole("button", { name: "Select Blue for bid preview" }));
     fireEvent.click(screen.getByRole("button", { name: "Mark Red taken by another buyer" }));
 
     fireEvent.click(screen.getByRole("button", { name: "Custom" }));
@@ -112,14 +112,13 @@ describe("break format sequencing", () => {
 
     // The color-slot choices are not silently discarded: they are named.
     const notice = screen.getByRole("status", { name: "Color-slot choices a large break does not use" });
-    expect(notice).toHaveTextContent("the White, Blue slots you marked as yours");
+    expect(notice).toHaveTextContent("the White, Blue slots selected for bid preview");
     expect(notice).toHaveTextContent("the Red slot you marked taken");
-    expect(notice).toHaveTextContent("Nothing was deleted");
 
     // Switching back restores every choice rather than resetting them.
     fireEvent.click(screen.getByRole("button", { name: "Standard (8 Slots)" }));
-    await waitFor(() => expect(screen.getByRole("button", { name: "Blue is mine — undo" })).toHaveAttribute("aria-pressed", "true"));
-    expect(screen.getByRole("button", { name: "White is mine — undo" })).toHaveAttribute("aria-pressed", "true");
+    await waitFor(() => expect(screen.getByRole("button", { name: "Remove Blue from bid preview" })).toHaveAttribute("aria-pressed", "true"));
+    expect(screen.getByRole("button", { name: "Remove White from bid preview" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByRole("button", { name: "Restore Red" })).toBeInTheDocument();
     expect(screen.getByText("Play Booster Box")).toBeInTheDocument();
   });

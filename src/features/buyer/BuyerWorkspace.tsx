@@ -15,6 +15,7 @@ import { createAuction } from "../../domain/auction";
 import type { AuctionState } from "../../domain/auction";
 import { decodeLegacySearch } from "../../domain/legacy";
 import { createBreakShareUrl, decodeBuyerShare, type AssignmentMode } from "../../domain/share-url";
+import { SLOT_IDS } from "../../domain/types";
 import type { BreakLine, SlotId } from "../../domain/types";
 import { track } from "../../analytics";
 import { readyExampleLine } from "../../data/ready-examples";
@@ -64,22 +65,22 @@ export function BuyerWorkspace({
     [decisionAssessment, setDecisionAssessment] = useState<BuyerDecisionAssessment>(),
     [preparedSelection, setPreparedSelection] = useState<PreparedProductSelection>(),
     [auction, setAuction] = useState<AuctionState>(() => {
-      return sharedBuyer.remaining?.length ? createAuction(sharedBuyer.remaining) : createAuction();
+      const legacyTaken = sharedBuyer.selectedSlots ?? [];
+      return sharedBuyer.remaining?.length
+        ? createAuction(sharedBuyer.remaining)
+        : createAuction(SLOT_IDS.filter((slot) => !legacyTaken.includes(slot)));
     }),
     [error, setError] = useState<string>(),
     [bulkThreshold, setBulkThreshold] = useState(() => sharedBuyer.bulkThreshold ?? 2),
     [bulkEnabled, setBulkEnabled] = useState(() => sharedBuyer.bulkEnabled ?? true),
-    // Colour-slot breaks always price the pool the next auction draws from,
-    // so "pick" no longer exists as a separate mode: the slots a buyer checks
-    // are the ones they already own, not the ones being valued.
+    // The normal buyer view calculates the remaining random-slot pool. Legacy
+    // "pick" URLs stay readable but normalize to the standard format.
     [assignmentMode, setAssignmentMode] = useState<AssignmentMode>(() => sharedBuyer.assignmentMode === "large" ? "large" : "random"),
     [buyerBid, setBuyerBid] = useState<number | undefined>(),
     [largeSpots, setLargeSpots] = useState<number>(() => {
       return sharedBuyer.largeSpots ?? 120;
     }),
-    // Checked slots are the slots the buyer already owns, so nothing is
-    // checked until they say so.
-    [selectedSlots, setSelectedSlots] = useState<SlotId[]>(() => sharedBuyer.selectedSlots ?? []),
+    [targetSlots, setTargetSlots] = useState<SlotId[]>(() => (sharedBuyer.targetSlots ?? []).filter((slot) => !sharedBuyer.remaining || sharedBuyer.remaining.includes(slot))),
     [busy, setBusy] = useState(false),
     // The buyer asked, so the buyer gets told what happened: the phase while
     // it runs, and the real answer after, including "nothing newer exists".
@@ -97,7 +98,11 @@ export function BuyerWorkspace({
   const [recoveryRecord, setRecoveryRecord] = useState(() => isSharedBreak ? initialBuyerRecord : undefined);
   const [buyerRecoveryReady, setBuyerRecoveryReady] = useState(() => !initialBuyerRecord || isSharedBreak);
   const threshold = bulkEnabled ? bulkThreshold : 0;
-  const costSettings = useBuyerCosts(lines, analysis?.valuation, assignmentMode === "large" ? largeSpots : 8, assignmentMode === "large" ? 0 : selectedSlots.length);
+  const updateAuction = (next: AuctionState) => {
+    setAuction(next);
+    setTargetSlots((current) => current.filter((slot) => next.remaining.includes(slot)));
+  };
+  const costSettings = useBuyerCosts(lines, analysis?.valuation, assignmentMode === "large" ? largeSpots : 8, 0);
   const costs = costSettings.costs;
   useEffect(() => { if (startReady) setLines([readyExampleLine()]); }, [startReady]);
   useEffect(() => { if (cleanupLegacyStorage()) setLegacyNotice(true); }, []);
@@ -116,17 +121,17 @@ export function BuyerWorkspace({
       // pending marker keeps a brand-new local draft atomic before first load.
       dataVersion: analysis?.valuation.dataVersion ?? "pending",
       assignmentMode,
-      selectedSlots,
+      selectedSlots: [],
       remaining: auction.remaining,
       bulkEnabled,
       bulkThreshold,
       largeSpots,
     }, { bid: buyerBid, shipping: costs.shipping });
-  }, [analysis?.valuation.dataVersion, assignmentMode, auction.remaining, bulkEnabled, bulkThreshold, buyerBid, buyerRecoveryReady, costs.shipping, largeSpots, lines, selectedSlots]);
+  }, [analysis?.valuation.dataVersion, assignmentMode, auction.remaining, bulkEnabled, bulkThreshold, buyerBid, buyerRecoveryReady, costs.shipping, largeSpots, lines]);
   const sharedHref = createBreakShareUrl(`${location.origin}${location.pathname}#buyer`, {
     lines,
     assignmentMode,
-    selectedSlots,
+    targetSlots,
     remaining: auction.remaining,
     bulkEnabled,
     bulkThreshold,
@@ -249,9 +254,8 @@ export function BuyerWorkspace({
       largeSpots: initialBuyerRecord.largeSpots,
     });
     if (recovered) {
-      setAuction(createAuction(recovered.remaining));
+      updateAuction(createAuction(recovered.remaining));
       setAssignmentMode(recovered.assignmentMode);
-      setSelectedSlots(recovered.selectedSlots);
       setBulkEnabled(recovered.bulkEnabled);
       setBulkThreshold(recovered.bulkThreshold);
       setLargeSpots(recovered.largeSpots);
@@ -294,7 +298,8 @@ export function BuyerWorkspace({
   const { copy, toast } = useShareFeedback();
   // One simulation for the whole workspace: the slot rail's candles and the
   // decision's outcome range are two views of the same modeled openings.
-  const simulation = useOutcomeSimulation(analysis, auction.remaining, undefined);
+  const activeBidTargets = targetSlots.filter((slot) => auction.remaining.includes(slot));
+  const simulation = useOutcomeSimulation(analysis, activeBidTargets.length ? activeBidTargets : auction.remaining, undefined);
   const share = async () => {
     await copy(sharedHref);
     track("buyer_setup_copied", { mode, productCount: lines.length });
@@ -330,9 +335,8 @@ export function BuyerWorkspace({
         <div className="buyer-recovery-actions">
           <button type="button" className="primary" onClick={() => {
             setLines(recoveryRecord.lines);
-            setAuction(createAuction(recoveryRecord.remaining));
-            setAssignmentMode(recoveryRecord.assignmentMode);
-            setSelectedSlots(recoveryRecord.selectedSlots);
+            updateAuction(createAuction(recoveryRecord.remaining));
+            setAssignmentMode(recoveryRecord.assignmentMode === "large" ? "large" : "random");
             setBulkEnabled(recoveryRecord.bulkEnabled);
             setBulkThreshold(recoveryRecord.bulkThreshold);
             setLargeSpots(recoveryRecord.largeSpots);
@@ -347,9 +351,9 @@ export function BuyerWorkspace({
           }}>Use this shared break</button>
           <button type="button" className="quiet" onClick={() => {
             setLines([]);
-            setAuction(createAuction());
-            setAssignmentMode("pick");
-            setSelectedSlots([]);
+            updateAuction(createAuction());
+            setAssignmentMode("random");
+            setTargetSlots([]);
             setBulkEnabled(true);
             setBulkThreshold(2);
             setLargeSpots(120);
@@ -376,11 +380,12 @@ export function BuyerWorkspace({
               onChange={setLines}
               result={analysis?.valuation}
               auction={auction}
-              setAuction={setAuction}
+              setAuction={updateAuction}
               assignmentMode={assignmentMode}
               setAssignmentMode={setAssignmentMode}
-              selectedSlots={selectedSlots}
-              setSelectedSlots={setSelectedSlots}
+              targetSlots={activeBidTargets}
+              setTargetSlots={setTargetSlots}
+              costs={costs}
               distributions={simulation.result?.slotDistributions}
               largeSpots={largeSpots}
               setLargeSpots={setLargeSpots}
@@ -397,7 +402,7 @@ export function BuyerWorkspace({
                   analysis={analysis}
                   eligibility={decisionAssessment?.eligibility}
                   auction={auction}
-                  selectedSlots={selectedSlots}
+                  targetSlots={activeBidTargets}
                   breakLabel={lines.length === 1 ? `${lines[0].quantity}× ${lines[0].set} ${lines[0].productLabel}` : `${lines.length} products`}
                   costs={costs}
                   simulation={simulation}

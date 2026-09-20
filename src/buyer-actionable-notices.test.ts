@@ -54,7 +54,6 @@ function Decision({
     analysis,
     eligibility,
     auction,
-    selectedSlots: [],
     costs: DEFAULT_BUYER_COSTS,
     simulation,
     priceRefresh,

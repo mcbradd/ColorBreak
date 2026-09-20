@@ -47,10 +47,15 @@ try {
     assert.equal(await page.getByRole('button', { name: 'Restore Blue', exact: true }).getAttribute('aria-pressed'), 'true');
     assert.match(await page.locator('.decision-kicker').innerText(), /7 slots left/);
     await page.getByRole('button', { name: 'Restore Blue', exact: true }).click();
-    await page.getByRole('button', { name: 'Mark Red as mine', exact: true }).click();
-    await page.locator('.owned-slot-value').waitFor({ state: 'attached' });
-    assert.match(await page.locator('.owned-slot-value').innerText(), /Red/);
-    await page.getByRole('button', { name: 'Red is mine — undo', exact: true }).click();
+    await page.getByRole('button', { name: 'Select Red for bid preview', exact: true }).click();
+    assert.match(await page.locator('.decision-reason').innerText(), /selected preview slots \(Red\)/);
+    await page.getByRole('button', { name: 'Select White for bid preview', exact: true }).click();
+    assert.match(await page.locator('.decision-reason').innerText(), /selected preview slots \(Red, White\)/);
+    await page.getByRole('button', { name: 'Remove Red from bid preview', exact: true }).click();
+    assert.match(await page.locator('.decision-reason').innerText(), /selected preview slots \(White\)/);
+    await page.getByRole('button', { name: 'Remove White from bid preview', exact: true }).click();
+    assert.match(await page.locator('.decision-reason').innerText(), /all 8 remaining slots/);
+    assert.equal(await page.getByRole('button', { name: /mine/i }).count(), 0, 'buyer view has no ownership controls');
     await page.getByRole('button', { name: 'Decision panel', exact: true }).click();
     const refresh = page.getByRole('button', { name: /Prices over 6 hours old.*Refresh/ });
     if (await refresh.count()) {

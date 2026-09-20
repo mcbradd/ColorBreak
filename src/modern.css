@@ -363,8 +363,8 @@ body {
   text-transform: uppercase;
 }
 .buyer-slot-actions { display: flex; flex: none; gap: 6px; }
-.slot-check-btn,
-.slot-disable-btn {
+.slot-disable-btn,
+.slot-target-btn {
   display: grid;
   place-items: center;
   width: 44px;
@@ -375,25 +375,25 @@ body {
   background: transparent;
   cursor: pointer;
 }
-.slot-check-btn svg,
-.slot-disable-btn svg { width: 18px; height: 18px; }
-.slot-check-btn[aria-pressed="true"] {
-  color: #10140b;
-  background: var(--accent);
-  border-color: var(--accent);
-}
+.slot-disable-btn svg,
+.slot-target-btn svg { width: 18px; height: 18px; }
 .slot-disable-btn[aria-pressed="true"] {
   color: #ffb2bf;
   background: #321820;
   border-color: #5c2430;
+}
+.slot-target-btn[aria-pressed="true"] {
+  color: var(--accent-ink);
+  background: var(--accent);
+  border-color: var(--accent);
 }
 .slot-disable-btn.staged {
   color: #ffb2bf;
   border-color: #ff627d;
   box-shadow: inset 0 0 0 1px #ff627d;
 }
-.slot-check-btn:disabled,
-.slot-disable-btn:disabled { opacity: .3; cursor: not-allowed; }
+.slot-disable-btn:disabled,
+.slot-target-btn:disabled { opacity: .3; cursor: not-allowed; }
 .buyer-slot-footer {
   display: flex;
   flex-wrap: wrap;
@@ -560,7 +560,6 @@ body {
 .sheet > header .icon-button,
 .evidence-dialog > header .icon-button,
 .assignment-toggle button,
-.slot-check-btn,
 .slot-disable-btn {
   min-width: 44px;
   min-height: 44px;
@@ -1013,8 +1012,8 @@ body {
   .bid-check-workbench .buyer-slot-row { padding: 7px 8px; }
   .bid-check-workbench .buyer-slot-name { font-size: 11px; }
   .bid-check-workbench .buyer-slot-value { display: none; }
-  .bid-check-workbench .slot-check-btn,
-  .bid-check-workbench .slot-disable-btn { width: 40px; height: 40px; }
+  .bid-check-workbench .slot-disable-btn,
+  .bid-check-workbench .slot-target-btn { width: 40px; height: 40px; }
   .bid-check-workbench .buyer-slot-footer { font-size: 10px; }
   .bid-check-workbench .remaining-summary { margin-top: 4px; font-size: 8px; }
   .bid-check-workbench .large-break-spot-input { grid-template-columns: minmax(0, 1fr) 88px; gap: 7px; padding: 7px 8px; }

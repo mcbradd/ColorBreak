@@ -30,14 +30,14 @@ const result = {
 } as ValuationResult;
 
 function Harness() {
-  const [selectedSlots, setSelectedSlots] = useState<SlotId[]>([]);
+  const [targetSlots, setTargetSlots] = useState<SlotId[]>([]);
   const [auction, setAuction] = useState<AuctionState>(() => createAuction());
   return createElement(SlotRail, {
     result,
     auction,
     setAuction,
-    selectedSlots,
-    setSelectedSlots,
+    targetSlots,
+    setTargetSlots,
   });
 }
 
@@ -51,13 +51,13 @@ describe("buyer color controls", () => {
       ],
       draws: [1, 2].map(number => ({ set: "TST", collectorNumber: String(number), copies: 1, foil: false, source: "fixed" })),
     });
-    render(createElement(SlotRail, { result: memberResult, auction: createAuction(), setAuction: () => {}, selectedSlots: [], setSelectedSlots: () => {} }));
+    render(createElement(SlotRail, { result: memberResult, auction: createAuction(), setAuction: () => {} }));
     fireEvent.click(screen.getByRole("button", { name: "Show cards in Red team" }));
     const members = screen.getByRole("table", { name: "Cards in Red team" });
     expect(within(members).getAllByRole("row")[1]).toHaveTextContent("Big Dragon");
-    expect(screen.getByRole("button", { name: "Mark Red as mine" })).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByRole("button", { name: "Select Red for bid preview" })).toHaveAttribute("aria-pressed", "false");
     const thumbnail = within(members).getByRole("button", { name: "Open Big Dragon card details" });
-    screen.getByRole("button", { name: "Mark Red as mine" }).focus();
+    screen.getByRole("button", { name: "Select Red for bid preview" }).focus();
     fireEvent.click(thumbnail);
     expect(screen.getByRole("dialog", { name: "Big Dragon" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Close card details" }));
@@ -67,27 +67,12 @@ describe("buyer color controls", () => {
     expect(screen.queryByRole("table", { name: "Cards in Red team" })).not.toBeInTheDocument();
   });
 
-  it("marks a slot the buyer already owns and takes it out of the remaining pool", () => {
+  it("models slots as taken or selected for preview, with no ownership state", () => {
     render(createElement(Harness));
 
-    fireEvent.click(screen.getByRole("button", { name: "Mark Green as mine" }));
-
-    expect(screen.getByRole("button", { name: "Green is mine — undo" })).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByText("Mine")).toBeInTheDocument();
-    // A slot the buyer owns is no longer available to another buyer, so the
-    // taken control for that row is closed off rather than double-counting it.
-    expect(screen.getByRole("button", { name: "Mark Green taken by another buyer" })).toBeDisabled();
-  });
-
-  it("marks several owned slots without leaving the screen", () => {
-    render(createElement(Harness));
-
-    fireEvent.click(screen.getByRole("button", { name: "Mark Green as mine" }));
-    fireEvent.click(screen.getByRole("button", { name: "Mark Blue as mine" }));
-
-    expect(screen.getByRole("button", { name: "Green is mine — undo" })).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByRole("button", { name: "Blue is mine — undo" })).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getAllByText("Mine")).toHaveLength(2);
+    expect(screen.queryByText("Mine")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /mine/i })).not.toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: /Select .* for bid preview/ })).toHaveLength(8);
   });
 
   it("marks one slot taken by another buyer from the same row, and restores it", () => {
@@ -96,12 +81,13 @@ describe("buyer color controls", () => {
     expect(screen.queryByText("Edit availability")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Mark Blue taken by another buyer" }));
 
-    expect(screen.getByRole("button", { name: "Mark Blue as mine" })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: /mine/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Select Blue for bid preview" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Restore Blue" })).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByText("Taken")).toBeInTheDocument();
+    expect(screen.getAllByText("Taken").length).toBeGreaterThan(0);
 
     fireEvent.click(screen.getByRole("button", { name: "Restore Blue" }));
-    expect(screen.getByRole("button", { name: "Mark Blue as mine" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Select Blue for bid preview" })).toBeEnabled();
   });
 
   it("shows MIN, expected and MAX value for every slot", () => {
@@ -116,7 +102,7 @@ describe("buyer color controls", () => {
   it("scales the probable range independently of numerical MIN and MAX", () => {
     const summary: DistributionSummary = { min: 0, p01: 2, p10: 5, p25: 10, median: 20, mean: 20, p75: 30, p90: 40, p99: 50, max: 10000, fingerprint: [] };
     const distributions = Object.fromEntries(SLOT_IDS.map(id => [id, summary])) as Record<SlotId, DistributionSummary>;
-    const { container } = render(createElement(SlotRail, { result, auction: createAuction(), setAuction: () => {}, selectedSlots: [], setSelectedSlots: () => {}, distributions }));
+    const { container } = render(createElement(SlotRail, { result, auction: createAuction(), setAuction: () => {}, distributions }));
     expect(container.querySelector<HTMLElement>(".slot-candle-body")?.style.width).toBe("40%");
     expect(container.querySelector<HTMLElement>(".slot-candle-wick")?.style.left).toBe("4%");
     expect(container.querySelector(".slot-candle-values")?.textContent).toMatch(/MAX\$10(?:\.0)?K/);

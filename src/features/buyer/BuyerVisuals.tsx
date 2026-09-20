@@ -11,11 +11,14 @@ import {
   ChevronDown,
   ChevronRight,
   ShieldAlert,
+  Target,
   X,
 } from "lucide-react";
 import type { BreakAnalysis } from "../../data/evaluate";
 import { toggleSlotTaken } from "../../domain/auction";
 import type { AuctionState } from "../../domain/auction";
+import { bidCeiling, DEFAULT_BUYER_COSTS } from "../../domain/bid-ceiling";
+import type { BuyerCosts } from "../../domain/bid-ceiling";
 import type { AssignmentMode } from "../../domain/share-url";
 import { cardTreatmentLabel } from "../../domain/card-label";
 import { CompactWarning } from "../shared/Feedback";
@@ -74,14 +77,14 @@ export function ValueSummary({ result }: { result: ValuationResult }) {
 export function BreakFormatChoice({
   assignmentMode,
   setAssignmentMode,
-  selectedSlots,
+  targetSlots = [],
   largeSpots,
   setLargeSpots,
   takenSlots = [],
 }: {
   assignmentMode: AssignmentMode;
   setAssignmentMode: (mode: AssignmentMode) => void;
-  selectedSlots: SlotId[];
+  targetSlots?: SlotId[];
   largeSpots: number;
   setLargeSpots: (spots: number) => void;
   takenSlots?: SlotId[];
@@ -120,7 +123,7 @@ export function BreakFormatChoice({
           <div className="large-break-spot-label"><span className="large-break-spot-label-text">Entries (1–500)</span><Tip label="About custom entries" text="Choose how many custom entries the listing has. The supported range is 1–500, matching Whatnot's maximum of 500 products in a Surprise Set." /></div>
           <NumericInput value={largeSpots} min={1} max={500} integer onCommit={(value) => setLargeSpots(Math.max(1, Math.min(500, Math.round(value ?? 1))))} ariaLabel="Custom entry count" live />
         </div>
-        <FormatCarryOverNotice selectedSlots={selectedSlots} takenSlots={takenSlots} />
+        <FormatCarryOverNotice targetSlots={targetSlots} takenSlots={takenSlots} />
       </>}
     </section>
   );
@@ -132,16 +135,16 @@ export function BreakFormatChoice({
  * that nothing was deleted — keeps the change visible instead of silent.
  */
 export function FormatCarryOverNotice({
-  selectedSlots,
+  targetSlots,
   takenSlots,
 }: {
-  selectedSlots: SlotId[];
+  targetSlots: SlotId[];
   takenSlots: SlotId[];
 }) {
   const names = (ids: SlotId[]) => ids.map((id) => SLOT_NAMES[id]).join(", ");
   const parts = [
-    selectedSlots.length ? `the ${names(selectedSlots)} slot${selectedSlots.length === 1 ? "" : "s"} you marked as yours` : "",
     takenSlots.length ? `the ${names(takenSlots)} slot${takenSlots.length === 1 ? "" : "s"} you marked taken` : "",
+    targetSlots.length ? `the ${names(targetSlots)} slot${targetSlots.length === 1 ? "" : "s"} selected for bid preview` : "",
   ].filter(Boolean);
   if (!parts.length) return null;
   return (
@@ -149,7 +152,7 @@ export function FormatCarryOverNotice({
       <ShieldAlert aria-hidden="true" />
       <div>
         <b>Kept, but not used by a large break</b>
-        <p>A large break sells random spots drawn from the whole break, so it ignores {parts.join(" and ")}. Nothing was deleted — switch back to Standard (8 Slots) and every choice is still there.</p>
+        <p>A large break sells random spots drawn from the whole break, so it ignores {parts.join(" and ")}. Nothing was deleted — switch back to Standard (8 Slots) and the choices are still there.</p>
       </div>
     </aside>
   );
@@ -195,27 +198,28 @@ export function SlotCandle({
   );
 }
 
-const SLOT_HELP = "Tap the check on every slot you have already bought. Tap the cancel mark on every slot another buyer has taken. What is left is the pool your next bid draws from. Candlesticks show the middle 98% of modeled outcomes; their body shows the middle half. MIN and MAX are separate numerical limits. EV is the average.";
+const SLOT_HELP = "Mark a slot taken when another buyer wins it; it immediately leaves the remaining EV calculation. Select one or more available slots to preview their bid ceilings. With no selection, the overall recommendation uses the average EV across every remaining slot. Each slot shows its break-even EV and cost-adjusted bid ceiling.";
 
 /**
- * The slot rail is the buyer's whole picture of the break: what each colour is
- * worth, what they already own, and what is still in the pool. Meaning never
- * rests on colour alone — every state carries an icon and a word.
+ * The slot rail shows each color's EV and bid ceiling alongside availability
+ * and preview selection.
  */
 export function SlotRail({
   result,
   auction,
   setAuction,
-  selectedSlots,
-  setSelectedSlots,
+  targetSlots = [],
+  setTargetSlots = () => {},
+  costs = DEFAULT_BUYER_COSTS,
   distributions,
-  stepLabel = "My slots",
+  stepLabel = "Slot EV and bid ceilings",
 }: {
   result?: ValuationResult;
   auction: AuctionState;
   setAuction: (state: AuctionState) => void;
-  selectedSlots: SlotId[];
-  setSelectedSlots: (ids: SlotId[]) => void;
+  targetSlots?: SlotId[];
+  setTargetSlots?: (ids: SlotId[]) => void;
+  costs?: BuyerCosts;
   distributions?: Record<SlotId, DistributionSummary>;
   stepLabel?: string;
 }) {
@@ -225,13 +229,8 @@ export function SlotRail({
     1,
     ...SLOT_IDS.map((id) => probableRange(distributions?.[id], result?.slots.find((slot) => slot.id === id)?.sellableEV ?? 0).high),
   );
-  const setOwned = (id: SlotId, owned: boolean) => {
-    setSelectedSlots(owned ? [...selectedSlots, id] : selectedSlots.filter((slot) => slot !== id));
-    const next = toggleSlotTaken(auction, id);
-    if (next !== auction) setAuction(next);
-  };
   return (
-    <section className="buyer-slot-control" aria-label="My slots">
+    <section className="buyer-slot-control" aria-label="Slot EV and bid ceilings">
       <div className="step-heading">
         <InformationLabel>{stepLabel}</InformationLabel>
         <span className="section-help"><Tip label="What the slot controls do" text={SLOT_HELP} /><AnswerNote primary label="What affects the slot charts" detail={CANDLE_EXPLANATION} /></span>
@@ -239,40 +238,47 @@ export function SlotRail({
       <div className="buyer-slot-list" role="group" aria-label="Color slots">
         {SLOT_IDS.map((id) => {
           const slot = result?.slots.find((row) => row.id === id);
-          const mine = selectedSlots.includes(id);
           const available = auction.remaining.includes(id);
-          const taken = !available && !mine;
+          const taken = !available;
+          const bidTarget = targetSlots.includes(id);
+          const expectedValue = slot?.sellableEV ?? 0;
+          const ceiling = bidCeiling(expectedValue, costs);
+          const ceilingText = !available ? "Taken" : ceiling.kind === "ceiling" ? fmt(ceiling.hammer) : "No bid";
           return (
-            <div className={`buyer-slot-row ${mine ? "mine" : ""} ${taken ? "taken" : ""}`} key={id}>
+            <div className={`buyer-slot-row ${taken ? "taken" : ""} ${bidTarget ? "bid-target" : ""}`} key={id}>
               <div className="buyer-slot-top">
                 <button type="button" className="buyer-slot-name buyer-slot-open" aria-label={`${expandedSlot === id ? "Hide" : "Show"} cards in ${SLOT_NAMES[id]} team`} aria-expanded={expandedSlot === id} onClick={() => setExpandedSlot((current) => current === id ? null : id)}>
                   <i className={`buyer-slot-swatch slot-${id}`} aria-hidden="true" />
                   {SLOT_NAMES[id]}
-                  {mine && <b className="buyer-slot-tag buyer-slot-mine-tag">Mine</b>}
                   {taken && <b className="buyer-slot-tag buyer-slot-taken-tag">Taken</b>}
+                  {bidTarget && <b className="buyer-slot-tag buyer-slot-bid-tag">Preview</b>}
                   <span className="buyer-slot-member-count">{slot?.contributors.length ?? 0} cards</span>
                   <ChevronDown className={expandedSlot === id ? "expanded" : ""} aria-hidden="true" />
                 </button>
                 <div className="buyer-slot-actions">
                   <button
                     type="button"
-                    className="slot-check-btn"
-                    aria-pressed={mine}
-                    disabled={taken}
-                    aria-label={mine ? `${SLOT_NAMES[id]} is mine — undo` : `Mark ${SLOT_NAMES[id]} as mine`}
-                    onClick={() => setOwned(id, !mine)}
+                    className="slot-target-btn"
+                    aria-pressed={bidTarget}
+                    disabled={!available}
+                    aria-label={bidTarget ? `Remove ${SLOT_NAMES[id]} from bid preview` : `Select ${SLOT_NAMES[id]} for bid preview`}
+                    title={bidTarget ? "Remove from bid preview" : "Preview bid ceiling"}
+                    onClick={() => setTargetSlots(bidTarget ? targetSlots.filter((slot) => slot !== id) : [...targetSlots, id])}
                   >
-                    <Check aria-hidden="true" />
+                    <Target aria-hidden="true" />
                   </button>
                   <button
                     type="button"
                     className="slot-disable-btn"
                     aria-pressed={taken}
-                    disabled={mine || (available && auction.remaining.length === 1)}
+                    disabled={available && auction.remaining.length === 1}
                     aria-label={taken ? `Restore ${SLOT_NAMES[id]}` : `Mark ${SLOT_NAMES[id]} taken by another buyer`}
                     onClick={() => {
                       const next = toggleSlotTaken(auction, id);
-                      if (next !== auction) setAuction(next);
+                      if (next !== auction) {
+                        setAuction(next);
+                        setTargetSlots(targetSlots.filter((slot) => next.remaining.includes(slot)));
+                      }
                     }}
                   >
                     <Ban aria-hidden="true" />
@@ -281,10 +287,14 @@ export function SlotRail({
               </div>
               <SlotCandle
                 distribution={distributions?.[id]}
-                expectedValue={slot?.sellableEV ?? 0}
+                expectedValue={expectedValue}
                 scaleMax={scaleMax}
                 label={SLOT_NAMES[id]}
               />
+              <div className="slot-bid-math" aria-label={`${SLOT_NAMES[id]} bid calculation`}>
+                <span>Break-even EV <b>{fmt(expectedValue)}</b></span>
+                <span>Bid ceiling <b>{ceilingText}</b></span>
+              </div>
               {expandedSlot === id && <div className="buyer-slot-members">
                 <CardMemberList
                   rows={slot?.contributors ?? []}
@@ -332,8 +342,8 @@ function OutcomeRange({ summary, landed, compact = false }: { summary?: Distribu
   return (
     <div className={`outcome-range ${compact ? "outcome-range-compact" : ""}`} aria-label="Possible opening values">
       <div className="outcome-range-heading">
-        <span>{summary.preview ? "Quick value range" : compact ? "Outcome range" : "Possible opening values"}<AnswerNote detail={summary.preview ? "MIN and MAX use available pack rules now. The typical result is a preview while sampling finishes; missing data may change the limits." : "Smallest and largest possible values under the current pack rules and prices. Missing data and price changes can move these limits."} /></span>
-        {!compact && <Tip text="MIN and MAX include the rarest outcomes permitted by the pack model. Typical is the sampled median. These values use current prices and the bulk filter." />}
+        <span>{summary.preview ? "Quick value range" : compact ? "Outcome range" : "Possible opening values"}<AnswerNote detail={summary.preview ? "MIN and MAX use available pack rules now. The median outcome is a preview while sampling finishes; missing data may change the limits. Bid ceilings use average EV, shown separately." : "MIN and MAX are possible values under the current pack rules and prices. The median outcome is shown below; bid ceilings use average EV per slot. Missing data and price changes can move these values."} /></span>
+        {!compact && <Tip text="MIN and MAX include the rarest outcomes permitted by the pack model. The median is the middle simulated outcome. Bid ceilings use average EV per slot, which can differ from the median." />}
       </div>
       <div className="outcome-landmarks">
         <div>
@@ -342,7 +352,7 @@ function OutcomeRange({ summary, landed, compact = false }: { summary?: Distribu
           {!compact && <small>Minimum possible modeled value</small>}
         </div>
         <div className="typical">
-          <span>{compact ? "Typical" : "Typical result"}</span>
+          <span>{compact ? "Median" : "Median outcome"}</span>
           <b><AnswerValue value={summary.median} compact /></b>
           {!compact && <small>About half are worth less and half are worth more</small>}
         </div>

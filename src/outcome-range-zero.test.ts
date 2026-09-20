@@ -16,11 +16,13 @@ const nonzeroDistribution = {
 describe("OutcomeRange zero-median explanation", () => {
   it("explains a legitimate $0 typical/outcome band directly on the outcome strip", () => {
     render(createElement(OutcomeRange, { summary: zeroDistribution }));
+    expect(screen.getByText("Median outcome")).toBeInTheDocument();
     expect(screen.getByText(/Usually no card above the bulk filter — most openings land at \$0\./)).toBeInTheDocument();
   });
 
   it("explains it on the compact strip too, where the live buyer decision actually shows it", () => {
     render(createElement(OutcomeRange, { summary: zeroDistribution, compact: true }));
+    expect(screen.getByText("Median")).toBeInTheDocument();
     expect(screen.getByText(/Usually no card above the bulk filter — most openings land at \$0\./)).toBeInTheDocument();
   });
 

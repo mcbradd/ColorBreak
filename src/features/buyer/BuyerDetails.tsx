@@ -447,7 +447,7 @@ export function BuyerView({
   analysis,
   eligibility: assessedEligibility,
   auction,
-  selectedSlots,
+  targetSlots = [],
   breakLabel,
   costs,
   simulation,
@@ -457,7 +457,7 @@ export function BuyerView({
   analysis: BreakAnalysis;
   eligibility?: DecisionEligibility;
   auction: AuctionState;
-  selectedSlots: SlotId[];
+  targetSlots?: SlotId[];
   breakLabel?: string;
   costs: BuyerCosts;
   simulation: OutcomeSimulation;
@@ -469,24 +469,25 @@ export function BuyerView({
   const result = analysis.valuation;
   const eligibility = assessedEligibility ?? decisionEligibility(result);
   const [inspectedCard, setInspectedCard] = useState<Contributor | null>(null);
-  // The next auction hands the winner a random slot from whatever is left:
-  // slots the buyer already owns and slots another buyer took are both out.
+  // The default recommendation prices every available slot. Explicit bid
+  // targets narrow that average to only the selected available slots.
   const pool = auction.remaining;
   const poolSlots = result.slots.filter((row) => pool.includes(row.id));
+  const activeTargets = targetSlots.filter((id) => pool.includes(id));
+  const recommendationSlots = activeTargets.length ? activeTargets : pool;
+  const recommendationRows = result.slots.filter((row) => recommendationSlots.includes(row.id));
+  const averageEV = recommendationRows.length
+    ? recommendationRows.reduce((sum, row) => sum + row.sellableEV, 0) / recommendationRows.length
+    : 0;
+  const basisDescription = activeTargets.length
+    ? `the selected preview slots (${activeTargets.map((id) => SLOT_NAMES[id]).join(", ")})`
+    : `all ${pool.length} remaining slots`;
   const lowestRemainingSlot = [...poolSlots].sort((a, b) => a.sellableEV - b.sellableEV)[0];
   // The card-level breakdown below always focuses on one representative slot.
-  const slot = result.slots.find((row) => row.id === pool[0]) ?? poolSlots[0] ?? result.slots[0];
+  const slot = result.slots.find((row) => row.id === recommendationSlots[0]) ?? poolSlots[0] ?? result.slots[0];
   const distribution = simulation.result?.remainingPool;
-  const fallbackMean = poolSlots.length
-    ? poolSlots.reduce((sum, row) => sum + row.sellableEV, 0) / poolSlots.length
-    : 0;
-  const typicalValue = distribution?.median ?? fallbackMean;
-  const averageValue = distribution?.mean ?? fallbackMean;
   const lowestRemainingEV = lowestRemainingSlot?.sellableEV ?? 0;
-  const ownedValue = result.slots
-    .filter((row) => selectedSlots.includes(row.id))
-    .reduce((sum, row) => sum + row.sellableEV, 0);
-  const ceiling = bidCeiling(typicalValue, costs);
+  const ceiling = bidCeiling(averageEV, costs);
   const hammerLimit = ceiling.kind === "ceiling" ? ceiling.hammer : 0;
   const hasUnverifiedPullRates = result.omissions.some((item) => item.material && item.code === "unverifiable-pull-rate");
   const dockStatus = simulation.busy ? "Refining estimate"
@@ -499,18 +500,21 @@ export function BuyerView({
   const effectiveTax = Math.max(0, costs.taxPercent);
   const effectiveShipping = Math.max(0, costs.shipping);
   const bidLimitMath = ceiling.kind === "ceiling"
-    ? `Bid limit = ${fmt(typicalValue)} ÷ (1 + ${effectiveTax.toFixed(2)}% tax) − ${fmt(effectiveShipping)} shipping = ${fmt(hammerLimit)} (rounded down to cents).`
-    : `Shipping and tax exceed the ${fmt(typicalValue)} median, so the bid limit is ${fmt(hammerLimit)}.`;
-  const lowestSlotDescription = lowestRemainingSlot
-    ? `${SLOT_NAMES[lowestRemainingSlot.id]} EV ${fmt(lowestRemainingEV)}`
-    : "No slots remain";
-  const bidLimitDetail = `Random-slot median ${fmt(typicalValue)}; mean ${fmt(averageValue)}. Lowest remaining slot: ${lowestSlotDescription} (average). ${bidLimitMath}`;
+    ? `Bid limit = ${fmt(averageEV)} average EV ÷ (1 + ${effectiveTax.toFixed(2)}% tax) − ${fmt(effectiveShipping)} shipping = ${fmt(hammerLimit)} per spot (rounded down to cents).`
+    : `Shipping and tax exceed the ${fmt(averageEV)} average EV, so the bid limit is ${fmt(hammerLimit)}.`;
+  const lowestSlotDetail = lowestRemainingSlot
+    ? `Lowest remaining slot: ${SLOT_NAMES[lowestRemainingSlot.id]}, average EV ${fmt(lowestRemainingEV)}.`
+    : "No slots remain.";
+  const bidLimitDetail = `Based on ${basisDescription}: average EV ${fmt(averageEV)} per spot. ${lowestSlotDetail} ${bidLimitMath}`;
   const briefEstimateStatus = simulation.busy ? "Refining"
     : eligibility.status === "stale" ? "Older prices"
       : hasUnverifiedPullRates ? "Odds estimated"
         : dockStatus.startsWith("Partial estimate") ? "Partial"
           : dockStatus === "Fresh estimate" ? "Fresh" : "Estimate";
-  const dockDetail = `${briefEstimateStatus} · median ${fmt(typicalValue)} ÷ (1 + ${effectiveTax.toFixed(2)}% tax) − ship ${fmt(effectiveShipping)} = ${fmt(hammerLimit)}; ${lowestRemainingSlot ? SLOT_NAMES[lowestRemainingSlot.id] : "Lowest slot"} avg EV ${fmt(lowestRemainingEV)}`;
+  const dockBasis = activeTargets.length
+    ? `preview ${activeTargets.map((id) => SLOT_NAMES[id]).join(", ")} avg EV ${fmt(averageEV)}`
+    : `${pool.length} remaining avg EV ${fmt(averageEV)}`;
+  const dockDetail = `${briefEstimateStatus} · ${dockBasis} ÷ (1 + ${effectiveTax.toFixed(2)}% tax) − ship ${fmt(effectiveShipping)} = ${fmt(hammerLimit)}`;
   const heading = ceiling.kind === "no-room" && !distribution?.preview && !simulation.busy && result.status === "verified" ? "DO NOT BID" : "DON’T BID OVER";
   const decisionKicker = `${breakLabel ? `${breakLabel} · ` : ""}${pool.length} slot${pool.length === 1 ? "" : "s"} left`;
   return (
@@ -518,7 +522,7 @@ export function BuyerView({
       <AnswerGroup><section className="bid-live-decision" aria-label="Bid decision">
         <CommandDock values={[{ label: "Bid limit", value: fmt(hammerLimit) }, { label: "Slots left", value: String(pool.length) }]} status={dockStatus} detail={dockDetail} explanation={`${dockStatus}. ${bidLimitDetail}`} />
         <div className="decision-kicker">
-          <span title={decisionKicker}>{decisionKicker}</span><AnswerNote primary label="What affects the bid limit" detail="The random-slot typical is its median, not the average (EV) of any one color. The bid limit subtracts shipping and tax from that median. Missing prices or estimated pack rules can change the result." />
+          <span title={decisionKicker}>{decisionKicker}</span><AnswerNote primary label="What affects the bid limit" detail="With no slots selected for preview, the recommendation uses average EV across every remaining slot. Selecting one or more available slots uses only their average EV. Slots marked Taken leave the remaining pool. Shipping and tax are deducted from the average EV; missing prices or estimated pack rules can change the result." />
           {(eligibility.status === "stale" || priceRefresh !== "idle") && onRefreshPrices
             // Stale prices are something the buyer can act on, so the label is
             // the control that acts on it rather than a notice they can only
@@ -539,19 +543,15 @@ export function BuyerView({
         <div className="verdict-head">
           <div className="verdict-decision">
             <h2 aria-live="polite">{heading}</h2>
-            <strong className="max-hammer" aria-label="Highest bid to make" aria-live="polite"><AnswerValue label="Your bid limit" value={ceiling.kind === "ceiling" ? ceiling.hammer : 0} detail="Based on typical card value after your shipping and tax assumptions. This is a guide, not a guaranteed resale return." /></strong>
+            <strong className="max-hammer" aria-label="Highest bid to make" aria-live="polite"><AnswerValue label="Your bid limit" value={ceiling.kind === "ceiling" ? ceiling.hammer : 0} detail="Based on average break-even EV after your shipping and tax assumptions. This is a guide, not a guaranteed resale return." /></strong>
             <p className="decision-reason">
-              {ceiling.kind === "no-room" && !distribution?.preview ? "Your shipping and tax already meet the typical card value. " : ""}Typical card value <AnswerValue value={typicalValue} />, average <AnswerValue value={distribution?.mean ?? fallbackMean} />.
+              {ceiling.kind === "no-room" && !distribution?.preview ? "Your shipping and tax already meet this average EV. " : ""}Bid basis: {basisDescription}; average EV <AnswerValue value={averageEV} /> per spot.
             </p>
 
           </div>
         </div>
-        {selectedSlots.length > 0 && <p className="owned-slot-value">
-          <span>My {selectedSlots.length === 1 ? "slot" : "slots"}: {selectedSlots.map((id) => SLOT_NAMES[id]).join(", ")}</span>
-          <b><AnswerValue value={ownedValue} /></b>
-        </p>}
         {PRICE_REFRESH_ANSWER[priceRefresh] && <p className="price-refresh-answer" role="status">{PRICE_REFRESH_ANSWER[priceRefresh]}</p>}
-        <AnswerGraphic detail={simulation.result?.sampleCount === 0 ? "MIN and MAX use available pack rules. The typical result is still being refined; missing data can change the limits." : "MIN and MAX are the smallest and largest values possible for one remaining spot under the current pack rules and prices. Missing data can change these limits."}><OutcomeRange summary={distribution} compact /></AnswerGraphic>
+        <AnswerGraphic detail={simulation.result?.sampleCount === 0 ? "MIN and MAX use available pack rules. The outcome range is still being refined; missing data can change the limits." : `MIN and MAX are the smallest and largest possible values for ${activeTargets.length ? "the selected preview slots" : "one remaining spot"} under the current pack rules and prices. Missing data can change these limits.`}><OutcomeRange summary={distribution} compact /></AnswerGraphic>
         {simulation.busy && <p className="simulation-state" role="status" aria-live="polite">Checking more possible openings…</p>}
         {simulation.error && <CompactWarning title="Pull ranges unavailable" summary="The non-simulation value remains visible." className="inline-warning"><p role="alert">{simulation.error}</p><button type="button" className="quiet" onClick={simulation.retry}>Retry pull ranges</button></CompactWarning>}
         <IncompleteDataWarning analysis={analysis} title="Some estimates may be low" />
