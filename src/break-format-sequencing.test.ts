@@ -70,29 +70,29 @@ describe("break format sequencing", () => {
     // Nothing is in the break yet, and the page says so by showing an Add
     // products button rather than a count of zero.
     expect(screen.getByRole("combobox", { name: "Find a set or product" })).toBeInTheDocument();
-    const formats = screen.getByRole("group", { name: "Break type" });
-    expect(within(formats).getByRole("button", { name: "Color slots" })).toHaveAttribute("aria-pressed", "true");
-    expect(within(formats).getByRole("button", { name: "Large break" })).toBeInTheDocument();
+    const formats = screen.getByRole("group", { name: "Break format" });
+    expect(within(formats).getByRole("button", { name: "Standard (8 Slots)" })).toHaveAttribute("aria-pressed", "true");
+    expect(within(formats).getByRole("button", { name: "Custom" })).toBeInTheDocument();
   });
 
   it("switches to a large break with no product in the break", () => {
     render(createElement(BuyerWorkspace, { exit: vi.fn(), startFresh: true, startReady: false }));
 
-    fireEvent.click(screen.getByRole("button", { name: "Large break" }));
+    fireEvent.click(screen.getByRole("button", { name: "Custom" }));
 
-    expect(screen.getByRole("heading", { name: "Large break" })).toBeInTheDocument();
-    expect(screen.getByLabelText("Large break spot count")).toHaveValue("120");
-    expect(screen.getByRole("button", { name: "Large break" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("heading", { name: "Custom" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Custom entry count")).toHaveValue("120");
+    expect(screen.getByRole("button", { name: "Custom" })).toHaveAttribute("aria-pressed", "true");
   });
 
   it("keeps the standard color path one tap away and free of extra steps", () => {
     render(createElement(BuyerWorkspace, { exit: vi.fn(), startFresh: true, startReady: false }));
 
-    fireEvent.click(screen.getByRole("button", { name: "Large break" }));
-    fireEvent.click(screen.getByRole("button", { name: "Color slots" }));
+    fireEvent.click(screen.getByRole("button", { name: "Custom" }));
+    fireEvent.click(screen.getByRole("button", { name: "Standard (8 Slots)" }));
 
     expect(screen.getByRole("heading", { name: "Check a bid" })).toBeInTheDocument();
-    expect(screen.queryByLabelText("Large break spot count")).toBeNull();
+    expect(screen.queryByLabelText("Custom entry count")).toBeNull();
   });
 
   it("keeps break contents and slot choices across a format change, naming what a large break cannot use", async () => {
@@ -104,7 +104,7 @@ describe("break format sequencing", () => {
     fireEvent.click(screen.getByRole("button", { name: "Mark Blue as mine" }));
     fireEvent.click(screen.getByRole("button", { name: "Mark Red taken by another buyer" }));
 
-    fireEvent.click(screen.getByRole("button", { name: "Large break" }));
+    fireEvent.click(screen.getByRole("button", { name: "Custom" }));
 
     // The break itself survives the format change untouched.
     await waitFor(() => expect(screen.getByRole("region", { name: "Large break spot value" })).toBeInTheDocument());
@@ -117,7 +117,7 @@ describe("break format sequencing", () => {
     expect(notice).toHaveTextContent("Nothing was deleted");
 
     // Switching back restores every choice rather than resetting them.
-    fireEvent.click(screen.getByRole("button", { name: "Color slots" }));
+    fireEvent.click(screen.getByRole("button", { name: "Standard (8 Slots)" }));
     await waitFor(() => expect(screen.getByRole("button", { name: "Blue is mine — undo" })).toHaveAttribute("aria-pressed", "true"));
     expect(screen.getByRole("button", { name: "White is mine — undo" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByRole("button", { name: "Restore Red" })).toBeInTheDocument();

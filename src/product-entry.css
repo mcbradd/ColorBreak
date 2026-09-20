@@ -26,3 +26,16 @@ html:has(.command-workspace), body:has(.command-workspace) { overflow: hidden; o
 
 @media (min-width: 720px) { .scrim .product-entry-frame { transform: none !important; } }
 .product-entry-frame > .break-import { align-content: start; }
+
+/* Long catalog names stay recognizable in the compact set selectors. */
+.command-workspace:not(.seller-fast) .quick-set-suggestions:not(.has-lines) > button > span,
+.quick-set-matches > button > span,
+.choice-list button strong {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  text-overflow: ellipsis;
+  white-space: normal;
+}

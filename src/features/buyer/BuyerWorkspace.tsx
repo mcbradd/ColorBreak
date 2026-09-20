@@ -308,7 +308,7 @@ export function BuyerWorkspace({
           </span>
           COLORBREAK
         </button>
-        <h1 className="buyer-topbar-title">{assignmentMode === "large" ? "Large break" : "Check a bid"}</h1>
+        <h1 className="buyer-topbar-title">{assignmentMode === "large" ? "Custom" : "Check a bid"}</h1>
         <div className="nav-actions">
           {lines.length > 0 && <button
             className="icon-button share-break"

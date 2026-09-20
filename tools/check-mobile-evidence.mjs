@@ -153,7 +153,7 @@ try {
     if (evidenceDir) await page.screenshot({ path: join(evidenceDir, `card-details-${width}.png`) });
     await page.getByRole('button', { name: 'Close card details' }).click();
     await page.getByRole('button', { name: 'Break panel', exact: true }).click();
-    await page.getByRole('button', { name: 'Large break', exact: true }).click();
+    await page.getByRole('button', { name: 'Custom', exact: true }).click();
     const largeBreakLayout = await page.evaluate(() => ({
       viewportWidth: innerWidth,
       pageWidth: document.documentElement.scrollWidth,

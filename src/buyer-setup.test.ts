@@ -68,7 +68,7 @@ describe("Check a Bid setup order", () => {
     expect(directSections[1]).toHaveClass("quick-break-composer");
     expect(setup.querySelector(".buyer-team-panel .buyer-slot-control")).toBeInTheDocument();
     expect(directSections).toHaveLength(2);
-    expect(screen.getByText("Break type")).toBeInTheDocument();
+    expect(screen.queryByText("Break type")).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Add products" })).toBeInTheDocument();
     expect(screen.queryByText(/\d+ ·/)).not.toBeInTheDocument();
     expect(screen.queryByText("Adjust assumptions")).not.toBeInTheDocument();
@@ -85,17 +85,17 @@ describe("Check a Bid setup order", () => {
 
     // The format question is the whole point of leading with it: a buyer
     // looking for a large break must not have to build a break to find it.
-    expect(screen.getByRole("group", { name: "Break type" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Color slots" })).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByRole("button", { name: "Large break" })).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByRole("group", { name: "Break format" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Standard (8 Slots)" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Custom" })).toHaveAttribute("aria-pressed", "false");
     expect(screen.queryByRole("group", { name: "Color slots" })).toBeNull();
 
     // The difference between the two formats is one tap away, in a popover,
     // rather than a paragraph of standing explanation nobody reads.
-    fireEvent.click(screen.getByRole("button", { name: "What the two break types mean" }));
+    fireEvent.click(screen.getByRole("button", { name: "How break formats work" }));
     const explanation = screen.getByRole("tooltip");
-    expect(explanation).toHaveTextContent(/standard prize wheel/);
-    expect(explanation).toHaveTextContent(/many random spots/i);
+    expect(explanation).toHaveTextContent(/one slot for each color/i);
+    expect(explanation).toHaveTextContent(/500 products/i);
   });
 
   it("switches to a large break from the format step without a product", () => {
@@ -109,7 +109,7 @@ describe("Check a Bid setup order", () => {
       setAssignmentMode,
     }));
 
-    fireEvent.click(screen.getByRole("button", { name: "Large break" }));
+    fireEvent.click(screen.getByRole("button", { name: "Custom" }));
     expect(setAssignmentMode).toHaveBeenCalledWith("large");
   });
 
@@ -121,8 +121,8 @@ describe("Check a Bid setup order", () => {
       selectedSlots: [],
     }));
 
-    expect(screen.getByRole("button", { name: "Large break" })).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByLabelText("Large break spot count")).toHaveValue("120");
+    expect(screen.getByRole("button", { name: "Custom" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByLabelText("Custom entry count")).toHaveValue("120");
     // Large breaks omit slots; assumptions live in the workspace header.
     expect(screen.queryByText(/\d+ ·/)).toBeNull();
     expect(screen.queryByRole("group", { name: "Color slots" })).toBeNull();

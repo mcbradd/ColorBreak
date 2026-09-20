@@ -99,6 +99,85 @@
   .keyboard-open .command-dock.seller-value-dock { padding-block: 6px; }
 }
 
+/* The product picker owns the remaining phone viewport in either keyboard
+ * state. Its set cards or matching products become the scrollable selection
+ * surface instead of stopping at a fixed pixel height. */
+@media (max-width: 899px) {
+  .keyboard-open .command-workspace.workspace.page:has(#buyer-break-setup) {
+    height: var(--visual-viewport-height, 100dvh);
+  }
+  .command-workspace:has(#buyer-break-setup) .command-panels[data-active-panel="products"] .command-body {
+    display: flex;
+    flex-direction: column;
+    max-height: none;
+  }
+  .command-workspace:has(#buyer-break-setup) .command-panels[data-active-panel="products"] .bid-check-workbench {
+    display: flex !important;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+  }
+  .command-workspace:has(#buyer-break-setup) .command-panels[data-active-panel="products"] #buyer-break-setup {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+  }
+  .command-workspace:has(#buyer-break-setup) .command-panels[data-active-panel="products"] .buyer-entry-panel {
+    display: flex;
+    flex: none;
+    flex-direction: column;
+    min-height: 0;
+  }
+  .command-workspace:has(#buyer-break-setup) .command-panels[data-active-panel="products"] .quick-break-composer {
+    display: flex;
+    flex: none;
+    flex-direction: column;
+    min-height: 0;
+  }
+  .command-workspace:has(#buyer-break-setup) .command-panels[data-active-panel="products"] #buyer-break-setup:has(.quick-contents-empty) .buyer-entry-panel,
+  .command-workspace:has(#buyer-break-setup) .command-panels[data-active-panel="products"] #buyer-break-setup:has(.quick-search-results-wrap) .buyer-entry-panel {
+    flex: 1;
+  }
+  .command-workspace:has(#buyer-break-setup) .command-panels[data-active-panel="products"] #buyer-break-setup:has(.quick-contents-empty) .quick-break-composer,
+  .command-workspace:has(#buyer-break-setup) .command-panels[data-active-panel="products"] #buyer-break-setup:has(.quick-search-results-wrap) .quick-break-composer {
+    flex: 1;
+  }
+  .command-workspace:has(#buyer-break-setup):not(.seller-fast) .command-panels[data-active-panel="products"] .quick-set-suggestions:not(.has-lines) {
+    flex: 1;
+    height: auto;
+    max-height: none;
+    min-height: 0;
+  }
+  .command-workspace:has(#buyer-break-setup) .command-panels[data-active-panel="products"] .quick-search-results-wrap {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+  }
+  .command-workspace:has(#buyer-break-setup) .command-panels[data-active-panel="products"] .quick-search-results {
+    flex: 1;
+    max-height: none;
+    min-height: 0;
+  }
+  .command-workspace:has(#buyer-break-setup) .command-panels[data-active-panel="products"] #buyer-break-setup:has(.quick-search-results-wrap) > .buyer-team-panel {
+    display: none;
+  }
+  .keyboard-open .command-workspace:has(#buyer-break-setup) .command-panels[data-active-panel="products"] #buyer-break-setup > .buyer-team-panel {
+    display: none;
+  }
+  .keyboard-open .command-workspace:has(#buyer-break-setup) .command-panels[data-active-panel="products"] :is(.break-format-choice, .quick-composer-heading, .quick-contents-heading) {
+    display: none;
+  }
+  .keyboard-open .command-workspace:has(#buyer-break-setup) .command-panels[data-active-panel="products"] .quick-break-composer:has(.quick-line-quantity input:focus) .quick-search-field {
+    display: none;
+  }
+  .keyboard-open .command-workspace:has(#buyer-break-setup):not(.seller-fast) .command-panels[data-active-panel="products"] .quick-break-line {
+    padding-block: 4px;
+  }
+  .command-workspace:has(#buyer-break-setup) .break-format-choice .step-heading { justify-content: flex-end; }
+}
+
 /* The buyer task shares the brand row; its controls share the panel tabs. */
 .buyer-topbar { gap: 8px; }
 .buyer-topbar .wordmark { flex: 0 0 auto; white-space: nowrap; }

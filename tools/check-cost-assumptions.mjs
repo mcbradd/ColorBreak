@@ -34,7 +34,7 @@ try {
     await assumptions.getByRole('button', { name: 'Per item', exact: true }).click();
     await shipping.fill('0');
     await page.getByRole('button', { name: 'Done entering Shipping', exact: true }).click();
-    await page.getByRole('button', { name: 'Large break', exact: true }).click();
+    await page.getByRole('button', { name: 'Custom', exact: true }).click();
     assert.equal(await page.getByRole('textbox', { name: 'Allocated shipping' }).count(), 0);
     assert.equal(await page.getByRole('textbox', { name: 'Estimated tax', exact: true }).count(), 0);
     await page.reload();

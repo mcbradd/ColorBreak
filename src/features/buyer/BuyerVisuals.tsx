@@ -68,9 +68,8 @@ export function ValueSummary({ result }: { result: ValuationResult }) {
 
 /**
  * The break format decides what every later step means, so it leads the flow
- * and stays visible before any product exists. Color slots is pre-selected
- * because it is the common case. The difference between the two formats lives
- * behind one help icon rather than in a paragraph nobody reads mid-auction.
+ * and stays visible before any product exists. Standard (8 Slots) is selected
+ * because it is the common case. Help icons explain the formats and entry limit.
  */
 export function BreakFormatChoice({
   assignmentMode,
@@ -79,7 +78,6 @@ export function BreakFormatChoice({
   largeSpots,
   setLargeSpots,
   takenSlots = [],
-  stepLabel = "Break type",
 }: {
   assignmentMode: AssignmentMode;
   setAssignmentMode: (mode: AssignmentMode) => void;
@@ -87,19 +85,17 @@ export function BreakFormatChoice({
   largeSpots: number;
   setLargeSpots: (spots: number) => void;
   takenSlots?: SlotId[];
-  stepLabel?: string;
 }) {
   const isLarge = assignmentMode === "large";
   return (
-    <section className="break-format-choice" aria-label="Break type">
+    <section className="break-format-choice" aria-label="Break format">
       <div className="step-heading">
-        <InformationLabel>{stepLabel}</InformationLabel>
         <Tip
-          label="What the two break types mean"
-          text="Color slots: one slot per color, the standard prize wheel. Large break: many random spots, usually 100–200. Sellers change this between auctions, so match the listing."
+          label="How break formats work"
+          text="Standard (8 Slots): one slot for each color. Custom: choose 1–500 entries, matching Whatnot's limit of 500 products in a Surprise Set. Choose the format used by the listing."
         />
       </div>
-      <div className="break-format-options" role="group" aria-label="Break type">
+      <div className="break-format-options" role="group" aria-label="Break format">
         <button
           type="button"
           aria-pressed={!isLarge}
@@ -107,7 +103,7 @@ export function BreakFormatChoice({
           onClick={() => setAssignmentMode("random")}
         >
           <Check className="break-format-tick" aria-hidden="true" />
-          Color slots
+          Standard (8 Slots)
         </button>
         <button
           type="button"
@@ -116,13 +112,13 @@ export function BreakFormatChoice({
           onClick={() => setAssignmentMode("large")}
         >
           <Check className="break-format-tick" aria-hidden="true" />
-          Large break
+          Custom
         </button>
       </div>
       {isLarge && <>
         <div className="large-break-spot-input">
-          <div className="large-break-spot-label"><span className="large-break-spot-label-text">Random spots</span><Tip label="What the spot count means" text="How many random spots the seller is selling. Usually 100–200. 17 are catch-all spots; the rest use top-value cards, with characters grouped by name." /></div>
-          <NumericInput value={largeSpots} onCommit={(value) => setLargeSpots(Math.max(1, Math.min(500, Math.round(value ?? 1))))} ariaLabel="Large break spot count" live />
+          <div className="large-break-spot-label"><span className="large-break-spot-label-text">Entries (1–500)</span><Tip label="About custom entries" text="Choose how many custom entries the listing has. The supported range is 1–500, matching Whatnot's maximum of 500 products in a Surprise Set." /></div>
+          <NumericInput value={largeSpots} min={1} max={500} integer onCommit={(value) => setLargeSpots(Math.max(1, Math.min(500, Math.round(value ?? 1))))} ariaLabel="Custom entry count" live />
         </div>
         <FormatCarryOverNotice selectedSlots={selectedSlots} takenSlots={takenSlots} />
       </>}
@@ -153,7 +149,7 @@ export function FormatCarryOverNotice({
       <ShieldAlert aria-hidden="true" />
       <div>
         <b>Kept, but not used by a large break</b>
-        <p>A large break sells random spots drawn from the whole break, so it ignores {parts.join(" and ")}. Nothing was deleted — switch back to Color slots and every choice is still there.</p>
+        <p>A large break sells random spots drawn from the whole break, so it ignores {parts.join(" and ")}. Nothing was deleted — switch back to Standard (8 Slots) and every choice is still there.</p>
       </div>
     </aside>
   );

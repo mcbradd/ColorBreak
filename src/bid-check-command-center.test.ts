@@ -162,9 +162,9 @@ describe("Bid Check command center", () => {
     expect(screen.getByRole("button", { name: "Break panel" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Adjust assumptions" })).toBeInTheDocument();
     expect(screen.getByRole("switch", { name: "Bulk filter" })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Large break" }));
+    fireEvent.click(screen.getByRole("button", { name: "Custom" }));
     expect(screen.getByRole("button", { name: "Decision panel" })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Color slots" }));
+    fireEvent.click(screen.getByRole("button", { name: "Standard (8 Slots)" }));
     expect(screen.getByRole("button", { name: "Break panel" })).toBeInTheDocument();
   });
 });

@@ -127,7 +127,7 @@ try {
       if (evidence) await page.screenshot({ path: join(evidence, `${job}-command-${width}.png`), animations: 'disabled' });
       if (job === 'buyer' && width === 1440) {
         await page.getByRole('button', { name: 'Break panel', exact: true }).click();
-        await page.getByRole('button', { name: 'Large break', exact: true }).click();
+        await page.getByRole('button', { name: 'Custom', exact: true }).click();
         await page.setViewportSize({ width: 390, height: 800 });
         assert.equal(await search.isVisible(), true, 'the Break panel stays active after changing the break format and resizing');
         assert.equal(await page.getByRole('button', { name: 'Break panel', exact: true }).getAttribute('aria-pressed'), 'true');
