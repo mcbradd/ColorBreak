@@ -163,7 +163,7 @@ describe("Bid Check command center", () => {
 
     render(createElement(BuyerWorkspace, { exit: vi.fn(), startFresh: false, startReady: false }));
 
-    const dockStatus = await screen.findByText("Odds estimated · median $4.90 vs $8.25 Lands EV; ship $4.47, tax 9.03%");
+    const dockStatus = await screen.findByText("Odds estimated · median $4.90 ÷ (1 + 9.03% tax) − ship $4.47 = $0.02; Lands avg EV $8.25");
     expect(dockStatus).toBeInTheDocument();
     expect(dockStatus).toHaveAttribute("aria-label", expect.stringContaining("Random-slot median $4.90; mean $14.61. Lowest remaining slot: Lands EV $8.25 (average). Bid limit = $4.90 ÷ (1 + 9.03% tax) − $4.47 shipping = $0.02 (rounded down to cents)."));
   });

@@ -510,7 +510,7 @@ export function BuyerView({
       : hasUnverifiedPullRates ? "Odds estimated"
         : dockStatus.startsWith("Partial estimate") ? "Partial"
           : dockStatus === "Fresh estimate" ? "Fresh" : "Estimate";
-  const dockDetail = `${briefEstimateStatus} · median ${fmt(typicalValue)} vs ${fmt(lowestRemainingEV)} ${lowestRemainingSlot ? SLOT_NAMES[lowestRemainingSlot.id] : "slot"} EV; ship ${fmt(effectiveShipping)}, tax ${effectiveTax.toFixed(2)}%`;
+  const dockDetail = `${briefEstimateStatus} · median ${fmt(typicalValue)} ÷ (1 + ${effectiveTax.toFixed(2)}% tax) − ship ${fmt(effectiveShipping)} = ${fmt(hammerLimit)}; ${lowestRemainingSlot ? SLOT_NAMES[lowestRemainingSlot.id] : "Lowest slot"} avg EV ${fmt(lowestRemainingEV)}`;
   const heading = ceiling.kind === "no-room" && !distribution?.preview && !simulation.busy && result.status === "verified" ? "DO NOT BID" : "DON’T BID OVER";
   const decisionKicker = `${breakLabel ? `${breakLabel} · ` : ""}${pool.length} slot${pool.length === 1 ? "" : "s"} left`;
   return (
