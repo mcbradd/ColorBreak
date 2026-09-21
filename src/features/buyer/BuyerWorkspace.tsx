@@ -385,7 +385,6 @@ export function BuyerWorkspace({
               formatActions={<BuyerAssumptions costs={costSettings} bulkEnabled={bulkEnabled} bulkThreshold={bulkThreshold} setBulkEnabled={setBulkEnabled} setBulkThreshold={setBulkThreshold} result={analysis?.valuation} open={assumptionsOpen} onOpenChange={setAssumptionsOpen} opener={assumptionsOpener} onOpen={() => setAssumptionsOpener(null)} />}
               targetSlots={activeBidTargets}
               setTargetSlots={setTargetSlots}
-              costs={costs}
               distributions={simulation.result?.slotDistributions}
               largeSpots={largeSpots}
               setLargeSpots={setLargeSpots}

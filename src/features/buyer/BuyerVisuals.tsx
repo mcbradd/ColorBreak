@@ -18,8 +18,6 @@ import {
 import type { BreakAnalysis } from "../../data/evaluate";
 import { toggleSlotTaken } from "../../domain/auction";
 import type { AuctionState } from "../../domain/auction";
-import { bidCeiling, DEFAULT_BUYER_COSTS } from "../../domain/bid-ceiling";
-import type { BuyerCosts } from "../../domain/bid-ceiling";
 import type { AssignmentMode } from "../../domain/share-url";
 import { cardTreatmentLabel } from "../../domain/card-label";
 import { CompactWarning } from "../shared/Feedback";
@@ -201,11 +199,11 @@ export function SlotCandle({
   );
 }
 
-const SLOT_HELP = "Mark a slot taken when another buyer wins it; it immediately leaves the remaining EV calculation. Select one or more available slots to preview their bid ceilings. With no selection, the overall recommendation uses the average EV across every remaining slot. Each slot shows its cost-adjusted bid ceiling.";
+const SLOT_HELP = "Mark a slot taken when another buyer wins it; it immediately leaves the remaining EV calculation. Select one or more available slots to preview their bid limit above. With no selection, the overall recommendation uses the average EV across every remaining slot. Tap the bid limit to see its shipping and tax math.";
 
 /**
- * The slot rail shows each color's EV and bid ceiling alongside availability
- * and preview selection.
+ * The slot rail shows each color's EV alongside availability and preview
+ * selection. The shared bid limit stays in the decision panel.
  */
 export function SlotRail({
   result,
@@ -213,16 +211,14 @@ export function SlotRail({
   setAuction,
   targetSlots = [],
   setTargetSlots = () => {},
-  costs = DEFAULT_BUYER_COSTS,
   distributions,
-  stepLabel = "Slot EV and bid ceilings",
+  stepLabel = "Slot EV",
 }: {
   result?: ValuationResult;
   auction: AuctionState;
   setAuction: (state: AuctionState) => void;
   targetSlots?: SlotId[];
   setTargetSlots?: (ids: SlotId[]) => void;
-  costs?: BuyerCosts;
   distributions?: Record<SlotId, DistributionSummary>;
   stepLabel?: string;
 }) {
@@ -233,7 +229,7 @@ export function SlotRail({
     ...SLOT_IDS.map((id) => probableRange(distributions?.[id], result?.slots.find((slot) => slot.id === id)?.sellableEV ?? 0).high),
   );
   return (
-    <section className="buyer-slot-control" aria-label="Slot EV and bid ceilings">
+    <section className="buyer-slot-control" aria-label="Slot EV and preview">
       <div className="step-heading">
         <InformationLabel>{stepLabel}</InformationLabel>
         <span className="section-help"><Tip label="What the slot controls do" text={SLOT_HELP} /><AnswerNote primary label="What affects the slot charts" detail={CANDLE_EXPLANATION} /></span>
@@ -245,8 +241,6 @@ export function SlotRail({
           const taken = !available;
           const bidTarget = targetSlots.includes(id);
           const expectedValue = slot?.sellableEV ?? 0;
-          const ceiling = bidCeiling(expectedValue, costs);
-          const ceilingText = !available ? "Taken" : ceiling.kind === "ceiling" ? fmt(ceiling.hammer) : "No bid";
           return (
             <div className={`buyer-slot-row ${taken ? "taken" : ""} ${bidTarget ? "bid-target" : ""}`} key={id}>
               <div className="buyer-slot-top">
@@ -300,9 +294,6 @@ export function SlotRail({
                   scaleMax={scaleMax}
                   label={SLOT_NAMES[id]}
                 />
-                <div className="slot-bid-math" aria-label={`${SLOT_NAMES[id]} bid calculation`}>
-                  <span>Bid ceiling <b>{ceilingText}</b></span>
-                </div>
               </div>
               {expandedSlot === id && <div className="buyer-slot-members">
                 <CardMemberList

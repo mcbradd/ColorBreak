@@ -453,11 +453,6 @@
 .command-workspace .buyer-slot-bottom .slot-candle-values > b { display: none; }
 .command-workspace .buyer-slot-bottom .slot-candle-values > span { color: inherit; text-align: left; font: 700 8px/1 "DM Sans", system-ui, sans-serif !important; }
 .command-workspace .buyer-slot-bottom .slot-candle-values small { display: inline; margin-right: 2px; font-size: 6px !important; line-height: 1 !important; }
-.command-workspace .buyer-slot-bottom .slot-bid-math { display: flex; flex: none; align-items: center; gap: 2px; height: 8px; max-height: 8px; overflow: hidden; margin: 0; color: var(--muted); font: 700 8px/1 "DM Sans", system-ui, sans-serif !important; white-space: nowrap; }
-.command-workspace .buyer-slot-bottom .slot-bid-math > span { display: inline-flex; align-items: baseline; gap: 2px; font: inherit !important; }
-.command-workspace .buyer-slot-bottom .slot-bid-math > span,
-.command-workspace .buyer-slot-bottom .slot-bid-math b { height: 8px; line-height: 8px !important; }
-.command-workspace .buyer-slot-bottom .slot-bid-math b { color: var(--ink); font-size: 8px !important; }
 .command-workspace .buyer-slot-members { grid-column: 1 / -1; min-width: 0; margin: 4px 0 1px; padding: 4px 0 0; }
 
 @media (max-width: 719px) {

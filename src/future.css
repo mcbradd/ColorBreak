@@ -1325,16 +1325,6 @@ input {
 }
 .slot-candle-values > :nth-child(2) { text-align: center; color: var(--ink); font-weight: 800; }
 .slot-candle-values > :last-child { text-align: right; }
-.slot-bid-math {
-  display: flex;
-  justify-content: space-between;
-  gap: 10px;
-  margin-top: 4px;
-  color: var(--muted);
-  font-size: 10px;
-}
-.slot-bid-math b { color: var(--ink); font-weight: 800; }
-
 /* Composition: products go straight on the page, no panel around a panel. */
 .composition { margin: 0 0 18px; }
 .composition .line {

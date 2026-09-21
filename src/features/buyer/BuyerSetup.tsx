@@ -9,8 +9,6 @@ import type { DistributionSummary } from "../../domain/simulation";
 import { SLOT_IDS } from "../../domain/types";
 import { BreakFormatChoice, SlotRail } from "./BuyerVisuals";
 import { QuickBreakComposer } from "../shared/QuickBreakComposer";
-import type { BuyerCosts } from "../../domain/bid-ceiling";
-import { DEFAULT_BUYER_COSTS } from "../../domain/bid-ceiling";
 import type { ReactNode } from "react";
 
 export function BuyerSetup({
@@ -23,7 +21,6 @@ export function BuyerSetup({
   assignmentMode,
   setAssignmentMode,
   formatActions,
-  costs = DEFAULT_BUYER_COSTS,
   targetSlots = [],
   setTargetSlots = () => {},
   distributions,
@@ -39,7 +36,6 @@ export function BuyerSetup({
   assignmentMode: AssignmentMode;
   setAssignmentMode: (mode: AssignmentMode) => void;
   formatActions?: ReactNode;
-  costs?: BuyerCosts;
   targetSlots?: SlotId[];
   setTargetSlots?: (ids: SlotId[]) => void;
   distributions?: Record<SlotId, DistributionSummary>;
@@ -73,7 +69,6 @@ export function BuyerSetup({
         setAuction={setAuction}
         targetSlots={targetSlots}
         setTargetSlots={setTargetSlots}
-        costs={costs}
         distributions={distributions}
       /></div>}
     </section>

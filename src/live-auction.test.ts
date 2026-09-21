@@ -103,26 +103,18 @@ describe("live random-slot buyer workflow", () => {
     expect(screen.getByRole("region", { name: "Bid decision" })).not.toHaveTextContent("Blue selected for bid preview");
   });
 
-  it("shows each cost-adjusted bid ceiling once beside the slot's EV chart", async () => {
+  it("keeps slot EV and preview controls while the bid limit stays in the top decision", async () => {
     render(createElement(Harness));
     await waitFor(() => expect(screen.getByLabelText("Highest bid to make")).not.toHaveTextContent("Checking…"));
 
-    expect(screen.getByLabelText("White bid calculation")).toHaveTextContent(/^Bid ceiling\s+\$10\.00$/);
-    expect(screen.getByLabelText("Blue bid calculation")).toHaveTextContent(/^Bid ceiling\s+\$20\.00$/);
+    expect(screen.getByRole("region", { name: "Slot EV and preview" })).toBeInTheDocument();
+    expect(screen.queryByText("Bid ceiling")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Select Blue for bid preview" })).toBeInTheDocument();
     expect(screen.getByLabelText(/^White: expected/)).toHaveAccessibleName(/expected \$10\.00/);
     expect(screen.getByLabelText(/^Blue: expected/)).toHaveAccessibleName(/expected \$20\.00/);
-  });
 
-  it("applies shipping and tax to every slot's own bid ceiling", () => {
-    render(createElement(SlotRail, {
-      result: valuation,
-      auction: createAuction(["W", "U"]),
-      setAuction: () => {},
-      costs: { ...DEFAULT_BUYER_COSTS, shipping: 4, taxPercent: 8 },
-    }));
-
-    expect(screen.getByLabelText("White bid calculation")).toHaveTextContent(/Bid ceiling\s+\$5\.25/);
-    expect(screen.getByLabelText("Blue bid calculation")).toHaveTextContent(/Bid ceiling\s+\$14\.51/);
+    fireEvent.click(screen.getByRole("button", { name: "Select Blue for bid preview" }));
+    expect(screen.getByRole("region", { name: "Bid decision" })).toHaveTextContent("average EV $20.00 per spot");
   });
 
   it("removes the buyer's costs from the ceiling it recommends", async () => {
