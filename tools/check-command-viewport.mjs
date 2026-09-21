@@ -52,6 +52,64 @@ try {
     await page.getByRole('combobox').blur();
     const dock = page.getByRole('complementary', { name: 'Live decision' });
     await dock.waitFor();
+    if (job === 'buyer') {
+      await page.waitForFunction(() => !document.documentElement.classList.contains('keyboard-open'));
+      const slots = await page.evaluate(() => {
+        const panel = document.querySelector('.buyer-slot-control');
+        const dock = document.querySelector('[aria-label="Live decision"]');
+        const panelBounds = panel.getBoundingClientRect();
+        const dockBounds = dock.getBoundingClientRect();
+        const list = panel.querySelector('.buyer-slot-list');
+        const rows = [...panel.querySelectorAll('.buyer-slot-row')].map(row => {
+          const bounds = row.getBoundingClientRect();
+          const top = row.querySelector('.buyer-slot-top').getBoundingClientRect();
+          const bottom = row.querySelector('.buyer-slot-bottom').getBoundingClientRect();
+          return { top: bounds.top, bottom: bounds.bottom, innerTop: top.top, innerTopBottom: top.bottom, innerBottom: bottom.top, innerBottomBottom: bottom.bottom };
+        });
+        return {
+          keyboardOpen: document.documentElement.classList.contains('keyboard-open'),
+          count: rows.length,
+          columnCount: getComputedStyle(list).gridTemplateColumns.trim().split(/\s+/).length,
+          distinctRowTops: new Set(rows.map(row => Math.round(row.top))).size,
+          panelBottom: panelBounds.bottom,
+          panelScrollHeight: panel.scrollHeight,
+          panelClientHeight: panel.clientHeight,
+          dockTop: dockBounds.top,
+          pageHeight: document.documentElement.scrollHeight,
+          viewportHeight: innerHeight,
+          rows,
+        };
+      });
+      assert.equal(slots.keyboardOpen, false, 'slot fit is measured with the keyboard closed');
+      assert.equal(slots.count, 8, 'all eight color slots are rendered');
+      assert.equal(slots.columnCount, 1, 'all slots stay in one column');
+      assert.equal(slots.distinctRowTops, 8, 'each slot occupies its own row');
+      assert.ok(slots.panelScrollHeight <= slots.panelClientHeight + 1, `slot panel has no hidden vertical overflow: ${JSON.stringify(slots)}`);
+      assert.ok(slots.panelBottom <= slots.dockTop + 1, `all eight slots fit above the decision dock: ${JSON.stringify(slots)}`);
+      assert.ok(slots.rows.every(row => row.innerTop >= row.top - 1 && row.innerTopBottom <= row.bottom + 1 && row.innerBottom >= row.top - 1 && row.innerBottomBottom <= row.bottom + 1), `slot data stays inside its two rows: ${JSON.stringify(slots.rows)}`);
+      assert.equal(slots.pageHeight, slots.viewportHeight, 'the closed slot layout does not expand the page');
+      const controls = await page.evaluate(() => {
+        const row = document.querySelector('.buyer-slot-row');
+        const check = row.querySelector('.slot-target-btn');
+        const cancel = row.querySelector('.slot-disable-btn');
+        const box = row.querySelector('.buyer-slot-ev');
+        const rect = element => { const bounds = element.getBoundingClientRect(); return { width: bounds.width, height: bounds.height }; };
+        return { check: rect(check), cancel: rect(cancel), icon: rect(check.querySelector('svg')), cancelIcon: rect(cancel.querySelector('svg')), evBackground: getComputedStyle(box).backgroundColor, evColor: getComputedStyle(box).color };
+      });
+      assert.deepEqual(controls.check, controls.cancel, 'check and cancel controls share one size');
+      assert.deepEqual(controls.icon, controls.cancelIcon, 'check and cancel icons share one size');
+      assert.notEqual(controls.evBackground, 'rgba(0, 0, 0, 0)', 'EV uses a solid theme color');
+      assert.ok(controls.evColor.split(/[(), ]+/).filter(Boolean).slice(1, 4).every(channel => Number(channel) < 32), 'EV uses dark text on its bright box');
+      const checkButton = page.getByRole('button', { name: 'Select White for bid preview' });
+      const inactiveColor = await checkButton.evaluate(el => getComputedStyle(el).color);
+      const inactiveChannels = inactiveColor.match(/\d+/g).map(Number);
+      assert.ok(inactiveChannels[2] > inactiveChannels[1] && inactiveChannels[2] > inactiveChannels[0], 'inactive check is grey');
+      await checkButton.click();
+      const active = await page.getByRole('button', { name: 'Remove White from bid preview' }).evaluate(el => ({ pressed: el.getAttribute('aria-pressed'), background: getComputedStyle(el).backgroundColor }));
+      assert.equal(active.pressed, 'true', 'check selects the slot for preview');
+      const activeChannels = active.background.match(/\d+/g).map(Number);
+      assert.ok(activeChannels[1] > activeChannels[0] && activeChannels[1] > activeChannels[2], 'selected check uses the green active state');
+    }
     assert.equal(await dock.evaluate(el => getComputedStyle(el).position), 'fixed', `${width}px dock is fixed`);
     await page.evaluate(() => {
       for (const [key, value] of Object.entries({ top: 47, bottom: 34, left: 16, right: 16 })) document.documentElement.style.setProperty(`--safe-${key}`, `${value}px`);

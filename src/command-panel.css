@@ -317,3 +317,158 @@
     -webkit-line-clamp: 2;
   }
 }
+
+/* The standard color break is a compact, single-column rail. Each slot has
+ * one controls/EV row and one range/bid row so all eight remain in view. */
+.command-workspace .bid-check-workbench .buyer-slot-control { min-width: 0; padding: 0 !important; }
+.command-workspace .buyer-slot-control > .step-heading { align-items: center; gap: 4px; margin: 0; }
+.command-workspace .buyer-slot-control > .step-heading > .section-label {
+  display: flex;
+  flex: 1 1 auto;
+  width: auto;
+  min-width: 0;
+  overflow: hidden;
+  margin: 0;
+  font-size: 9px !important;
+  letter-spacing: .06em;
+  white-space: nowrap;
+}
+.command-workspace .buyer-slot-control > .step-heading > .section-label > span { min-width: 0; overflow: hidden; font: inherit !important; line-height: inherit !important; text-overflow: ellipsis; }
+.command-workspace .buyer-slot-control .section-help { display: flex; align-items: center; gap: 1px; flex: none; }
+.command-workspace .buyer-slot-control .section-help .tip,
+.command-workspace .buyer-slot-control .section-help .answer-note { width: 16px; height: 16px; min-width: 16px; min-height: 16px !important; padding: 1px; line-height: 1; }
+.command-workspace .buyer-slot-control .section-help .tip { width: 16px; height: 16px; min-width: 16px; min-height: 16px !important; padding: 1px; line-height: 1; }
+.command-workspace .buyer-slot-control .section-help svg { width: 12px; height: 12px; }
+.command-workspace .buyer-slot-list { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0; margin: 0; }
+.command-workspace .buyer-slot-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: 18px 8px;
+  gap: 0;
+  min-width: 0;
+  min-height: 0;
+  padding: 0 !important;
+  border: 0;
+  border-bottom: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: inset 0 -1px var(--line-strong);
+}
+.command-workspace .buyer-slot-top { display: grid; grid-template-columns: minmax(0, 1fr) 90px 52px; align-items: center; gap: 3px; min-width: 0; }
+.command-workspace .buyer-slot-open {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  min-height: 19px !important;
+  width: 100%;
+  padding: 0;
+  overflow: hidden;
+  color: var(--ink);
+  font: 700 10px/1 Manrope, sans-serif;
+}
+.command-workspace .buyer-slot-open > .buyer-slot-disclosure { width: 9px; height: 9px; flex: none; margin: 0; transition: transform .15s ease; }
+.command-workspace .buyer-slot-open > .buyer-slot-disclosure.expanded { transform: rotate(180deg); }
+.command-workspace .buyer-slot-symbol { display: grid; place-items: center; width: 12px; height: 12px; flex: none; border-radius: 50%; font: 800 7px/1 Manrope, sans-serif; }
+.command-workspace .buyer-slot-symbol.slot-W { color: #15130b; background: #ffd23f; }
+.command-workspace .buyer-slot-symbol.slot-U { color: #07131a; background: #2ec4ff; }
+.command-workspace .buyer-slot-symbol.slot-B { color: #fff; background: #7b31b4; }
+.command-workspace .buyer-slot-symbol.slot-R { color: #fff; background: #c81736; }
+.command-workspace .buyer-slot-symbol.slot-G { color: #07180f; background: #00e28a; }
+.command-workspace .buyer-slot-symbol.slot-M { color: #fff; background: #c4116c; }
+.command-workspace .buyer-slot-symbol.slot-C { color: #111723; background: #9eabc5; }
+.command-workspace .buyer-slot-symbol.slot-L { color: #1b1105; background: #ff9b22; }
+.command-workspace .buyer-slot-open .buyer-slot-member-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  flex: none;
+  margin: 0;
+  color: var(--muted);
+  font: 700 8px/1 "DM Sans", system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+.command-workspace .buyer-slot-member-count svg { width: 9px; height: 9px; flex: none; }
+.command-workspace .buyer-slot-ev {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  width: 90px;
+  min-width: 0;
+  height: 19px;
+  border-radius: 2px;
+  color: var(--accent-ink);
+  background: var(--accent);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.command-workspace .buyer-slot-ev small { font: 800 8px/1 Manrope, sans-serif !important; letter-spacing: .05em; }
+.command-workspace .buyer-slot-ev strong { max-width: 100%; overflow: hidden; font: 800 17px/1 Manrope, sans-serif !important; text-overflow: ellipsis; white-space: nowrap; }
+.command-workspace .buyer-slot-actions { display: flex; align-items: center; justify-content: flex-end; gap: 2px; height: 19px; }
+.command-workspace .buyer-slot-actions .slot-target-btn,
+.command-workspace .buyer-slot-actions .slot-disable-btn {
+  display: grid;
+  place-items: center;
+  width: 25px;
+  height: 19px;
+  min-width: 25px;
+  min-height: 19px !important;
+  padding: 0;
+  border-radius: 2px;
+}
+.command-workspace .buyer-slot-actions .slot-target-btn svg,
+.command-workspace .buyer-slot-actions .slot-disable-btn svg { width: 12px; height: 12px; }
+.command-workspace .buyer-slot-actions .slot-target-btn { color: #727c8b; }
+.command-workspace .buyer-slot-actions .slot-target-btn:hover,
+.command-workspace .buyer-slot-actions .slot-target-btn:focus-visible { color: var(--accent); }
+.command-workspace .buyer-slot-actions .slot-target-btn[aria-pressed="true"] { color: var(--accent-ink); background: var(--safe); border-color: var(--safe); }
+.command-workspace .buyer-slot-actions .slot-disable-btn { color: #727c8b; }
+.command-workspace .buyer-slot-actions .slot-disable-btn[aria-pressed="true"] { color: #ffd4dc; background: #4a1d29; border-color: #9d374e; }
+.command-workspace .buyer-slot-actions .slot-disable-btn:disabled,
+.command-workspace .buyer-slot-actions .slot-target-btn:disabled { opacity: .35; }
+.command-workspace .buyer-slot-bottom { display: flex; align-items: center; gap: 8px; min-width: 0; height: 8px; min-height: 0; line-height: 1; }
+.command-workspace .buyer-slot-bottom .slot-candle {
+  display: grid;
+  grid-template-columns: minmax(14px, 1fr) auto;
+  align-items: center;
+  gap: 4px;
+  flex: 1 1 auto;
+  min-width: 0;
+  width: auto;
+  height: 8px;
+  min-height: 0 !important;
+  max-height: 8px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+}
+.command-workspace .buyer-slot-bottom .slot-candle-track { height: 4px; min-width: 14px; }
+.command-workspace .buyer-slot-bottom .slot-candle-wick { height: 2px; }
+.command-workspace .buyer-slot-bottom .slot-candle-body { top: 0; bottom: 0; }
+.command-workspace .buyer-slot-bottom .slot-candle-values { display: block; min-width: 0; margin: 0; color: var(--muted); font: 700 8px/1 "DM Sans", system-ui, sans-serif !important; white-space: nowrap; }
+.command-workspace .buyer-slot-bottom .slot-candle-values > b { display: none; }
+.command-workspace .buyer-slot-bottom .slot-candle-values > span { color: inherit; text-align: left; font: 700 8px/1 "DM Sans", system-ui, sans-serif !important; }
+.command-workspace .buyer-slot-bottom .slot-candle-values small { display: inline; margin-right: 2px; font-size: 6px !important; line-height: 1 !important; }
+.command-workspace .buyer-slot-bottom .slot-bid-math { display: flex; flex: none; align-items: center; gap: 2px; height: 8px; max-height: 8px; overflow: hidden; margin: 0; color: var(--muted); font: 700 8px/1 "DM Sans", system-ui, sans-serif !important; white-space: nowrap; }
+.command-workspace .buyer-slot-bottom .slot-bid-math > span { display: inline-flex; align-items: baseline; gap: 2px; font: inherit !important; }
+.command-workspace .buyer-slot-bottom .slot-bid-math > span,
+.command-workspace .buyer-slot-bottom .slot-bid-math b { height: 8px; line-height: 8px !important; }
+.command-workspace .buyer-slot-bottom .slot-bid-math b { color: var(--ink); font-size: 8px !important; }
+.command-workspace .buyer-slot-members { grid-column: 1 / -1; min-width: 0; margin: 4px 0 1px; padding: 4px 0 0; }
+
+@media (max-width: 719px) {
+  .command-workspace .buyer-slot-members .card-member-columns,
+  .command-workspace .buyer-slot-members .card-member-row { grid-template-columns: minmax(0, 1fr) repeat(3, minmax(40px, 48px)); gap: 4px; }
+  .command-workspace .buyer-slot-members .card-member-columns { align-items: center; padding: 2px 0 4px; font-size: 8px; }
+  .command-workspace .buyer-slot-members .card-member-columns > div:first-child { grid-column: auto; text-align: left; }
+  .command-workspace .buyer-slot-members .card-member-columns > div:not(:first-child) { text-align: center; }
+  .command-workspace .buyer-slot-members .card-member-columns button,
+  .command-workspace .buyer-slot-members .card-member-columns > div:first-child button { justify-content: center; gap: 2px; min-height: 30px; }
+  .command-workspace .buyer-slot-members .card-member-columns .card-member-column-icon { display: block; width: 11px !important; height: 11px !important; }
+  .command-workspace .buyer-slot-members .card-member-columns .card-member-column-label { display: block; }
+  .command-workspace .buyer-slot-members .card-member-columns button > svg:not(.card-member-column-icon) { width: 10px; height: 10px; }
+}

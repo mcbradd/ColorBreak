@@ -9,10 +9,10 @@ export { CardInspector } from "../shared/CardInspector";
 import {
   Ban,
   Check,
+  CreditCard,
   ChevronDown,
   ChevronRight,
   ShieldAlert,
-  Target,
   X,
 } from "lucide-react";
 import type { BreakAnalysis } from "../../data/evaluate";
@@ -250,14 +250,19 @@ export function SlotRail({
           return (
             <div className={`buyer-slot-row ${taken ? "taken" : ""} ${bidTarget ? "bid-target" : ""}`} key={id}>
               <div className="buyer-slot-top">
-                <button type="button" className="buyer-slot-name buyer-slot-open" aria-label={`${expandedSlot === id ? "Hide" : "Show"} cards in ${SLOT_NAMES[id]} team`} aria-expanded={expandedSlot === id} onClick={() => setExpandedSlot((current) => current === id ? null : id)}>
-                  <i className={`buyer-slot-swatch slot-${id}`} aria-hidden="true" />
-                  {SLOT_NAMES[id]}
-                  {taken && <b className="buyer-slot-tag buyer-slot-taken-tag">Taken</b>}
-                  {bidTarget && <b className="buyer-slot-tag buyer-slot-bid-tag">Preview</b>}
-                  <span className="buyer-slot-member-count">{slot?.contributors.length ?? 0} cards</span>
-                  <ChevronDown className={expandedSlot === id ? "expanded" : ""} aria-hidden="true" />
+                <button type="button" className="buyer-slot-name buyer-slot-open" aria-label={`${expandedSlot === id ? "Hide" : "Show"} cards in ${SLOT_NAMES[id]} team`} aria-description={`${slot?.contributors.length ?? 0} cards`} aria-expanded={expandedSlot === id} onClick={() => setExpandedSlot((current) => current === id ? null : id)}>
+                  <ChevronDown className={`buyer-slot-disclosure ${expandedSlot === id ? "expanded" : ""}`} aria-hidden="true" />
+                  <span className={`buyer-slot-symbol slot-${id}`} aria-hidden="true">{id}</span>
+                  <span className="buyer-slot-member-count" aria-label={`${slot?.contributors.length ?? 0} cards`}>
+                    <b>{slot?.contributors.length ?? 0}</b><CreditCard aria-hidden="true" />
+                  </span>
+                  <span className="sr-only">{SLOT_NAMES[id]}</span>
+                  {taken && <b className="buyer-slot-tag buyer-slot-taken-tag sr-only">Taken</b>}
+                  {bidTarget && <b className="buyer-slot-tag buyer-slot-bid-tag sr-only">Preview</b>}
                 </button>
+                <div className="buyer-slot-ev" role="group" aria-label={`${SLOT_NAMES[id]} EV`}>
+                  <small>EV</small><strong>{fmtCompact(expectedValue)}</strong>
+                </div>
                 <div className="buyer-slot-actions">
                   <button
                     type="button"
@@ -268,7 +273,7 @@ export function SlotRail({
                     title={bidTarget ? "Remove from bid preview" : "Preview bid ceiling"}
                     onClick={() => setTargetSlots(bidTarget ? targetSlots.filter((slot) => slot !== id) : [...targetSlots, id])}
                   >
-                    <Target aria-hidden="true" />
+                    <Check aria-hidden="true" />
                   </button>
                   <button
                     type="button"
@@ -288,14 +293,16 @@ export function SlotRail({
                   </button>
                 </div>
               </div>
-              <SlotCandle
-                distribution={distributions?.[id]}
-                expectedValue={expectedValue}
-                scaleMax={scaleMax}
-                label={SLOT_NAMES[id]}
-              />
-              <div className="slot-bid-math" aria-label={`${SLOT_NAMES[id]} bid calculation`}>
-                <span>Bid ceiling <b>{ceilingText}</b></span>
+              <div className="buyer-slot-bottom">
+                <SlotCandle
+                  distribution={distributions?.[id]}
+                  expectedValue={expectedValue}
+                  scaleMax={scaleMax}
+                  label={SLOT_NAMES[id]}
+                />
+                <div className="slot-bid-math" aria-label={`${SLOT_NAMES[id]} bid calculation`}>
+                  <span>Bid ceiling <b>{ceilingText}</b></span>
+                </div>
               </div>
               {expandedSlot === id && <div className="buyer-slot-members">
                 <CardMemberList

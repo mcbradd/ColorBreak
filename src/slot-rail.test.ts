@@ -42,6 +42,22 @@ function Harness() {
 }
 
 describe("buyer color controls", () => {
+  it("shows each color symbol, card count, EV tile, selection check, and taken control", () => {
+    const { container } = render(createElement(Harness));
+
+    const rows = [...container.querySelectorAll<HTMLElement>(".buyer-slot-row")];
+    expect(rows).toHaveLength(8);
+    expect(rows.map((row) => row.querySelector(".buyer-slot-symbol")?.textContent)).toEqual([...SLOT_IDS]);
+    expect(rows.every((row) => row.querySelector(".buyer-slot-member-count b")?.textContent === "0")).toBe(true);
+    expect(rows.every((row) => row.querySelector(".buyer-slot-member-count svg.lucide-credit-card"))).toBe(true);
+    expect(rows.every((row) => row.querySelector(".buyer-slot-ev strong")?.textContent)).toBe(true);
+    expect(rows.every((row) => row.querySelector(".slot-target-btn svg.lucide-check"))).toBe(true);
+    expect(rows.every((row) => row.querySelector(".slot-disable-btn svg.lucide-ban"))).toBe(true);
+
+    fireEvent.click(screen.getByRole("button", { name: "Select White for bid preview" }));
+    expect(screen.getByRole("button", { name: "Remove White from bid preview" })).toHaveAttribute("aria-pressed", "true");
+  });
+
   it("opens a team's price-ranked members and returns from a card to its thumbnail", async () => {
     const memberResult = calculateBreak({
       threshold: 0,
