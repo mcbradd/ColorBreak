@@ -5,6 +5,7 @@ import type { BreakAnalysis } from "./data/evaluate";
 import { summarizeDistribution, type SimulationResult } from "./domain/simulation";
 import { calculateBreak } from "./domain/valuation";
 import { SLOT_IDS, type SlotId } from "./domain/types";
+import { applySurpriseSet } from "./domain/surprise-set";
 
 const mocks = vi.hoisted(() => ({
   requests: vi.fn(),
@@ -100,6 +101,31 @@ describe("seller value at a glance", () => {
     expect(screen.getByLabelText("Selected spot value")).toHaveTextContent("Average $3.75");
     expect(screen.getByLabelText("Modeled opening range")).toHaveTextContent("$0.00");
     expect(screen.getAllByRole("button", { name: "What affects these break values" })).toHaveLength(1);
+  });
+
+  it("shows seller-configured Surprise Set card counts and values in the Values panel", () => {
+    mocks.state.result = undefined;
+    const configured = applySurpriseSet(analysis(), [
+      { id: "seller-white", slot: "W", name: "Seller White", value: 12 },
+      { id: "seller-blue", slot: "U", name: "Seller Blue", value: 8 },
+    ]);
+    show(configured);
+
+    expect(screen.getByText("Surprise Set · configured card value").parentElement).toHaveTextContent("$20.00");
+    expect(screen.getByText("2 seller-entered cards · values are estimates")).toBeInTheDocument();
+    expect(screen.queryByText("Whole break · expected card value")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Inspect White value" })).toHaveTextContent("$12.00");
+    expect(screen.getByRole("button", { name: "Inspect White value" })).toHaveTextContent("1 configured card · $12.00 total");
+  });
+
+  it("counts a configured card even when its entered value is zero", () => {
+    mocks.state.result = undefined;
+    show(applySurpriseSet(analysis(), [
+      { id: "unpriced-white", slot: "W", name: "Unpriced White Card", value: 0 },
+    ]));
+
+    expect(screen.getByText("1 seller-entered card · values are estimates")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Inspect White value" })).toHaveTextContent("1 configured card · $0.00 total");
   });
 
   it("shows the selected color's endpoints and retains a real zero median", () => {

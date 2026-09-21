@@ -1224,6 +1224,31 @@ body {
 .seller-fill-scenarios b { margin-top: 4px; font-size: 12px; white-space: nowrap; }
 .seller-fill-scenarios .positive b { color: var(--safe); }
 .seller-fill-scenarios .negative b { color: var(--danger); }
+.seller-fill-scenarios.full-fill-only { grid-template-columns: minmax(0, 1fr); }
+.seller-surprise-set { margin-top: 16px; border-top: 1px solid var(--line); }
+.seller-surprise-set > summary { display: flex; align-items: center; justify-content: space-between; min-height: 58px; cursor: pointer; }
+.seller-surprise-set > summary span,
+.seller-surprise-set > summary small { display: block; }
+.seller-surprise-set > summary small { margin-top: 3px; color: var(--muted); font-size: 10px; }
+.seller-surprise-set-note,
+.seller-surprise-set-status { color: var(--muted); font-size: 11px; line-height: 1.5; }
+.seller-surprise-autofill { margin: 10px 0; }
+.seller-surprise-set-status { color: var(--accent); }
+.seller-surprise-teams { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.seller-surprise-team { min-width: 0; margin: 0; padding: 9px; border: 1px solid var(--line); }
+.seller-surprise-team legend { padding: 0 4px; font-size: 12px; font-weight: 700; }
+.seller-surprise-team legend small { color: var(--muted); font-size: 9px; font-weight: 500; }
+.seller-surprise-card { display: grid; grid-template-columns: minmax(0, 1fr) 120px 28px; align-items: end; gap: 6px; padding: 7px 0; border-top: 1px solid var(--line); }
+.seller-surprise-card label { display: grid; min-width: 0; gap: 4px; color: var(--muted); font-size: 9px; }
+.seller-surprise-card input { width: 100%; min-width: 0; min-height: 36px; padding: 0 7px; border: 1px solid var(--line-strong); border-radius: 2px; color: var(--ink); background: #0d1015; font-size: 11px; }
+.seller-surprise-card .number-field { gap: 4px; }
+.seller-surprise-card .number-field > span { min-height: 0; color: var(--muted); font-size: 9px; }
+.seller-surprise-card .number-field > div { display: flex; align-items: center; min-height: 36px; padding-inline: 7px; border: 1px solid var(--line-strong); background: #0d1015; }
+.seller-surprise-card .number-field > div b { color: var(--muted); font-size: 10px; }
+.seller-surprise-card .number-field > div input { min-height: 32px; padding: 0 2px; border: 0; background: transparent; }
+.seller-surprise-remove { justify-content: center; min-width: 28px; padding: 7px; }
+.seller-surprise-add { margin-top: 7px; }
+.seller-surprise-set .slot-letter { display: inline-grid; width: 21px; height: 21px; font-size: 10px; }
 
 .seller-enticement { padding: 13px 0 0; }
 .enticement-controls {

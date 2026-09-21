@@ -503,8 +503,6 @@ export function SellerView({
       - otherCosts;
   };
   const allSoldProfit = profitAt(plannedBid, transactionCount);
-  const scenarios = [...new Set([transactionCount, Math.max(1, Math.ceil(transactionCount * (transactionCount >= 20 ? .85 : .75))), Math.max(1, Math.ceil(transactionCount * (transactionCount >= 20 ? .7 : .5)))])]
-    .map((sold) => ({ sold, profit: profitAt(plannedBid, sold) }));
   const unsoldSlots = new Set(activeDraft.unsoldSlots);
   const soldSlots = analysis.valuation.slots.filter((slot) => slot.sellableEV > 0 && !unsoldSlots.has(slot.id));
   const asks = allocate(
@@ -654,19 +652,19 @@ export function SellerView({
         <p className="seller-cost-source">Whatnot US TCG defaults: 8% commission and 2.9% + $0.30 processing, checked {WHATNOT_US.policyDate}. USPS postage varies by weight and distance; enter the actual label cost when the seller pays it.</p>
       </details>
 
-      <AnswerGroup><section className="seller-break-economics" aria-label="Seller break economics"><div className="section-estimate"><AnswerNote primary detail="Profit uses your planned sales, estimated fees and shipment costs. It is a projection, not recorded income." /></div>
+      <AnswerGroup><section className="seller-break-economics" aria-label="Seller break economics"><div className="section-estimate"><AnswerNote primary detail="Profit assumes every slot sells before the break starts. It uses estimated fees and shipment costs and is a projection, not recorded income." /></div>
         <div className="seller-break-even"><AnswerNote detail={estimatedCosts ? "Uses your acquisition cost when entered, otherwise market price. A product with neither counts as $0, making break-even too low and profit too high. Fees and shipment counts use your planning assumptions." : "Uses entered acquisition costs and planning assumptions for fees and shipments. All spots must sell at this price to break even."} />
           <span>Break-even bid</span>
           <strong><AnswerValue value={breakEvenBid} /></strong>
           <small>per spot · all {transactionCount} sold</small>
         </div>
-        <details className="seller-assumptions"><summary className="disclosure-summary" data-testid="seller-assumptions-toggle"><span>Assumptions used</span><DisclosureArrow /></summary><p>{marketEstimateLines.length ? "Acquisition uses your costs, then market estimates, then $0 for unknown costs; " : "Acquisition uses seller-entered costs; "}fees checked {WHATNOT_US.policyDate}; buyer shipping <AnswerValue value={buyerShipping} />; packaging/postage <AnswerValue value={packing + postage} /> per shipment; up to one combined shipment per sold spot ({shipmentCount} expected). Change this if you expect consolidation. Scenarios are sell-through math, not a demand prediction.</p></details>
+        <details className="seller-assumptions"><summary className="disclosure-summary" data-testid="seller-assumptions-toggle"><span>Assumptions used</span><DisclosureArrow /></summary><p>{marketEstimateLines.length ? "Acquisition uses your costs, then market estimates, then $0 for unknown costs; " : "Acquisition uses seller-entered costs; "}fees checked {WHATNOT_US.policyDate}; buyer shipping <AnswerValue value={buyerShipping} />; packaging/postage <AnswerValue value={packing + postage} /> per shipment; up to one combined shipment per sold spot ({shipmentCount} expected). The break starts after all slots sell.</p></details>
         <NumberField label="Planned bid per spot" value={plannedBid} onChange={(value) => setPlan(value == null ? { plannedBidOverride: undefined } : { plannedBidOverride: value })} live />
-        <div className="seller-fill-scenarios">
-          {scenarios.map((scenario) => <div className={scenario.profit != null && scenario.profit >= 0 ? "positive" : "negative"} key={scenario.sold}>
-            <span>{scenario.sold} / {transactionCount} sold</span>
-            <b>{sellerOutcomeLabel(scenario.profit)}<AnswerNote detail="A scenario, not a sales forecast. Uses the sold count and planned price shown, estimated fees and shipping, and your costs or market prices. Missing costs count as $0 and can overstate profit." /></b>
-          </div>)}
+        <div className="seller-fill-scenarios full-fill-only">
+          <div className={allSoldProfit != null && allSoldProfit >= 0 ? "positive" : "negative"} aria-label="Projected profit when the full break sells">
+            <span>All {transactionCount} slots sold</span>
+            <b>{sellerOutcomeLabel(allSoldProfit)}<AnswerNote detail="Projected profit after all planned slots sell, using estimated fees, buyer shipping and seller costs. Missing acquisition costs count as $0." /></b>
+          </div>
         </div>
       </section></AnswerGroup>
 

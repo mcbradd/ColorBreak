@@ -14,12 +14,34 @@ import { createAuction } from "../../domain/auction";
 import { canonicalCompositionFingerprint } from "../../domain/canonical-composition";
 import { createBreakShareUrl, decodeBuyerShare } from "../../domain/share-url";
 import type { BreakLine } from "../../domain/types";
+import { SLOT_IDS } from "../../domain/types";
+import type { SurpriseSetCard } from "../../domain/surprise-set";
+import { applySurpriseSet } from "../../domain/surprise-set";
 import { cleanupLegacyStorage, readSessionDraft, writeSessionLines } from "../../persistence";
 import { Builder } from "../shared/ProductBuilder";
 import { QuickBreakComposer } from "../shared/QuickBreakComposer";
 import { CompactWarning } from "../shared/Feedback";
 import { SellerGlance } from "./SellerGlance";
 import { SellerPlan } from "./SellerPlan";
+import { SurpriseSetEditor } from "./SurpriseSetEditor";
+
+function surpriseSetStorageKey(owner: string) {
+  return `colorbreak:seller:surprise-set:v1:${encodeURIComponent(owner)}`;
+}
+
+function readSurpriseSet(owner: string): SurpriseSetCard[] {
+  try {
+    const parsed: unknown = JSON.parse(sessionStorage.getItem(surpriseSetStorageKey(owner)) ?? "[]");
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((card): card is SurpriseSetCard => Boolean(card)
+      && typeof card === "object"
+      && typeof (card as SurpriseSetCard).id === "string"
+      && SLOT_IDS.includes((card as SurpriseSetCard).slot)
+      && typeof (card as SurpriseSetCard).name === "string"
+      && Number.isFinite((card as SurpriseSetCard).value)
+      && (card as SurpriseSetCard).value >= 0);
+  } catch { return []; }
+}
 
 /** Owns seller composition and analysis state; it never hydrates buyer decisions. */
 export function SellerWorkspace({ exit }: { exit: () => void }) {
@@ -36,11 +58,23 @@ export function SellerWorkspace({ exit }: { exit: () => void }) {
   const [generation, setGeneration] = useState(0);
   const { copy, toast } = useShareFeedback();
   const request = useRef(0);
+  const compositionOwner = canonicalCompositionFingerprint(lines);
+  const [savedSurpriseSet, setSavedSurpriseSet] = useState(() => ({ owner: compositionOwner, cards: readSurpriseSet(compositionOwner) }));
+  const surpriseCards = savedSurpriseSet.owner === compositionOwner ? savedSurpriseSet.cards : [];
+  const updateSurpriseCards = (cards: SurpriseSetCard[]) => setSavedSurpriseSet({ owner: compositionOwner, cards });
+  const sellerAnalysis = useMemo(() => analysis ? applySurpriseSet(analysis, surpriseCards) : undefined, [analysis, surpriseCards]);
   // Acquisition costs and hydrated display metadata do not change card values.
   const calculationRevision = `${canonicalCompositionFingerprint(lines)}:${generation}`;
   const analysisCurrent = Boolean(analysis && analysisRevision === calculationRevision && !busy);
   const [transactionCount, setTransactionCount] = useState(() => sharedBuyer.assignmentMode === "large" ? (sharedBuyer.largeSpots ?? 120) : 8);
   const sharedHref = createBreakShareUrl(`${location.origin}${location.pathname}#buyer`, { lines, assignmentMode: "random", remaining: createAuction().remaining, bulkEnabled: true, bulkThreshold: 2, largeSpots: transactionCount });
+  useLayoutEffect(() => {
+    if (savedSurpriseSet.owner !== compositionOwner) setSavedSurpriseSet({ owner: compositionOwner, cards: readSurpriseSet(compositionOwner) });
+  }, [compositionOwner, savedSurpriseSet.owner]);
+  useEffect(() => {
+    if (savedSurpriseSet.owner !== compositionOwner) return;
+    try { sessionStorage.setItem(surpriseSetStorageKey(compositionOwner), JSON.stringify(savedSurpriseSet.cards)); } catch { /* Session storage is optional. */ }
+  }, [compositionOwner, savedSurpriseSet]);
   useEffect(() => { if (cleanupLegacyStorage()) setLegacyNotice(true); }, []);
   useEffect(() => { try { writeSessionLines("seller", lines); } catch { /* session persistence is optional */ } }, [lines]);
   useEffect(() => { history.replaceState(null, "", lines.length ? sharedHref.replace("#buyer", "#seller") : `${location.pathname}#seller`); }, [sharedHref, lines.length]);
@@ -82,17 +116,20 @@ export function SellerWorkspace({ exit }: { exit: () => void }) {
     <nav><button className="wordmark" onClick={exit}><span className="brand-mark"><Sparkles /></span>COLORBREAK</button><div className="nav-actions">{lines.length > 0 && <button className="icon-button" onClick={share} title="Copy break link — private costs are excluded." aria-label="Copy break link"><Copy /></button>}</div></nav>
     {legacyNotice && <p role="status">Legacy durable drafts were removed because they could contain financial data. Current drafts stay only in this browser session.</p>}
     {toast}
-    <AnswerProvider value={analysis ? answerFactors(analysis.valuation, analysis.outcomeModel.complete, busy, analysis.outcomeOmissions) : []}><main className="workspace page seller-fast command-workspace" tabIndex={-1} data-focus-fallback><header className="workspace-title"><div><p className="eyebrow">SELLER STUDIO</p><h1>Build &amp; value a break</h1></div></header>
+    <AnswerProvider value={sellerAnalysis ? answerFactors(sellerAnalysis.valuation, sellerAnalysis.outcomeModel.complete, busy, sellerAnalysis.outcomeOmissions) : []}><main className="workspace page seller-fast command-workspace" tabIndex={-1} data-focus-fallback><header className="workspace-title"><div><p className="eyebrow">SELLER STUDIO</p><h1>Build &amp; value a break</h1></div></header>
       <CommandPanel panels={[{ id: "products", label: "Break", target: "seller-products" }, { id: "values", label: "Values", target: "seller-value" }, { id: "plan", label: "Plan", target: "seller-plan" }]}>
       <div className="seller-fast-grid">
-        <div id="seller-products" data-command-panel="products" tabIndex={-1}><QuickBreakComposer lines={lines} onChange={setLines} onImport={openBuilder} /></div>
-        <div data-command-panel="values"><SellerGlance lines={lines} analysis={analysis} current={analysisCurrent} busy={busy} /></div>
+        <div id="seller-products" data-command-panel="products" tabIndex={-1}>
+          <QuickBreakComposer lines={lines} onChange={setLines} onImport={openBuilder} />
+          <SurpriseSetEditor cards={surpriseCards} analysis={analysis} onChange={updateSurpriseCards} />
+        </div>
+        <div data-command-panel="values"><SellerGlance lines={lines} analysis={sellerAnalysis} current={analysisCurrent} busy={busy} /></div>
       </div>
       {error && <CompactWarning title="Couldn’t load this result" summary="Your products are saved. Retry the calculation." className="load-warning"><p role="alert">{error}</p><button type="button" className="quiet" onClick={() => setGeneration((value) => value + 1)}>Retry analysis</button></CompactWarning>}
-      <div id="seller-plan" data-command-panel="plan" tabIndex={-1}>{!analysis && <p>Add a product in Break to see pricing and profit.</p>}{analysis && <fieldset className="seller-fast-plan" aria-busy={!analysisCurrent}>
+      <div id="seller-plan" data-command-panel="plan" tabIndex={-1}>{!sellerAnalysis && <p>Add a product in Break to see pricing and profit.</p>}{sellerAnalysis && <fieldset className="seller-fast-plan" aria-busy={!analysisCurrent}>
         <legend>Price the break</legend>
         {!analysisCurrent && <p className="glance-updating">{busy ? "Updating seller economics for your new mix…" : "Retry analysis to update seller economics."}</p>}
-        <SellerPlan compact analysis={analysis} lines={lines} transactionCount={transactionCount} add={openBuilder} update={update} remove={(id) => setLines((rows) => rows.filter((row) => row.id !== id))} />
+        <SellerPlan compact analysis={sellerAnalysis} lines={lines} transactionCount={transactionCount} add={openBuilder} update={update} remove={(id) => setLines((rows) => rows.filter((row) => row.id !== id))} />
       </fieldset>}</div>
       </CommandPanel>
     </main></AnswerProvider>

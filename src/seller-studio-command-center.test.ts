@@ -50,7 +50,7 @@ describe("Seller Studio command center", () => {
     }));
   });
 
-  it("turns one entered bid into immediate full and partial-fill profit scenarios", () => {
+  it("shows the planned profit when every slot sells and omits partial-fill scenarios", () => {
     render(createElement(Harness));
 
 
@@ -59,9 +59,9 @@ describe("Seller Studio command center", () => {
     const plannedBid = within(studio).getByLabelText("Planned bid per spot");
     fireEvent.change(plannedBid, { target: { value: "20" } });
 
-    expect(within(screen.getByText("8 / 8 sold").parentElement!).getByText("Profit $23.12")).toBeInTheDocument();
-    expect(within(screen.getByText("6 / 8 sold").parentElement!).getByText("Loss $7.66")).toBeInTheDocument();
-    expect(within(screen.getByText("4 / 8 sold").parentElement!).getByText("Loss $38.44")).toBeInTheDocument();
+    expect(within(screen.getByText("All 8 slots sold").parentElement!).getByText("Profit $23.12")).toBeInTheDocument();
+    expect(screen.queryByText("6 / 8 sold")).not.toBeInTheDocument();
+    expect(screen.queryByText("4 / 8 sold")).not.toBeInTheDocument();
   });
 
   it("uses market price immediately and improves the answer when actual cost is entered", () => {
@@ -122,7 +122,7 @@ describe("Seller Studio command center", () => {
     expect(warning).toHaveTextContent("This product currently adds $0 to acquisition costs");
   });
 
-  it("inherits a 100-spot break and uses 100, 85, and 70 sold scenarios", () => {
+  it("inherits a 100-spot break and assumes every slot sells before breaking", () => {
     render(createElement(SellerView, {
       analysis,
       lines: [{ ...startingLines[0], myCost: 100 }],
@@ -134,9 +134,9 @@ describe("Seller Studio command center", () => {
 
     const studio = screen.getByRole("region", { name: "Seller break economics" });
     expect(studio).toHaveTextContent("per spot · all 100 sold");
-    expect(studio).toHaveTextContent("100 / 100 sold");
-    expect(studio).toHaveTextContent("85 / 100 sold");
-    expect(studio).toHaveTextContent("70 / 100 sold");
+    expect(studio).toHaveTextContent("All 100 slots sold");
+    expect(studio).not.toHaveTextContent("85 / 100 sold");
+    expect(studio).not.toHaveTextContent("70 / 100 sold");
   });
 });
 

@@ -164,6 +164,7 @@
 @media (max-width: 760px) {
   .seller-fast-grid { display: flex; flex-direction: column; }
   .seller-fast-grid > * { width: 100%; }
+  .seller-surprise-teams { grid-template-columns: minmax(0, 1fr); }
   .seller-glance { position: static; }
   .seller-fast .workspace-title { margin: 8px 0 18px; }
   .seller-fast .workspace-title h1 { font-size: 28px; }
