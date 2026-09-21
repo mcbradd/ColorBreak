@@ -23,7 +23,7 @@ import { chaseMapLayout } from "../../constellation-layout";
 
 import { createLargeBreakPlan, sortNamedCards, summarizeAssignmentValues } from "../../domain/large-break";
 import type { TopCardSort } from "../../domain/large-break";
-import { DisclosureArrow, fmt, InformationLabel, NumberField, PanelHeading, Status, Tip, oddsLabel, NumericInput } from "../shared/Primitives";
+import { DisclosureArrow, fmt, InformationLabel, NumberField, PanelHeading, StableButtonLabel, Status, Tip, oddsLabel, NumericInput } from "../shared/Primitives";
 import { cardPreviewSubtitle, CardInspector, CompactWarning, IncompleteDataWarning, OutcomeRange, EvidenceLens, ValueSummary } from "./BuyerVisuals";
 import type { OutcomeSimulation } from "./BuyerVisuals";
 import { PublicCardPlaceholder } from "../shared/CardPlaceholder";
@@ -538,7 +538,9 @@ export function BuyerView({
               title={PRICE_REFRESH_DETAIL[priceRefresh]}
             >
               <RefreshCw aria-hidden="true" className={PRICE_REFRESH_BUSY.includes(priceRefresh) ? "spinning" : undefined} />
-              {PRICE_REFRESH_LABEL[priceRefresh]}
+              <StableButtonLabel reserve={PRICE_REFRESH_LABEL.idle}>
+                {PRICE_REFRESH_LABEL[priceRefresh]}
+              </StableButtonLabel>
             </button>
             : <span className={`decision-evidence evidence-${result.status}`}>{eligibility.status === "eligible" ? "Fresh estimate" : eligibility.status === "stale" ? "Prices over 6 hours old" : result.status}</span>}
         </div>

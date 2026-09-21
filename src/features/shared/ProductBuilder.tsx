@@ -45,7 +45,7 @@ import {
   type TranscriptionProgress,
   type UncertainLine,
 } from "./screenshot-ocr";
-import { fmt, InformationLabel, NumberField, useDialogOwnership } from "./Primitives";
+import { fmt, InformationLabel, NumberField, StableButtonLabel, useDialogOwnership } from "./Primitives";
 
 export function Builder({
   open,
@@ -420,7 +420,9 @@ export function Builder({
                 <p><strong>Paste a ColorBreak link or product list</strong> — accepted formats are a ColorBreak link or one canonical product per line.</p>
                 <code>SPM | Play Booster Pack | 10</code>
                 <button type="button" className="screenshot-action" onClick={chooseScreenshot} disabled={Boolean(scanProgress)}>
-                  <ScanText />{scanProgress ? "Reading screenshot…" : "Read a screenshot of the show notes"}
+                  <ScanText /><StableButtonLabel reserve="Read a screenshot of the show notes">
+                    {scanProgress ? "Reading screenshot…" : "Read a screenshot of the show notes"}
+                  </StableButtonLabel>
                 </button>
                 <ScanFeedback progress={scanProgress} error={scanError} uncertain={scanUncertain} lineCount={scanLineCount} noticeId={scanNoticeId} />
                 <textarea autoFocus value={importSource} onChange={(event) => setImportSource(event.target.value)} onPaste={onComposerPaste} placeholder="Paste link or product list, or read a screenshot" aria-label="Break link or product list" aria-describedby={[importErrors.length ? importErrorsId : "", scanUncertain.length || scanError ? scanNoticeId : ""].filter(Boolean).join(" ") || undefined} />
@@ -535,12 +537,18 @@ export function Builder({
             <footer className="composer-actions">
               {composerMode === "review" ? (
                 <button type="button" className="primary" disabled={!importRows.length || importIssueCount > 0} onClick={applyImport}>
-                  {importIssueCount > 0
-                    ? `Resolve ${importIssueCount} line${importIssueCount === 1 ? "" : "s"} to continue`
-                    : `${importSettings ? "Replace with" : "Add"} ${importMatched.length} lines · ${importOpeningCount} openings`}
+                  <StableButtonLabel reserve="Replace with 9999 lines · 9999 openings">
+                    {importIssueCount > 0
+                      ? `Resolve ${importIssueCount} line${importIssueCount === 1 ? "" : "s"} to continue`
+                      : `${importSettings ? "Replace with" : "Add"} ${importMatched.length} lines · ${importOpeningCount} openings`}
+                  </StableButtonLabel>
                 </button>
               ) : composerMode === "paste" ? (
-                <button type="button" className="primary" disabled={!importSource.trim() || importing} onClick={resolveImport}>{importing ? "Checking products…" : "Review products"}</button>
+                <button type="button" className="primary" disabled={!importSource.trim() || importing} onClick={resolveImport}>
+                  <StableButtonLabel reserve="Checking products…">
+                    {importing ? "Checking products…" : "Review products"}
+                  </StableButtonLabel>
+                </button>
               ) : (
                 <button type="button" className="primary" onClick={commit}>Done</button>
               )}

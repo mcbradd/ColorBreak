@@ -17,7 +17,9 @@ describe("mobile Chrome viewport contract", () => {
     expect(css).toMatch(/\.keyboard-open \.composer-status \{ display: none; \}/);
     expect(css).toMatch(/\.keyboard-open \.break-import textarea \{[\s\S]*?height: clamp\(72px,/);
     expect(app).toContain('composerMode === "paste"');
-    expect(app).toContain('onClick={resolveImport}>{importing ? "Checking products…" : "Review products"}');
+    expect(app).toContain('<StableButtonLabel reserve="Checking products…">');
+    expect(app).toContain('{importing ? "Checking products…" : "Review products"}');
+    expect(css).toContain(".stable-button-label-reserve { visibility: hidden;");
   });
 
   it("accounts for phone safe areas in persistent navigation", () => {

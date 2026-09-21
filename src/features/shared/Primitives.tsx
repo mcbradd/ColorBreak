@@ -18,6 +18,23 @@ import type { Contributor, ValuationResult } from "../../domain/types";
 import type { Mode } from "../../route-mode";
 
 export type { Mode };
+
+/** Keeps a changing button label at the size of its widest possible state. */
+export function StableButtonLabel({
+  children,
+  reserve,
+}: {
+  children: ReactNode;
+  reserve: string;
+}) {
+  return (
+    <span className="stable-button-label">
+      <span className="stable-button-label-current">{children}</span>
+      <span className="stable-button-label-reserve" aria-hidden="true">{reserve}</span>
+    </span>
+  );
+}
+
 const money = new Intl.NumberFormat("en-US", {
   style: "currency",
   currency: "USD",
@@ -422,7 +439,7 @@ export function Home({ choose, buildId, recentBuyerCount = 0, recentSellerCount 
       {recentBuyerCount > 0 && (
         <button className="resume-action" onClick={() => choose("buyer", false)}>
           <RotateCw />
-          <span><strong>Resume {recentBuyerCount} product{recentBuyerCount === 1 ? "" : "s"}</strong></span>
+          <span><strong><StableButtonLabel reserve="Resume 9999 products">Resume {recentBuyerCount} product{recentBuyerCount === 1 ? "" : "s"}</StableButtonLabel></strong></span>
           <ChevronRight />
         </button>
       )}

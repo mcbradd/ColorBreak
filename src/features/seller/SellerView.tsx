@@ -32,7 +32,7 @@ import {
   sellerPlanOwner,
   type SellerPlanDraft,
 } from "../../persistence";
-import { DisclosureArrow, fmt, InformationLabel, NumberField, NumericInput, PanelHeading, Tip, useDeferredOwnedFocus } from "../shared/Primitives";
+import { DisclosureArrow, fmt, InformationLabel, NumberField, NumericInput, PanelHeading, StableButtonLabel, Tip, useDeferredOwnedFocus } from "../shared/Primitives";
 import { NextSteps } from "../shared/ProductBuilder";
 import { QuantityControl } from "../shared/QuantityControl";
 import { CompactWarning } from "../shared/Feedback";
@@ -673,7 +673,9 @@ export function SellerView({
           label="SLOT OPERATING PLAN"
           help="Targets are split by modeled sellable card value. Locks preserve a chosen target; marking a slot unsold redistributes the remaining recovery across the eligible unlocked slots."
           title={`${fmt(soldSlots.reduce((sum, slot) => sum + asks[slot.id], 0))} recovery target`}
-          accessory={<button type="button" className="quiet" onClick={() => setPlan({ targetsApplied: true })}>{activeDraft.targetsApplied ? "Targets applied" : "Apply targets"}</button>}
+          accessory={<button type="button" className="quiet" onClick={() => setPlan({ targetsApplied: true })}>
+            <StableButtonLabel reserve="Targets applied">{activeDraft.targetsApplied ? "Targets applied" : "Apply targets"}</StableButtonLabel>
+          </button>}
         />
         <p className="muted">These are planned targets, not receipts. Locking preserves a target; completed orders and shipments must be reconciled separately before an actual result is shown.</p>
         {analysis.valuation.slots.map((slot) => {
