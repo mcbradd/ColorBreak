@@ -3,11 +3,21 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#090b10" />
+    <meta name="theme-color" content="#080b0f" />
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self'" />
     <meta name="referrer" content="strict-origin-when-cross-origin" />
     <title>ColorBreak Methodology</title>
-    <style>body{max-width:760px;margin:0 auto;padding:32px 20px 80px;color:#e9edf4;background:#090b10;font:16px/1.65 system-ui,sans-serif}a{color:#aeff5e}a:focus-visible{outline:2px solid #aeff5e;outline-offset:2px}h1,h2{line-height:1.15}h2{margin-top:2em}</style>
+    <style>
+      :root{color-scheme:dark;--canvas:#080b0f;--panel:#10151b;--line:#2a343d;--line-strong:#46545f;--ink:#f2f5f4;--muted:#a5b0b8;--accent:#d7ff00;font-family:"DM Sans",Inter,system-ui,sans-serif;color:var(--ink);background:var(--canvas)}
+      *{box-sizing:border-box;border-radius:0!important}
+      body{max-width:920px;min-height:100vh;margin:0 auto;padding:0 clamp(16px,4vw,44px) 72px;color:var(--ink);background:var(--canvas);font:17px/1.65 "DM Sans",Inter,system-ui,sans-serif}
+      nav{position:sticky;top:0;z-index:2;display:flex;align-items:center;min-height:60px;margin-inline:calc(-1 * clamp(16px,4vw,44px));padding:8px clamp(16px,4vw,44px);border-bottom:1px solid var(--line-strong);background:var(--canvas)}
+      nav a{color:var(--ink);font:800 14px/1 "Manrope",sans-serif;letter-spacing:.12em;text-decoration:none}
+      a{color:var(--accent);text-underline-offset:3px}a:focus-visible{outline:2px solid #fff;outline-offset:3px}
+      h1,h2{font-family:"Manrope",sans-serif;line-height:1.15}h1{margin:44px 0 12px;font-size:clamp(34px,7vw,52px);letter-spacing:-.04em}h2{margin:40px 0 8px;padding-top:14px;border-top:1px solid var(--line-strong);font-size:23px}
+      p{margin:0 0 14px;color:#d0d7d9}::selection{color:#101400;background:var(--accent)}
+      @media(max-width:600px){body{padding-bottom:48px;font-size:17px}h1{margin-top:30px}h2{margin-top:30px}}
+    </style>
   </head>
   <body>
     <nav aria-label="ColorBreak navigation"><a href="./#home" id="back-link">← ColorBreak</a></nav>

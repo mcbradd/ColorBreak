@@ -10,6 +10,7 @@ import "./future.css";
 import "./command-panel.css";
 import "./information-layer.css";
 import "./product-entry.css";
+import "./app-design.css";
 
 createRoot(document.getElementById("root")!).render(<StrictMode><App releaseContext={runtimeReleaseContext} /></StrictMode>);
 
